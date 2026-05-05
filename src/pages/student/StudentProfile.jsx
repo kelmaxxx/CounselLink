@@ -3,9 +3,9 @@ import { useAuth } from "../../context/AuthContext";
 import { User, Mail, GraduationCap, BookOpen, Calendar, Phone, Edit2, Save, X } from "lucide-react";
 
 export default function StudentProfile() {
-  const { currentUser, users, updateUser } = useAuth();
-  const myRecord = users?.find((u) => u.email === currentUser?.email) || currentUser;
-  
+  const { currentUser, refreshCurrentUser, updateProfile } = useAuth();
+  const myRecord = currentUser;
+
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
@@ -17,6 +17,24 @@ export default function StudentProfile() {
     bio: myRecord?.bio || "",
   });
   const [message, setMessage] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    refreshCurrentUser?.().then((fresh) => {
+      if (!fresh) return;
+      setFormData((f) => ({
+        ...f,
+        name: fresh.name || "",
+        email: fresh.email || "",
+        phone: fresh.phone || "",
+        college: fresh.college || "",
+        program: fresh.program || "",
+        yearLevel: fresh.yearLevel || "",
+        bio: fresh.bio || "",
+      }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const colleges = [
     "CAS - College of Arts and Sciences",
@@ -30,16 +48,27 @@ export default function StudentProfile() {
 
   const yearLevels = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.email) {
       setMessage({ type: "error", text: "Name and email are required" });
       return;
     }
-
-    updateUser(currentUser.id, formData);
-    setIsEditing(false);
-    setMessage({ type: "success", text: "Profile updated successfully!" });
-    setTimeout(() => setMessage(null), 3000);
+    setSaving(true);
+    try {
+      await updateProfile({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        bio: formData.bio,
+      });
+      setIsEditing(false);
+      setMessage({ type: "success", text: "Profile updated successfully!" });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Failed to update profile" });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setMessage(null), 3000);
+    }
   };
 
   const handleCancel = () => {
@@ -141,10 +170,11 @@ export default function StudentProfile() {
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={handleSave}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                  disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save size={18} />
-                  Save
+                  {saving ? "Saving..." : "Save"}
                 </button>
                 <button
                   onClick={handleCancel}

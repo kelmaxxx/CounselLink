@@ -4,10 +4,11 @@ import { COLLEGES } from "../../data/mockData";
 import { X, Edit2, Trash2, Search, UserPlus, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function ManageUsers() {
-  const { users, createUser, updateUser } = useAuth();
+  const { users, createUser, updateUser, deleteUser } = useAuth();
   const [selectedRole, setSelectedRole] = useState("All");
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   // Modals
   const [createModal, setCreateModal] = useState({ open: false, role: "" });
@@ -92,23 +93,24 @@ export default function ManageUsers() {
     setCreateModal({ open: true, role });
   };
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    const res = createUser({
+    setBusy(true);
+    const res = await createUser({
       name: createForm.name,
       email: createForm.email,
       password: createForm.password,
       role: createModal.role,
-      college: createModal.role === "college_rep" ? createForm.college : null
+      college: createModal.role === "college_rep" ? createForm.college : null,
     });
+    setBusy(false);
     if (res.success) {
       setCreateModal({ open: false, role: "" });
       setMessage({ type: "success", text: "User created successfully!" });
-      setTimeout(() => setMessage(null), 3000);
     } else {
       setMessage({ type: "error", text: res.message || "Failed to create user" });
-      setTimeout(() => setMessage(null), 3000);
     }
+    setTimeout(() => setMessage(null), 3000);
   };
 
   const openEditModal = (user) => {
@@ -126,16 +128,15 @@ export default function ManageUsers() {
     setEditModal({ open: true, user });
   };
 
-  const handleEdit = (e) => {
+  const handleEdit = async (e) => {
     e.preventDefault();
-    
+
     const updates = {
       name: editForm.name,
       email: editForm.email,
-      phone: editForm.phone
+      phone: editForm.phone,
     };
 
-    // Add role-specific fields
     if (editModal.user.role === "student") {
       updates.college = editForm.college;
       updates.program = editForm.program;
@@ -147,9 +148,15 @@ export default function ManageUsers() {
       updates.college = editForm.college;
     }
 
-    updateUser(editModal.user.id, updates);
-    setEditModal({ open: false, user: null });
-    setMessage({ type: "success", text: "User updated successfully!" });
+    setBusy(true);
+    const res = await updateUser(editModal.user.id, updates);
+    setBusy(false);
+    if (res.success) {
+      setEditModal({ open: false, user: null });
+      setMessage({ type: "success", text: "User updated successfully!" });
+    } else {
+      setMessage({ type: "error", text: res.message || "Failed to update user" });
+    }
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -157,15 +164,17 @@ export default function ManageUsers() {
     setDeleteConfirm({ open: true, userId });
   };
 
-  const handleDelete = () => {
-    const updatedUsers = users.filter(u => u.id !== deleteConfirm.userId);
-    localStorage.setItem("users", JSON.stringify(updatedUsers));
-    
-    setDeleteConfirm({ open: false, userId: null });
-    setMessage({ type: "success", text: "User deleted successfully!" });
+  const handleDelete = async () => {
+    setBusy(true);
+    const res = await deleteUser(deleteConfirm.userId);
+    setBusy(false);
+    if (res.success) {
+      setDeleteConfirm({ open: false, userId: null });
+      setMessage({ type: "success", text: "User deleted successfully!" });
+    } else {
+      setMessage({ type: "error", text: res.message || "Failed to delete user" });
+    }
     setTimeout(() => setMessage(null), 3000);
-    
-    window.location.reload();
   };
 
   return (

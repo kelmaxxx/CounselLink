@@ -123,6 +123,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     setCurrentUser(null);
     setToken(null);
+    setUsers([]);
     localStorage.removeItem("currentUser");
     localStorage.removeItem("token");
   };
@@ -166,8 +167,87 @@ export function AuthProvider({ children }) {
     return response.json();
   };
 
+  const refreshCurrentUser = async () => {
+    const response = await authFetch(`${apiBase}/api/users/me`);
+    if (!response.ok) return null;
+    const fresh = await response.json();
+    const merged = { ...(currentUser || {}), ...fresh };
+    setCurrentUser(merged);
+    localStorage.setItem("currentUser", JSON.stringify(merged));
+    return merged;
+  };
+
+  const updateProfile = async (updates) => {
+    const response = await authFetch(`${apiBase}/api/users/me`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+    const data = await parseResponseJson(response);
+    if (!response.ok) {
+      throw new Error(data.message || "Unable to update profile");
+    }
+    const merged = { ...(currentUser || {}), ...data };
+    setCurrentUser(merged);
+    localStorage.setItem("currentUser", JSON.stringify(merged));
+    return merged;
+  };
+
+  const fetchUsers = async () => {
+    const response = await authFetch(`${apiBase}/api/users`);
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || "Unable to load users");
+    }
+    const data = await response.json();
+    setUsers(data);
+    return data;
+  };
+
+  const createUser = async ({ name, email, password, role, college }) => {
+    const response = await authFetch(`${apiBase}/api/users`, {
+      method: "POST",
+      body: JSON.stringify({ name, email, password, role, college }),
+    });
+    const data = await parseResponseJson(response);
+    if (!response.ok) {
+      return { success: false, message: data.message || "Failed to create user" };
+    }
+    setUsers((prev) => [data, ...prev]);
+    return { success: true, user: data };
+  };
+
+  const updateUser = async (id, updates) => {
+    const response = await authFetch(`${apiBase}/api/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+    const data = await parseResponseJson(response);
+    if (!response.ok) {
+      return { success: false, message: data.message || "Failed to update user" };
+    }
+    setUsers((prev) => prev.map((u) => (u.id === data.id ? data : u)));
+    return { success: true, user: data };
+  };
+
+  const deleteUser = async (id) => {
+    const response = await authFetch(`${apiBase}/api/users/${id}`, { method: "DELETE" });
+    const data = await parseResponseJson(response);
+    if (!response.ok) {
+      return { success: false, message: data.message || "Failed to delete user" };
+    }
+    setUsers((prev) => prev.filter((u) => u.id !== Number(id)));
+    return { success: true };
+  };
+
+  // Auto-fetch users when an admin is logged in
+  useEffect(() => {
+    if (token && currentUser?.role === "admin") {
+      fetchUsers().catch((err) => console.error("Failed to load users:", err));
+    }
+  }, [token, currentUser?.role]);
+
   return (
-    <AuthContext.Provider value={{ 
+    <AuthContext.Provider value={{
       users,
       currentUser,
       token,
@@ -179,7 +259,13 @@ export function AuthProvider({ children }) {
       setUsers,
       fetchPendingRegistrations,
       approveRegistration,
-      rejectRegistration
+      rejectRegistration,
+      refreshCurrentUser,
+      updateProfile,
+      fetchUsers,
+      createUser,
+      updateUser,
+      deleteUser,
     }}>
       {children}
     </AuthContext.Provider>

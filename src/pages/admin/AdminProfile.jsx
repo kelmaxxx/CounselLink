@@ -3,8 +3,8 @@ import { useAuth } from "../../context/AuthContext";
 import { User, Mail, Phone, Shield, Edit2, Save, X } from "lucide-react";
 
 export default function AdminProfile() {
-  const { currentUser, users, updateUser } = useAuth();
-  const myRecord = users?.find((u) => u.email === currentUser?.email) || currentUser;
+  const { currentUser, refreshCurrentUser, updateProfile } = useAuth();
+  const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -14,17 +14,42 @@ export default function AdminProfile() {
     employeeId: myRecord?.employeeId || "",
   });
   const [message, setMessage] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  React.useEffect(() => {
+    refreshCurrentUser?.().then((fresh) => {
+      if (!fresh) return;
+      setFormData((f) => ({
+        ...f,
+        name: fresh.name || "",
+        email: fresh.email || "",
+        phone: fresh.phone || "",
+        employeeId: fresh.employeeId || "",
+      }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSave = async () => {
     if (!formData.name || !formData.email) {
       setMessage({ type: "error", text: "Name and email are required" });
       return;
     }
-
-    updateUser(currentUser.id, formData);
-    setIsEditing(false);
-    setMessage({ type: "success", text: "Profile updated successfully!" });
-    setTimeout(() => setMessage(null), 3000);
+    setSaving(true);
+    try {
+      await updateProfile({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+      });
+      setIsEditing(false);
+      setMessage({ type: "success", text: "Profile updated successfully!" });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Failed to update profile" });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setMessage(null), 3000);
+    }
   };
 
   const handleCancel = () => {
@@ -122,10 +147,11 @@ export default function AdminProfile() {
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={handleSave}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                  disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save size={18} />
-                  Save
+                  {saving ? "Saving..." : "Save"}
                 </button>
                 <button
                   onClick={handleCancel}

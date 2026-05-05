@@ -10,12 +10,14 @@ Track milestones from the approved plan. Tick boxes as you finish.
   - [x] `addNotification()` in `NotificationsContext.jsx` posts to `/api/announcements`
   - [x] `CreateAnnouncement.jsx` shows real success/error + recipient count
   - [ ] **MANUAL VERIFY (user):** log in as admin → post announcement → log in as student → notification appears
-- [ ] **1.2 Profile editing for all 4 roles**
-  - [ ] `backend/controllers/users.controller.js` (getMe, updateMe, adminUpdateUser, deleteUser)
-  - [ ] `backend/routes/users.routes.js` mounted
-  - [ ] `updateProfile()` in `AuthContext`
-  - [ ] Wire StudentProfile / CounselorProfile / RepProfile / AdminProfile
-  - [ ] Fix `ManageUsers.jsx` delete to call API (remove localStorage path)
+- [x] **1.2 Profile editing for all 4 roles** (2026-05-05)
+  - [x] `backend/controllers/users.controller.js` (getMe, updateMe, adminCreate/Update/Delete, listUsers)
+  - [x] `backend/routes/users.routes.js` mounted at `/api/users`
+  - [x] `updateProfile()`, `fetchUsers()`, `createUser()`, `updateUser()`, `deleteUser()` in `AuthContext`
+  - [x] Schema migration `migrations/001_user_profile_fields.sql` adds bio, department, specialization, employee_id
+  - [x] Wired StudentProfile / CounselorProfile / RepProfile / AdminProfile (async + saving state)
+  - [x] Fixed `ManageUsers.jsx` create/edit/delete to use real API (removed localStorage path)
+  - [ ] **MANUAL VERIFY (user):** run migration → edit profile → log out → log back in → change persisted; admin creates/edits/deletes user
 - [ ] **1.3 Counselor data scoping fix** in `appointments.controller.js`
 
 ## Week 2 — PDF-spec features

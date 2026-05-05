@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS users (
   cor_file_type VARCHAR(100),
   program VARCHAR(120),
   year_level VARCHAR(30),
+  bio TEXT,
+  department VARCHAR(120),
+  specialization VARCHAR(200),
+  employee_id VARCHAR(30),
   rejection_reason TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
