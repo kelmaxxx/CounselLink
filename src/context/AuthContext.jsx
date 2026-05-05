@@ -203,6 +203,15 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const fetchUsersByRole = async (role) => {
+    const response = await authFetch(`${apiBase}/api/users?role=${role}`);
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || "Unable to load users");
+    }
+    return await response.json();
+  };
+
   const lookupUser = async (id) => {
     if (!id) return null;
     try {
@@ -274,6 +283,7 @@ export function AuthProvider({ children }) {
       refreshCurrentUser,
       updateProfile,
       fetchUsers,
+      fetchUsersByRole,
       lookupUser,
       createUser,
       updateUser,

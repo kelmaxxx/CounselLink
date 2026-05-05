@@ -95,13 +95,23 @@ export const lookupUser = async (req, res) => {
 
 export const listUsers = async (req, res) => {
   const { role } = req.query;
+  const requesterRole = req.user?.role;
+
+  if (requesterRole === "admin") {
+    // admin can list anything
+  } else if (requesterRole === "counselor" && role === "student") {
+    // counselors can list students for session/appointment pickers
+  } else {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
   let sql = `SELECT ${SELECT_FIELDS} FROM users`;
   const params = [];
   if (role) {
     sql += " WHERE role = ?";
     params.push(role);
   }
-  sql += " ORDER BY created_at DESC";
+  sql += " ORDER BY name ASC";
   const rows = await query(sql, params);
   return res.json(rows);
 };

@@ -8,6 +8,7 @@ import { TestsProvider } from './context/TestsContext'
 import { NotificationsProvider } from './context/NotificationsContext'
 import { TestResultsProvider } from './context/TestResultsContext'
 import { MessagesProvider } from './context/MessagesContext'
+import { CounselingSessionsProvider } from './context/CounselingSessionsContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -17,7 +18,9 @@ createRoot(document.getElementById('root')).render(
           <NotificationsProvider>
             <TestResultsProvider>
               <MessagesProvider>
-                <App />
+                <CounselingSessionsProvider>
+                  <App />
+                </CounselingSessionsProvider>
               </MessagesProvider>
             </TestResultsProvider>
           </NotificationsProvider>

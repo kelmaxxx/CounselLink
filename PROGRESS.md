@@ -34,7 +34,16 @@ Track milestones from the approved plan. Tick boxes as you finish.
   - [x] Frontend `AuditLogs.jsx` page with table, filters, pagination, expandable details
   - [x] Sidebar link + route `/admin/audit-logs`
   - [ ] **MANUAL VERIFY (user):** run migration 002 → perform admin actions → open Audit Logs page → entries appear
-- [ ] **2.2 Counseling session form persistence** — new `counseling_sessions` table + API
+- [x] **2.2 Counseling session records archive** (2026-05-06)
+  - [x] `counseling_sessions` table — schema.sql + migration `003_counseling_sessions.sql`
+  - [x] CRUD endpoints with role scoping (counselor: own; student: own; college_rep: own college; admin: all)
+  - [x] Audit log hooks (create/update/delete session)
+  - [x] `GET /api/counseling-sessions/by-appointment/:appointmentId` for the per-appointment form
+  - [x] Frontend `CounselingSessionsContext` with fetch/create/update/delete
+  - [x] Counselor "Manage Students" page rewritten as session-records archive (Records + Overview tabs, search, filter, CSV export)
+  - [x] `StudentCounselingForm.jsx` now persists via API (loads existing record by appointmentId or creates new)
+  - [x] `/api/users?role=student` accessible to counselors (for the student picker)
+  - [ ] **MANUAL VERIFY (user):** run migration 003 → counselor adds/edits/deletes session record on Manage Students page; counselor opens an appointment's "Open Counseling Form", saves → reopens → data still there
 
 ## Week 3 — Hardening
 - [ ] Backend try/catch + global error middleware

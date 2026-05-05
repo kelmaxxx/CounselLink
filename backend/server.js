@@ -14,6 +14,7 @@ import reportsRoutes from "./routes/reports.routes.js";
 import announcementsRoutes from "./routes/announcements.routes.js";
 import usersRoutes from "./routes/users.routes.js";
 import auditLogsRoutes from "./routes/audit-logs.routes.js";
+import counselingSessionsRoutes from "./routes/counseling-sessions.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -43,6 +44,7 @@ app.use("/api/reports", reportsRoutes);
 app.use("/api/announcements", announcementsRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/audit-logs", auditLogsRoutes);
+app.use("/api/counseling-sessions", counselingSessionsRoutes);
 
 const port = process.env.PORT || 5000;
 
