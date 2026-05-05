@@ -67,6 +67,22 @@ export function NotificationsProvider({ children }) {
     });
   };
 
+  const addNotification = async ({ title, message, sendTo = "all" }) => {
+    const response = await fetch(`${apiBase}/api/announcements`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ title, message, sendTo }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || "Unable to send announcement");
+    }
+    return data;
+  };
+
   const getNotificationsForCurrentUser = () => notifications;
 
   const getUnreadCount = () => {
@@ -78,6 +94,7 @@ export function NotificationsProvider({ children }) {
       notifications,
       markAsRead,
       markAllAsRead,
+      addNotification,
       getNotificationsForCurrentUser,
       getUnreadCount,
     }}>

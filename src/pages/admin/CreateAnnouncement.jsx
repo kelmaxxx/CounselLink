@@ -1,55 +1,53 @@
 import React, { useState } from "react";
 import { useNotifications } from "../../context/NotificationsContext";
-import { useAuth } from "../../context/AuthContext";
 
 export default function CreateAnnouncement() {
   const { addNotification } = useNotifications();
-  const { users } = useAuth();
-  
+
   const [form, setForm] = useState({
     title: "",
     message: "",
-    sendTo: "all"
+    sendTo: "all",
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
-  const [sent, setSent] = useState(false);
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Determine recipients based on sendTo
-    const roleMap = {
-      all: null,
-      students: "student",
-      counselors: "counselor",
-      reps: "college_rep"
-    };
-    
-    const targetRole = roleMap[form.sendTo];
-    
-    // Create a single notification with recipientRole
-    // recipientId: null (broadcast), recipientRole: specific or null (all)
-    addNotification({
-      recipientId: null,
-      recipientRole: targetRole,
-      title: form.title,
-      message: form.message,
-      type: "info",
-      link: null
-    });
-    
-    setSent(true);
-    setForm({ title: "", message: "", sendTo: "all" });
-    setTimeout(() => setSent(false), 3000);
+    setSubmitting(true);
+    setFeedback(null);
+    try {
+      const result = await addNotification({
+        title: form.title,
+        message: form.message,
+        sendTo: form.sendTo,
+      });
+      setFeedback({
+        type: "success",
+        text: `Announcement sent to ${result.recipientCount} user${result.recipientCount === 1 ? "" : "s"}.`,
+      });
+      setForm({ title: "", message: "", sendTo: "all" });
+    } catch (err) {
+      setFeedback({ type: "error", text: err.message || "Failed to send announcement" });
+    } finally {
+      setSubmitting(false);
+      setTimeout(() => setFeedback(null), 4000);
+    }
   };
 
   return (
     <div className="p-6">
       <h2 className="text-2xl font-semibold text-gray-900 mb-6">Create Announcement</h2>
 
-      {sent && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800">✓ Announcement sent successfully</p>
+      {feedback && (
+        <div
+          className={`mb-6 p-4 rounded-lg border ${
+            feedback.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {feedback.text}
         </div>
       )}
 
@@ -95,9 +93,10 @@ export default function CreateAnnouncement() {
 
           <button
             type="submit"
-            className="w-full bg-maroon-500 text-white py-3 rounded-lg hover:bg-maroon-600 font-medium transition"
+            disabled={submitting}
+            className="w-full bg-maroon-500 text-white py-3 rounded-lg hover:bg-maroon-600 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Send Announcement
+            {submitting ? "Sending..." : "Send Announcement"}
           </button>
         </form>
       </div>

@@ -11,6 +11,7 @@ import testsRoutes from "./routes/tests.routes.js";
 import testResultsRoutes from "./routes/test-results.routes.js";
 import messagesRoutes from "./routes/messages.routes.js";
 import reportsRoutes from "./routes/reports.routes.js";
+import announcementsRoutes from "./routes/announcements.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -37,6 +38,7 @@ app.use("/api/tests", testsRoutes);
 app.use("/api/test-results", testResultsRoutes);
 app.use("/api/messages", messagesRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/announcements", announcementsRoutes);
 
 const port = process.env.PORT || 5000;
 
