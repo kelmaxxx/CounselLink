@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-maroon: #7a1d1d;
+    --color-maroon-light: #a52a2a;
+    --color-maroon-dark: #5a0a0a;
+  }
+}
