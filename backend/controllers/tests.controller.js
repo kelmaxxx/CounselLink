@@ -72,6 +72,24 @@ export const listTestsForUser = async (req, res) => {
     return res.json(rows);
   }
 
+  if (role === "college_rep") {
+    const repRows = await query("SELECT college FROM users WHERE id = ?", [userId]);
+    const repCollege = repRows[0]?.college;
+    if (!repCollege) return res.json([]);
+
+    const rows = await query(
+      `SELECT a.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName
+       FROM appointments a
+       JOIN users s ON a.student_id = s.id
+       LEFT JOIN users c ON a.counselor_id = c.id
+       WHERE a.appointment_type = 'psychological_test'
+         AND s.college = ?
+       ORDER BY a.created_at DESC`,
+      [repCollege]
+    );
+    return res.json(rows);
+  }
+
   const rows = await query(
     `SELECT a.*, s.name AS studentName, c.name AS counselorName
      FROM appointments a

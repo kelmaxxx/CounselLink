@@ -33,3 +33,5 @@ counsellink-data-*.json
 *.sw?
 
 
+
+backend/uploads/cor-*

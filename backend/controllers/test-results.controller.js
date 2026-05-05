@@ -34,6 +34,35 @@ export const listTestResultsForUser = async (req, res) => {
     return res.json(rows);
   }
 
+  if (role === "counselor") {
+    const rows = await query(
+      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId
+       FROM test_results r
+       LEFT JOIN users s ON r.student_id = s.id
+       WHERE r.counselor_id = ?
+       ORDER BY r.completed_date DESC`,
+      [userId]
+    );
+    return res.json(rows);
+  }
+
+  if (role === "college_rep") {
+    const repRows = await query("SELECT college FROM users WHERE id = ?", [userId]);
+    const repCollege = repRows[0]?.college;
+    if (!repCollege) return res.json([]);
+
+    const rows = await query(
+      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName
+       FROM test_results r
+       JOIN users s ON r.student_id = s.id
+       LEFT JOIN users c ON r.counselor_id = c.id
+       WHERE s.college = ?
+       ORDER BY r.completed_date DESC`,
+      [repCollege]
+    );
+    return res.json(rows);
+  }
+
   const rows = await query(
     `SELECT r.*, s.name AS studentName, c.name AS counselorName
      FROM test_results r
