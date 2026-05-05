@@ -26,8 +26,8 @@ export const listAuditLogs = async (req, res) => {
      LEFT JOIN users u ON a.actor_id = u.id
      ${whereClause}
      ORDER BY a.created_at DESC
-     LIMIT ? OFFSET ?`,
-    [...params, limit, offset]
+     LIMIT ${limit} OFFSET ${offset}`,
+    params
   );
 
   const countResult = await query(
