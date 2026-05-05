@@ -81,6 +81,18 @@ export const updateMe = async (req, res) => {
   return res.json(rows[0]);
 };
 
+export const lookupUser = async (req, res) => {
+  const { id } = req.params;
+  const rows = await query(
+    `SELECT id, name, role, college, student_id AS studentId, program, year_level AS yearLevel,
+            department, specialization, bio, employee_id AS employeeId, email
+     FROM users WHERE id = ?`,
+    [id]
+  );
+  if (!rows.length) return res.status(404).json({ message: "User not found" });
+  return res.json(rows[0]);
+};
+
 export const listUsers = async (req, res) => {
   const { role } = req.query;
   let sql = `SELECT ${SELECT_FIELDS} FROM users`;

@@ -10,8 +10,26 @@ import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
 
 export default function StudentDashboard() {
-  const { currentUser, users } = useAuth();
+  const { currentUser, users, lookupUser } = useAuth();
   const myRecord = users?.find((u) => u.email === currentUser?.email) || currentUser;
+
+  const openProfile = async (id, fallbackName) => {
+    if (!id) return;
+    const cached = users?.find(u => u.id === id);
+    if (cached) { setSelectedProfile(cached); return; }
+    const fetched = await lookupUser?.(id);
+    if (fetched) setSelectedProfile(fetched);
+    else if (fallbackName) setSelectedProfile({ id, name: fallbackName });
+  };
+
+  const openChat = async (id, fallbackName) => {
+    if (!id) return;
+    const cached = users?.find(u => u.id === id);
+    if (cached) { setChatRecipient(cached); return; }
+    const fetched = await lookupUser?.(id);
+    if (fetched) setChatRecipient(fetched);
+    else if (fallbackName) setChatRecipient({ id, name: fallbackName });
+  };
 
   const { fetchAppointments } = useAppointments?.() || {};
   const [myAppointments, setMyAppointments] = useState([]);
@@ -48,7 +66,7 @@ export default function StudentDashboard() {
   const upcoming = myAppointments.filter(a => a.status === 'approved' || a.status === 'rescheduled');
   const pending = myAppointments.filter(a => a.status === 'pending');
   
-  const upcomingTests = myTests.filter(t => t.status === 'accepted' || t.status === 'rescheduled');
+  const upcomingTests = myTests.filter(t => t.status === 'approved' || t.status === 'rescheduled');
   const pendingTests = myTests.filter(t => t.status === 'pending');
 
   const upcomingCount = upcoming.length + upcomingTests.length;
@@ -227,20 +245,15 @@ export default function StudentDashboard() {
             {nextAppt ? (
               <div className="mt-4 bg-gradient-to-br from-maroon-50 to-maroon-100 rounded-xl p-4 border border-maroon-200">
                 <div className="flex items-start gap-3 mb-3">
-                  {/* Clickable Counselor Avatar */}
-                  {nextAppt.counselorId && (
+                  {nextAppt.counselorId ? (
                     <button
-                      onClick={() => {
-                        const counselor = users?.find(u => u.id === nextAppt.counselorId);
-                        if (counselor) setSelectedProfile(counselor);
-                      }}
+                      onClick={() => openProfile(nextAppt.counselorId, nextAppt.counselor)}
                       className="w-12 h-12 bg-maroon-700 text-white rounded-full flex items-center justify-center font-bold hover:bg-maroon-800 transition flex-shrink-0 cursor-pointer"
                       title="View counselor profile"
                     >
                       {nextAppt.counselor?.charAt(0).toUpperCase()}
                     </button>
-                  )}
-                  {!nextAppt.counselorId && (
+                  ) : (
                     <div className="w-12 h-12 bg-maroon-700 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
                       {nextAppt.counselor?.charAt(0).toUpperCase()}
                     </div>
@@ -270,26 +283,19 @@ export default function StudentDashboard() {
                   {nextAppt.status}
                 </div>
                 
-                {/* Show counselor actions if appointment is accepted and counselor assigned */}
                 {nextAppt.counselorId && (nextAppt.status === 'Confirmed' || nextAppt.status === 'Rescheduled') && (
                   <div className="mt-4 pt-4 border-t border-maroon-200">
                     <p className="text-xs text-maroon-700 mb-2 font-medium">Contact your counselor:</p>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => {
-                          const counselor = users?.find(u => u.id === nextAppt.counselorId);
-                          if (counselor) setSelectedProfile(counselor);
-                        }}
+                        onClick={() => openProfile(nextAppt.counselorId, nextAppt.counselor)}
                         className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white text-maroon-700 border border-maroon-300 rounded-lg hover:bg-maroon-50 transition text-sm font-medium"
                       >
                         <User2 size={16} />
                         View Profile
                       </button>
                       <button
-                        onClick={() => {
-                          const counselor = users?.find(u => u.id === nextAppt.counselorId);
-                          if (counselor) setChatRecipient(counselor);
-                        }}
+                        onClick={() => openChat(nextAppt.counselorId, nextAppt.counselor)}
                         className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition text-sm font-medium"
                       >
                         <MessageCircle size={16} />
@@ -334,51 +340,50 @@ export default function StudentDashboard() {
                 </div>
               ) : (
                 myTests.slice(0, 4).map((test) => {
-                  const counselor = users?.find(u => u.id === test.counselorId);
-                  const isAccepted = test.status === 'accepted' || test.status === 'rescheduled';
+                  const counselorId = test.counselor_id || test.counselorId;
+                  const counselorName = test.counselorName || users?.find(u => u.id === counselorId)?.name;
+                  const isAccepted = test.status === 'approved' || test.status === 'rescheduled';
                   return (
                     <div key={test.id} className="border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 hover:bg-gray-100 transition">
                       <div className="flex items-start gap-3 mb-2">
-                        {/* Clickable Counselor Avatar */}
-                        {counselor && (
+                        {counselorId ? (
                           <button
-                            onClick={() => setSelectedProfile(counselor)}
+                            onClick={() => openProfile(counselorId, counselorName)}
                             className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold hover:bg-blue-700 transition flex-shrink-0 cursor-pointer"
                             title="View counselor profile"
                           >
-                            {counselor.name?.charAt(0).toUpperCase()}
+                            {(counselorName || "?").charAt(0).toUpperCase()}
                           </button>
-                        )}
-                        {!counselor && (
+                        ) : (
                           <div className="w-10 h-10 bg-gray-400 text-white rounded-full flex items-center justify-center font-semibold flex-shrink-0">
                             ?
                           </div>
                         )}
-                        
+
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{test.testType}</p>
                           <p className="text-xs text-gray-600 mt-1">Date: {test.scheduledDate || test.preferredDate || 'TBD'}</p>
                           <p className="text-xs text-gray-600">
                             Status: <span className={`font-medium ${isAccepted ? 'text-green-600' : 'text-yellow-600'}`}>
-                              {test.status}
+                              {test.status === 'approved' ? 'confirmed' : test.status}
                             </span>
                           </p>
-                          {counselor && (
-                            <p className="text-xs text-gray-500 mt-1">Counselor: {counselor.name}</p>
+                          {counselorName && (
+                            <p className="text-xs text-gray-500 mt-1">Counselor: {counselorName}</p>
                           )}
                         </div>
                       </div>
-                      {counselor && isAccepted && (
+                      {counselorId && isAccepted && (
                         <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
                           <button
-                            onClick={() => setSelectedProfile(counselor)}
+                            onClick={() => openProfile(counselorId, counselorName)}
                             className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs bg-white text-maroon-600 border border-maroon-300 rounded-lg hover:bg-maroon-50 transition font-medium"
                           >
                             <User2 size={14} />
                             Profile
                           </button>
                           <button
-                            onClick={() => setChatRecipient(counselor)}
+                            onClick={() => openChat(counselorId, counselorName)}
                             className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium"
                           >
                             <MessageCircle size={14} />

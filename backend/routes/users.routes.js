@@ -5,6 +5,7 @@ import {
   getMe,
   updateMe,
   listUsers,
+  lookupUser,
   adminCreateUser,
   adminUpdateUser,
   adminDeleteUser,
@@ -16,6 +17,7 @@ router.use(auth);
 
 router.get("/me", getMe);
 router.put("/me", updateMe);
+router.get("/lookup/:id", lookupUser);
 
 router.get("/", requireRole("admin"), listUsers);
 router.post("/", requireRole("admin"), adminCreateUser);

@@ -23,8 +23,8 @@ export default function CounselorAppointments() {
     return map[slot] || slot;
   };
 
-  // Filter only accepted/rescheduled appointments
-  const upcomingAppointments = myAppointments.filter(a => a.status === 'accepted' || a.status === 'rescheduled');
+  // Filter only approved/rescheduled appointments (DB uses 'approved')
+  const upcomingAppointments = myAppointments.filter(a => a.status === 'approved' || a.status === 'rescheduled');
 
   return (
     <div className="p-6">
@@ -52,8 +52,8 @@ export default function CounselorAppointments() {
                   </p>
                 )}
                 <div className="flex items-center gap-3 mt-2">
-                  <span className={`text-xs px-2 py-1 rounded-full ${a.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                    {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                  <span className={`text-xs px-2 py-1 rounded-full ${a.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {a.status === 'approved' ? 'Confirmed' : a.status.charAt(0).toUpperCase() + a.status.slice(1)}
                   </span>
                   <p className="text-xs text-gray-400">Control #: {a.controlNo}</p>
                 </div>
@@ -72,11 +72,11 @@ export default function CounselorAppointments() {
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-3">Scheduled Psychological Tests</h3>
         <div className="bg-white border border-gray-200 p-6 rounded-xl shadow space-y-3">
-          {myTests.filter(t => t.status === 'accepted' || t.status === 'rescheduled').length === 0 && (
+          {myTests.filter(t => t.status === 'approved' || t.status === 'rescheduled').length === 0 && (
             <p className="text-gray-600">No scheduled tests. Check your dashboard for pending requests.</p>
           )}
 
-          {myTests.filter(t => t.status === 'accepted' || t.status === 'rescheduled').map((t) => (
+          {myTests.filter(t => t.status === 'approved' || t.status === 'rescheduled').map((t) => (
             <div key={t.id} className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1">
@@ -91,8 +91,8 @@ export default function CounselorAppointments() {
                     </p>
                   )}
                   <div className="flex items-center gap-3 mt-2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${t.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                    <span className={`text-xs px-2 py-1 rounded-full ${t.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {t.status === 'approved' ? 'Confirmed' : t.status.charAt(0).toUpperCase() + t.status.slice(1)}
                     </span>
                     <p className="text-xs text-gray-400">Control #: {t.controlNo}</p>
                   </div>

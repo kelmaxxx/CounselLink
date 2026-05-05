@@ -203,6 +203,17 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const lookupUser = async (id) => {
+    if (!id) return null;
+    try {
+      const response = await authFetch(`${apiBase}/api/users/lookup/${id}`);
+      if (!response.ok) return null;
+      return await response.json();
+    } catch {
+      return null;
+    }
+  };
+
   const createUser = async ({ name, email, password, role, college }) => {
     const response = await authFetch(`${apiBase}/api/users`, {
       method: "POST",
@@ -263,6 +274,7 @@ export function AuthProvider({ children }) {
       refreshCurrentUser,
       updateProfile,
       fetchUsers,
+      lookupUser,
       createUser,
       updateUser,
       deleteUser,
