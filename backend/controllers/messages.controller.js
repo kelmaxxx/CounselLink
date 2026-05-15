@@ -48,9 +48,20 @@ export const sendMessage = async (req, res) => {
     return res.status(400).json({ message: "Recipient and content are required" });
   }
 
+  const trimmed = content.trim();
+
   const result = await query(
     "INSERT INTO messages (sender_id, recipient_id, content, status) VALUES (?, ?, ?, 'unread')",
-    [senderId, recipientId, content.trim()]
+    [senderId, recipientId, trimmed]
+  );
+
+  const senderRows = await query("SELECT name FROM users WHERE id = ?", [senderId]);
+  const senderName = senderRows[0]?.name || "Someone";
+  const preview = trimmed.length > 80 ? `${trimmed.slice(0, 80)}...` : trimmed;
+
+  await query(
+    "INSERT INTO notifications (user_id, title, message, status, link) VALUES (?, ?, ?, 'unread', ?)",
+    [recipientId, `New message from ${senderName}`, preview, "/messages"]
   );
 
   return res.status(201).json({

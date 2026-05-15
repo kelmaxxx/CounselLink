@@ -1,4 +1,5 @@
 import { query } from "../config/db.js";
+import { logAction } from "../utils/audit.js";
 
 const ROLE_MAP = {
   all: null,
@@ -37,6 +38,12 @@ export const createAnnouncement = async (req, res) => {
       params
     );
   }
+
+  await logAction(req, "create_announcement", "announcement", result.insertId, {
+    title,
+    sendTo: sendTo ?? "all",
+    recipientCount: recipients.length,
+  });
 
   return res.status(201).json({
     message: "Announcement sent",

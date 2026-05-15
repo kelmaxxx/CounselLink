@@ -4,11 +4,14 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   Calendar, Users, FileText, Bell, LogOut, User,
-  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck
+  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature
 } from "lucide-react";
+import { useMessages } from "../context/MessagesContext";
 
 function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogout }) {
   const { currentUser: ctxUser, users } = useAuth();
+  const messagesCtx = useMessages?.();
+  const unreadMessages = messagesCtx?.getTotalUnreadCount?.() || 0;
   const currentUser = propUser || ctxUser;
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,6 +24,7 @@ const idToPath = {
   dashboard: "/",
   "request-appointment": "/student/request-appointment",
   "request-psych-test": "/student/request-psych-test",
+  consent: "/student/consent",
   profile: "/student/profile",
   notifications: "/student/notifications",
   
@@ -38,6 +42,10 @@ const idToPath = {
   "manage-users": "/admin/manage-users",
   announcements: "/admin/announcements",
   reports: "/admin/reports",
+  "audit-logs": "/admin/audit-logs",
+
+  // Shared
+  messages: "/messages",
 };
 
   const getNavItems = () => {
@@ -48,14 +56,17 @@ const idToPath = {
           { id: "dashboard", label: "Dashboard", icon: BarChart3 },
           { id: "request-appointment", label: "Request Appointment", icon: Calendar },
           { id: "request-psych-test", label: "Request Psych Test", icon: ClipboardList },
+          { id: "consent", label: "Informed Consent", icon: FileSignature },
+          { id: "messages", label: "Messages", icon: MessageCircle },
           { id: "profile", label: "My Profile", icon: User },
           { id: "notifications", label: "Notifications", icon: Bell }
         ];
       case "counselor":
         return [
           { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-          { id: "manage-students", label: "Manage Students", icon: Users },
+          { id: "manage-students", label: "Manage Students Records", icon: Users },
           { id: "appointments", label: "Appointments", icon: Calendar },
+          { id: "messages", label: "Messages", icon: MessageCircle },
           { id: "generate-reports", label: "Generate Reports", icon: FileText },
           { id: "profile", label: "My Profile", icon: User },
           { id: "notifications", label: "Notifications", icon: Bell }
@@ -65,6 +76,7 @@ const idToPath = {
           { id: "dashboard", label: "Dashboard", icon: BarChart3 },
           { id: "counseling-data", label: "Open Counseling Data", icon: BookOpen },
           { id: "request-data", label: "Request Student Data", icon: ClipboardList },
+          { id: "messages", label: "Messages", icon: MessageCircle },
           { id: "profile", label: "My Profile", icon: User },
           { id: "notifications", label: "Notifications", icon: Bell }
         ];
@@ -75,6 +87,7 @@ const idToPath = {
           { id: "manage-users", label: "Manage User Accounts", icon: Settings },
           { id: "announcements", label: "Create Announcement", icon: AlertCircle },
           { id: "reports", label: "System Reports", icon: FileText },
+          { id: "audit-logs", label: "Audit Logs", icon: Shield },
           { id: "profile", label: "My Profile", icon: User },
           { id: "notifications", label: "Notifications", icon: Bell }
         ];
@@ -109,7 +122,8 @@ const idToPath = {
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const showBadge = item.id === "pending-registrations" && pendingCount > 0;
+          const showPendingBadge = item.id === "pending-registrations" && pendingCount > 0;
+          const showMessagesBadge = item.id === "messages" && unreadMessages > 0;
           const itemPath = idToPath[item.id] || "/";
           const isActive = location.pathname === itemPath || location.pathname.startsWith(itemPath + "/");
           return (
@@ -127,9 +141,14 @@ const idToPath = {
             >
               <Icon size={20} />
               <span className="flex-1 text-left">{item.label}</span>
-              {showBadge && (
+              {showPendingBadge && (
                 <span className="bg-yellow-400 text-maroon-900 text-xs font-bold px-2 py-1 rounded-full">
                   {pendingCount}
+                </span>
+              )}
+              {showMessagesBadge && (
+                <span className="bg-yellow-400 text-maroon-900 text-xs font-bold px-2 py-1 rounded-full">
+                  {unreadMessages}
                 </span>
               )}
             </button>

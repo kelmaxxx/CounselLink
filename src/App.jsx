@@ -7,6 +7,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 
 // Student pages
@@ -14,6 +15,7 @@ import RequestAppointment from "./pages/student/RequestAppointment";
 import StudentProfile from "./pages/student/StudentProfile";
 import RequestPsychTest from "./pages/student/RequestPsychTest";
 import StudentNotifications from "./pages/student/StudentNotifications";
+import StudentConsent from "./pages/student/StudentConsent";
 
 // Counselor pages
 import Students from "./pages/Students";
@@ -36,6 +38,7 @@ import AdminReports from "./pages/admin/AdminReports";
 import AdminProfile from "./pages/admin/AdminProfile";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import PendingRegistrations from "./pages/admin/PendingRegistrations";
+import AuditLogs from "./pages/admin/AuditLogs";
 
 export default function App() {
   return (
@@ -50,6 +53,18 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Shared Messages */}
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Messages />
               </Layout>
             </ProtectedRoute>
           }
@@ -92,6 +107,16 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <StudentNotifications />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student/consent"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <StudentConsent />
               </Layout>
             </ProtectedRoute>
           }
@@ -258,6 +283,16 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <AdminNotifications />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/audit-logs"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <AuditLogs />
               </Layout>
             </ProtectedRoute>
           }

@@ -10,9 +10,27 @@ import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
 
 export default function CounselorDashboard() {
-  const { currentUser, users } = useAuth();
+  const { currentUser, users, lookupUser } = useAuth();
   const { getAppointmentsForCurrentUser, fetchAppointments, acceptAppointment, rescheduleAppointment, rejectAppointment } = useAppointments?.() || {};
   const { getTestsForCurrentUser, acceptTest, rescheduleTest, rejectTest } = useTests?.() || {};
+
+  const openProfile = async (id, fallbackName) => {
+    if (!id) return;
+    const cached = users?.find(u => u.id === id);
+    if (cached) { setSelectedProfile(cached); return; }
+    const fetched = await lookupUser?.(id);
+    if (fetched) setSelectedProfile(fetched);
+    else if (fallbackName) setSelectedProfile({ id, name: fallbackName });
+  };
+
+  const openChat = async (id, fallbackName) => {
+    if (!id) return;
+    const cached = users?.find(u => u.id === id);
+    if (cached) { setChatRecipient(cached); return; }
+    const fetched = await lookupUser?.(id);
+    if (fetched) setChatRecipient(fetched);
+    else if (fallbackName) setChatRecipient({ id, name: fallbackName });
+  };
   
   const [myAppointments, setMyAppointments] = useState([]);
 
@@ -48,12 +66,12 @@ export default function CounselorDashboard() {
     }, {});
   }, [students]);
 
-  // Calculate stats
+  // Calculate stats (DB stores status as 'approved')
   const totalStudents = students.length;
   const pendingAppointments = myAppointments.filter(a => a.status === 'pending');
   const pendingTests = myTests.filter(t => t.status === 'pending');
-  const todayAppointments = myAppointments.filter(a => a.status === 'accepted' || a.status === 'rescheduled').length;
-  const completedCases = myTests.filter(t => t.status === 'accepted' || t.status === 'completed').length + myAppointments.filter(a => a.status === 'accepted' || a.status === 'completed').length;
+  const todayAppointments = myAppointments.filter(a => a.status === 'approved' || a.status === 'rescheduled').length;
+  const completedCases = myTests.filter(t => t.status === 'approved' || t.status === 'completed').length + myAppointments.filter(a => a.status === 'approved' || a.status === 'completed').length;
   const reportsGenerated = 0;
 
   const [rescheduleTestModal, setRescheduleTestModal] = useState({ open: false, testId: null, date: "", timeSlot: "", note: "" });
@@ -81,7 +99,7 @@ export default function CounselorDashboard() {
     const result = await acceptAppointment({ id, date: appt.preferredDate || appt.preferred_date, timeSlot: slot, note: null });
     if (result.success) {
       setMyAppointments((prev) => prev.map((a) => a.id === id
-        ? { ...a, status: "accepted", scheduledDate: appt.preferredDate || appt.preferred_date, scheduledTimeSlot: slot }
+        ? { ...a, status: "approved", scheduledDate: appt.preferredDate || appt.preferred_date, scheduledTimeSlot: slot }
         : a));
     } else {
       alert(result.message || "Failed to accept appointment");
@@ -256,52 +274,41 @@ export default function CounselorDashboard() {
             ) : (
               <div className="space-y-3">
                 {pendingAppointments.slice(0, 3).map((appt) => {
-                  const student = users?.find(u => u.id === appt.studentUserId);
+                  const studentId = appt.student_id || appt.studentUserId;
                   return (
                     <div key={appt.id} className="p-4 rounded-lg border border-gray-200 bg-gray-50">
                       <div className="flex items-start gap-3 mb-3">
-                        {/* Clickable Profile Avatar */}
-                        {student && (
-                          <button
-                            onClick={() => setSelectedProfile(student)}
-                            className="w-10 h-10 bg-maroon-600 text-white rounded-full flex items-center justify-center font-semibold hover:bg-maroon-700 transition flex-shrink-0 cursor-pointer"
-                            title="View student profile"
-                          >
-                            {appt.studentName?.charAt(0).toUpperCase()}
-                          </button>
-                        )}
-                        {!student && (
-                          <div className="w-10 h-10 bg-gray-400 text-white rounded-full flex items-center justify-center font-semibold flex-shrink-0">
-                            {appt.studentName?.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        
+                        <button
+                          onClick={() => openProfile(studentId, appt.studentName)}
+                          className="w-10 h-10 bg-maroon-600 text-white rounded-full flex items-center justify-center font-semibold hover:bg-maroon-700 transition flex-shrink-0 cursor-pointer"
+                          title="View student profile"
+                        >
+                          {appt.studentName?.charAt(0).toUpperCase()}
+                        </button>
+
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{appt.studentName}</p>
                           <p className="text-sm text-gray-600">{appt.college || 'N/A'} • General Counseling</p>
                           <p className="text-xs text-gray-500 mt-1">{appt.preferredDate} at {Array.isArray(appt.preferredSlots) ? appt.preferredSlots[0] : appt.timeSlot || "—"}</p>
                         </div>
                       </div>
-                      
-                      {/* Student Actions */}
-                      {student && (
-                        <div className="flex gap-2 mb-3 pb-3 border-b border-gray-200">
-                          <button
-                            onClick={() => setSelectedProfile(student)}
-                            className="flex items-center gap-1 px-2 py-1 text-xs bg-white text-maroon-600 border border-maroon-300 rounded-lg hover:bg-maroon-50 transition font-medium"
-                          >
-                            <User2 size={14} />
-                            View Profile
-                          </button>
-                          <button
-                            onClick={() => setChatRecipient(student)}
-                            className="flex items-center gap-1 px-2 py-1 text-xs bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium"
-                          >
-                            <MessageCircle size={14} />
-                            Message
-                          </button>
-                        </div>
-                      )}
+
+                      <div className="flex gap-2 mb-3 pb-3 border-b border-gray-200">
+                        <button
+                          onClick={() => openProfile(studentId, appt.studentName)}
+                          className="flex items-center gap-1 px-2 py-1 text-xs bg-white text-maroon-600 border border-maroon-300 rounded-lg hover:bg-maroon-50 transition font-medium"
+                        >
+                          <User2 size={14} />
+                          View Profile
+                        </button>
+                        <button
+                          onClick={() => openChat(studentId, appt.studentName)}
+                          className="flex items-center gap-1 px-2 py-1 text-xs bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium"
+                        >
+                          <MessageCircle size={14} />
+                          Message
+                        </button>
+                      </div>
                       
                       {/* Appointment Actions */}
                       <div className="flex gap-2">
@@ -340,52 +347,41 @@ export default function CounselorDashboard() {
             ) : (
               <div className="space-y-3">
                 {pendingTests.slice(0, 3).map((test) => {
-                  const student = users?.find(u => u.id === (test.student_id || test.studentUserId));
+                  const studentId = test.student_id || test.studentUserId;
                   return (
                     <div key={test.id} className="p-4 rounded-lg border border-blue-200 bg-blue-50">
                       <div className="flex items-start gap-3 mb-3">
-                        {/* Clickable Profile Avatar */}
-                        {student && (
-                          <button
-                            onClick={() => setSelectedProfile(student)}
-                            className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold hover:bg-blue-700 transition flex-shrink-0 cursor-pointer"
-                            title="View student profile"
-                          >
-                            {test.studentName?.charAt(0).toUpperCase()}
-                          </button>
-                        )}
-                        {!student && (
-                          <div className="w-10 h-10 bg-gray-400 text-white rounded-full flex items-center justify-center font-semibold flex-shrink-0">
-                            {test.studentName?.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        
+                        <button
+                          onClick={() => openProfile(studentId, test.studentName)}
+                          className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold hover:bg-blue-700 transition flex-shrink-0 cursor-pointer"
+                          title="View student profile"
+                        >
+                          {test.studentName?.charAt(0).toUpperCase()}
+                        </button>
+
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{test.studentName}</p>
                           <p className="text-sm text-gray-600">{test.college || 'N/A'} • {test.testType || 'Psychological Test'}</p>
                           <p className="text-xs text-gray-500 mt-1">{test.preferredDate} at {Array.isArray(test.preferredSlots) ? test.preferredSlots[0] : 'N/A'}</p>
                         </div>
                       </div>
-                      
-                      {/* Student Actions */}
-                      {student && (
-                        <div className="flex gap-2 mb-3 pb-3 border-b border-blue-200">
-                          <button
-                            onClick={() => setSelectedProfile(student)}
-                            className="flex items-center gap-1 px-2 py-1 text-xs bg-white text-maroon-600 border border-maroon-300 rounded-lg hover:bg-maroon-50 transition font-medium"
-                          >
-                            <User2 size={14} />
-                            View Profile
-                          </button>
-                          <button
-                            onClick={() => setChatRecipient(student)}
-                            className="flex items-center gap-1 px-2 py-1 text-xs bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium"
-                          >
-                            <MessageCircle size={14} />
-                            Message
-                          </button>
-                        </div>
-                      )}
+
+                      <div className="flex gap-2 mb-3 pb-3 border-b border-blue-200">
+                        <button
+                          onClick={() => openProfile(studentId, test.studentName)}
+                          className="flex items-center gap-1 px-2 py-1 text-xs bg-white text-maroon-600 border border-maroon-300 rounded-lg hover:bg-maroon-50 transition font-medium"
+                        >
+                          <User2 size={14} />
+                          View Profile
+                        </button>
+                        <button
+                          onClick={() => openChat(studentId, test.studentName)}
+                          className="flex items-center gap-1 px-2 py-1 text-xs bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium"
+                        >
+                          <MessageCircle size={14} />
+                          Message
+                        </button>
+                      </div>
                       
                       {/* Test Actions */}
                       <div className="flex gap-2">

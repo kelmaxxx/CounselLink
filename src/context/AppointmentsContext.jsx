@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext";
 
 const AppointmentsContext = createContext();
@@ -141,6 +141,15 @@ export function AppointmentsProvider({ children }) {
     updateAppointment(id, { sessionForm: data });
     return { success: true };
   };
+
+  useEffect(() => {
+    if (!token) {
+      setAppointments([]);
+      return;
+    }
+    fetchAppointments().catch((err) => console.error("Failed to load appointments:", err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   return (
     <AppointmentsContext.Provider value={{

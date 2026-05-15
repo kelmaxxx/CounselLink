@@ -1,4 +1,5 @@
 import { query } from "../config/db.js";
+import { logAction } from "../utils/audit.js";
 
 export const createTestResult = async (req, res) => {
   const { appointmentId, studentId, testName, completedDate, summary, recommendations } = req.body;
@@ -8,14 +9,20 @@ export const createTestResult = async (req, res) => {
     return res.status(400).json({ message: "Missing required result fields" });
   }
 
-  await query(
+  const result = await query(
     `INSERT INTO test_results
       (appointment_id, student_id, counselor_id, test_name, completed_date, summary, recommendations)
      VALUES (?, ?, ?, ?, ?, ?, ?)` ,
     [appointmentId || null, studentId, counselorId, testName, completedDate, summary || null, recommendations || null]
   );
 
-  return res.status(201).json({ message: "Test result saved" });
+  await logAction(req, "upload_test_result", "test_result", result.insertId, {
+    studentId,
+    testName,
+    appointmentId: appointmentId || null,
+  });
+
+  return res.status(201).json({ message: "Test result saved", id: result.insertId });
 };
 
 export const listTestResultsForUser = async (req, res) => {
@@ -30,6 +37,35 @@ export const listTestResultsForUser = async (req, res) => {
        WHERE r.student_id = ?
        ORDER BY r.completed_date DESC`,
       [userId]
+    );
+    return res.json(rows);
+  }
+
+  if (role === "counselor") {
+    const rows = await query(
+      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId
+       FROM test_results r
+       LEFT JOIN users s ON r.student_id = s.id
+       WHERE r.counselor_id = ?
+       ORDER BY r.completed_date DESC`,
+      [userId]
+    );
+    return res.json(rows);
+  }
+
+  if (role === "college_rep") {
+    const repRows = await query("SELECT college FROM users WHERE id = ?", [userId]);
+    const repCollege = repRows[0]?.college;
+    if (!repCollege) return res.json([]);
+
+    const rows = await query(
+      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName
+       FROM test_results r
+       JOIN users s ON r.student_id = s.id
+       LEFT JOIN users c ON r.counselor_id = c.id
+       WHERE s.college = ?
+       ORDER BY r.completed_date DESC`,
+      [repCollege]
     );
     return res.json(rows);
   }
