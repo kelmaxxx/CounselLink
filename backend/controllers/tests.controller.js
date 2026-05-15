@@ -1,4 +1,5 @@
 import { query } from "../config/db.js";
+import { logAction } from "../utils/audit.js";
 
 const createNotification = async ({ userId, title, message, link }) => {
   await query(
@@ -72,6 +73,24 @@ export const listTestsForUser = async (req, res) => {
     return res.json(rows);
   }
 
+  if (role === "college_rep") {
+    const repRows = await query("SELECT college FROM users WHERE id = ?", [userId]);
+    const repCollege = repRows[0]?.college;
+    if (!repCollege) return res.json([]);
+
+    const rows = await query(
+      `SELECT a.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName
+       FROM appointments a
+       JOIN users s ON a.student_id = s.id
+       LEFT JOIN users c ON a.counselor_id = c.id
+       WHERE a.appointment_type = 'psychological_test'
+         AND s.college = ?
+       ORDER BY a.created_at DESC`,
+      [repCollege]
+    );
+    return res.json(rows);
+  }
+
   const rows = await query(
     `SELECT a.*, s.name AS studentName, c.name AS counselorName
      FROM appointments a
@@ -99,6 +118,8 @@ export const acceptTest = async (req, res) => {
     [counselorId, normalizedDate, timeSlot, note || null, id]
   );
 
+  await logAction(req, "accept_test", "appointment", id, { date: normalizedDate, timeSlot });
+
   const rows = await query("SELECT student_id FROM appointments WHERE id = ?", [id]);
   if (rows.length) {
     await createNotification({
@@ -121,6 +142,8 @@ export const rejectTest = async (req, res) => {
     "UPDATE appointments SET status='rejected', counselor_id=?, counselor_action_note=?, updated_at=NOW() WHERE id=?",
     [counselorId, note || null, id]
   );
+
+  await logAction(req, "reject_test", "appointment", id, { note: note || null });
 
   const rows = await query("SELECT student_id FROM appointments WHERE id = ?", [id]);
   if (rows.length) {
@@ -150,6 +173,8 @@ export const rescheduleTest = async (req, res) => {
     "UPDATE appointments SET status='rescheduled', counselor_id=?, scheduled_date=?, scheduled_time=?, counselor_action_note=?, updated_at=NOW() WHERE id=?",
     [counselorId, normalizedDate, timeSlot, note || null, id]
   );
+
+  await logAction(req, "reschedule_test", "appointment", id, { date: normalizedDate, timeSlot });
 
   const rows = await query("SELECT student_id FROM appointments WHERE id = ?", [id]);
   if (rows.length) {

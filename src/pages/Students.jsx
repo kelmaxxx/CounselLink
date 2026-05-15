@@ -1,42 +1,42 @@
 // src/pages/Students.jsx
-import React, { useMemo, useState } from "react";
+// Counselor "Manage Students Records" — three tabs:
+//   Students        : per-student records with completeness badges (Inventory / Consent / sessions)
+//   Session Records : flat archive of all counseling sessions (existing)
+//   Overview        : analytics (existing)
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Search,
-  Filter,
-  Plus,
-  Eye,
-  Edit,
-  Trash2,
-  Users,
-  FileText,
-  Download,
-  TrendingUp,
-  Calendar,
-  AlertCircle,
-  Activity,
-  PieChart
+  Search, Plus, Edit, Trash2, Users, FileText, Download, Calendar,
+  TrendingUp, Activity, X, AlertCircle, ClipboardList, FileSignature, BookOpen, RefreshCw
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useAppointments } from "../context/AppointmentsContext";
-import { useTests } from "../context/TestsContext";
+import { useCounselingSessions } from "../context/CounselingSessionsContext";
+import { useStudentRecords } from "../context/StudentRecordsContext";
+import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
 
-const COLLEGES = ["CICS", "COE", "CAS", "COB", "COL"];
+const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 
-const mockStudents = [
-  { id: "1", name: "Juan Dela Cruz", studentId: "2024-00001", college: "CICS", year: "3rd Year", lastSession: "Nov 28, 2024", sessions: 5, status: "active" },
-  { id: "2", name: "Maria Santos", studentId: "2024-00002", college: "COE", year: "2nd Year", lastSession: "Nov 25, 2024", sessions: 3, status: "active" },
-  { id: "3", name: "Pedro Reyes", studentId: "2024-00003", college: "CAS", year: "4th Year", lastSession: "Nov 20, 2024", sessions: 8, status: "inactive" },
-  { id: "4", name: "Ana Garcia", studentId: "2024-00004", college: "COB", year: "1st Year", lastSession: "Nov 15, 2024", sessions: 2, status: "active" },
-  { id: "5", name: "Luis Mendoza", studentId: "2024-00005", college: "CICS", year: "3rd Year", lastSession: "Nov 10, 2024", sessions: 4, status: "active" },
-  { id: "6", name: "Rosa Cruz", studentId: "2024-00006", college: "COE", year: "2nd Year", lastSession: "Nov 5, 2024", sessions: 6, status: "active" },
-];
+const blankForm = () => ({
+  studentId: "",
+  appointmentId: "",
+  sessionDate: new Date().toISOString().split("T")[0],
+  presentingConcern: "",
+  goals: "",
+  summary: "",
+  plan: "",
+  comments: "",
+  nextSession: "followup",
+  counselorSignature: "",
+});
 
-function downloadCSV(rows, filename = "students.csv") {
+function downloadCSV(rows, filename = "session-records.csv") {
   if (!rows || !rows.length) return;
-  const keys = Object.keys(rows[0]);
+  const cols = [
+    "id", "sessionDate", "studentName", "studentNumber", "studentCollege",
+    "presentingConcern", "summary", "plan", "nextSession",
+  ];
   const csv = [
-    keys.join(","),
-    ...rows.map(r => keys.map(k => `"${(r[k] ?? "").toString().replace(/"/g, '""')}"`).join(","))
+    cols.join(","),
+    ...rows.map(r => cols.map(c => `"${(r[c] ?? "").toString().replace(/"/g, '""')}"`).join(",")),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
@@ -47,622 +47,630 @@ function downloadCSV(rows, filename = "students.csv") {
   document.body.removeChild(link);
 }
 
-// Pie Chart Component
-function PieChartSVG({ data, totalStudents }) {
-  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-  const size = 240;
-  const center = size / 2;
-  const radius = size / 2 - 10;
-  
-  const sortedData = Object.entries(data).sort((a, b) => b[1] - a[1]);
-  
-  let currentAngle = -90; // Start from top
-  const slices = sortedData.map(([college, count], index) => {
-    const percentage = (count / totalStudents) * 100;
-    const angle = (percentage / 100) * 360;
-    const startAngle = currentAngle;
-    const endAngle = currentAngle + angle;
-    
-    // Calculate path
-    const startRad = (startAngle * Math.PI) / 180;
-    const endRad = (endAngle * Math.PI) / 180;
-    
-    const x1 = center + radius * Math.cos(startRad);
-    const y1 = center + radius * Math.sin(startRad);
-    const x2 = center + radius * Math.cos(endRad);
-    const y2 = center + radius * Math.sin(endRad);
-    
-    const largeArc = angle > 180 ? 1 : 0;
-    
-    const pathData = [
-      `M ${center} ${center}`,
-      `L ${x1} ${y1}`,
-      `A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`,
-      'Z'
-    ].join(' ');
-    
-    currentAngle = endAngle;
-    
-    return {
-      path: pathData,
-      color: colors[index % colors.length],
-      college,
-      percentage: percentage.toFixed(1)
-    };
-  });
-  
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="drop-shadow-md">
-      {slices.map((slice, index) => (
-        <g key={index}>
-          <path
-            d={slice.path}
-            fill={slice.color}
-            stroke="white"
-            strokeWidth="2"
-            className="transition-all duration-300 hover:opacity-80"
-          />
-        </g>
-      ))}
-      {/* Center circle for donut effect */}
-      <circle
-        cx={center}
-        cy={center}
-        r={radius * 0.5}
-        fill="white"
-        className="drop-shadow-sm"
-      />
-      <text
-        x={center}
-        y={center - 10}
-        textAnchor="middle"
-        className="text-3xl font-bold"
-        fill="#1F2937"
-      >
-        {totalStudents}
-      </text>
-      <text
-        x={center}
-        y={center + 15}
-        textAnchor="middle"
-        className="text-xs"
-        fill="#6B7280"
-      >
-        Students
-      </text>
-    </svg>
-  );
-}
-
 export default function ManageStudents() {
-  const { users, createUser } = useAuth();
-  const { appointments } = useAppointments?.() || { appointments: [] };
-  const { tests } = useTests?.() || { tests: [] };
-  
-  const [searchQuery, setSearchQuery] = useState("");
-  const [collegeFilter, setCollegeFilter] = useState("all");
-  const [showAdd, setShowAdd] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview"); // "overview" or "students"
+  const { currentUser, fetchUsersByRole } = useAuth();
+  const { sessions, fetchSessions, createSession, updateSession, deleteSession } = useCounselingSessions();
+  const { getRecords } = useStudentRecords();
 
-  const [newStudent, setNewStudent] = useState({
-    name: "",
-    email: "",
-    studentId: "",
-    college: COLLEGES[0],
-    year: "1st Year",
-    sessions: 0,
-    status: "active"
-  });
+  const [students, setStudents] = useState([]);
+  const [activeTab, setActiveTab] = useState("students");
+  const [search, setSearch] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentFilter, setStudentFilter] = useState("all");
+  const [editing, setEditing] = useState(null); // null | {} | session row
+  const [form, setForm] = useState(blankForm());
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const studentsSource = useMemo(() => {
-    const ctxStudents = (users || []).filter(u => u.role === "student")
-      .map(u => ({
-        id: String(u.id || u.email),
-        name: u.name || u.email,
-        studentId: u.studentId || "",
-        college: u.college || "N/A",
-        year: u.year || "N/A",
-        lastSession: u.lastSession || "N/A",
-        sessions: u.sessions || 0,
-        status: u.status || "active"
-      }));
-    const byId = {};
-    [...mockStudents, ...ctxStudents].forEach(s => {
-      byId[s.studentId || s.id] = s;
+  // Drawer state
+  const [drawerStudent, setDrawerStudent] = useState(null);
+  // Per-student records cache: { [studentId]: { inventory, consent, loaded: bool } }
+  const [recordsByStudent, setRecordsByStudent] = useState({});
+  const [loadingRecords, setLoadingRecords] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.role === "counselor" || currentUser?.role === "admin") {
+      fetchUsersByRole("student").then(setStudents).catch((err) => console.error(err));
+    }
+    fetchSessions().catch((err) => console.error(err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.role]);
+
+  // Fan out and fetch each student's inventory + consent so completeness
+  // badges have data. Best-effort — failures fall back to "—".
+  const refreshAllRecords = async (list = students) => {
+    if (!list?.length) return;
+    setLoadingRecords(true);
+    const next = { ...recordsByStudent };
+    await Promise.all(
+      list.map(async (s) => {
+        try {
+          const r = await getRecords(s.id);
+          next[s.id] = { ...r, loaded: true };
+        } catch {
+          next[s.id] = { inventory: null, consent: null, loaded: true };
+        }
+      })
+    );
+    setRecordsByStudent(next);
+    setLoadingRecords(false);
+  };
+
+  // Auto-load records the first time the Students tab becomes active (and the
+  // student list has resolved) so the badges aren't blank on landing.
+  useEffect(() => {
+    if (activeTab === "students" && students.length > 0 && Object.keys(recordsByStudent).length === 0) {
+      refreshAllRecords(students);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, students.length]);
+
+  const handleRecordsChanged = (studentId, { inventory, consent }) => {
+    setRecordsByStudent((prev) => ({ ...prev, [studentId]: { inventory, consent, loaded: true } }));
+  };
+
+  const studentsById = useMemo(() => {
+    const map = {};
+    for (const s of students) map[s.id] = s;
+    return map;
+  }, [students]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return sessions.filter((s) => {
+      const matchesQuery = !q
+        || (s.studentName || "").toLowerCase().includes(q)
+        || (s.presentingConcern || "").toLowerCase().includes(q)
+        || (s.summary || "").toLowerCase().includes(q);
+      const matchesStudent = studentFilter === "all" || s.studentId === Number(studentFilter);
+      return matchesQuery && matchesStudent;
     });
-    return Object.values(byId);
-  }, [users]);
+  }, [sessions, search, studentFilter]);
 
-  const filteredStudents = useMemo(() => {
-    return studentsSource.filter(student => {
-      const q = searchQuery.trim().toLowerCase();
-      const matchesSearch =
-        !q ||
-        (student.name || "").toLowerCase().includes(q) ||
-        (student.studentId || "").toLowerCase().includes(q);
-      const matchesCollege = collegeFilter === "all" || student.college === collegeFilter;
-      return matchesSearch && matchesCollege;
-    });
-  }, [studentsSource, searchQuery, collegeFilter]);
-
-  // Analytics calculations
   const analytics = useMemo(() => {
-    const totalStudents = studentsSource.length;
-    const activeStudents = studentsSource.filter(s => s.status === "active").length;
-    const totalSessions = studentsSource.reduce((acc, s) => acc + (s.sessions || 0), 0);
-    
-    // Appointments stats
-    const totalAppointments = appointments.length;
-    const pendingAppointments = appointments.filter(a => a.status === 'pending').length;
-    const completedAppointments = appointments.filter(a => a.status === 'accepted' || a.status === 'rescheduled').length;
-    
-    // Test stats
-    const totalTests = tests.length;
-    const pendingTests = tests.filter(t => t.status === 'pending').length;
-    
-    // College distribution
-    const collegeDistribution = {};
-    studentsSource.forEach(s => {
-      const college = s.college || "Unknown";
-      collegeDistribution[college] = (collegeDistribution[college] || 0) + 1;
-    });
-    
-    // Recent activity (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentAppointments = appointments.filter(a => new Date(a.createdAt) > sevenDaysAgo).length;
-    const recentTests = tests.filter(t => new Date(t.createdAt) > sevenDaysAgo).length;
-    
-    return {
-      totalStudents,
-      activeStudents,
-      totalSessions,
-      avgSessionsPerStudent: totalStudents > 0 ? (totalSessions / totalStudents).toFixed(1) : 0,
-      totalAppointments,
-      pendingAppointments,
-      completedAppointments,
-      totalTests,
-      pendingTests,
-      collegeDistribution,
-      recentActivity: recentAppointments + recentTests,
-      mostActiveCollege: Object.entries(collegeDistribution).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A"
-    };
-  }, [studentsSource, appointments, tests]);
+    const total = sessions.length;
+    const distinctStudents = new Set(sessions.map(s => s.studentId)).size;
+    const followups = sessions.filter(s => s.nextSession === "followup").length;
+    const terminations = sessions.filter(s => s.nextSession === "termination").length;
+    const last30 = sessions.filter(s => {
+      const d = new Date(s.sessionDate);
+      return (Date.now() - d.getTime()) < 1000 * 60 * 60 * 24 * 30;
+    }).length;
 
-  const handleAddSubmit = async (e) => {
+    const byCollege = {};
+    for (const s of sessions) {
+      const c = s.studentCollege || "Unknown";
+      byCollege[c] = (byCollege[c] || 0) + 1;
+    }
+    return { total, distinctStudents, followups, terminations, last30, byCollege };
+  }, [sessions]);
+
+  const openCreate = () => {
+    setForm(blankForm());
+    setEditing({});
+  };
+
+  const openEdit = (session) => {
+    setForm({
+      studentId: session.studentId,
+      appointmentId: session.appointmentId || "",
+      sessionDate: session.sessionDate ? session.sessionDate.split("T")[0] : "",
+      presentingConcern: session.presentingConcern || "",
+      goals: session.goals || "",
+      summary: session.summary || "",
+      plan: session.plan || "",
+      comments: session.comments || "",
+      nextSession: session.nextSession || "followup",
+      counselorSignature: session.counselorSignature || "",
+    });
+    setEditing(session);
+  };
+
+  const closeModal = () => {
+    setEditing(null);
+    setForm(blankForm());
+  };
+
+  const showFeedback = (type, text, ms = 3000) => {
+    setFeedback({ type, text });
+    setTimeout(() => setFeedback(null), ms);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setAdding(true);
-
-    // Basic validation
-    if (!newStudent.name || !newStudent.email || !newStudent.studentId) {
-      alert("Please fill Name, Email and Student ID.");
-      setAdding(false);
+    if (!form.studentId || !form.sessionDate) {
+      showFeedback("error", "Student and session date are required");
       return;
     }
-
-    const res = createUser({
-      name: newStudent.name,
-      email: newStudent.email,
-      password: "pass123",
-      role: "student",
-      college: newStudent.college,
-      studentId: newStudent.studentId,
-      extra: {
-        year: newStudent.year,
-        sessions: newStudent.sessions,
-        status: newStudent.status,
-        lastSession: newStudent.lastSession || "N/A"
-      }
-    });
-
-    if (!res.success) {
-      alert(res.message || "Failed to add user");
-      setAdding(false);
-      return;
+    setBusy(true);
+    const payload = {
+      ...form,
+      studentId: Number(form.studentId),
+      appointmentId: form.appointmentId ? Number(form.appointmentId) : null,
+    };
+    const res = editing?.id
+      ? await updateSession(editing.id, payload)
+      : await createSession(payload);
+    setBusy(false);
+    if (res.success) {
+      closeModal();
+      showFeedback("success", editing?.id ? "Session updated" : "Session record added");
+    } else {
+      showFeedback("error", res.message || "Failed to save");
     }
+  };
 
-    // Clear form and close modal
-    setNewStudent({ name: "", email: "", studentId: "", college: COLLEGES[0], year: "1st Year", sessions: 0, status: "active" });
-    setShowAdd(false);
-    setAdding(false);
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    setBusy(true);
+    const res = await deleteSession(confirmDelete.id);
+    setBusy(false);
+    setConfirmDelete(null);
+    showFeedback(res.success ? "success" : "error", res.success ? "Session deleted" : (res.message || "Failed to delete"));
   };
 
   return (
     <div className="p-6">
       <div className="max-w-full">
-        {/* Page Title and Tabs */}
         <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">Manage Students</h2>
-          <div className="flex gap-2 border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`px-4 py-2 font-medium transition ${
-                activeTab === "overview"
-                  ? "text-maroon-600 border-b-2 border-maroon-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <PieChart size={18} />
-                Analytics Overview
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("students")}
-              className={`px-4 py-2 font-medium transition ${
-                activeTab === "students"
-                  ? "text-maroon-600 border-b-2 border-maroon-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Users size={18} />
-                Student Records
-              </div>
-            </button>
-          </div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-1">Manage Students Records</h2>
+          <p className="text-sm text-gray-600">Archive of counseling session records — add, edit, or delete each session.</p>
         </div>
 
-        {/* Overview Tab */}
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-gray-200 mb-6">
+          <button
+            onClick={() => setActiveTab("students")}
+            className={`px-4 py-2 font-medium transition ${activeTab === "students" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}
+          >
+            <div className="flex items-center gap-2"><Users size={18} /> Students</div>
+          </button>
+          <button
+            onClick={() => setActiveTab("records")}
+            className={`px-4 py-2 font-medium transition ${activeTab === "records" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}
+          >
+            <div className="flex items-center gap-2"><FileText size={18} /> Session Records</div>
+          </button>
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`px-4 py-2 font-medium transition ${activeTab === "overview" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}
+          >
+            <div className="flex items-center gap-2"><TrendingUp size={18} /> Overview</div>
+          </button>
+        </div>
+
+        {feedback && (
+          <div className={`mb-4 p-3 rounded-lg border ${feedback.type === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}>
+            {feedback.text}
+          </div>
+        )}
+
+        {activeTab === "students" && (
+          <>
+            <div className="flex flex-col sm:flex-row gap-3 justify-between items-start mb-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  className="pl-10 pr-3 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-maroon-500"
+                  placeholder="Search by name, ID, or college..."
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={() => refreshAllRecords(students)}
+                disabled={loadingRecords}
+                className="flex items-center gap-2 px-3 py-2 rounded border hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={loadingRecords ? "animate-spin" : ""} /> Refresh records
+              </button>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl shadow overflow-x-auto">
+              <table className="min-w-full divide-y">
+                <thead className="bg-gray-50">
+                  <tr className="text-left text-xs text-gray-700">
+                    <th className="px-4 py-3 font-medium">Student</th>
+                    <th className="px-4 py-3 font-medium">College / ID</th>
+                    <th className="px-4 py-3 font-medium">Inventory</th>
+                    <th className="px-4 py-3 font-medium">Consent</th>
+                    <th className="px-4 py-3 font-medium">Sessions</th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y text-sm">
+                  {(() => {
+                    const q = studentSearch.trim().toLowerCase();
+                    const list = students.filter((s) => {
+                      if (!q) return true;
+                      return (
+                        (s.name || "").toLowerCase().includes(q) ||
+                        (s.studentId || "").toLowerCase().includes(q) ||
+                        (s.college || "").toLowerCase().includes(q) ||
+                        (s.email || "").toLowerCase().includes(q)
+                      );
+                    });
+
+                    if (list.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                            {students.length === 0 ? "No students yet." : "No students match your search."}
+                          </td>
+                        </tr>
+                      );
+                    }
+                    return list.map((s) => {
+                      const rec = recordsByStudent[s.id];
+                      const inv = rec?.inventory;
+                      const con = rec?.consent;
+                      const sessionCount = sessions.filter((x) => x.studentId === s.id).length;
+                      const invBadge = !rec?.loaded
+                        ? <span className="text-xs text-gray-400">—</span>
+                        : inv
+                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">On file{inv.scanUrl ? " + scan" : ""}</span>
+                          : <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Missing</span>;
+                      let conBadge;
+                      if (!rec?.loaded) {
+                        conBadge = <span className="text-xs text-gray-400">—</span>;
+                      } else if (!con) {
+                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
+                      } else if (con.revokedAt) {
+                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Revoked</span>;
+                      } else if (con.eConsentSignedAt) {
+                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">E-signed</span>;
+                      } else if (con.scanUrl) {
+                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Paper</span>;
+                      } else {
+                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
+                      }
+                      return (
+                        <tr key={s.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setDrawerStudent(s)}>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900">{s.name}</div>
+                            <div className="text-xs text-gray-500">{s.email}</div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            <div>{s.college || "—"}</div>
+                            <div className="text-xs text-gray-500">{s.studentId || "—"}</div>
+                          </td>
+                          <td className="px-4 py-3">{invBadge}</td>
+                          <td className="px-4 py-3">{conBadge}</td>
+                          <td className="px-4 py-3 text-gray-700">{sessionCount}</td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDrawerStudent(s); }}
+                              className="px-3 py-1.5 rounded border text-xs hover:bg-gray-50"
+                            >
+                              Open records
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
         {activeTab === "overview" && (
           <div className="space-y-6">
-            {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-2 bg-white/80 rounded-lg">
-                    <Users className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <span className="text-xs text-green-600 font-medium bg-white/80 px-2 py-0.5 rounded-full">+12%</span>
+                  <FileText className="text-blue-600" size={24} />
                 </div>
-                <p className="text-3xl font-bold text-blue-900">{analytics.totalStudents}</p>
-                <p className="text-sm text-blue-700">Total Students</p>
+                <p className="text-3xl font-bold text-gray-900">{analytics.total}</p>
+                <p className="text-sm text-gray-600">Total session records</p>
               </div>
-
-              <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-2 bg-white/80 rounded-lg">
-                    <Activity className="w-5 h-5 text-green-600" />
-                  </div>
+                  <Users className="text-green-600" size={24} />
                 </div>
-                <p className="text-3xl font-bold text-green-900">{analytics.activeStudents}</p>
-                <p className="text-sm text-green-700">Active Cases</p>
+                <p className="text-3xl font-bold text-gray-900">{analytics.distinctStudents}</p>
+                <p className="text-sm text-gray-600">Distinct students</p>
               </div>
-
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-2 bg-white/80 rounded-lg">
-                    <Calendar className="w-5 h-5 text-purple-600" />
-                  </div>
+                  <Calendar className="text-purple-600" size={24} />
                 </div>
-                <p className="text-3xl font-bold text-purple-900">{analytics.totalAppointments}</p>
-                <p className="text-sm text-purple-700">Total Appointments</p>
+                <p className="text-3xl font-bold text-gray-900">{analytics.last30}</p>
+                <p className="text-sm text-gray-600">Sessions in last 30 days</p>
               </div>
-
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-2 bg-white/80 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-orange-600" />
-                  </div>
+                  <Activity className="text-orange-600" size={24} />
                 </div>
-                <p className="text-3xl font-bold text-orange-900">{analytics.avgSessionsPerStudent}</p>
-                <p className="text-sm text-orange-700">Avg Sessions/Student</p>
+                <p className="text-3xl font-bold text-gray-900">{analytics.followups}</p>
+                <p className="text-sm text-gray-600">Pending follow-ups</p>
               </div>
             </div>
 
-            {/* Two Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left: College Distribution - Pie Chart */}
-              <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Student Distribution by College</h3>
-                <div className="flex flex-col lg:flex-row items-center gap-8">
-                  {/* Pie Chart */}
-                  <div className="relative flex-shrink-0">
-                    <PieChartSVG data={analytics.collegeDistribution} totalStudents={analytics.totalStudents} />
-                  </div>
-                  
-                  {/* Legend */}
-                  <div className="flex-1 space-y-3">
-                    {Object.entries(analytics.collegeDistribution)
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([college, count], index) => {
-                        const percentage = (count / analytics.totalStudents) * 100;
-                        const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-                        const color = colors[index % colors.length];
-                        return (
-                          <div key={college} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center gap-3">
-                              <div 
-                                className="w-4 h-4 rounded-full shadow-sm" 
-                                style={{ backgroundColor: color }}
-                              ></div>
-                              <span className="text-sm font-medium text-gray-700">{college}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-sm font-semibold text-gray-900">{count} students</span>
-                              <span className="text-xs text-gray-500 ml-2">({percentage.toFixed(1)}%)</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Sessions by College</h3>
+              {Object.keys(analytics.byCollege).length === 0 ? (
+                <p className="text-sm text-gray-500">No session data yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(analytics.byCollege).sort((a, b) => b[1] - a[1]).map(([col, count]) => {
+                    const pct = (count / analytics.total) * 100;
+                    return (
+                      <div key={col}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="font-medium text-gray-700">{col}</span>
+                          <span className="text-gray-600">{count} session{count === 1 ? "" : "s"} ({pct.toFixed(0)}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-maroon-500 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-
-              {/* Right: Quick Stats */}
-              <div className="space-y-4">
-                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-600">Pending Appointments</span>
-                      <span className="font-semibold text-gray-900">{analytics.pendingAppointments}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-600">Completed Sessions</span>
-                      <span className="font-semibold text-gray-900">{analytics.completedAppointments}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-600">Test Requests</span>
-                      <span className="font-semibold text-gray-900">{analytics.totalTests}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-600">Pending Tests</span>
-                      <span className="font-semibold text-gray-900">{analytics.pendingTests}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-sm text-gray-600">Recent Activity (7d)</span>
-                      <span className="font-semibold text-gray-900">{analytics.recentActivity}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white rounded-xl p-6 shadow-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                      <AlertCircle size={20} />
-                    </div>
-                    <h3 className="text-lg font-semibold">Key Insight</h3>
-                  </div>
-                  <p className="text-sm text-white/90 mb-2">Most Active College</p>
-                  <p className="text-3xl font-bold mb-1">{analytics.mostActiveCollege}</p>
-                  <p className="text-sm text-white/80">with {analytics.collegeDistribution[analytics.mostActiveCollege] || 0} students</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Session Overview */}
-            <div className="bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">Session Overview</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-lg p-4 border-l-4 border-cyan-500 shadow-sm hover:shadow-md transition-shadow">
-                  <p className="text-sm text-gray-600 mb-2">Total Sessions Conducted</p>
-                  <p className="text-3xl font-bold text-cyan-600">{analytics.totalSessions}</p>
-                </div>
-                <div className="bg-white rounded-lg p-4 border-l-4 border-teal-500 shadow-sm hover:shadow-md transition-shadow">
-                  <p className="text-sm text-gray-600 mb-2">Average per Student</p>
-                  <p className="text-3xl font-bold text-teal-600">{analytics.avgSessionsPerStudent}</p>
-                </div>
-                <div className="bg-white rounded-lg p-4 border-l-4 border-emerald-500 shadow-sm hover:shadow-md transition-shadow">
-                  <p className="text-sm text-gray-600 mb-2">Active Caseload</p>
-                  <p className="text-3xl font-bold text-emerald-600">{analytics.activeStudents}</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Students Tab */}
-        {activeTab === "students" && (
+        {activeTab === "records" && (
           <>
-            {/* Header actions */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start mb-6">
-          <div className="flex gap-3 flex-1 items-center">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                className="pl-10 pr-3 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-maroon-500"
-                placeholder="Search by name or student ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center">
-              <div className="mr-2 text-gray-600"><Filter /></div>
-              <select
-                className="px-3 py-2 rounded border bg-white"
-                value={collegeFilter}
-                onChange={(e) => setCollegeFilter(e.target.value)}
-              >
-                <option value="all">All Colleges</option>
-                {COLLEGES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => downloadCSV(filteredStudents, "students-export.csv")}
-              className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50"
-            >
-              <Download className="w-4 h-4" /> Export
-            </button>
-
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded bg-maroon-500 text-white hover:bg-maroon-600"
-            >
-              <Plus className="w-4 h-4" /> Add Record
-            </button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white border rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-maroon-50">
-                <Users className="h-5 w-5 text-maroon-600" />
+            <div className="flex flex-col sm:flex-row gap-3 justify-between items-start mb-4">
+              <div className="flex gap-2 flex-1 items-center">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    className="pl-10 pr-3 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-maroon-500"
+                    placeholder="Search by student, concern, or summary..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <select
+                  className="px-3 py-2 rounded border bg-white"
+                  value={studentFilter}
+                  onChange={(e) => setStudentFilter(e.target.value)}
+                >
+                  <option value="all">All students</option>
+                  {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{studentsSource.length}</p>
-                <p className="text-sm text-gray-500">Total Students</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => downloadCSV(filtered)}
+                  className="flex items-center gap-2 px-3 py-2 rounded border hover:bg-gray-50"
+                >
+                  <Download size={16} /> Export CSV
+                </button>
+                {currentUser?.role === "counselor" && (
+                  <button
+                    onClick={openCreate}
+                    className="flex items-center gap-2 px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700"
+                  >
+                    <Plus size={16} /> Add Record
+                  </button>
+                )}
               </div>
             </div>
-          </div>
 
-          <div className="bg-white border rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-50">
-                <Users className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{studentsSource.filter(s => s.status === "active").length}</p>
-                <p className="text-sm text-gray-500">Active Cases</p>
-              </div>
+            <div className="bg-white border border-gray-200 rounded-xl shadow overflow-x-auto">
+              <table className="min-w-full divide-y">
+                <thead className="bg-gray-50">
+                  <tr className="text-left text-xs text-gray-700">
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium">Student</th>
+                    <th className="px-4 py-3 font-medium">Concern</th>
+                    <th className="px-4 py-3 font-medium">Summary</th>
+                    <th className="px-4 py-3 font-medium">Next</th>
+                    <th className="px-4 py-3 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y text-sm">
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                        {sessions.length === 0 ? "No session records yet. Click \"Add Record\" to create one." : "No records match your filters."}
+                      </td>
+                    </tr>
+                  ) : filtered.map(s => (
+                    <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{(s.sessionDate || "").split("T")[0]}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900">{s.studentName}</div>
+                        <div className="text-xs text-gray-500">{s.studentNumber || "—"} • {s.studentCollege || "N/A"}</div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={s.presentingConcern}>{s.presentingConcern || "—"}</td>
+                      <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={s.summary}>{s.summary || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-1 rounded-full ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
+                          {NEXT_LABELS[s.nextSession] || s.nextSession}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {currentUser?.role === "counselor" && s.counselorId === currentUser.id ? (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => openEdit(s)}
+                              className="p-1.5 rounded hover:bg-gray-100"
+                              title="Edit"
+                            >
+                              <Edit size={14} className="text-blue-600" />
+                            </button>
+                            <button
+                              onClick={() => setConfirmDelete(s)}
+                              className="p-1.5 rounded hover:bg-gray-100"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} className="text-red-600" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-
-          <div className="bg-white border rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-50">
-                <FileText className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{studentsSource.reduce((acc, s) => acc + (s.sessions || 0), 0)}</p>
-                <p className="text-sm text-gray-500">Total Sessions</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white border rounded-lg p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-yellow-50">
-                <Users className="h-5 w-5 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{filteredStudents.length}</p>
-                <p className="text-sm text-gray-500">Filtered Results</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">
-          <table className="min-w-full divide-y">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Student</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Student ID</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">College</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Year</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Last Session</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Sessions</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
-                <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredStudents.map(student => (
-                <tr key={student.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{student.name}</div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{student.studentId}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-block px-2 py-0.5 rounded border text-sm text-gray-700">{student.college}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{student.year}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{student.lastSession}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{student.sessions}</td>
-                  <td className="px-4 py-3 text-sm">
-                    {student.status === "active" ? (
-                      <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">active</span>
-                    ) : (
-                      <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">inactive</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm">
-                    <div className="inline-flex items-center gap-2">
-                      <button
-                        title="View profile"
-                        onClick={() => alert(`View ${student.name}`)}
-                        className="p-1 rounded hover:bg-gray-100"
-                      >
-                        <Eye className="w-4 h-4 text-gray-600" />
-                      </button>
-                      <button
-                        title="Edit"
-                        onClick={() => alert(`Edit ${student.name}`)}
-                        className="p-1 rounded hover:bg-gray-100"
-                      >
-                        <Edit className="w-4 h-4 text-green-600" />
-                      </button>
-                      <button
-                        title="Delete"
-                        onClick={() => {
-                          if (confirm(`Delete record for ${student.name}?`)) {
-                            alert("Deleted (demo)");
-                          }
-                        }}
-                        className="p-1 rounded hover:bg-gray-100"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {filteredStudents.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
-                    No records match your filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
           </>
         )}
       </div>
 
-      {/* Add Record Modal */}
-      {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-xl p-6">
-            <h3 className="text-lg font-semibold mb-4">Add Student Record</h3>
-            <form onSubmit={handleAddSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input required placeholder="Full name" value={newStudent.name} onChange={(e)=>setNewStudent({...newStudent,name:e.target.value})} className="px-3 py-2 border rounded" />
-                <input required placeholder="Email" value={newStudent.email} onChange={(e)=>setNewStudent({...newStudent,email:e.target.value})} className="px-3 py-2 border rounded" />
-                <input required placeholder="Student ID" value={newStudent.studentId} onChange={(e)=>setNewStudent({...newStudent,studentId:e.target.value})} className="px-3 py-2 border rounded" />
-                <select value={newStudent.college} onChange={(e)=>setNewStudent({...newStudent,college:e.target.value})} className="px-3 py-2 border rounded">
-                  {COLLEGES.map(c=> <option key={c} value={c}>{c}</option>)}
-                </select>
-                <select value={newStudent.year} onChange={(e)=>setNewStudent({...newStudent,year:e.target.value})} className="px-3 py-2 border rounded">
-                  <option>1st Year</option>
-                  <option>2nd Year</option>
-                  <option>3rd Year</option>
-                  <option>4th Year</option>
-                </select>
-                <select value={newStudent.status} onChange={(e)=>setNewStudent({...newStudent,status:e.target.value})} className="px-3 py-2 border rounded">
-                  <option value="active">active</option>
-                  <option value="inactive">inactive</option>
-                </select>
+      {/* Add / Edit Modal */}
+      {editing !== null && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 my-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">{editing.id ? "Edit Session Record" : "Add Session Record"}</h3>
+              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Student *</label>
+                  <select
+                    required
+                    className="w-full border rounded px-3 py-2"
+                    value={form.studentId}
+                    onChange={(e) => setForm({ ...form, studentId: e.target.value })}
+                    disabled={!!editing.id}
+                  >
+                    <option value="">Select a student...</option>
+                    {students.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.studentId || s.email})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Session Date *</label>
+                  <input
+                    type="date"
+                    required
+                    className="w-full border rounded px-3 py-2"
+                    value={form.sessionDate}
+                    onChange={(e) => setForm({ ...form, sessionDate: e.target.value })}
+                  />
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={()=>setShowAdd(false)} className="px-4 py-2 rounded border">Cancel</button>
-                <button type="submit" disabled={adding} className="px-4 py-2 rounded bg-maroon-500 text-white">
-                  {adding ? "Adding..." : "Add Student"}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Presenting concern</label>
+                <textarea
+                  rows={2}
+                  className="w-full border rounded px-3 py-2"
+                  value={form.presentingConcern}
+                  onChange={(e) => setForm({ ...form, presentingConcern: e.target.value })}
+                  placeholder="What brought the student to counseling?"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Goals</label>
+                <textarea
+                  rows={2}
+                  className="w-full border rounded px-3 py-2"
+                  value={form.goals}
+                  onChange={(e) => setForm({ ...form, goals: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Summary / Key points of discussion</label>
+                <textarea
+                  rows={3}
+                  className="w-full border rounded px-3 py-2"
+                  value={form.summary}
+                  onChange={(e) => setForm({ ...form, summary: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Plan of action</label>
+                <textarea
+                  rows={2}
+                  className="w-full border rounded px-3 py-2"
+                  value={form.plan}
+                  onChange={(e) => setForm({ ...form, plan: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Counselor's comments</label>
+                <textarea
+                  rows={2}
+                  className="w-full border rounded px-3 py-2"
+                  value={form.comments}
+                  onChange={(e) => setForm({ ...form, comments: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Next session</label>
+                  <select
+                    className="w-full border rounded px-3 py-2"
+                    value={form.nextSession}
+                    onChange={(e) => setForm({ ...form, nextSession: e.target.value })}
+                  >
+                    <option value="followup">Follow-up</option>
+                    <option value="termination">Termination</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Counselor signature</label>
+                  <input
+                    className="w-full border rounded px-3 py-2"
+                    value={form.counselorSignature}
+                    onChange={(e) => setForm({ ...form, counselorSignature: e.target.value })}
+                    placeholder="Type counselor name"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
+                <button type="button" onClick={closeModal} className="px-4 py-2 rounded border">Cancel</button>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700 disabled:opacity-50"
+                >
+                  {busy ? "Saving..." : (editing.id ? "Save changes" : "Add record")}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {drawerStudent && (
+        <StudentRecordsDrawer
+          student={drawerStudent}
+          onClose={() => setDrawerStudent(null)}
+          onRecordsChanged={handleRecordsChanged}
+          readOnly={currentUser?.role !== "counselor"}
+        />
+      )}
+
+      {/* Delete confirm */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <AlertCircle className="text-red-600" size={24} />
+              <h3 className="text-lg font-semibold text-red-700">Delete session record?</h3>
+            </div>
+            <p className="text-sm text-gray-700 mb-4">
+              This will permanently delete the session record for <span className="font-medium">{confirmDelete.studentName}</span> on {(confirmDelete.sessionDate || "").split("T")[0]}.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded border">Cancel</button>
+              <button onClick={handleDelete} disabled={busy} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                {busy ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}

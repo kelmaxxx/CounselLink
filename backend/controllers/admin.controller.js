@@ -1,5 +1,6 @@
 import { query } from "../config/db.js";
 import { sendEmail } from "../services/email.service.js";
+import { logAction } from "../utils/audit.js";
 
 const buildApprovalEmail = ({ name }) => ({
   subject: "CounselLink: Registration Approved",
@@ -34,6 +35,12 @@ export const approveRegistration = async (req, res) => {
     [program || null, yearLevel || null, id]
   );
 
+  await logAction(req, "approve_registration", "user", id, {
+    program: program || null,
+    yearLevel: yearLevel || null,
+    studentName: rows[0].name,
+  });
+
   try {
     const email = buildApprovalEmail({ name: rows[0].name });
     await sendEmail({ to: rows[0].email, subject: email.subject, text: email.text, html: email.html });
@@ -57,6 +64,11 @@ export const rejectRegistration = async (req, res) => {
     "UPDATE users SET status='rejected', rejection_reason=?, updated_at=NOW() WHERE id = ?",
     [reason || null, id]
   );
+
+  await logAction(req, "reject_registration", "user", id, {
+    reason: reason || null,
+    studentName: rows[0].name,
+  });
 
   try {
     const email = buildRejectionEmail({ name: rows[0].name, reason });

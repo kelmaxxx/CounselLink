@@ -33,3 +33,11 @@ export const corUpload = multer({
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 },
 });
+
+// Used for student-inventory + consent scans. Same constraints as COR uploads
+// (PDF/JPG/PNG, max 5 MB) — file is renamed on disk to <fieldname>-<timestamp>.<ext>.
+export const recordScanUpload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 },
+});

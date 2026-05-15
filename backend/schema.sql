@@ -90,3 +90,76 @@ CREATE TABLE IF NOT EXISTS messages (
   FOREIGN KEY (sender_id) REFERENCES users(id),
   FOREIGN KEY (recipient_id) REFERENCES users(id)
 );
+
+CREATE TABLE IF NOT EXISTS student_inventories (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  student_id INT NOT NULL UNIQUE,
+  counselor_id INT NULL,
+  form_data JSON,
+  scan_url VARCHAR(255),
+  scan_filename VARCHAR(255),
+  scan_filetype VARCHAR(100),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (counselor_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS student_consents (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  student_id INT NOT NULL UNIQUE,
+  e_consent_signed_at TIMESTAMP NULL,
+  e_consent_typed_name VARCHAR(120),
+  e_consent_ip VARCHAR(45),
+  scan_url VARCHAR(255),
+  scan_filename VARCHAR(255),
+  scan_filetype VARCHAR(100),
+  uploaded_by INT NULL,
+  uploaded_at TIMESTAMP NULL,
+  scope TEXT,
+  revoked_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS counseling_sessions (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  student_id INT NOT NULL,
+  counselor_id INT NOT NULL,
+  appointment_id INT NULL,
+  session_date DATE NOT NULL,
+  presenting_concern TEXT,
+  goals TEXT,
+  summary TEXT,
+  plan TEXT,
+  comments TEXT,
+  next_session ENUM('followup','termination') DEFAULT 'followup',
+  counselor_signature VARCHAR(120),
+  form_data JSON,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES users(id),
+  FOREIGN KEY (counselor_id) REFERENCES users(id),
+  FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL,
+  INDEX idx_session_student (student_id),
+  INDEX idx_session_counselor (counselor_id),
+  INDEX idx_session_date (session_date)
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  actor_id INT NULL,
+  actor_role VARCHAR(30),
+  action VARCHAR(80) NOT NULL,
+  target_type VARCHAR(40),
+  target_id INT NULL,
+  details JSON,
+  ip_address VARCHAR(45),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_audit_action (action),
+  INDEX idx_audit_actor (actor_id),
+  INDEX idx_audit_created (created_at)
+);
