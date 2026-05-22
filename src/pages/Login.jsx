@@ -3,7 +3,9 @@ import React, { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { COLLEGES } from "../data/mockData";
 import { useNavigate } from "react-router-dom";
-import { Upload, FileText, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { Upload, FileText, CheckCircle } from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const emptyLoginErrors = { identifier: "", password: "", form: "" };
 const emptySignupErrors = {
@@ -25,9 +27,7 @@ export default function Login() {
   const [selectedRole, setSelectedRole] = useState("student");
   const [loginLoading, setLoginLoading] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showSignupPassword, setShowSignupPassword] = useState(false);
-  const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   const [loginForm, setLoginForm] = useState({
     identifier: "",
@@ -193,10 +193,8 @@ export default function Login() {
   };
 
   const handleForgotPassword = () => {
-    setLoginErrors((prev) => ({
-      ...prev,
-      form: "Password reset is not available yet. Please contact the DSA office.",
-    }));
+    resetLoginErrors();
+    setForgotOpen(true);
   };
 
   const loginButtonLabel = loginLoading ? "Signing in..." : "Login";
@@ -230,8 +228,8 @@ export default function Login() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-maroon-500 to-maroon-700 px-4">
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-8">
-          <h1 className="text-3xl font-bold text-maroon-700 mb-2">CounseLink</h1>
-          <p className="text-gray-600 mb-6">MSU-Marawi City Division of Student Affairs</p>
+          <h1 className="text-3xl font-bold text-maroon-700 mb-2">CounselLink MSU-Marawi</h1>
+          <p className="text-gray-600 mb-6">Division of Student Affairs</p>
 
           <form onSubmit={handleSignupSubmit} className="space-y-4">
             <div>
@@ -361,45 +359,27 @@ export default function Login() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <div className="relative">
-                <input
-                  name="password"
-                  type={showSignupPassword ? "text" : "password"}
-                  value={signupForm.password}
-                  onChange={handleSignupChange}
-                  required
-                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSignupPassword((prev) => !prev)}
-                  className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700"
-                >
-                  {showSignupPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+              <input
+                name="password"
+                type="password"
+                value={signupForm.password}
+                onChange={handleSignupChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+              />
               {signupErrors.password && <p className="text-xs text-red-600 mt-1">{signupErrors.password}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-              <div className="relative">
-                <input
-                  name="confirmPassword"
-                  type={showSignupConfirmPassword ? "text" : "password"}
-                  value={signupForm.confirmPassword}
-                  onChange={handleSignupChange}
-                  required
-                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSignupConfirmPassword((prev) => !prev)}
-                  className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700"
-                >
-                  {showSignupConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+              <input
+                name="confirmPassword"
+                type="password"
+                value={signupForm.confirmPassword}
+                onChange={handleSignupChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+              />
               {signupErrors.confirmPassword && (
                 <p className="text-xs text-red-600 mt-1">{signupErrors.confirmPassword}</p>
               )}
@@ -440,7 +420,7 @@ export default function Login() {
             {[
               { value: "student", label: "Student" },
               { value: "counselor", label: "Counselor" },
-              { value: "college_rep", label: "College Rep" },
+              { value: "college_rep", label: "College Dean" },
               { value: "admin", label: "Admin" },
             ].map((role) => (
               <button
@@ -484,23 +464,14 @@ export default function Login() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <div className="relative">
-              <input
-                name="password"
-                value={loginForm.password}
-                onChange={handleLoginChange}
-                type={showLoginPassword ? "text" : "password"}
-                required
-                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
-              />
-              <button
-                type="button"
-                onClick={() => setShowLoginPassword((prev) => !prev)}
-                className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700"
-              >
-                {showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
+            <input
+              name="password"
+              value={loginForm.password}
+              onChange={handleLoginChange}
+              type="password"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+            />
             {loginErrors.password && <p className="text-xs text-red-600 mt-1">{loginErrors.password}</p>}
           </div>
 
@@ -536,6 +507,206 @@ export default function Login() {
           >
             Don&apos;t have an account? Sign up
           </button>
+        )}
+      </div>
+
+      {forgotOpen && <ForgotPasswordModal onClose={() => setForgotOpen(false)} />}
+    </div>
+  );
+}
+
+function ForgotPasswordModal({ onClose }) {
+  const [step, setStep] = useState("request");
+  const [email, setEmail] = useState("");
+  const [token, setToken] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submitRequest = async (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    if (!email.trim()) {
+      setError("Email is required.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || "Unable to request reset.");
+      } else {
+        setMessage(data.message || "If that email is registered, a reset token was generated.");
+        if (data.devToken) {
+          setToken(data.devToken);
+        }
+        setStep("reset");
+      }
+    } catch (err) {
+      setError(err.message || "Network error.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitReset = async (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    if (!token.trim()) {
+      setError("Reset token is required.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token.trim(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || "Unable to reset password.");
+      } else {
+        setMessage(data.message || "Password updated.");
+        setStep("done");
+      }
+    } catch (err) {
+      setError(err.message || "Network error.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-bold text-maroon-700 mb-1">Forgot password</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          {step === "request" && "Enter your registered email. We'll send you a reset token."}
+          {step === "reset" && "Paste the token from the email and choose a new password."}
+          {step === "done" && "All set."}
+        </p>
+
+        {step === "request" && (
+          <form onSubmit={submitRequest} className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+                placeholder="you@s.msumain.edu.ph"
+                required
+              />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 py-2 rounded-lg bg-maroon-500 text-white hover:bg-maroon-600 font-medium disabled:opacity-70"
+              >
+                {loading ? "Sending..." : "Send token"}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 pt-1">
+              No OSA approval needed. Reset is self-service.
+            </p>
+          </form>
+        )}
+
+        {step === "reset" && (
+          <form onSubmit={submitReset} className="space-y-3">
+            {message && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-2">{message}</p>}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reset token</label>
+              <input
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs focus:ring-2 focus:ring-maroon-500"
+                placeholder="paste the token from your email"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+              <input
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+                required
+              />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setStep("request")}
+                className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 py-2 rounded-lg bg-maroon-500 text-white hover:bg-maroon-600 font-medium disabled:opacity-70"
+              >
+                {loading ? "Resetting..." : "Reset password"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {step === "done" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-green-700">
+              <CheckCircle size={20} />
+              <span className="font-medium">{message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-2 rounded-lg bg-maroon-500 text-white hover:bg-maroon-600 font-medium"
+            >
+              Back to login
+            </button>
+          </div>
         )}
       </div>
     </div>
