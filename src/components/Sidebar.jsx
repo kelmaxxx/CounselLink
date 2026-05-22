@@ -23,6 +23,7 @@ const idToPath = {
   // Student
   dashboard: "/",
   "request-appointment": "/student/request-appointment",
+  "my-appointments": "/student/appointments",
   "request-psych-test": "/student/request-psych-test",
   consent: "/student/consent",
   profile: "/student/profile",
@@ -56,6 +57,7 @@ const idToPath = {
         return [
           { id: "dashboard", label: "Dashboard", icon: BarChart3 },
           { id: "request-appointment", label: "Request Appointment", icon: Calendar },
+          { id: "my-appointments", label: "My Appointments", icon: Calendar },
           { id: "request-psych-test", label: "Request Psych Test", icon: ClipboardList },
           { id: "consent", label: "Informed Consent", icon: FileSignature },
           { id: "messages", label: "Messages", icon: MessageCircle },
