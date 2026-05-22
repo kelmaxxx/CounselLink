@@ -7,7 +7,7 @@ export function MessagesProvider({ children }) {
   const { currentUser, token } = useAuth();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-  const [messages, setMessages] = useState([]);
+  const [messagesByUser, setMessagesByUser] = useState({});
   const [conversations, setConversations] = useState([]);
 
   const normalizeMessage = (msg) => ({
@@ -48,15 +48,29 @@ export function MessagesProvider({ children }) {
       throw new Error(data.message || "Unable to load conversation");
     }
     const normalized = Array.isArray(data) ? data.map(normalizeMessage) : [];
-    setMessages(normalized);
+    setMessagesByUser((prev) => ({ ...prev, [userId]: normalized }));
     return normalized;
   };
 
-  // Send a message
   const sendMessage = async ({ recipientId, content }) => {
     if (!currentUser || !recipientId || !content.trim()) {
       return { success: false, message: "Invalid message data" };
     }
+
+    const tempId = `temp-${Date.now()}`;
+    const optimistic = {
+      id: tempId,
+      senderId: currentUser.id,
+      recipientId,
+      content,
+      timestamp: new Date().toISOString(),
+      read: false,
+      pending: true,
+    };
+    setMessagesByUser((prev) => ({
+      ...prev,
+      [recipientId]: [...(prev[recipientId] || []), optimistic],
+    }));
 
     const response = await fetch(`${apiBase}/api/messages`, {
       method: "POST",
@@ -68,6 +82,10 @@ export function MessagesProvider({ children }) {
     });
     const data = await response.json();
     if (!response.ok) {
+      setMessagesByUser((prev) => ({
+        ...prev,
+        [recipientId]: (prev[recipientId] || []).filter((m) => m.id !== tempId),
+      }));
       return { success: false, message: data.message || "Unable to send message" };
     }
     await fetchConversation(recipientId);
@@ -75,19 +93,13 @@ export function MessagesProvider({ children }) {
     return { success: true };
   };
 
-  // Get messages between current user and another user
   const getConversation = (userId) => {
     if (!currentUser || !userId) return [];
-    return messages
-      .filter(
-        (m) =>
-          (m.senderId === currentUser.id && m.recipientId === userId) ||
-          (m.senderId === userId && m.recipientId === currentUser.id)
-      )
+    return (messagesByUser[userId] || [])
+      .slice()
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   };
 
-  // Get all conversations for current user
   const getConversationsForCurrentUser = () => {
     if (!currentUser) return [];
     return conversations
@@ -95,7 +107,6 @@ export function MessagesProvider({ children }) {
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   };
 
-  // Mark messages as read
   const markAsRead = async (userId) => {
     if (!currentUser || !userId) return;
     await fetch(`${apiBase}/api/messages/conversations/${userId}/read`, {
@@ -109,26 +120,29 @@ export function MessagesProvider({ children }) {
     await fetchConversations();
   };
 
-  // Get unread count for a specific user
   const getUnreadCount = (userId) => {
     if (!currentUser || !userId) return 0;
-    return messages.filter((m) => m.senderId === userId && m.recipientId === currentUser.id && !m.read).length;
+    return conversations.filter(
+      (m) => m.senderId === userId && m.recipientId === currentUser.id && !m.read
+    ).length;
   };
 
-  // Get total unread count
   const getTotalUnreadCount = () => {
     if (!currentUser) return 0;
-    return messages.filter((m) => m.recipientId === currentUser.id && !m.read).length;
+    return conversations.filter((m) => m.recipientId === currentUser.id && !m.read).length;
   };
 
   useEffect(() => {
     fetchConversations().catch(() => undefined);
+    // Reset the per-user cache when the auth token flips (e.g. role switch).
+    setMessagesByUser({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   return (
     <MessagesContext.Provider
       value={{
-        messages,
+        messagesByUser,
         conversations,
         sendMessage,
         getConversation,

@@ -56,6 +56,7 @@ export default function CounselorDashboard() {
   const [rescheduleModal, setRescheduleModal] = useState({ open: false, apptId: null, date: "", timeSlot: "", note: "" });
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [chatRecipient, setChatRecipient] = useState(null);
+  const [rejectModal, setRejectModal] = useState({ open: false, kind: null, id: null, note: "" });
   
   const students = users?.filter((u) => u.role === "student") || [];
 
@@ -106,15 +107,35 @@ export default function CounselorDashboard() {
     }
   };
 
-  const handleReject = async (id) => {
-    const note = prompt("Optional note for rejection:") || null;
-    const result = await rejectAppointment({ id, note });
-    if (result.success) {
-      setMyAppointments((prev) => prev.map((a) => a.id === id ? { ...a, status: "rejected", counselor_action_note: note } : a));
-    } else {
-      alert(result.message || "Failed to reject appointment");
+  const openRejectModal = (kind, id) => {
+    setRejectModal({ open: true, kind, id, note: "" });
+  };
+
+  const submitReject = async () => {
+    const note = rejectModal.note.trim() || null;
+    if (rejectModal.kind === "appointment") {
+      const result = await rejectAppointment({ id: rejectModal.id, note });
+      if (result.success) {
+        setMyAppointments((prev) =>
+          prev.map((a) =>
+            a.id === rejectModal.id ? { ...a, status: "rejected", counselor_action_note: note } : a
+          )
+        );
+        setRejectModal({ open: false, kind: null, id: null, note: "" });
+      } else {
+        alert(result.message || "Failed to reject appointment");
+      }
+    } else if (rejectModal.kind === "test") {
+      const result = await rejectTest({ id: rejectModal.id, note });
+      if (result?.success) {
+        setRejectModal({ open: false, kind: null, id: null, note: "" });
+      } else {
+        alert(result?.message || "Failed to reject test request");
+      }
     }
   };
+
+  const handleReject = (id) => openRejectModal("appointment", id);
 
   const openReschedule = (id) => {
     setRescheduleModal({ open: true, apptId: id, date: "", timeSlot: "", note: "" });
@@ -158,13 +179,12 @@ export default function CounselorDashboard() {
     }
   };
 
-  const handleRejectTest = async (id) => {
-    const note = prompt("Optional note for rejection:") || null;
-    const result = await rejectTest({ id, note });
-    if (!result?.success) {
-      alert(result?.message || "Failed to reject test request");
-    }
-  };
+  const handleRejectTest = (id) => openRejectModal("test", id);
+
+  const recentlyRejected = useMemo(
+    () => myAppointments.filter((a) => a.status === "rejected").slice(0, 5),
+    [myAppointments]
+  );
 
   const openRescheduleTest = (id) => {
     setRescheduleTestModal({ open: true, testId: id, date: "", timeSlot: "", note: "" });
@@ -432,6 +452,28 @@ export default function CounselorDashboard() {
             <p className="text-sm text-gray-700">Total Students: <span className="font-bold text-gray-900">{totalStudents}</span></p>
           </div>
         </div>
+
+        {recentlyRejected.length > 0 && (
+          <div className="mt-6 bg-white rounded-xl shadow p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Recently Rejected</h3>
+            <ul className="divide-y divide-gray-100">
+              {recentlyRejected.map((a) => (
+                <li key={a.id} className="py-2 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{a.studentName}</p>
+                    <p className="text-xs text-gray-500">{a.preferredDate || a.scheduledDate || "—"}</p>
+                  </div>
+                  <span
+                    className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700"
+                    title={a.counselor_action_note || "No note provided"}
+                  >
+                    Rejected
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Reschedule Modal */}
@@ -499,6 +541,42 @@ export default function CounselorDashboard() {
             <div className="flex justify-end gap-2 mt-4">
               <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setRescheduleTestModal({ open: false, testId: null, date: "", timeSlot: "", note: "" })}>Cancel</button>
               <button className="px-3 py-2 bg-maroon-600 text-white rounded hover:bg-maroon-700" onClick={submitRescheduleTest}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectModal.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-1 text-red-700">
+              Reject {rejectModal.kind === "test" ? "Test Request" : "Appointment"}
+            </h3>
+            <p className="text-sm text-gray-600 mb-3">
+              The student will be notified. Please leave a short note explaining why.
+            </p>
+            <textarea
+              rows={4}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-maroon-500"
+              placeholder="e.g. Schedule conflict — please request another slot."
+              value={rejectModal.note}
+              onChange={(e) => setRejectModal((s) => ({ ...s, note: e.target.value }))}
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                onClick={() => setRejectModal({ open: false, kind: null, id: null, note: "" })}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+                onClick={submitReject}
+                disabled={!rejectModal.note.trim()}
+              >
+                Confirm Reject
+              </button>
             </div>
           </div>
         </div>
