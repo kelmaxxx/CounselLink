@@ -17,6 +17,8 @@ import auditLogsRoutes from "./routes/audit-logs.routes.js";
 import counselingSessionsRoutes from "./routes/counseling-sessions.routes.js";
 import studentInventoriesRoutes from "./routes/student-inventories.routes.js";
 import studentConsentsRoutes from "./routes/student-consents.routes.js";
+import feedbackRoutes from "./routes/feedback.routes.js";
+import referralsRoutes from "./routes/referrals.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -24,7 +26,7 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(cors({ origin: ["http://localhost:5173", "http://localhost:5174"], credentials: true }));
 app.use(express.json());
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,6 +51,8 @@ app.use("/api/audit-logs", auditLogsRoutes);
 app.use("/api/counseling-sessions", counselingSessionsRoutes);
 app.use("/api/student-inventories", studentInventoriesRoutes);
 app.use("/api/student-consents", studentConsentsRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/referrals", referralsRoutes);
 
 const port = process.env.PORT || 5000;
 

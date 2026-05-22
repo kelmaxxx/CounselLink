@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   Calendar, Users, FileText, Bell, LogOut, User,
-  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature
+  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft
 } from "lucide-react";
 import { useMessages } from "../context/MessagesContext";
 
@@ -23,7 +23,10 @@ const idToPath = {
   // Student
   dashboard: "/",
   "request-appointment": "/student/request-appointment",
+  "my-appointments": "/student/appointments",
   "request-psych-test": "/student/request-psych-test",
+  "counselor-directory": "/student/counselors",
+  "student-feedback": "/student/feedback",
   consent: "/student/consent",
   profile: "/student/profile",
   notifications: "/student/notifications",
@@ -31,6 +34,7 @@ const idToPath = {
   // Counselor
   "manage-students": "/students",
   appointments: "/counselor/appointments",
+  referrals: "/counselor/referrals",
   "generate-reports": "/counselor/reports",
   
   // College Rep
@@ -55,8 +59,11 @@ const idToPath = {
         return [
           { id: "dashboard", label: "Dashboard", icon: BarChart3 },
           { id: "request-appointment", label: "Request Appointment", icon: Calendar },
+          { id: "my-appointments", label: "My Appointments", icon: Calendar },
           { id: "request-psych-test", label: "Request Psych Test", icon: ClipboardList },
-          { id: "consent", label: "Informed Consent", icon: FileSignature },
+          { id: "counselor-directory", label: "Counselors", icon: Users },
+          { id: "student-feedback", label: "Leave Feedback", icon: MessageCircle },
+          { id: "consent", label: "View Psychological Test Result and Save Result", icon: FileSignature },
           { id: "messages", label: "Messages", icon: MessageCircle },
           { id: "profile", label: "My Profile", icon: User },
           { id: "notifications", label: "Notifications", icon: Bell }
@@ -66,6 +73,7 @@ const idToPath = {
           { id: "dashboard", label: "Dashboard", icon: BarChart3 },
           { id: "manage-students", label: "Manage Students Records", icon: Users },
           { id: "appointments", label: "Appointments", icon: Calendar },
+          { id: "referrals", label: "Referrals", icon: ArrowRightLeft },
           { id: "messages", label: "Messages", icon: MessageCircle },
           { id: "generate-reports", label: "Generate Reports", icon: FileText },
           { id: "profile", label: "My Profile", icon: User },

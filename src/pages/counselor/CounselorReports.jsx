@@ -3,7 +3,9 @@ import { useAuth } from "../../context/AuthContext";
 import { useTests } from "../../context/TestsContext";
 import { useTestResults } from "../../context/TestResultsContext";
 import { useAppointments } from "../../context/AppointmentsContext";
-import { X } from "lucide-react";
+import { X, Send } from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
@@ -24,12 +26,13 @@ const normalizeDateValue = (value) => {
 };
 
 export default function CounselorReports() {
-  const { currentUser } = useAuth();
+  const { currentUser, token, users, lookupUser } = useAuth();
   const { getTestsForCurrentUser, fetchTests } = useTests();
   const { createTestResult, testResults, fetchTestResults } = useTestResults();
   const { appointments, fetchAppointments } = useAppointments();
 
   const [sendResultModal, setSendResultModal] = useState({ open: false });
+  const [sendReportModal, setSendReportModal] = useState({ open: false });
   const [filters, setFilters] = useState({ status: "all", dateFrom: "", dateTo: "", search: "" });
   const [resultForm, setResultForm] = useState({
     testId: "",
@@ -242,6 +245,12 @@ export default function CounselorReports() {
               </span>
             </div>
           </div>
+          <button
+            onClick={() => setSendReportModal({ open: true })}
+            className="mt-4 w-full bg-maroon-600 text-white py-2 rounded-lg hover:bg-maroon-700 transition inline-flex items-center justify-center gap-2"
+          >
+            <Send size={16} /> Send Counseling Report to College Dean
+          </button>
         </div>
       </div>
 
@@ -382,6 +391,187 @@ export default function CounselorReports() {
           </div>
         </div>
       )}
+
+      {sendReportModal.open && (
+        <SendReportModal
+          token={token}
+          currentUser={currentUser}
+          filters={filters}
+          counselingAppointments={counselingAppointments}
+          myTests={myTests}
+          onClose={() => setSendReportModal({ open: false })}
+        />
+      )}
+    </div>
+  );
+}
+
+function SendReportModal({ token, currentUser, filters, counselingAppointments, myTests, onClose }) {
+  const [recipients, setRecipients] = useState([]);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
+  const [recipientId, setRecipientId] = useState("");
+  const [title, setTitle] = useState(
+    `Counseling report from ${currentUser?.name || "Counselor"} — ${new Date().toLocaleDateString()}`
+  );
+  const [summary, setSummary] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    setLoadingRecipients(true);
+    fetch(`${API_BASE}/api/users?role=college_rep`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json().then((body) => ({ res, body })))
+      .then(({ res, body }) => {
+        if (!res.ok) {
+          setError(body.message || "Unable to load recipients");
+          return;
+        }
+        const list = Array.isArray(body) ? body : body.items || [];
+        setRecipients(list);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoadingRecipients(false));
+  }, [token]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!recipientId) {
+      setError("Pick a recipient");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const statuses = counselingAppointments.reduce((acc, a) => {
+        acc[a.status] = (acc[a.status] || 0) + 1;
+        return acc;
+      }, {});
+      const payload = {
+        filters,
+        totals: {
+          counselingAppointments: counselingAppointments.length,
+          tests: myTests.length,
+        },
+        appointmentStatuses: statuses,
+        generatedAt: new Date().toISOString(),
+        counselorName: currentUser?.name,
+      };
+
+      const res = await fetch(`${API_BASE}/api/reports/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          recipientId: Number(recipientId),
+          title: title.trim(),
+          summary: summary.trim() || null,
+          payload,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setError(body.message || "Send failed");
+      } else {
+        setDone(true);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-start justify-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-xl p-6 w-full max-w-xl mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Send Counseling Report to College Dean</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X size={20} />
+          </button>
+        </div>
+
+        {done ? (
+          <div className="space-y-4">
+            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3">
+              Report sent. The recipient was notified.
+            </p>
+            <button
+              onClick={onClose}
+              className="w-full bg-maroon-600 text-white py-2 rounded-lg hover:bg-maroon-700"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Recipient *</label>
+              <select
+                required
+                className="w-full border rounded px-3 py-2"
+                value={recipientId}
+                onChange={(e) => setRecipientId(e.target.value)}
+                disabled={loadingRecipients}
+              >
+                <option value="">
+                  {loadingRecipients ? "Loading..." : "Select a College Dean"}
+                </option>
+                {recipients.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} {u.college ? `· ${u.college}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+              <input
+                required
+                className="w-full border rounded px-3 py-2"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Summary</label>
+              <textarea
+                rows={4}
+                className="w-full border rounded px-3 py-2"
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                placeholder="Optional cover note. Current filters and counts will be attached automatically."
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              Attached: filters in use, counseling counts, status breakdown, test counts.
+            </p>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-4 py-2 bg-maroon-600 text-white rounded hover:bg-maroon-700 disabled:opacity-60"
+              >
+                {submitting ? "Sending..." : "Send Report"}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

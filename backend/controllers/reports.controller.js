@@ -1,4 +1,5 @@
 import { query } from "../config/db.js";
+import { logAction } from "../utils/audit.js";
 
 const mapStatusCounts = (rows) =>
   rows.reduce((acc, row) => {
@@ -188,4 +189,60 @@ export const getCollegeReport = async (req, res) => {
     },
     students,
   });
+};
+
+export const sendReportToRecipient = async (req, res) => {
+  const senderId = req.user?.id;
+  const { recipientId, title, summary, payload } = req.body || {};
+
+  if (!recipientId || !title?.trim() || !payload) {
+    return res.status(400).json({ message: "recipientId, title, and payload are required" });
+  }
+
+  const recipient = await query(
+    "SELECT id, name, role FROM users WHERE id = ? AND role = 'college_rep'",
+    [recipientId]
+  );
+  if (!recipient.length) {
+    return res.status(404).json({ message: "Recipient must be a College Dean (college_rep)" });
+  }
+
+  const payloadJson = typeof payload === "string" ? payload : JSON.stringify(payload);
+  const result = await query(
+    `INSERT INTO report_recipients (sender_id, recipient_id, title, summary, report_payload)
+     VALUES (?, ?, ?, ?, ?)`,
+    [senderId, recipientId, title.trim(), summary || null, payloadJson]
+  );
+
+  await query(
+    `INSERT INTO notifications (user_id, title, message, status, link)
+     VALUES (?, ?, ?, 'unread', ?)`,
+    [
+      recipientId,
+      "Counseling report received",
+      `${title.trim()}${summary ? ` — ${summary.slice(0, 100)}` : ""}`,
+      `/college-rep/reports/${result.insertId}`,
+    ]
+  );
+
+  await logAction(req, "send_report", "report_recipient", result.insertId, {
+    recipientId,
+    title: title.trim(),
+  });
+
+  return res.status(201).json({ message: "Report sent", id: result.insertId });
+};
+
+export const listReceivedReports = async (req, res) => {
+  const userId = req.user?.id;
+  const rows = await query(
+    `SELECT r.id, r.title, r.summary, r.report_payload, r.status, r.sent_at, r.acknowledged_at,
+            u.name AS senderName, u.id AS sender_id
+     FROM report_recipients r
+     LEFT JOIN users u ON r.sender_id = u.id
+     WHERE r.recipient_id = ?
+     ORDER BY r.sent_at DESC`,
+    [userId]
+  );
+  return res.json(rows);
 };

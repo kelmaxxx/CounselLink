@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { User, Mail, Phone, Briefcase, Award, FileText, Edit2, Save, X } from "lucide-react";
+import { User, Mail, Phone, Briefcase, Award, FileText, Edit2, Save, X, Star } from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 export default function CounselorProfile() {
   const { currentUser, refreshCurrentUser, updateProfile } = useAuth();
@@ -304,24 +306,98 @@ export default function CounselorProfile() {
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h4 className="text-sm text-gray-600 mb-2">Total Sessions</h4>
-          <p className="text-3xl font-bold text-maroon-600">42</p>
-          <p className="text-xs text-gray-500 mt-1">This semester</p>
+      <FeedbackPanel />
+    </div>
+  );
+}
+
+function FeedbackPanel() {
+  const { token } = useAuth();
+  const [data, setData] = useState({ items: [], count: 0, average: null });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    let mounted = true;
+    setLoading(true);
+    fetch(`${API_BASE}/api/feedback?counselorId=me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json().then((body) => ({ res, body })))
+      .then(({ res, body }) => {
+        if (!mounted) return;
+        if (!res.ok) {
+          setError(body.message || "Unable to load feedback");
+          setData({ items: [], count: 0, average: null });
+        } else {
+          setData({
+            items: Array.isArray(body.items) ? body.items : [],
+            count: body.count || 0,
+            average: body.average,
+          });
+        }
+      })
+      .catch((err) => mounted && setError(err.message))
+      .finally(() => mounted && setLoading(false));
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
+
+  return (
+    <div className="mt-6 bg-white border border-gray-200 p-6 rounded-xl shadow">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Student Feedback</h3>
+          <p className="text-sm text-gray-600">
+            {data.count > 0
+              ? `${data.count} response${data.count === 1 ? "" : "s"} · average ${
+                  data.average?.toFixed(1) ?? "—"
+                } / 5`
+              : "No feedback received yet."}
+          </p>
         </div>
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h4 className="text-sm text-gray-600 mb-2">Active Students</h4>
-          <p className="text-3xl font-bold text-maroon-600">18</p>
-          <p className="text-xs text-gray-500 mt-1">Currently counseling</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h4 className="text-sm text-gray-600 mb-2">Pending Requests</h4>
-          <p className="text-3xl font-bold text-maroon-600">5</p>
-          <p className="text-xs text-gray-500 mt-1">Awaiting response</p>
+        <div className="flex items-center gap-1 text-amber-500">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Star
+              key={i}
+              size={18}
+              fill={data.average && i < Math.round(data.average) ? "currentColor" : "none"}
+              stroke="currentColor"
+            />
+          ))}
         </div>
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {loading && <p className="text-sm text-gray-500">Loading...</p>}
+      {!loading && data.items.length > 0 && (
+        <ul className="divide-y divide-gray-100">
+          {data.items.map((fb) => (
+            <li key={fb.id} className="py-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{fb.studentName || "Anonymous"}</p>
+                  <p className="text-xs text-gray-500">
+                    {fb.created_at ? new Date(fb.created_at).toLocaleString() : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-0.5 text-amber-500">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      size={14}
+                      fill={i < fb.rating ? "currentColor" : "none"}
+                      stroke="currentColor"
+                    />
+                  ))}
+                </div>
+              </div>
+              {fb.comment && <p className="text-sm text-gray-700 mt-1">{fb.comment}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -5,10 +5,11 @@
 //   - Consent:   e-sign status, signed-paper scan, revoke
 //   - Sessions:  counseling sessions filtered to this student
 import React, { useEffect, useMemo, useState } from "react";
-import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle } from "lucide-react";
+import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle } from "lucide-react";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import InventoryForm from "./InventoryForm";
+import ChatModal from "../ChatModal";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -238,6 +239,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState(null);
   const [consent, setConsent] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (!student?.id) return;
@@ -317,7 +319,16 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
               {student?.studentId || student?.email || ""}{student?.college ? ` • ${student.college}` : ""}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded hover:bg-gray-100"><X size={20} /></button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setChatOpen(true)}
+              disabled={!student?.id}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium disabled:opacity-50"
+            >
+              <MessageCircle size={14} /> Send Message
+            </button>
+            <button onClick={onClose} className="p-2 rounded hover:bg-gray-100"><X size={20} /></button>
+          </div>
         </div>
 
         {/* Sub-tabs */}
@@ -362,6 +373,10 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
           )}
         </div>
       </aside>
+
+      {chatOpen && student?.id && (
+        <ChatModal recipientUser={student} onClose={() => setChatOpen(false)} />
+      )}
     </div>
   );
 }

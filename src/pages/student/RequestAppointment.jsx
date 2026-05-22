@@ -1,7 +1,9 @@
 // src/pages/student/RequestAppointment.jsx
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
+import { useReactToPrint } from "react-to-print";
+import { Printer } from "lucide-react";
 
 export default function RequestAppointment() {
   const { currentUser, users } = useAuth();
@@ -19,6 +21,11 @@ export default function RequestAppointment() {
   const [submitted, setSubmitted] = useState(false);
 
   const { createAppointment } = useAppointments?.() || {};
+  const printRef = useRef(null);
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `appointment-request-${currentUser?.studentId || currentUser?.id || "form"}`,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -62,6 +69,7 @@ export default function RequestAppointment() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
+        <div ref={printRef} className="space-y-8 print:space-y-4">
         {/* Administrative Section */}
         <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Administrative</h3>
@@ -282,7 +290,9 @@ export default function RequestAppointment() {
           </div>
         </div>
 
-        {/* Submit Button */}
+        </div>
+
+        {/* Submit Button (outside printRef so buttons don't print) */}
         <div className="flex gap-4">
           <button
             type="submit"
@@ -293,32 +303,13 @@ export default function RequestAppointment() {
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
-            className="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 font-medium transition"
+            onClick={handlePrint}
+            className="flex-1 bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700 font-medium transition inline-flex items-center justify-center gap-2"
           >
-            Print Form
+            <Printer size={18} /> Print Form
           </button>
         </div>
       </form>
-
-      {/* Print Styles */}
-      <style>{`
-        @media print {
-          body {
-            margin: 0;
-            padding: 0;
-          }
-          .p-6 {
-            padding: 0;
-          }
-          button {
-            display: none !important;
-          }
-          .bg-blue-50 {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

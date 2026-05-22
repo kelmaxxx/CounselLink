@@ -1,10 +1,12 @@
 // src/pages/student/StudentConsent.jsx
 // Student-facing informed-consent page. Mirrors the wet-paper consent printed
 // on the back of the MSU DSA Student Individual Inventory form.
-import React, { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, AlertTriangle, ShieldCheck, FileSignature } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, AlertTriangle, ShieldCheck, FileSignature, ClipboardList, Printer, Download } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
+import { useTestResults } from "../../context/TestResultsContext";
+import { useReactToPrint } from "react-to-print";
 
 const CONSENT_SCOPE_DEFAULT =
   "Counseling services + records handling under MSU DSA Guidance and Counseling Section, RA 10173 (Data Privacy Act of 2012)";
@@ -92,10 +94,10 @@ export default function StudentConsent() {
     <div className="p-6">
       <div className="max-w-3xl">
         <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-1">Informed Consent</h2>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-1">View Psychological Test Result and Save Result</h2>
           <p className="text-sm text-gray-600">
-            Please read carefully before signing. This consent covers counseling and inventory records under
-            the MSU DSA Guidance and Counseling Section.
+            Read and sign the informed consent below, then view and save any psychological test results
+            released by your counselor.
           </p>
         </div>
 
@@ -268,7 +270,116 @@ export default function StudentConsent() {
             </div>
           </form>
         )}
+
+        <TestResultsSection studentName={currentUser?.name} />
       </div>
+    </div>
+  );
+}
+
+function TestResultsSection({ studentName }) {
+  const { testResults, fetchTestResults } = useTestResults();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!fetchTestResults) return;
+    setLoading(true);
+    fetchTestResults()
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [fetchTestResults]);
+
+  return (
+    <div className="mt-8">
+      <div className="mb-3 flex items-center gap-2">
+        <ClipboardList className="text-maroon-600" size={20} />
+        <h3 className="text-lg font-semibold text-gray-900">My Psychological Test Results</h3>
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {loading && <p className="text-sm text-gray-500">Loading...</p>}
+      {!loading && (!testResults || testResults.length === 0) ? (
+        <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-600">
+          No test results released yet. After your counselor finalizes a result it will appear here.
+        </div>
+      ) : (
+        <ul className="space-y-4">
+          {(testResults || []).map((r) => (
+            <TestResultCard key={r.id} result={r} studentName={studentName} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function TestResultCard({ result, studentName }) {
+  const printRef = useRef(null);
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `test-result-${result.testName || result.id}`,
+  });
+
+  return (
+    <li className="bg-white border border-gray-200 rounded-xl shadow p-5">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div>
+          <p className="font-medium text-gray-900">{result.testName || "Psychological Test"}</p>
+          <p className="text-xs text-gray-500">
+            Completed{" "}
+            {result.completedDate ? new Date(result.completedDate).toLocaleDateString() : "—"}
+            {result.counselorName ? ` · by ${result.counselorName}` : ""}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded border text-xs hover:bg-gray-50"
+            title="Save as PDF (use the print dialog's 'Save as PDF')"
+          >
+            <Download size={14} /> Save
+          </button>
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-maroon-600 text-white text-xs hover:bg-maroon-700"
+          >
+            <Printer size={14} /> Print
+          </button>
+        </div>
+      </div>
+
+      <div ref={printRef} className="p-2">
+        <div className="text-center mb-3 print:mb-2">
+          <h4 className="text-lg font-bold">CounselLink MSU-Marawi</h4>
+          <p className="text-xs text-gray-600">Psychological Test Result</p>
+        </div>
+        <dl className="divide-y divide-gray-100 text-sm">
+          <Row label="Student" value={studentName || "—"} />
+          <Row label="Test" value={result.testName || "—"} />
+          <Row
+            label="Completed"
+            value={
+              result.completedDate ? new Date(result.completedDate).toLocaleDateString() : "—"
+            }
+          />
+          {result.counselorName && <Row label="Counselor" value={result.counselorName} />}
+          {result.summary && <Row label="Summary" value={result.summary} multiline />}
+          {result.recommendations && (
+            <Row label="Recommendations" value={result.recommendations} multiline />
+          )}
+        </dl>
+      </div>
+    </li>
+  );
+}
+
+function Row({ label, value, multiline }) {
+  return (
+    <div className={`py-2 grid grid-cols-1 sm:grid-cols-3 gap-2 ${multiline ? "items-start" : ""}`}>
+      <dt className="text-xs font-medium text-gray-600">{label}</dt>
+      <dd className={`sm:col-span-2 text-sm text-gray-900 ${multiline ? "whitespace-pre-wrap" : ""}`}>
+        {value}
+      </dd>
     </div>
   );
 }

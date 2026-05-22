@@ -10,6 +10,7 @@ import { TestResultsProvider } from './context/TestResultsContext'
 import { MessagesProvider } from './context/MessagesContext'
 import { CounselingSessionsProvider } from './context/CounselingSessionsContext'
 import { StudentRecordsProvider } from './context/StudentRecordsContext'
+import { ReferralsProvider } from './context/ReferralsContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -21,7 +22,9 @@ createRoot(document.getElementById('root')).render(
               <MessagesProvider>
                 <CounselingSessionsProvider>
                   <StudentRecordsProvider>
-                    <App />
+                    <ReferralsProvider>
+                      <App />
+                    </ReferralsProvider>
                   </StudentRecordsProvider>
                 </CounselingSessionsProvider>
               </MessagesProvider>

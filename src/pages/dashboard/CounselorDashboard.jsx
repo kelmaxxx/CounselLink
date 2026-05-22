@@ -8,6 +8,16 @@ import { Users, Calendar, Clock3, FileText, ArrowRight, CheckCircle2, X, User2, 
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
+const COLLEGE_COLORS = ["#7f1d1d", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce", "#0e7490", "#9f1239"];
+const STATUS_COLORS = {
+  pending: "#f59e0b",
+  approved: "#16a34a",
+  rescheduled: "#0ea5e9",
+  rejected: "#dc2626",
+  completed: "#065f46",
+};
 
 export default function CounselorDashboard() {
   const { currentUser, users, lookupUser } = useAuth();
@@ -56,6 +66,7 @@ export default function CounselorDashboard() {
   const [rescheduleModal, setRescheduleModal] = useState({ open: false, apptId: null, date: "", timeSlot: "", note: "" });
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [chatRecipient, setChatRecipient] = useState(null);
+  const [rejectModal, setRejectModal] = useState({ open: false, kind: null, id: null, note: "" });
   
   const students = users?.filter((u) => u.role === "student") || [];
 
@@ -81,16 +92,17 @@ export default function CounselorDashboard() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
-  const maxStudents = Math.max(...topColleges.map(([_, count]) => count), 1);
-
-  // Define color palette for progress bars
-  const barColors = [
-    'bg-maroon-500',
-    'bg-blue-500',
-    'bg-green-500',
-    'bg-orange-500',
-    'bg-purple-500',
-  ];
+  const appointmentStatusBreakdown = useMemo(() => {
+    const counts = myAppointments.reduce((acc, a) => {
+      const key = a.status || "pending";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value,
+    }));
+  }, [myAppointments]);
 
   // Handlers for appointment actions
   const handleAccept = async (id) => {
@@ -106,15 +118,35 @@ export default function CounselorDashboard() {
     }
   };
 
-  const handleReject = async (id) => {
-    const note = prompt("Optional note for rejection:") || null;
-    const result = await rejectAppointment({ id, note });
-    if (result.success) {
-      setMyAppointments((prev) => prev.map((a) => a.id === id ? { ...a, status: "rejected", counselor_action_note: note } : a));
-    } else {
-      alert(result.message || "Failed to reject appointment");
+  const openRejectModal = (kind, id) => {
+    setRejectModal({ open: true, kind, id, note: "" });
+  };
+
+  const submitReject = async () => {
+    const note = rejectModal.note.trim() || null;
+    if (rejectModal.kind === "appointment") {
+      const result = await rejectAppointment({ id: rejectModal.id, note });
+      if (result.success) {
+        setMyAppointments((prev) =>
+          prev.map((a) =>
+            a.id === rejectModal.id ? { ...a, status: "rejected", counselor_action_note: note } : a
+          )
+        );
+        setRejectModal({ open: false, kind: null, id: null, note: "" });
+      } else {
+        alert(result.message || "Failed to reject appointment");
+      }
+    } else if (rejectModal.kind === "test") {
+      const result = await rejectTest({ id: rejectModal.id, note });
+      if (result?.success) {
+        setRejectModal({ open: false, kind: null, id: null, note: "" });
+      } else {
+        alert(result?.message || "Failed to reject test request");
+      }
     }
   };
+
+  const handleReject = (id) => openRejectModal("appointment", id);
 
   const openReschedule = (id) => {
     setRescheduleModal({ open: true, apptId: id, date: "", timeSlot: "", note: "" });
@@ -158,13 +190,12 @@ export default function CounselorDashboard() {
     }
   };
 
-  const handleRejectTest = async (id) => {
-    const note = prompt("Optional note for rejection:") || null;
-    const result = await rejectTest({ id, note });
-    if (!result?.success) {
-      alert(result?.message || "Failed to reject test request");
-    }
-  };
+  const handleRejectTest = (id) => openRejectModal("test", id);
+
+  const recentlyRejected = useMemo(
+    () => myAppointments.filter((a) => a.status === "rejected").slice(0, 5),
+    [myAppointments]
+  );
 
   const openRescheduleTest = (id) => {
     setRescheduleTestModal({ open: true, testId: id, date: "", timeSlot: "", note: "" });
@@ -405,33 +436,92 @@ export default function CounselorDashboard() {
           </div>
         </div>
 
-        {/* Students by College - Full Width */}
-        <div className="bg-white rounded-xl shadow p-6 border border-gray-200">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Students by College</h3>
-              <p className="text-sm text-gray-600">Distribution of your caseload</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {topColleges.map(([college, count], index) => (
-              <div key={college}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700">{college}</span>
-                  <span className="text-sm text-gray-600">{count} students</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className={`${barColors[index % barColors.length]} h-2 rounded-full`} style={{ width: `${(count / maxStudents) * 100}%` }}></div>
-                </div>
+        {/* Charts - Two pies side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl shadow p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Students by College</h3>
+            <p className="text-sm text-gray-600 mb-3">Distribution of your caseload</p>
+            {topColleges.filter(([, c]) => c > 0).length === 0 ? (
+              <p className="text-sm text-gray-500">No students yet.</p>
+            ) : (
+              <div style={{ width: "100%", height: 280 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={topColleges.filter(([, c]) => c > 0).map(([name, value]) => ({ name, value }))}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                    >
+                      {topColleges.filter(([, c]) => c > 0).map((_, i) => (
+                        <Cell key={i} fill={COLLEGE_COLORS[i % COLLEGE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
+            )}
+            <p className="text-sm text-gray-700 mt-2">
+              Total Students: <span className="font-bold text-gray-900">{totalStudents}</span>
+            </p>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-200">
-            <p className="text-sm text-gray-700">Total Students: <span className="font-bold text-gray-900">{totalStudents}</span></p>
+          <div className="bg-white rounded-xl shadow p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Appointment Status Breakdown</h3>
+            <p className="text-sm text-gray-600 mb-3">Your appointments grouped by current status</p>
+            {appointmentStatusBreakdown.length === 0 ? (
+              <p className="text-sm text-gray-500">No appointments yet.</p>
+            ) : (
+              <div style={{ width: "100%", height: 280 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={appointmentStatusBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      label={(entry) => `${entry.name}: ${entry.value}`}
+                    >
+                      {appointmentStatusBreakdown.map((entry) => (
+                        <Cell key={entry.name} fill={STATUS_COLORS[entry.name.toLowerCase()] || "#94a3b8"} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         </div>
+
+        {recentlyRejected.length > 0 && (
+          <div className="mt-6 bg-white rounded-xl shadow p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Recently Rejected</h3>
+            <ul className="divide-y divide-gray-100">
+              {recentlyRejected.map((a) => (
+                <li key={a.id} className="py-2 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{a.studentName}</p>
+                    <p className="text-xs text-gray-500">{a.preferredDate || a.scheduledDate || "—"}</p>
+                  </div>
+                  <span
+                    className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700"
+                    title={a.counselor_action_note || "No note provided"}
+                  >
+                    Rejected
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Reschedule Modal */}
@@ -499,6 +589,42 @@ export default function CounselorDashboard() {
             <div className="flex justify-end gap-2 mt-4">
               <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setRescheduleTestModal({ open: false, testId: null, date: "", timeSlot: "", note: "" })}>Cancel</button>
               <button className="px-3 py-2 bg-maroon-600 text-white rounded hover:bg-maroon-700" onClick={submitRescheduleTest}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectModal.open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-1 text-red-700">
+              Reject {rejectModal.kind === "test" ? "Test Request" : "Appointment"}
+            </h3>
+            <p className="text-sm text-gray-600 mb-3">
+              The student will be notified. Please leave a short note explaining why.
+            </p>
+            <textarea
+              rows={4}
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-maroon-500"
+              placeholder="e.g. Schedule conflict — please request another slot."
+              value={rejectModal.note}
+              onChange={(e) => setRejectModal((s) => ({ ...s, note: e.target.value }))}
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                onClick={() => setRejectModal({ open: false, kind: null, id: null, note: "" })}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+                onClick={submitReject}
+                disabled={!rejectModal.note.trim()}
+              >
+                Confirm Reject
+              </button>
             </div>
           </div>
         </div>

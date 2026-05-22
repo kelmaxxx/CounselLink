@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
+import { useReactToPrint } from "react-to-print";
+import { X, Download } from "lucide-react";
 
 const STATUS_LABELS = [
   { value: "all", label: "All Statuses" },
@@ -141,12 +143,17 @@ export default function AdminReports() {
   const admins = reportData?.users?.admin || 0;
   const totalUsers = students + counselors + reps + admins;
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const printRef = useRef(null);
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: "admin-report",
+  });
 
-  const handleViewDetails = () => {
-    const payload = {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const handleViewDetails = () => setDetailsOpen(true);
+
+  const detailsPayload = useMemo(
+    () => ({
       generatedAt: new Date().toISOString(),
       filters,
       users: reportData?.users || {},
@@ -157,12 +164,58 @@ export default function AdminReports() {
       },
       appointmentStatuses,
       recentActivity,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    }),
+    [filters, reportData, totalAppointments, totalTests, pendingRequests, appointmentStatuses, recentActivity]
+  );
+
+  const exportCsv = () => {
+    const rows = [];
+    rows.push(["CounselLink MSU-Marawi — Admin Report"]);
+    rows.push(["Generated", detailsPayload.generatedAt]);
+    rows.push([]);
+    rows.push(["Filters"]);
+    rows.push(["Type", filters.type]);
+    rows.push(["Status", filters.status]);
+    rows.push(["Date From", filters.dateFrom || "(any)"]);
+    rows.push(["Date To", filters.dateTo || "(any)"]);
+    rows.push([]);
+    rows.push(["Users by Role"]);
+    rows.push(["Role", "Count"]);
+    rows.push(["Students", students]);
+    rows.push(["Counselors", counselors]);
+    rows.push(["College Dean", reps]);
+    rows.push(["Admins", admins]);
+    rows.push([]);
+    rows.push(["Totals"]);
+    rows.push(["Counseling Appointments", totalAppointments]);
+    rows.push(["Test Requests", totalTests]);
+    rows.push(["Pending", pendingRequests]);
+    rows.push([]);
+    rows.push(["Appointment Statuses"]);
+    Object.entries(appointmentStatuses).forEach(([k, v]) => rows.push([k, v]));
+    rows.push([]);
+    rows.push(["Recent Activity"]);
+    rows.push(["Student", "Date", "Status"]);
+    recentActivity.forEach((apt) =>
+      rows.push([apt.studentName || "Student", apt.preferredDate || apt.scheduledDate || "", apt.status])
+    );
+
+    const csv = rows
+      .map((row) =>
+        row
+          .map((cell) => {
+            const s = String(cell ?? "");
+            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+          })
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "admin-report.json";
+    link.download = "admin-report.csv";
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -187,6 +240,7 @@ export default function AdminReports() {
     <div className="p-6">
       <h2 className="text-2xl font-semibold text-gray-900 mb-4">System Reports</h2>
 
+      <div ref={printRef} className="space-y-6 print:space-y-4">
       <div className="bg-white border border-gray-200 rounded-xl p-4 mb-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -348,6 +402,123 @@ export default function AdminReports() {
           </div>
         </div>
       )}
+      </div>
+
+      {detailsOpen && (
+        <DetailsModal
+          payload={detailsPayload}
+          students={students}
+          counselors={counselors}
+          reps={reps}
+          admins={admins}
+          totalAppointments={totalAppointments}
+          totalTests={totalTests}
+          pendingRequests={pendingRequests}
+          appointmentStatuses={appointmentStatuses}
+          recentActivity={recentActivity}
+          onClose={() => setDetailsOpen(false)}
+          onExportCsv={exportCsv}
+        />
+      )}
+    </div>
+  );
+}
+
+function DetailsModal({
+  payload,
+  students,
+  counselors,
+  reps,
+  admins,
+  totalAppointments,
+  totalTests,
+  pendingRequests,
+  appointmentStatuses,
+  recentActivity,
+  onClose,
+  onExportCsv,
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center px-4 py-8 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-gray-900">Report Details</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={onExportCsv}
+              className="text-sm px-3 py-1.5 rounded bg-maroon-500 text-white hover:bg-maroon-600 inline-flex items-center gap-1"
+            >
+              <Download size={16} /> Export CSV
+            </button>
+            <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100">
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-500 mb-4">
+          Generated {new Date(payload.generatedAt).toLocaleString()}
+        </p>
+
+        <section className="mb-5">
+          <h4 className="font-semibold text-gray-800 mb-2">Users by Role</h4>
+          <table className="w-full text-sm border border-gray-200">
+            <tbody>
+              <tr className="border-b"><td className="p-2">Students</td><td className="p-2 text-right">{students}</td></tr>
+              <tr className="border-b"><td className="p-2">Counselors</td><td className="p-2 text-right">{counselors}</td></tr>
+              <tr className="border-b"><td className="p-2">College Dean</td><td className="p-2 text-right">{reps}</td></tr>
+              <tr><td className="p-2">Admins</td><td className="p-2 text-right">{admins}</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section className="mb-5">
+          <h4 className="font-semibold text-gray-800 mb-2">Totals</h4>
+          <table className="w-full text-sm border border-gray-200">
+            <tbody>
+              <tr className="border-b"><td className="p-2">Counseling Appointments</td><td className="p-2 text-right">{totalAppointments}</td></tr>
+              <tr className="border-b"><td className="p-2">Test Requests</td><td className="p-2 text-right">{totalTests}</td></tr>
+              <tr><td className="p-2">Pending</td><td className="p-2 text-right">{pendingRequests}</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        {Object.keys(appointmentStatuses).length > 0 && (
+          <section className="mb-5">
+            <h4 className="font-semibold text-gray-800 mb-2">Appointment Statuses</h4>
+            <table className="w-full text-sm border border-gray-200">
+              <tbody>
+                {Object.entries(appointmentStatuses).map(([k, v]) => (
+                  <tr key={k} className="border-b last:border-b-0">
+                    <td className="p-2 capitalize">{k}</td>
+                    <td className="p-2 text-right">{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+
+        {recentActivity.length > 0 && (
+          <section>
+            <h4 className="font-semibold text-gray-800 mb-2">Recent Activity</h4>
+            <table className="w-full text-sm border border-gray-200">
+              <thead className="bg-gray-50">
+                <tr><th className="p-2 text-left">Student</th><th className="p-2 text-left">Date</th><th className="p-2 text-left">Status</th></tr>
+              </thead>
+              <tbody>
+                {recentActivity.map((apt) => (
+                  <tr key={apt.id} className="border-b last:border-b-0">
+                    <td className="p-2">{apt.studentName || "Student"}</td>
+                    <td className="p-2">{apt.preferredDate || apt.scheduledDate || "—"}</td>
+                    <td className="p-2 capitalize">{apt.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

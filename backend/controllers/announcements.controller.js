@@ -61,3 +61,39 @@ export const listAnnouncements = async (_req, res) => {
   );
   return res.json(rows);
 };
+
+export const updateAnnouncement = async (req, res) => {
+  const { id } = req.params;
+  const { title, message } = req.body;
+
+  if (!title?.trim() || !message?.trim()) {
+    return res.status(400).json({ message: "Title and message are required" });
+  }
+
+  const existing = await query("SELECT id FROM announcements WHERE id = ?", [id]);
+  if (!existing.length) {
+    return res.status(404).json({ message: "Announcement not found" });
+  }
+
+  await query("UPDATE announcements SET content = ? WHERE id = ?", [
+    `${title}\n\n${message}`,
+    id,
+  ]);
+
+  await logAction(req, "update_announcement", "announcement", id, { title });
+
+  return res.json({ message: "Announcement updated", id: Number(id) });
+};
+
+export const deleteAnnouncement = async (req, res) => {
+  const { id } = req.params;
+  const existing = await query("SELECT id FROM announcements WHERE id = ?", [id]);
+  if (!existing.length) {
+    return res.status(404).json({ message: "Announcement not found" });
+  }
+
+  await query("DELETE FROM announcements WHERE id = ?", [id]);
+  await logAction(req, "delete_announcement", "announcement", id, {});
+
+  return res.json({ message: "Announcement deleted", id: Number(id) });
+};

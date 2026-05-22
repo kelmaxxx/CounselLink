@@ -22,6 +22,17 @@ export const createTestResult = async (req, res) => {
     appointmentId: appointmentId || null,
   });
 
+  await query(
+    `INSERT INTO notifications (user_id, title, message, status, link)
+     VALUES (?, ?, ?, 'unread', ?)`,
+    [
+      studentId,
+      "Psychological test result released",
+      `Your counselor released a result for "${testName}". View and save it from your records.`,
+      "/student/consent",
+    ]
+  );
+
   return res.status(201).json({ message: "Test result saved", id: result.insertId });
 };
 

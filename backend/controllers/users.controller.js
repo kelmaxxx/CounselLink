@@ -30,7 +30,7 @@ const SELF_UPDATABLE = {
 };
 
 const ADMIN_UPDATABLE = [
-  "name", "email", "phone", "bio", "college", "program", "yearLevel",
+  "name", "email", "phone", "bio", "college",
   "department", "specialization", "employeeId",
 ];
 
@@ -99,8 +99,14 @@ export const listUsers = async (req, res) => {
 
   if (requesterRole === "admin") {
     // admin can list anything
-  } else if (requesterRole === "counselor" && role === "student") {
-    // counselors can list students for session/appointment pickers
+  } else if (
+    requesterRole === "counselor" &&
+    ["student", "counselor", "college_rep"].includes(role)
+  ) {
+    // counselors can list students (session/appointment pickers),
+    // other counselors (referral targets), and college_rep (report recipients)
+  } else if (requesterRole === "student" && role === "counselor") {
+    // students can browse the counselor directory
   } else {
     return res.status(403).json({ message: "Forbidden" });
   }

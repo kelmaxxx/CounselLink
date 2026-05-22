@@ -8,7 +8,7 @@ export default function ManageUsers() {
   const [selectedRole, setSelectedRole] = useState("All");
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const [_busy, setBusy] = useState(false);
 
   // Modals
   const [createModal, setCreateModal] = useState({ open: false, role: "" });
@@ -28,40 +28,10 @@ export default function ManageUsers() {
     email: "",
     phone: "",
     college: "",
-    program: "",
-    yearLevel: "",
     department: "",
     specialization: "",
     employeeId: ""
   });
-
-  // Programs and Year Levels for students
-  const programs = [
-    "BS Computer Science",
-    "BS Information Technology",
-    "BS Mathematics",
-    "BS Biology",
-    "BS Chemistry",
-    "BS Physics",
-    "BS Psychology",
-    "AB English",
-    "AB History",
-    "AB Political Science",
-    "BS Civil Engineering",
-    "BS Electrical Engineering",
-    "BS Mechanical Engineering",
-    "BS Architecture",
-    "BS Business Administration",
-    "BS Accountancy",
-    "BS Economics",
-    "BS Education",
-    "BS Elementary Education",
-    "BS Secondary Education",
-    "LLB",
-    "Doctor of Medicine"
-  ];
-
-  const yearLevels = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
 
   const departments = [
     "Guidance Office",
@@ -119,8 +89,6 @@ export default function ManageUsers() {
       email: user.email || "",
       phone: user.phone || "",
       college: user.college || "",
-      program: user.program || "",
-      yearLevel: user.yearLevel || "",
       department: user.department || "",
       specialization: user.specialization || "",
       employeeId: user.employeeId || ""
@@ -137,16 +105,14 @@ export default function ManageUsers() {
       phone: editForm.phone,
     };
 
-    if (editModal.user.role === "student") {
-      updates.college = editForm.college;
-      updates.program = editForm.program;
-      updates.yearLevel = editForm.yearLevel;
-    } else if (editModal.user.role === "counselor") {
+    if (editModal.user.role === "counselor") {
       updates.department = editForm.department;
       updates.specialization = editForm.specialization;
     } else if (editModal.user.role === "college_rep") {
       updates.college = editForm.college;
     }
+    // Student academic info (college/program/yearLevel/studentId) is no longer
+    // admin-editable per client request.
 
     setBusy(true);
     const res = await updateUser(editModal.user.id, updates);
@@ -439,55 +405,12 @@ export default function ManageUsers() {
                 />
               </div>
 
-              {/* Student-Specific Fields */}
               {editModal.user?.role === "student" && (
                 <div className="border-t border-gray-200 pt-4 mt-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Academic Information</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">College</label>
-                      <select 
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-maroon-500 focus:border-transparent" 
-                        value={editForm.college} 
-                        onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
-                      >
-                        <option value="">Select College</option>
-                        {COLLEGES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Program/Course</label>
-                      <select 
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-maroon-500 focus:border-transparent" 
-                        value={editForm.program} 
-                        onChange={(e) => setEditForm({ ...editForm, program: e.target.value })}
-                      >
-                        <option value="">Select Program</option>
-                        {programs.map((p) => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Year Level</label>
-                      <select 
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-maroon-500 focus:border-transparent" 
-                        value={editForm.yearLevel} 
-                        onChange={(e) => setEditForm({ ...editForm, yearLevel: e.target.value })}
-                      >
-                        <option value="">Select Year Level</option>
-                        {yearLevels.map((y) => <option key={y} value={y}>{y}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Student ID</label>
-                      <input 
-                        type="text" 
-                        disabled
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-gray-600" 
-                        value={editModal.user?.studentId || ""} 
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Student ID cannot be changed</p>
-                    </div>
-                  </div>
+                  <p className="text-sm text-gray-500">
+                    Academic information (college, program, year level, student ID) is managed by the
+                    student or their College Dean and is no longer editable here.
+                  </p>
                 </div>
               )}
 

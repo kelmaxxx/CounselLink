@@ -339,12 +339,38 @@ export default function ManageStudents() {
                           <td className="px-4 py-3">{conBadge}</td>
                           <td className="px-4 py-3 text-gray-700">{sessionCount}</td>
                           <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setDrawerStudent(s); }}
-                              className="px-3 py-1.5 rounded border text-xs hover:bg-gray-50"
-                            >
-                              Open records
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setDrawerStudent(s); }}
+                                className="px-2.5 py-1 rounded border text-xs hover:bg-gray-50"
+                                title="View / Manage records"
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setForm({ ...blankForm(), studentId: String(s.id), sessionDate: new Date().toISOString().split("T")[0] });
+                                  setEditing({});
+                                  setActiveTab("records");
+                                }}
+                                className="px-2.5 py-1 rounded bg-maroon-600 text-white text-xs hover:bg-maroon-700"
+                                title="Add new session record for this student"
+                              >
+                                + Add
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setStudentSearch(s.name || s.studentId || "");
+                                  setActiveTab("records");
+                                }}
+                                className="px-2.5 py-1 rounded border text-xs hover:bg-gray-50"
+                                title="Manage this student's session records"
+                              >
+                                Manage
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
