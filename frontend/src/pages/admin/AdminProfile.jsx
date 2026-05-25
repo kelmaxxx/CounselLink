@@ -1,6 +1,33 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { User, Mail, Phone, Shield, Edit2, Save, X } from "lucide-react";
+import {
+  User,
+  Mail,
+  Phone,
+  Shield,
+  Edit2,
+  Save,
+  X,
+  Hash,
+  CheckCircle2,
+} from "lucide-react";
+import {
+  PageHeader,
+  SectionCard,
+  BTN,
+  INPUT,
+  LABEL,
+  initialsOf,
+} from "../../components/ui";
+
+const PERMISSIONS = [
+  "Manage all user accounts (create, edit, delete)",
+  "Create and send system announcements",
+  "Generate system reports and analytics",
+  "Approve / deny data access requests",
+  "Monitor system activity and audit logs",
+  "Configure system settings",
+];
 
 export default function AdminProfile() {
   const { currentUser, refreshCurrentUser, updateProfile } = useAuth();
@@ -16,7 +43,7 @@ export default function AdminProfile() {
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     refreshCurrentUser?.().then((fresh) => {
       if (!fresh) return;
       setFormData((f) => ({
@@ -43,7 +70,7 @@ export default function AdminProfile() {
         phone: formData.phone,
       });
       setIsEditing(false);
-      setMessage({ type: "success", text: "Profile updated successfully!" });
+      setMessage({ type: "success", text: "Profile updated successfully" });
     } catch (err) {
       setMessage({ type: "error", text: err.message || "Failed to update profile" });
     } finally {
@@ -63,177 +90,165 @@ export default function AdminProfile() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900">My Profile</h2>
-        {!isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition"
-          >
-            <Edit2 size={18} />
-            Edit Profile
-          </button>
-        )}
-      </div>
+    <div className="px-6 py-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="Administrator"
+        title="My profile"
+        subtitle="Manage your administrator account."
+        actions={
+          !isEditing ? (
+            <button onClick={() => setIsEditing(true)} className={BTN.primary}>
+              <Edit2 size={15} /> Edit profile
+            </button>
+          ) : (
+            <>
+              <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
+                <X size={15} /> Cancel
+              </button>
+              <button onClick={handleSave} className={BTN.primary} disabled={saving}>
+                <Save size={15} /> {saving ? "Saving…" : "Save changes"}
+              </button>
+            </>
+          )
+        }
+      />
 
-      {/* Success/Error Message */}
       {message && (
-        <div className={`mb-4 p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
+        <div
+          className={`mb-4 px-3 py-2 rounded-md border text-sm ${
+            message.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+              : "bg-red-50 border-red-200 text-red-700"
+          }`}
+        >
           {message.text}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Administrator Information</h3>
-          
+      {/* Hero card */}
+      <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-lg font-semibold flex-shrink-0">
+            {initialsOf(myRecord?.name) || <User size={24} />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">
+              {myRecord?.name || "—"}
+            </h3>
+            <p className="text-sm text-gray-500 truncate inline-flex items-center gap-1.5">
+              <Shield size={13} className="text-maroon-600" />
+              System Administrator · Full system access
+            </p>
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
+              <span className="inline-flex items-center gap-1">
+                <Mail size={12} className="text-gray-400" />
+                {myRecord?.email || "—"}
+              </span>
+              {myRecord?.phone && (
+                <span className="inline-flex items-center gap-1">
+                  <Phone size={12} className="text-gray-400" />
+                  {myRecord.phone}
+                </span>
+              )}
+              {myRecord?.employeeId && (
+                <span className="inline-flex items-center gap-1">
+                  <Hash size={12} className="text-gray-400" />
+                  {myRecord.employeeId}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <SectionCard title="Administrator information" subtitle="Contact and identity">
           {isEditing ? (
-            <div className="space-y-4">
-              {/* Name */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium flex items-center gap-2 mb-1">
-                  <User size={16} />
-                  Name *
-                </label>
+            <div className="space-y-3">
+              <Field icon={User} label="Name *">
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="Enter your name"
                 />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium flex items-center gap-2 mb-1">
-                  <Mail size={16} />
-                  Email *
-                </label>
+              </Field>
+              <Field icon={Mail} label="Email *">
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="Enter your email"
                 />
-              </div>
-
-              {/* Phone */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium flex items-center gap-2 mb-1">
-                  <Phone size={16} />
-                  Phone Number
-                </label>
+              </Field>
+              <Field icon={Phone} label="Phone number">
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="Enter phone number"
                 />
-              </div>
-
-              {/* Employee ID (Read-only) */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium mb-1 block">Employee ID</label>
-                <p className="px-3 py-2 bg-gray-100 rounded-lg text-gray-700">{myRecord?.employeeId || "Not assigned"}</p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Save size={18} />
-                  {saving ? "Saving..." : "Save"}
-                </button>
-                <button
-                  onClick={handleCancel}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
-                >
-                  <X size={18} />
-                  Cancel
-                </button>
-              </div>
+              </Field>
+              <Field icon={Hash} label="Employee ID">
+                <input type="text" value={myRecord?.employeeId || ""} disabled className={INPUT} />
+              </Field>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
-                  <User size={16} />
-                  Name
-                </label>
-                <p className="font-medium text-gray-900">{myRecord?.name}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
-                  <Mail size={16} />
-                  Email
-                </label>
-                <p className="font-medium text-gray-900">{myRecord?.email}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
-                  <Phone size={16} />
-                  Phone
-                </label>
-                <p className="font-medium text-gray-900">{myRecord?.phone || "Not provided"}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600">Employee ID</label>
-                <p className="font-medium text-gray-900">{myRecord?.employeeId || "Not assigned"}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
-                  <Shield size={16} />
-                  Role
-                </label>
-                <p className="font-medium text-maroon-600">System Administrator</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600">Access Level</label>
-                <p className="font-medium text-gray-900">Full System Access</p>
-              </div>
-            </div>
+            <dl className="space-y-2.5 text-sm">
+              <Readout icon={User} label="Name" value={myRecord?.name} />
+              <Readout icon={Mail} label="Email" value={myRecord?.email} />
+              <Readout icon={Phone} label="Phone" value={myRecord?.phone || "Not provided"} />
+              <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
+              <Readout icon={Shield} label="Role" value="System Administrator" />
+            </dl>
           )}
-        </div>
+        </SectionCard>
 
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Admin Permissions</h3>
-          <ul className="space-y-3 text-gray-600">
-            <li className="flex items-start">
-              <span className="text-maroon-500 mr-3">✓</span>
-              <span>Manage all user accounts (Create, Edit, Delete)</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-maroon-500 mr-3">✓</span>
-              <span>Create and send system announcements</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-maroon-500 mr-3">✓</span>
-              <span>Generate system reports and analytics</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-maroon-500 mr-3">✓</span>
-              <span>Approve/deny data access requests</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-maroon-500 mr-3">✓</span>
-              <span>Monitor system activity and logs</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-maroon-500 mr-3">✓</span>
-              <span>Configure system settings</span>
-            </li>
+        <SectionCard
+          title="Admin permissions"
+          subtitle="What you can do in CounseLink"
+          noBodyPadding
+        >
+          <ul className="divide-y divide-gray-100">
+            {PERMISSIONS.map((p) => (
+              <li
+                key={p}
+                className="px-4 py-2.5 text-sm text-gray-700 flex items-start gap-2.5"
+              >
+                <CheckCircle2 size={14} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+                {p}
+              </li>
+            ))}
           </ul>
-        </div>
+        </SectionCard>
       </div>
+    </div>
+  );
+}
+
+function Field({ icon: Icon, label, children }) {
+  return (
+    <div>
+      <label className={`${LABEL} inline-flex items-center gap-1.5`}>
+        {Icon && <Icon size={12} className="text-gray-400" />}
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function Readout({ icon: Icon, label, value }) {
+  return (
+    <div>
+      <dt className="text-[11px] uppercase tracking-wider text-gray-500 font-medium inline-flex items-center gap-1.5">
+        {Icon && <Icon size={11} className="text-gray-400" />}
+        {label}
+      </dt>
+      <dd className="text-sm text-gray-900 font-medium mt-0.5">{value || "—"}</dd>
     </div>
   );
 }

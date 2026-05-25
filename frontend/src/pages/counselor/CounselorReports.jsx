@@ -3,12 +3,32 @@ import { useAuth } from "../../context/AuthContext";
 import { useTests } from "../../context/TestsContext";
 import { useTestResults } from "../../context/TestResultsContext";
 import { useAppointments } from "../../context/AppointmentsContext";
-import { X, Send } from "lucide-react";
+import {
+  Send,
+  Clock3,
+  CheckCircle2,
+  CalendarClock,
+  Mail,
+  FileText,
+  Filter as FilterIcon,
+  Search,
+} from "lucide-react";
+import {
+  PageHeader,
+  StatCard,
+  SectionCard,
+  EmptyState,
+  StatusPill,
+  Modal,
+  BTN,
+  INPUT,
+  LABEL,
+} from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const STATUS_OPTIONS = [
-  { value: "all", label: "All Statuses" },
+  { value: "all", label: "All statuses" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
   { value: "accepted", label: "Accepted" },
@@ -26,7 +46,7 @@ const normalizeDateValue = (value) => {
 };
 
 export default function CounselorReports() {
-  const { currentUser, token, users, lookupUser } = useAuth();
+  const { currentUser, token } = useAuth();
   const { getTestsForCurrentUser, fetchTests } = useTests();
   const { createTestResult, testResults, fetchTestResults } = useTestResults();
   const { appointments, fetchAppointments } = useAppointments();
@@ -52,15 +72,11 @@ export default function CounselorReports() {
 
   const filteredTests = useMemo(() => {
     return myTests.filter((test) => {
-      if (filters.status !== "all" && test.status !== filters.status) {
-        return false;
-      }
+      if (filters.status !== "all" && test.status !== filters.status) return false;
       if (filters.search) {
         const searchValue = filters.search.toLowerCase();
         const name = `${test.studentName || ""} ${test.student_id || test.studentId || ""}`.toLowerCase();
-        if (!name.includes(searchValue)) {
-          return false;
-        }
+        if (!name.includes(searchValue)) return false;
       }
       if (filters.dateFrom || filters.dateTo) {
         const dateValue =
@@ -88,6 +104,8 @@ export default function CounselorReports() {
   const counselingAppointments = (appointments || []).filter(
     (apt) => apt.appointment_type !== "psychological_test"
   );
+  const counselingPending = counselingAppointments.filter((apt) => apt.status === "pending").length;
+  const counselingCompleted = counselingAppointments.filter((apt) => apt.status === "completed").length;
 
   const openSendResultModal = () => {
     setResultForm({
@@ -129,268 +147,299 @@ export default function CounselorReports() {
   const updateFilter = (field) => (event) => {
     setFilters((prev) => ({ ...prev, [field]: event.target.value }));
   };
-
-  const clearFilters = () => {
+  const clearFilters = () =>
     setFilters({ status: "all", dateFrom: "", dateTo: "", search: "" });
-  };
+
+  const hasActiveFilters =
+    filters.status !== "all" || filters.dateFrom || filters.dateTo || filters.search;
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">Counselor Reports</h2>
+    <div className="px-6 py-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="Counselor"
+        title="Reports"
+        subtitle="Filter your test caseload, send results to students, and report to the College Dean."
+        actions={
+          <>
+            <button onClick={openSendResultModal} className={BTN.secondary}>
+              <Mail size={15} /> Send test result
+            </button>
+            <button onClick={() => setSendReportModal({ open: true })} className={BTN.primary}>
+              <Send size={15} /> Send report
+            </button>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white border border-gray-200 p-5 rounded-xl shadow">
-          <p className="text-sm text-gray-500">Pending Tests</p>
-          <p className="text-2xl font-bold text-gray-900">{pendingTests}</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-5 rounded-xl shadow">
-          <p className="text-sm text-gray-500">Approved Tests</p>
-          <p className="text-2xl font-bold text-gray-900">{approvedTests}</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-5 rounded-xl shadow">
-          <p className="text-sm text-gray-500">Rescheduled Tests</p>
-          <p className="text-2xl font-bold text-gray-900">{rescheduledTests}</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-5 rounded-xl shadow">
-          <p className="text-sm text-gray-500">Results Sent</p>
-          <p className="text-2xl font-bold text-gray-900">{resultsSent}</p>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <StatCard
+          label="Pending tests"
+          value={pendingTests}
+          hint="Awaiting decision"
+          icon={Clock3}
+          accent="bg-amber-500"
+        />
+        <StatCard
+          label="Approved tests"
+          value={approvedTests}
+          hint="Confirmed by you"
+          icon={CheckCircle2}
+          accent="bg-emerald-500"
+        />
+        <StatCard
+          label="Rescheduled"
+          value={rescheduledTests}
+          hint="Pending reconfirmation"
+          icon={CalendarClock}
+          accent="bg-sky-500"
+        />
+        <StatCard
+          label="Results sent"
+          value={resultsSent}
+          hint="Cumulative"
+          icon={Mail}
+          accent="bg-blue-500"
+        />
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Counseling overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <SectionCard
+          title="Counseling overview"
+          subtitle="Sessions assigned to you"
+          className="lg:col-span-1"
+        >
+          <dl className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <dt className="text-gray-500">Total sessions</dt>
+              <dd className="font-semibold text-gray-900 tabular-nums">
+                {counselingAppointments.length}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-gray-500">Pending</dt>
+              <dd className="font-semibold text-gray-900 tabular-nums">{counselingPending}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-gray-500">Completed</dt>
+              <dd className="font-semibold text-gray-900 tabular-nums">{counselingCompleted}</dd>
+            </div>
+          </dl>
+        </SectionCard>
+
+        <SectionCard
+          title="Filters"
+          subtitle="Refine the test request list below"
+          className="lg:col-span-2"
+          action={
+            hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs font-medium text-gray-600 hover:text-gray-900"
+              >
+                Clear filters
+              </button>
+            )
+          }
+        >
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label className={LABEL}>Status</label>
+              <select
+                className={INPUT}
+                value={filters.status}
+                onChange={updateFilter("status")}
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>Date from</label>
+              <input
+                type="date"
+                className={INPUT}
+                value={filters.dateFrom}
+                onChange={updateFilter("dateFrom")}
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Date to</label>
+              <input
+                type="date"
+                className={INPUT}
+                value={filters.dateTo}
+                onChange={updateFilter("dateTo")}
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Student search</label>
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="text"
+                  className={`${INPUT} pl-8`}
+                  placeholder="Name or ID"
+                  value={filters.search}
+                  onChange={updateFilter("search")}
+                />
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* Filtered table */}
+      <SectionCard
+        title="Test requests"
+        subtitle={
+          hasActiveFilters
+            ? `${filteredTests.length} match${filteredTests.length === 1 ? "" : "es"} of ${myTests.length} total`
+            : `${filteredTests.length} total`
+        }
+        noBodyPadding
+        action={
+          <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+            <FilterIcon size={12} />
+            {hasActiveFilters ? "Filtered" : "All"}
+          </span>
+        }
+      >
+        {filteredTests.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No tests match your filters"
+            hint="Adjust the filters above to broaden your search."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                  <th className="px-4 py-2.5">Student</th>
+                  <th className="px-4 py-2.5">Test type</th>
+                  <th className="px-4 py-2.5">Preferred date</th>
+                  <th className="px-4 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredTests.map((test) => (
+                  <tr key={test.id} className="hover:bg-gray-50/70 transition">
+                    <td className="px-4 py-3 text-gray-900 font-medium">
+                      {test.studentName || "Student"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {test.testType || "Psychological test"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 tabular-nums">
+                      {test.preferredDate || test.scheduledDate || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusPill status={test.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Send result modal */}
+      <Modal
+        open={sendResultModal.open}
+        onClose={() => setSendResultModal({ open: false })}
+        title="Send psychological test result"
+        subtitle="Deliver result summary and recommendations to the student."
+        size="2xl"
+        align="top"
+        footer={
+          <>
+            <button type="button" onClick={() => setSendResultModal({ open: false })} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button type="submit" form="send-result-form" className={BTN.primary}>
+              Send to student
+            </button>
+          </>
+        }
+      >
+        <form id="send-result-form" onSubmit={handleSendResult} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className={LABEL}>Select student test *</label>
             <select
-              className="w-full border rounded px-3 py-2"
-              value={filters.status}
-              onChange={updateFilter("status")}
+              required
+              className={INPUT}
+              value={resultForm.testId}
+              onChange={(e) => {
+                const testId = e.target.value;
+                const test = completedTests.find((t) => t.id === Number(testId));
+                setResultForm({
+                  ...resultForm,
+                  testId,
+                  testName: test ? test.testType : "",
+                });
+              }}
             >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              <option value="">— Select a completed test —</option>
+              {completedTests.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.studentName} — {t.testType} ({t.scheduledDate || t.preferredDate})
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-            <input
-              type="date"
-              className="w-full border rounded px-3 py-2"
-              value={filters.dateFrom}
-              onChange={updateFilter("dateFrom")}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-            <input
-              type="date"
-              className="w-full border rounded px-3 py-2"
-              value={filters.dateTo}
-              onChange={updateFilter("dateTo")}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student Search</label>
+            <label className={LABEL}>Test name *</label>
             <input
               type="text"
-              className="w-full border rounded px-3 py-2"
-              placeholder="Name or ID"
-              value={filters.search}
-              onChange={updateFilter("search")}
+              required
+              className={INPUT}
+              value={resultForm.testName}
+              onChange={(e) => setResultForm({ ...resultForm, testName: e.target.value })}
+              placeholder="e.g. Career Interest Inventory"
             />
           </div>
-        </div>
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={clearFilters}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
-          >
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Psychological Test Results</h3>
-          <p className="text-gray-600 mb-4">Send test results to students who have completed psychological tests</p>
-          <button
-            onClick={openSendResultModal}
-            className="w-full bg-maroon-500 text-white py-2 rounded-lg hover:bg-maroon-600 transition"
-          >
-            Send Test Results
-          </button>
-        </div>
-
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Counseling Sessions Overview</h3>
-          <p className="text-gray-600 mb-4">Monitor counseling sessions assigned to you.</p>
-          <div className="space-y-2 text-sm text-gray-600">
-            <div className="flex justify-between">
-              <span>Total Sessions:</span>
-              <span className="font-medium text-gray-900">{counselingAppointments.length}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Pending Sessions:</span>
-              <span className="font-medium text-gray-900">
-                {counselingAppointments.filter((apt) => apt.status === "pending").length}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Completed Sessions:</span>
-              <span className="font-medium text-gray-900">
-                {counselingAppointments.filter((apt) => apt.status === "completed").length}
-              </span>
-            </div>
+          <div>
+            <label className={LABEL}>Completed date *</label>
+            <input
+              type="date"
+              required
+              className={INPUT}
+              value={resultForm.completedDate}
+              onChange={(e) => setResultForm({ ...resultForm, completedDate: e.target.value })}
+            />
           </div>
-          <button
-            onClick={() => setSendReportModal({ open: true })}
-            className="mt-4 w-full bg-maroon-600 text-white py-2 rounded-lg hover:bg-maroon-700 transition inline-flex items-center justify-center gap-2"
-          >
-            <Send size={16} /> Send Counseling Report to College Dean
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-xl shadow overflow-hidden mb-8">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Filtered Test Requests</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Student</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Test Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Preferred Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredTests.length > 0 ? (
-                filteredTests.map((test) => (
-                  <tr key={test.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900">{test.studentName || "Student"}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{test.testType || "Psychological Test"}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {test.preferredDate || test.scheduledDate || "N/A"}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                        {test.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
-                    No tests match the selected filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {sendResultModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Send Psychological Test Result</h3>
-              <button
-                onClick={() => setSendResultModal({ open: false })}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleSendResult} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Student Test *</label>
-                <select
-                  required
-                  className="w-full border rounded px-3 py-2"
-                  value={resultForm.testId}
-                  onChange={(e) => {
-                    const testId = e.target.value;
-                    const test = completedTests.find((t) => t.id === Number(testId));
-                    setResultForm({
-                      ...resultForm,
-                      testId,
-                      testName: test ? test.testType : "",
-                    });
-                  }}
-                >
-                  <option value="">-- Select a completed test --</option>
-                  {completedTests.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.studentName} - {t.testType} ({t.scheduledDate || t.preferredDate})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Test Name *</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full border rounded px-3 py-2"
-                  value={resultForm.testName}
-                  onChange={(e) => setResultForm({ ...resultForm, testName: e.target.value })}
-                  placeholder="e.g., Career Interest Inventory"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Completed Date *</label>
-                <input
-                  type="date"
-                  required
-                  className="w-full border rounded px-3 py-2"
-                  value={resultForm.completedDate}
-                  onChange={(e) => setResultForm({ ...resultForm, completedDate: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Summary / Results *</label>
-                <textarea
-                  rows={5}
-                  required
-                  className="w-full border rounded px-3 py-2"
-                  value={resultForm.summary}
-                  onChange={(e) => setResultForm({ ...resultForm, summary: e.target.value })}
-                  placeholder="Brief summary of test results and findings..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Recommendations</label>
-                <textarea
-                  rows={4}
-                  className="w-full border rounded px-3 py-2"
-                  value={resultForm.recommendations}
-                  onChange={(e) => setResultForm({ ...resultForm, recommendations: e.target.value })}
-                  placeholder="Recommended actions or next steps..."
-                />
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setSendResultModal({ open: false })}
-                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="px-4 py-2 bg-maroon-600 text-white rounded hover:bg-maroon-700">
-                  Send to Student
-                </button>
-              </div>
-            </form>
+          <div>
+            <label className={LABEL}>Summary / results *</label>
+            <textarea
+              rows={5}
+              required
+              className={INPUT}
+              value={resultForm.summary}
+              onChange={(e) => setResultForm({ ...resultForm, summary: e.target.value })}
+              placeholder="Brief summary of test results and findings…"
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className={LABEL}>Recommendations</label>
+            <textarea
+              rows={4}
+              className={INPUT}
+              value={resultForm.recommendations}
+              onChange={(e) => setResultForm({ ...resultForm, recommendations: e.target.value })}
+              placeholder="Recommended actions or next steps…"
+            />
+          </div>
+        </form>
+      </Modal>
 
       {sendReportModal.open && (
         <SendReportModal
@@ -488,90 +537,80 @@ function SendReportModal({ token, currentUser, filters, counselingAppointments, 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-start justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-xl p-6 w-full max-w-xl mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Send Counseling Report to College Dean</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X size={20} />
+    <Modal
+      open
+      onClose={onClose}
+      title="Send counseling report to College Dean"
+      subtitle="Includes current filters, counts, and status breakdown."
+      size="xl"
+      align="top"
+      footer={
+        done ? (
+          <button onClick={onClose} className={BTN.primary}>
+            Close
           </button>
-        </div>
-
-        {done ? (
-          <div className="space-y-4">
-            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3">
-              Report sent. The recipient was notified.
-            </p>
-            <button
-              onClick={onClose}
-              className="w-full bg-maroon-600 text-white py-2 rounded-lg hover:bg-maroon-700"
-            >
-              Close
-            </button>
-          </div>
         ) : (
-          <form onSubmit={submit} className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Recipient *</label>
-              <select
-                required
-                className="w-full border rounded px-3 py-2"
-                value={recipientId}
-                onChange={(e) => setRecipientId(e.target.value)}
-                disabled={loadingRecipients}
-              >
-                <option value="">
-                  {loadingRecipients ? "Loading..." : "Select a College Dean"}
+          <>
+            <button type="button" onClick={onClose} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button type="submit" form="send-report-form" disabled={submitting} className={BTN.primary}>
+              {submitting ? "Sending…" : "Send report"}
+            </button>
+          </>
+        )
+      }
+    >
+      {done ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-2 text-sm">
+          Report sent. The recipient has been notified.
+        </div>
+      ) : (
+        <form id="send-report-form" onSubmit={submit} className="space-y-3">
+          <div>
+            <label className={LABEL}>Recipient *</label>
+            <select
+              required
+              className={INPUT}
+              value={recipientId}
+              onChange={(e) => setRecipientId(e.target.value)}
+              disabled={loadingRecipients}
+            >
+              <option value="">
+                {loadingRecipients ? "Loading…" : "Select a College Dean"}
+              </option>
+              {recipients.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} {u.college ? `· ${u.college}` : ""}
                 </option>
-                {recipients.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} {u.college ? `· ${u.college}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-              <input
-                required
-                className="w-full border rounded px-3 py-2"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Summary</label>
-              <textarea
-                rows={4}
-                className="w-full border rounded px-3 py-2"
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                placeholder="Optional cover note. Current filters and counts will be attached automatically."
-              />
-            </div>
-            <p className="text-xs text-gray-500">
-              Attached: filters in use, counseling counts, status breakdown, test counts.
-            </p>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="flex gap-2 justify-end pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-maroon-600 text-white rounded hover:bg-maroon-700 disabled:opacity-60"
-              >
-                {submitting ? "Sending..." : "Send Report"}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>Title *</label>
+            <input
+              required
+              className={INPUT}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={LABEL}>Summary</label>
+            <textarea
+              rows={4}
+              className={INPUT}
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              placeholder="Optional cover note. Current filters and counts will be attached automatically."
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+            Attached: filters in use, counseling counts, status breakdown, test counts.
+          </p>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </form>
+      )}
+    </Modal>
   );
 }

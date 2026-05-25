@@ -1,12 +1,63 @@
 // src/pages/admin/PendingRegistrations.jsx
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { CheckCircle, XCircle, Eye, Calendar, Mail, Phone, GraduationCap, User, Clock } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Eye,
+  Calendar,
+  Mail,
+  Phone,
+  GraduationCap,
+  User,
+  Clock,
+  CheckCircle2,
+  Hash,
+  FileText,
+} from "lucide-react";
+import {
+  PageHeader,
+  StatCard,
+  SectionCard,
+  EmptyState,
+  Modal,
+  BTN,
+  INPUT,
+  LABEL,
+  initialsOf,
+} from "../../components/ui";
+
+const PROGRAMS = [
+  "BS Computer Science",
+  "BS Information Technology",
+  "BS Mathematics",
+  "BS Biology",
+  "BS Chemistry",
+  "BS Physics",
+  "BS Psychology",
+  "AB English",
+  "AB History",
+  "AB Political Science",
+  "BS Civil Engineering",
+  "BS Electrical Engineering",
+  "BS Mechanical Engineering",
+  "BS Architecture",
+  "BS Business Administration",
+  "BS Accountancy",
+  "BS Economics",
+  "BS Education",
+  "BS Elementary Education",
+  "BS Secondary Education",
+  "LLB",
+  "Doctor of Medicine",
+];
+
+const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
 
 export default function PendingRegistrations() {
   const { fetchPendingRegistrations, approveRegistration, rejectRegistration } = useAuth();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-  
+
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCorModal, setShowCorModal] = useState(false);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
@@ -37,33 +88,6 @@ export default function PendingRegistrations() {
     };
   }, [fetchPendingRegistrations]);
 
-  const programs = [
-    "BS Computer Science",
-    "BS Information Technology",
-    "BS Mathematics",
-    "BS Biology",
-    "BS Chemistry",
-    "BS Physics",
-    "BS Psychology",
-    "AB English",
-    "AB History",
-    "AB Political Science",
-    "BS Civil Engineering",
-    "BS Electrical Engineering",
-    "BS Mechanical Engineering",
-    "BS Architecture",
-    "BS Business Administration",
-    "BS Accountancy",
-    "BS Economics",
-    "BS Education",
-    "BS Elementary Education",
-    "BS Secondary Education",
-    "LLB",
-    "Doctor of Medicine"
-  ];
-
-  const yearLevels = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
-
   const handleApprove = async (user) => {
     if (!approvalForm.program || !approvalForm.yearLevel) {
       setMessage({ type: "error", text: "Please select program and year level" });
@@ -81,7 +105,6 @@ export default function PendingRegistrations() {
       return;
     }
 
-    // Simulate email being sent
     setEmailPreviewData({
       type: "approval",
       recipient: user.email,
@@ -89,15 +112,14 @@ export default function PendingRegistrations() {
       studentId: user.studentId,
       college: user.college,
       program: approvalForm.program,
-      yearLevel: approvalForm.yearLevel
+      yearLevel: approvalForm.yearLevel,
     });
 
-    // Show email sent notification
-    setMessage({ 
-      type: "success", 
-      text: `${user.name}'s registration approved! ✉️ Approval email sent to ${user.email}` 
+    setMessage({
+      type: "success",
+      text: `${user.name}'s registration approved. Approval email queued for ${user.email}.`,
     });
-    
+
     setSelectedUser(null);
     setApprovalForm({ program: "", yearLevel: "" });
     setTimeout(() => setMessage(null), 5000);
@@ -110,30 +132,26 @@ export default function PendingRegistrations() {
     }
 
     try {
-      await rejectRegistration(user.id, {
-        reason: rejectionReason,
-      });
+      await rejectRegistration(user.id, { reason: rejectionReason });
       setPendingUsers((prev) => prev.filter((item) => item.id !== user.id));
     } catch (err) {
       setMessage({ type: "error", text: err.message || "Unable to reject registration" });
       return;
     }
 
-    // Simulate email being sent
     setEmailPreviewData({
       type: "rejection",
       recipient: user.email,
       name: user.name,
       studentId: user.studentId,
-      reason: rejectionReason
+      reason: rejectionReason,
     });
 
-    // Show email sent notification
-    setMessage({ 
-      type: "success", 
-      text: `${user.name}'s registration rejected. ✉️ Notification email sent to ${user.email}` 
+    setMessage({
+      type: "success",
+      text: `${user.name}'s registration rejected. Notification email queued for ${user.email}.`,
     });
-    
+
     setSelectedUser(null);
     setRejectionReason("");
     setTimeout(() => setMessage(null), 5000);
@@ -148,126 +166,143 @@ export default function PendingRegistrations() {
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">Pending Student Registrations</h2>
+    <div className="px-6 py-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="Administrator"
+        title="Pending student registrations"
+        subtitle="Review Certificate of Registration uploads and approve or reject accounts."
+      />
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-yellow-700 font-medium">Pending Review</p>
-              <p className="text-3xl font-bold text-yellow-900">{pendingUsers.length}</p>
-            </div>
-            <Clock className="text-yellow-600" size={40} />
-          </div>
-        </div>
-        <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-700 font-medium">Approved Today</p>
-              <p className="text-3xl font-bold text-green-900">{approvedToday}</p>
-            </div>
-            <CheckCircle className="text-green-600" size={40} />
-          </div>
-        </div>
-        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-          <div>
-            <p className="text-sm text-blue-700 font-medium">Average Time</p>
-            <p className="text-3xl font-bold text-blue-900">~18h</p>
-            <p className="text-xs text-blue-600">Approval time</p>
-          </div>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <StatCard
+          label="Pending review"
+          value={pendingUsers.length}
+          hint="Awaiting your decision"
+          icon={Clock}
+          accent="bg-amber-500"
+        />
+        <StatCard
+          label="Approved today"
+          value={approvedToday}
+          hint="Sent welcome emails"
+          icon={CheckCircle2}
+          accent="bg-emerald-500"
+        />
+        <StatCard
+          label="Average time"
+          value="~18h"
+          hint="From submission to decision"
+          icon={Calendar}
+          accent="bg-blue-500"
+        />
       </div>
 
-      {/* Success/Error Message */}
       {message && (
-        <div className={`mb-4 p-4 rounded-lg flex items-center justify-between ${
-          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
+        <div
+          className={`mb-4 px-3 py-2 rounded-md border text-sm flex items-center justify-between gap-3 ${
+            message.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+              : "bg-red-50 border-red-200 text-red-700"
+          }`}
+        >
           <span>{message.text}</span>
-          {message.type === 'success' && emailPreviewData && (
+          {message.type === "success" && emailPreviewData && (
             <button
               onClick={() => setShowEmailPreview(true)}
-              className="text-sm px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              className="text-xs font-medium underline whitespace-nowrap"
             >
-              Preview Email
+              Preview email
             </button>
           )}
         </div>
       )}
 
-      {/* Pending Registrations List */}
+      {/* Registration list */}
       {pendingUsers.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <CheckCircle size={48} className="text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 text-lg">No pending registrations</p>
-          <p className="text-gray-500 text-sm">All caught up! New registrations will appear here.</p>
-        </div>
+        <SectionCard noBodyPadding>
+          <EmptyState
+            icon={CheckCircle}
+            title="All caught up"
+            hint="No pending registrations. New submissions will appear here."
+          />
+        </SectionCard>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {pendingUsers.map((user) => (
-            <div key={user.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-4">
-                    {/* Avatar */}
-                    <div className="w-16 h-16 bg-maroon-600 text-white rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0">
-                      {user.name.charAt(0).toUpperCase()}
+            <div
+              key={user.id}
+              className="bg-white border border-gray-200 rounded-lg overflow-hidden"
+            >
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="w-12 h-12 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                      {initialsOf(user.name)}
                     </div>
-                    
-                    {/* User Info */}
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-900">{user.name}</h3>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <User size={14} />
-                          <span>ID: {user.studentId}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Mail size={14} />
-                          <span>{user.email}</span>
-                        </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base font-semibold text-gray-900 truncate">
+                        {user.name}
+                      </h3>
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-gray-600">
+                        <span className="inline-flex items-center gap-1">
+                          <Hash size={11} className="text-gray-400" />
+                          {user.studentId}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Mail size={11} className="text-gray-400" />
+                          {user.email}
+                        </span>
                         {user.phone && (
-                          <div className="flex items-center gap-1">
-                            <Phone size={14} />
-                            <span>{user.phone}</span>
-                          </div>
+                          <span className="inline-flex items-center gap-1">
+                            <Phone size={11} className="text-gray-400" />
+                            {user.phone}
+                          </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <GraduationCap size={16} className="text-maroon-600" />
-                        <span className="text-sm font-medium text-gray-700">{user.college}</span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-                        <Calendar size={12} />
-                        <span>Submitted: {formatDate(user.submittedAt)}</span>
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1 text-xs">
+                        <span className="inline-flex items-center gap-1 text-gray-700 font-medium">
+                          <GraduationCap size={11} className="text-maroon-600" />
+                          {user.college}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-gray-500 tabular-nums">
+                          <Calendar size={11} className="text-gray-400" />
+                          Submitted {formatDate(user.submittedAt)}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* COR Preview */}
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 mb-2">Certificate of Registration</p>
+                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                      Certificate of Registration
+                    </p>
                     {buildCorUrl(user) ? (
-                      <div>
+                      <>
                         {buildCorUrl(user).match(/\.(png|jpg|jpeg)$/i) ? (
-                          <img 
-                            src={buildCorUrl(user)} 
-                            alt="COR Preview" 
-                            className="w-32 h-24 object-cover border border-gray-300 rounded-lg cursor-pointer hover:opacity-80 transition"
+                          <img
+                            src={buildCorUrl(user)}
+                            alt="COR Preview"
+                            className="w-28 h-20 object-cover border border-gray-200 rounded-md cursor-pointer hover:opacity-80 transition"
                             onClick={() => {
                               setSelectedUser(user);
                               setShowCorModal(true);
                             }}
                           />
                         ) : (
-                          <div className="w-32 h-24 border border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-                            <span className="text-xs text-gray-600">PDF File</span>
+                          <div className="w-28 h-20 border border-gray-200 rounded-md flex items-center justify-center bg-gray-50 text-xs text-gray-600">
+                            <FileText size={16} className="mr-1" /> PDF
                           </div>
                         )}
                         <button
@@ -275,86 +310,75 @@ export default function PendingRegistrations() {
                             setSelectedUser(user);
                             setShowCorModal(true);
                           }}
-                          className="text-xs text-maroon-600 hover:text-maroon-700 mt-1 flex items-center gap-1"
+                          className="text-[11px] text-maroon-600 hover:text-maroon-700 font-medium inline-flex items-center gap-1"
                         >
-                          <Eye size={12} />
-                          View Full
+                          <Eye size={11} /> View full
                         </button>
-                      </div>
+                      </>
                     ) : (
-                      <p className="text-sm text-gray-500">No COR uploaded</p>
+                      <p className="text-xs text-gray-500">No COR uploaded</p>
                     )}
                   </div>
                 </div>
 
-                {/* Approval Form */}
+                {/* Inline review form */}
                 {selectedUser?.id === user.id && !showCorModal ? (
-                  <div className="border-t border-gray-200 pt-4 mt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      {/* Program Selection */}
+                  <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Program/Course *
-                        </label>
+                        <label className={LABEL}>Program / course *</label>
                         <select
                           value={approvalForm.program}
-                          onChange={(e) => setApprovalForm({ ...approvalForm, program: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
+                          onChange={(e) =>
+                            setApprovalForm({ ...approvalForm, program: e.target.value })
+                          }
+                          className={INPUT}
                         >
                           <option value="">Select from COR</option>
-                          {programs.map(prog => (
-                            <option key={prog} value={prog}>{prog}</option>
+                          {PROGRAMS.map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
                           ))}
                         </select>
                       </div>
-
-                      {/* Year Level Selection */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Year Level *
-                        </label>
+                        <label className={LABEL}>Year level *</label>
                         <select
                           value={approvalForm.yearLevel}
-                          onChange={(e) => setApprovalForm({ ...approvalForm, yearLevel: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
+                          onChange={(e) =>
+                            setApprovalForm({ ...approvalForm, yearLevel: e.target.value })
+                          }
+                          className={INPUT}
                         >
                           <option value="">Select from COR</option>
-                          {yearLevels.map(year => (
-                            <option key={year} value={year}>{year}</option>
+                          {YEAR_LEVELS.map((y) => (
+                            <option key={y} value={y}>
+                              {y}
+                            </option>
                           ))}
                         </select>
                       </div>
                     </div>
-
-                    {/* Rejection Reason */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Reason for Rejection (if rejecting)
-                      </label>
+                    <div>
+                      <label className={LABEL}>Reason for rejection (if rejecting)</label>
                       <textarea
                         value={rejectionReason}
                         onChange={(e) => setRejectionReason(e.target.value)}
-                        placeholder="e.g., COR image is unclear, please resubmit"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent resize-none"
-                        rows="2"
+                        placeholder="e.g. COR image is unclear, please resubmit"
+                        className={INPUT}
+                        rows={2}
                       />
                     </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => handleApprove(user)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+                        className={`${BTN.success} flex-1`}
                       >
-                        <CheckCircle size={18} />
-                        Approve Registration
+                        <CheckCircle size={14} /> Approve registration
                       </button>
-                      <button
-                        onClick={() => handleReject(user)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
-                      >
-                        <XCircle size={18} />
-                        Reject
+                      <button onClick={() => handleReject(user)} className={`${BTN.danger} flex-1`}>
+                        <XCircle size={14} /> Reject
                       </button>
                       <button
                         onClick={() => {
@@ -362,23 +386,23 @@ export default function PendingRegistrations() {
                           setApprovalForm({ program: "", yearLevel: "" });
                           setRejectionReason("");
                         }}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
+                        className={BTN.secondary}
                       >
                         Cancel
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="border-t border-gray-200 pt-4 mt-4">
+                  <div className="mt-4 pt-4 border-t border-gray-100">
                     <button
                       onClick={() => {
                         setSelectedUser(user);
                         setApprovalForm({ program: "", yearLevel: "" });
                         setRejectionReason("");
                       }}
-                      className="w-full px-4 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium"
+                      className={`${BTN.primary} w-full`}
                     >
-                      Review Registration
+                      Review registration
                     </button>
                   </div>
                 )}
@@ -389,236 +413,197 @@ export default function PendingRegistrations() {
       )}
 
       {/* COR Modal */}
-      {showCorModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="bg-maroon-600 text-white p-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Certificate of Registration</h3>
-                <p className="text-sm text-maroon-100">{selectedUser.name} - {selectedUser.studentId}</p>
+      <Modal
+        open={showCorModal && !!selectedUser}
+        onClose={() => setShowCorModal(false)}
+        title="Certificate of Registration"
+        subtitle={
+          selectedUser ? `${selectedUser.name} · ${selectedUser.studentId || ""}` : ""
+        }
+        size="2xl"
+        align="top"
+      >
+        {selectedUser && (
+          <>
+            {buildCorUrl(selectedUser)?.match(/\.(png|jpg|jpeg)$/i) ? (
+              <img
+                src={buildCorUrl(selectedUser)}
+                alt="Certificate of Registration"
+                className="w-full h-auto border border-gray-200 rounded-md"
+              />
+            ) : (
+              <div className="text-center p-8">
+                <FileText size={32} className="text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 mb-3">
+                  PDF file — cannot preview in browser
+                </p>
+                <a
+                  href={buildCorUrl(selectedUser)}
+                  download={`COR_${selectedUser.studentId}.pdf`}
+                  className={BTN.primary}
+                >
+                  Download PDF
+                </a>
               </div>
-              <button
-                onClick={() => setShowCorModal(false)}
-                className="text-white hover:text-gray-200 text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 overflow-auto max-h-[calc(90vh-80px)]">
-              {buildCorUrl(selectedUser)?.match(/\.(png|jpg|jpeg)$/i) ? (
-                <img 
-                  src={buildCorUrl(selectedUser)} 
-                  alt="Certificate of Registration" 
-                  className="w-full h-auto border border-gray-300 rounded-lg"
-                />
-              ) : (
-                <div className="text-center p-12">
-                  <p className="text-gray-600">PDF file - Cannot preview in browser</p>
-                  <a
-                    href={buildCorUrl(selectedUser)}
-                    download={`COR_${selectedUser.studentId}.pdf`}
-                    className="mt-4 inline-block px-4 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700"
-                  >
-                    Download PDF
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+            )}
+          </>
+        )}
+      </Modal>
 
-      {/* Email Preview Modal */}
+      {/* Email preview modal — preserves visual email mockup */}
       {showEmailPreview && emailPreviewData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="bg-gradient-to-r from-maroon-600 to-maroon-700 text-white p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Mail size={24} />
-                <div>
-                  <h3 className="text-lg font-semibold">Email Preview</h3>
-                  <p className="text-xs text-maroon-100">This email would be sent in production</p>
-                </div>
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-start justify-center p-4 z-50 overflow-y-auto"
+          onClick={() => setShowEmailPreview(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-lg border border-gray-200 shadow-xl w-full max-w-2xl my-8"
+          >
+            <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-gray-900 inline-flex items-center gap-1.5">
+                  <Mail size={15} className="text-maroon-600" />
+                  Email preview
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  This email would be delivered in production
+                </p>
               </div>
               <button
                 onClick={() => setShowEmailPreview(false)}
-                className="text-white hover:text-gray-200 text-2xl font-bold"
+                className="text-gray-400 hover:text-gray-700 transition"
+                aria-label="Close"
               >
-                ×
+                <XCircle size={18} />
               </button>
             </div>
-            
-            <div className="p-6 overflow-auto max-h-[calc(90vh-80px)]">
-              {/* Email Header */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 text-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="font-semibold text-gray-700">To:</span>
+
+            <div className="px-5 py-4 max-h-[calc(90vh-80px)] overflow-y-auto">
+              {/* Email headers */}
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-3 mb-4 text-sm space-y-1">
+                <div>
+                  <span className="font-semibold text-gray-700">To: </span>
                   <span className="text-gray-900">{emailPreviewData.recipient}</span>
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="font-semibold text-gray-700">From:</span>
-                  <span className="text-gray-900">CounseLink - MSU DSA (noreply@msu.edu.ph)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-gray-700">Subject:</span>
+                <div>
+                  <span className="font-semibold text-gray-700">From: </span>
                   <span className="text-gray-900">
-                    {emailPreviewData.type === "approval" 
-                      ? "✅ CounseLink Account Approved" 
-                      : "⚠️ CounseLink Registration Update"}
+                    CounseLink · MSU DSA (noreply@msu.edu.ph)
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Subject: </span>
+                  <span className="text-gray-900">
+                    {emailPreviewData.type === "approval"
+                      ? "CounseLink Account Approved"
+                      : "CounseLink Registration Update"}
                   </span>
                 </div>
               </div>
 
-              {/* Email Body - Approval */}
-              {emailPreviewData.type === "approval" && (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  {/* Email Header Design */}
+              {/* Email body */}
+              {emailPreviewData.type === "approval" ? (
+                <div className="border border-gray-200 rounded-md overflow-hidden">
                   <div className="bg-gradient-to-r from-maroon-600 to-maroon-700 text-white p-6 text-center">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3">
-                      <CheckCircle className="text-green-600" size={32} />
+                    <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center mx-auto mb-2">
+                      <CheckCircle className="text-emerald-600" size={28} />
                     </div>
-                    <h2 className="text-2xl font-bold">Account Approved!</h2>
+                    <h2 className="text-xl font-bold">Account approved</h2>
                   </div>
-                  
-                  {/* Email Content */}
-                  <div className="bg-white p-6 text-gray-800">
-                    <p className="text-lg mb-4">Hi <strong>{emailPreviewData.name}</strong>,</p>
-                    
-                    <p className="mb-4">
-                      Great news! Your CounseLink account has been approved by the admin.
+                  <div className="bg-white p-5 text-gray-800 text-sm leading-relaxed">
+                    <p className="mb-3">
+                      Hi <strong>{emailPreviewData.name}</strong>,
                     </p>
-
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                      <h3 className="font-semibold text-green-900 mb-3">Account Details:</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-green-700">Student ID:</span>
-                          <span className="font-semibold text-green-900">{emailPreviewData.studentId}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-green-700">College:</span>
-                          <span className="font-semibold text-green-900">{emailPreviewData.college}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-green-700">Program:</span>
-                          <span className="font-semibold text-green-900">{emailPreviewData.program}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-green-700">Year Level:</span>
-                          <span className="font-semibold text-green-900">{emailPreviewData.yearLevel}</span>
-                        </div>
-                      </div>
+                    <p className="mb-3">Your CounseLink account has been approved by the admin.</p>
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-md p-3 mb-3 text-xs">
+                      <p className="font-semibold text-emerald-900 mb-2">Account details</p>
+                      <dl className="space-y-1">
+                        <EmailRow label="Student ID" value={emailPreviewData.studentId} />
+                        <EmailRow label="College" value={emailPreviewData.college} />
+                        <EmailRow label="Program" value={emailPreviewData.program} />
+                        <EmailRow label="Year level" value={emailPreviewData.yearLevel} />
+                      </dl>
                     </div>
-
-                    <p className="mb-4">
-                      You can now log in to CounseLink using your student ID and password.
-                    </p>
-
-                    <div className="text-center my-6">
-                      <a 
-                        href="#" 
-                        className="inline-block px-6 py-3 bg-maroon-600 text-white rounded-lg font-semibold hover:bg-maroon-700 transition"
-                      >
-                        Go to Login Page
-                      </a>
-                    </div>
-
-                    <div className="border-t border-gray-200 pt-4 mt-6 text-sm text-gray-600">
-                      <p className="mb-2">What you can do with CounseLink:</p>
-                      <ul className="list-disc list-inside space-y-1 text-gray-700">
-                        <li>Request counseling appointments</li>
-                        <li>Request psychological tests</li>
-                        <li>Message counselors directly</li>
-                        <li>View your counseling history</li>
-                      </ul>
-                    </div>
-
-                    <p className="mt-6 text-sm text-gray-600">
-                      If you have any questions, please contact the Division of Student Affairs.
-                    </p>
-
-                    <p className="mt-4 text-sm text-gray-600">
-                      Best regards,<br />
+                    <p className="mb-3">You can now log in to CounseLink with your credentials.</p>
+                    <p className="text-xs text-gray-600 mt-4">
+                      Best regards,
+                      <br />
                       <strong>MSU Division of Student Affairs</strong>
                     </p>
                   </div>
-
-                  {/* Email Footer */}
-                  <div className="bg-gray-100 p-4 text-center text-xs text-gray-600">
-                    <p>© 2024 Mindanao State University - Division of Student Affairs</p>
-                    <p className="mt-1">This is an automated message. Please do not reply to this email.</p>
+                  <div className="bg-gray-50 p-3 text-center text-[11px] text-gray-600 border-t border-gray-200">
+                    <p>© 2024 Mindanao State University — Division of Student Affairs</p>
+                    <p>This is an automated message. Please do not reply.</p>
                   </div>
                 </div>
-              )}
-
-              {/* Email Body - Rejection */}
-              {emailPreviewData.type === "rejection" && (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  {/* Email Header Design */}
+              ) : (
+                <div className="border border-gray-200 rounded-md overflow-hidden">
                   <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 text-center">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3">
-                      <XCircle className="text-red-600" size={32} />
+                    <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center mx-auto mb-2">
+                      <XCircle className="text-red-600" size={28} />
                     </div>
-                    <h2 className="text-2xl font-bold">Registration Update</h2>
+                    <h2 className="text-xl font-bold">Registration update</h2>
                   </div>
-                  
-                  {/* Email Content */}
-                  <div className="bg-white p-6 text-gray-800">
-                    <p className="text-lg mb-4">Hi <strong>{emailPreviewData.name}</strong>,</p>
-                    
-                    <p className="mb-4">
-                      Thank you for your interest in CounseLink. Unfortunately, your registration requires attention.
+                  <div className="bg-white p-5 text-gray-800 text-sm leading-relaxed">
+                    <p className="mb-3">
+                      Hi <strong>{emailPreviewData.name}</strong>,
                     </p>
-
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                      <h3 className="font-semibold text-red-900 mb-2">Reason:</h3>
-                      <p className="text-sm text-red-800">{emailPreviewData.reason}</p>
+                    <p className="mb-3">
+                      Thank you for your interest in CounseLink. Unfortunately, your registration
+                      requires attention.
+                    </p>
+                    <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-3 text-xs">
+                      <p className="font-semibold text-red-900 mb-1">Reason</p>
+                      <p className="text-red-800">{emailPreviewData.reason}</p>
                     </div>
-
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                      <h3 className="font-semibold text-yellow-900 mb-2">What to do next:</h3>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-yellow-800">
+                    <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-3 text-xs text-amber-800">
+                      <p className="font-semibold mb-1">What to do next</p>
+                      <ul className="list-disc list-inside space-y-0.5">
                         <li>Review the reason provided above</li>
                         <li>Prepare the necessary corrections</li>
                         <li>Contact the Division of Student Affairs for assistance</li>
-                        <li>You may be able to resubmit your registration (future feature)</li>
                       </ul>
                     </div>
-
-                    <p className="mb-4 text-sm text-gray-700">
-                      If you believe this is an error or need clarification, please contact the Division of Student Affairs:
-                    </p>
-
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 text-sm">
-                      <p><strong>Division of Student Affairs</strong></p>
-                      <p>Email: dsa@msu.edu.ph</p>
-                      <p>Phone: (063) 555-1234</p>
-                      <p>Office: MSU Main Campus, Building A</p>
-                    </div>
-
-                    <p className="mt-4 text-sm text-gray-600">
-                      We appreciate your understanding.<br />
+                    <p className="text-xs text-gray-600 mt-4">
+                      We appreciate your understanding.
+                      <br />
                       <strong>MSU Division of Student Affairs</strong>
                     </p>
                   </div>
-
-                  {/* Email Footer */}
-                  <div className="bg-gray-100 p-4 text-center text-xs text-gray-600">
-                    <p>© 2024 Mindanao State University - Division of Student Affairs</p>
-                    <p className="mt-1">This is an automated message. Please do not reply to this email.</p>
+                  <div className="bg-gray-50 p-3 text-center text-[11px] text-gray-600 border-t border-gray-200">
+                    <p>© 2024 Mindanao State University — Division of Student Affairs</p>
+                    <p>This is an automated message. Please do not reply.</p>
                   </div>
                 </div>
               )}
 
-              {/* Production Note */}
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-                <p className="font-semibold mb-1">📌 Note for Development:</p>
-                <p>In production, this email will be automatically sent using SendGrid API or SMTP service when admin approves/rejects registration.</p>
+              <div className="mt-4 px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-xs text-blue-800">
+                <p className="font-semibold mb-0.5">Development note</p>
+                <p>
+                  In production, this email is sent automatically (SendGrid / SMTP) when the admin
+                  approves or rejects a registration.
+                </p>
               </div>
+            </div>
+
+            <div className="flex justify-end gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/60 rounded-b-lg">
+              <button onClick={() => setShowEmailPreview(false)} className={BTN.primary}>
+                Close preview
+              </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function EmailRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-emerald-700">{label}</dt>
+      <dd className="font-semibold text-emerald-900 tabular-nums">{value}</dd>
     </div>
   );
 }

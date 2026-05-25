@@ -1,7 +1,41 @@
 import React, { useState, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { COLLEGES } from "../../data/mockData";
-import { X, Edit2, Trash2, Search, UserPlus, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  Edit2,
+  Trash2,
+  Search,
+  UserPlus,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
+import {
+  PageHeader,
+  SectionCard,
+  EmptyState,
+  StatusPill,
+  Modal,
+  BTN,
+  INPUT,
+  LABEL,
+  initialsOf,
+} from "../../components/ui";
+
+const DEPARTMENTS = [
+  "Guidance Office",
+  "Psychology Department",
+  "Student Affairs",
+  "Health Services",
+  "Academic Counseling",
+  "Career Development",
+];
+
+const ROLE_PILL = {
+  student: "bg-blue-50 text-blue-700 border-blue-200",
+  counselor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  admin: "bg-purple-50 text-purple-700 border-purple-200",
+  college_rep: "bg-amber-50 text-amber-700 border-amber-200",
+};
 
 export default function ManageUsers() {
   const { users, createUser, updateUser, deleteUser } = useAuth();
@@ -10,17 +44,15 @@ export default function ManageUsers() {
   const [message, setMessage] = useState(null);
   const [_busy, setBusy] = useState(false);
 
-  // Modals
   const [createModal, setCreateModal] = useState({ open: false, role: "" });
   const [editModal, setEditModal] = useState({ open: false, user: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, userId: null });
 
-  // Form states
   const [createForm, setCreateForm] = useState({
     name: "",
     email: "",
     password: "",
-    college: COLLEGES[0]
+    college: COLLEGES[0],
   });
 
   const [editForm, setEditForm] = useState({
@@ -30,34 +62,24 @@ export default function ManageUsers() {
     college: "",
     department: "",
     specialization: "",
-    employeeId: ""
+    employeeId: "",
   });
 
-  const departments = [
-    "Guidance Office",
-    "Psychology Department",
-    "Student Affairs",
-    "Health Services",
-    "Academic Counseling",
-    "Career Development"
-  ];
-
-  // Show ALL users now (including students)
   const allUsers = users || [];
 
   const filtered = useMemo(() => {
     return allUsers.filter((u) => {
       const matchesRole = selectedRole === "All" || u.role === selectedRole;
       const q = query.trim().toLowerCase();
-      const matchesQuery = !q || 
-        u.name.toLowerCase().includes(q) || 
+      const matchesQuery =
+        !q ||
+        u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
         u.studentId?.toLowerCase().includes(q);
       return matchesRole && matchesQuery;
     });
   }, [allUsers, selectedRole, query]);
 
-  // Handlers
   const openCreateModal = (role) => {
     setCreateForm({ name: "", email: "", password: "password123", college: COLLEGES[0] });
     setCreateModal({ open: true, role });
@@ -76,7 +98,7 @@ export default function ManageUsers() {
     setBusy(false);
     if (res.success) {
       setCreateModal({ open: false, role: "" });
-      setMessage({ type: "success", text: "User created successfully!" });
+      setMessage({ type: "success", text: "User created successfully" });
     } else {
       setMessage({ type: "error", text: res.message || "Failed to create user" });
     }
@@ -91,44 +113,37 @@ export default function ManageUsers() {
       college: user.college || "",
       department: user.department || "",
       specialization: user.specialization || "",
-      employeeId: user.employeeId || ""
+      employeeId: user.employeeId || "",
     });
     setEditModal({ open: true, user });
   };
 
   const handleEdit = async (e) => {
     e.preventDefault();
-
     const updates = {
       name: editForm.name,
       email: editForm.email,
       phone: editForm.phone,
     };
-
     if (editModal.user.role === "counselor") {
       updates.department = editForm.department;
       updates.specialization = editForm.specialization;
     } else if (editModal.user.role === "college_rep") {
       updates.college = editForm.college;
     }
-    // Student academic info (college/program/yearLevel/studentId) is no longer
-    // admin-editable per client request.
-
     setBusy(true);
     const res = await updateUser(editModal.user.id, updates);
     setBusy(false);
     if (res.success) {
       setEditModal({ open: false, user: null });
-      setMessage({ type: "success", text: "User updated successfully!" });
+      setMessage({ type: "success", text: "User updated successfully" });
     } else {
       setMessage({ type: "error", text: res.message || "Failed to update user" });
     }
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const openDeleteConfirm = (userId) => {
-    setDeleteConfirm({ open: true, userId });
-  };
+  const openDeleteConfirm = (userId) => setDeleteConfirm({ open: true, userId });
 
   const handleDelete = async () => {
     setBusy(true);
@@ -136,7 +151,7 @@ export default function ManageUsers() {
     setBusy(false);
     if (res.success) {
       setDeleteConfirm({ open: false, userId: null });
-      setMessage({ type: "success", text: "User deleted successfully!" });
+      setMessage({ type: "success", text: "User deleted successfully" });
     } else {
       setMessage({ type: "error", text: res.message || "Failed to delete user" });
     }
@@ -144,362 +159,398 @@ export default function ManageUsers() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">Manage User Accounts</h2>
+    <div className="px-6 py-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="Administrator"
+        title="Manage user accounts"
+        subtitle="Create, edit, and delete accounts across all roles."
+        actions={
+          <>
+            <button onClick={() => openCreateModal("counselor")} className={BTN.secondary}>
+              <UserPlus size={14} /> Create counselor
+            </button>
+            <button onClick={() => openCreateModal("college_rep")} className={BTN.primary}>
+              <UserPlus size={14} /> Create rep
+            </button>
+          </>
+        }
+      />
 
-      {/* Success/Error Message */}
       {message && (
-        <div className={`mb-4 p-4 rounded-lg flex items-center gap-2 ${
-          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
-          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+        <div
+          className={`mb-4 px-3 py-2 rounded-md border text-sm inline-flex items-center gap-2 ${
+            message.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+              : "bg-red-50 border-red-200 text-red-700"
+          }`}
+        >
+          {message.type === "success" ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
           {message.text}
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 p-4 rounded-xl mb-6 shadow">
-        <div className="flex flex-col md:flex-row md:items-center md:gap-4">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-700 font-medium">Role</label>
+      <SectionCard className="mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className={LABEL}>Role</label>
             <select
-              className="px-3 py-2 rounded border border-gray-300 bg-white text-gray-900"
+              className={INPUT}
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
             >
-              <option value="All">All Roles</option>
+              <option value="All">All roles</option>
               <option value="student">Students</option>
               <option value="counselor">Counselors</option>
-              <option value="college_rep">College Representatives</option>
+              <option value="college_rep">College deans</option>
               <option value="admin">Administrators</option>
             </select>
           </div>
+          <div className="md:col-span-2">
+            <label className={LABEL}>Search</label>
+            <div className="relative">
+              <Search
+                size={13}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                className={`${INPUT} pl-8`}
+                placeholder="Name, email, or student ID…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      </SectionCard>
 
-          <div className="mt-3 md:mt-0 flex-1 flex items-center gap-2">
-            <Search size={20} className="text-gray-400" />
+      <SectionCard
+        title="Users"
+        subtitle={`${filtered.length} match${filtered.length === 1 ? "" : "es"}`}
+        noBodyPadding
+      >
+        {filtered.length === 0 ? (
+          <EmptyState title="No users match your filters" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                  <th className="px-4 py-2.5">Name</th>
+                  <th className="px-4 py-2.5">Role</th>
+                  <th className="px-4 py-2.5">ID / Email</th>
+                  <th className="px-4 py-2.5">College</th>
+                  <th className="px-4 py-2.5">Program / Dept</th>
+                  <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map((u) => (
+                  <tr key={u.id} className="hover:bg-gray-50/70 transition">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-[11px] font-semibold flex-shrink-0">
+                          {initialsOf(u.name)}
+                        </div>
+                        <span className="font-medium text-gray-900 text-sm">{u.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                          ROLE_PILL[u.role] || "bg-gray-100 text-gray-700 border-gray-200"
+                        }`}
+                      >
+                        {u.role.replace("_", " ")}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {u.role === "student" ? (
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 tabular-nums">
+                            {u.studentId}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-600">{u.email}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{u.college || "—"}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">
+                      {u.role === "student"
+                        ? u.program || "—"
+                        : u.role === "counselor"
+                        ? u.department || "—"
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusPill
+                        status={
+                          u.status === "pending_approval"
+                            ? "pending"
+                            : u.status && u.status !== "approved"
+                            ? "rejected"
+                            : "active"
+                        }
+                      >
+                        {u.status === "pending_approval"
+                          ? "Pending"
+                          : u.status && u.status !== "approved"
+                          ? "Rejected"
+                          : "Active"}
+                      </StatusPill>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex gap-1">
+                        <button
+                          onClick={() => openEditModal(u)}
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                        >
+                          <Edit2 size={12} /> Edit
+                        </button>
+                        <button
+                          onClick={() => openDeleteConfirm(u.id)}
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-red-600 hover:bg-red-50 transition"
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Create modal */}
+      <Modal
+        open={createModal.open}
+        onClose={() => setCreateModal({ open: false, role: "" })}
+        title={`Create ${createModal.role === "counselor" ? "counselor" : "college dean"}`}
+        subtitle="Account credentials and basic details"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setCreateModal({ open: false, role: "" })}
+              className={BTN.secondary}
+            >
+              Cancel
+            </button>
+            <button type="submit" form="create-user-form" className={BTN.primary}>
+              Create user
+            </button>
+          </>
+        }
+      >
+        <form id="create-user-form" onSubmit={handleCreate} className="space-y-3">
+          <div>
+            <label className={LABEL}>Full name *</label>
             <input
-              placeholder="Search name, email, or student ID..."
-              className="w-full px-3 py-2 rounded border border-gray-300 bg-white text-gray-900"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              type="text"
+              required
+              className={INPUT}
+              value={createForm.name}
+              onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className={LABEL}>Email *</label>
+            <input
+              type="email"
+              required
+              className={INPUT}
+              value={createForm.email}
+              onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className={LABEL}>Password *</label>
+            <input
+              type="text"
+              required
+              className={INPUT}
+              value={createForm.password}
+              onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+            />
+          </div>
+          {createModal.role === "college_rep" && (
+            <div>
+              <label className={LABEL}>College *</label>
+              <select
+                className={INPUT}
+                value={createForm.college}
+                onChange={(e) => setCreateForm({ ...createForm, college: e.target.value })}
+              >
+                {COLLEGES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </form>
+      </Modal>
+
+      {/* Edit modal */}
+      <Modal
+        open={editModal.open}
+        onClose={() => setEditModal({ open: false, user: null })}
+        title="Edit user"
+        subtitle={
+          editModal.user
+            ? `Role: ${editModal.user.role?.replace("_", " ")}`
+            : ""
+        }
+        size="2xl"
+        align="top"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setEditModal({ open: false, user: null })}
+              className={BTN.secondary}
+            >
+              Cancel
+            </button>
+            <button type="submit" form="edit-user-form" className={BTN.primary}>
+              Save changes
+            </button>
+          </>
+        }
+      >
+        <form id="edit-user-form" onSubmit={handleEdit} className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL}>Full name *</label>
+              <input
+                type="text"
+                required
+                className={INPUT}
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Email *</label>
+              <input
+                type="email"
+                required
+                className={INPUT}
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={LABEL}>Phone number</label>
+            <input
+              type="tel"
+              className={INPUT}
+              value={editForm.phone}
+              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              placeholder="09XX XXX XXXX"
             />
           </div>
 
-          <div className="mt-3 md:mt-0 flex gap-2">
-            <button 
-              onClick={() => openCreateModal("counselor")} 
-              className="flex items-center gap-2 px-4 py-2 bg-maroon-500 text-white rounded-lg hover:bg-maroon-600 transition"
-            >
-              <UserPlus size={18} />
-              Create Counselor
-            </button>
-            <button 
-              onClick={() => openCreateModal("college_rep")} 
-              className="flex items-center gap-2 px-4 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition"
-            >
-              <UserPlus size={18} />
-              Create Rep
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 p-4 rounded-xl shadow overflow-x-auto">
-        <p className="text-sm text-gray-600 mb-4">Total: {filtered.length} user(s)</p>
-        <table className="w-full text-left">
-          <thead>
-            <tr className="text-sm text-gray-700 border-b border-gray-200 bg-gray-50">
-              <th className="py-3 px-3 font-medium">Name</th>
-              <th className="py-3 px-3 font-medium">Role</th>
-              <th className="py-3 px-3 font-medium">ID/Email</th>
-              <th className="py-3 px-3 font-medium">College</th>
-              <th className="py-3 px-3 font-medium">Program/Dept</th>
-              <th className="py-3 px-3 font-medium">Status</th>
-              <th className="py-3 px-3 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={7} className="py-6 text-center text-gray-500">No users match your filters.</td>
-              </tr>
-            )}
-            {filtered.map((u) => (
-              <tr key={u.id} className="border-b border-gray-200 hover:bg-gray-50 transition">
-                <td className="py-3 px-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-maroon-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                      {u.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="font-medium text-gray-900">{u.name}</span>
-                  </div>
-                </td>
-                <td className="py-3 px-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    u.role === 'student' ? 'bg-blue-100 text-blue-800' :
-                    u.role === 'counselor' ? 'bg-green-100 text-green-800' :
-                    u.role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                    'bg-orange-100 text-orange-800'
-                  }`}>
-                    {u.role.replace('_', ' ').toUpperCase()}
-                  </span>
-                </td>
-                <td className="py-3 px-3 text-sm">
-                  {u.role === 'student' ? (
-                    <div>
-                      <p className="font-medium text-gray-900">{u.studentId}</p>
-                      <p className="text-gray-600 text-xs">{u.email}</p>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">{u.email}</p>
-                  )}
-                </td>
-                <td className="py-3 px-3 text-sm text-gray-700">{u.college || "—"}</td>
-                <td className="py-3 px-3 text-sm text-gray-700">
-                  {u.role === 'student' ? (u.program || "—") : 
-                   u.role === 'counselor' ? (u.department || "—") : "—"}
-                </td>
-                <td className="py-3 px-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    u.status === 'approved' || !u.status ? 'bg-green-100 text-green-800' :
-                    u.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {u.status === 'approved' || !u.status ? 'Active' : 
-                     u.status === 'pending_approval' ? 'Pending' : 'Rejected'}
-                  </span>
-                </td>
-                <td className="py-3 px-3">
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => openEditModal(u)} 
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition font-medium"
-                    >
-                      <Edit2 size={14} />
-                      Edit
-                    </button>
-                    <button 
-                      onClick={() => openDeleteConfirm(u.id)} 
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition font-medium"
-                    >
-                      <Trash2 size={14} />
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Create Modal */}
-      {createModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Create {createModal.role === "counselor" ? "Counselor" : "College Representative"}</h3>
-              <button onClick={() => setCreateModal({ open: false, role: "" })} className="text-gray-500 hover:text-gray-700">
-                <X size={20} />
-              </button>
+          {editModal.user?.role === "student" && (
+            <div className="px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-xs text-blue-800">
+              Academic information (college, program, year level, student ID) is managed by the
+              student or the College Dean and is no longer editable here.
             </div>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                <input 
-                  type="text" 
-                  required 
-                  className="w-full border rounded px-3 py-2" 
-                  value={createForm.name} 
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input 
-                  type="email" 
-                  required 
-                  className="w-full border rounded px-3 py-2" 
-                  value={createForm.email} 
-                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                <input 
-                  type="text" 
-                  required 
-                  className="w-full border rounded px-3 py-2" 
-                  value={createForm.password} 
-                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} 
-                />
-              </div>
-              {createModal.role === "college_rep" && (
+          )}
+
+          {editModal.user?.role === "counselor" && (
+            <div className="pt-3 border-t border-gray-100">
+              <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
+                Professional information
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">College *</label>
-                  <select 
-                    className="w-full border rounded px-3 py-2" 
-                    value={createForm.college} 
-                    onChange={(e) => setCreateForm({ ...createForm, college: e.target.value })}
+                  <label className={LABEL}>Department</label>
+                  <select
+                    className={INPUT}
+                    value={editForm.department}
+                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
                   >
-                    {COLLEGES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    <option value="">Select department</option>
+                    {DEPARTMENTS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
                   </select>
                 </div>
-              )}
-              <div className="flex justify-end gap-2 mt-6">
-                <button type="button" onClick={() => setCreateModal({ open: false, role: "" })} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-maroon-600 text-white rounded hover:bg-maroon-700">Create</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {editModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl my-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold">Edit User</h3>
-                <p className="text-sm text-gray-600">
-                  Role: <span className="font-medium capitalize">{editModal.user?.role.replace('_', ' ')}</span>
-                </p>
-              </div>
-              <button onClick={() => setEditModal({ open: false, user: null })} className="text-gray-500 hover:text-gray-700">
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleEdit} className="space-y-4">
-              {/* Basic Info - All Users */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                  <input 
-                    type="text" 
-                    required 
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-maroon-500 focus:border-transparent" 
-                    value={editForm.name} 
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                  <input 
-                    type="email" 
-                    required 
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-maroon-500 focus:border-transparent" 
-                    value={editForm.email} 
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} 
+                  <label className={LABEL}>Specialization</label>
+                  <input
+                    type="text"
+                    className={INPUT}
+                    value={editForm.specialization}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, specialization: e.target.value })
+                    }
+                    placeholder="e.g. Academic Counseling"
                   />
                 </div>
               </div>
+            </div>
+          )}
 
+          {editModal.user?.role === "college_rep" && (
+            <div className="pt-3 border-t border-gray-100">
+              <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
+                Representative information
+              </h4>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                <input 
-                  type="tel" 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-maroon-500 focus:border-transparent" 
-                  value={editForm.phone} 
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} 
-                  placeholder="09XX XXX XXXX"
-                />
-              </div>
-
-              {editModal.user?.role === "student" && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <p className="text-sm text-gray-500">
-                    Academic information (college, program, year level, student ID) is managed by the
-                    student or their College Dean and is no longer editable here.
-                  </p>
-                </div>
-              )}
-
-              {/* Counselor-Specific Fields */}
-              {editModal.user?.role === "counselor" && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Professional Information</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                      <select 
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-maroon-500 focus:border-transparent" 
-                        value={editForm.department} 
-                        onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                      >
-                        <option value="">Select Department</option>
-                        {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Specialization</label>
-                      <input 
-                        type="text" 
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-maroon-500 focus:border-transparent" 
-                        value={editForm.specialization} 
-                        onChange={(e) => setEditForm({ ...editForm, specialization: e.target.value })} 
-                        placeholder="e.g., Academic Counseling"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* College Rep-Specific Fields */}
-              {editModal.user?.role === "college_rep" && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Representative Information</h4>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">College *</label>
-                    <select 
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-maroon-500 focus:border-transparent" 
-                      value={editForm.college} 
-                      onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
-                    >
-                      <option value="">Select College</option>
-                      {COLLEGES.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200">
-                <button 
-                  type="button" 
-                  onClick={() => setEditModal({ open: false, user: null })} 
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                <label className={LABEL}>College *</label>
+                <select
+                  className={INPUT}
+                  value={editForm.college}
+                  onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
                 >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-4 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition"
-                >
-                  Save Changes
-                </button>
+                  <option value="">Select college</option>
+                  {COLLEGES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+          )}
+        </form>
+      </Modal>
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-red-600">Confirm Delete</h3>
-              <button onClick={() => setDeleteConfirm({ open: false, userId: null })} className="text-gray-500 hover:text-gray-700">
-                <X size={20} />
-              </button>
-            </div>
-            <p className="text-gray-700 mb-6">Are you sure you want to delete this user? This action cannot be undone.</p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setDeleteConfirm({ open: false, userId: null })} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
-              <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete confirmation */}
+      <Modal
+        open={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, userId: null })}
+        title="Delete user"
+        subtitle="This action cannot be undone."
+        danger
+        footer={
+          <>
+            <button
+              onClick={() => setDeleteConfirm({ open: false, userId: null })}
+              className={BTN.secondary}
+            >
+              Cancel
+            </button>
+            <button onClick={handleDelete} className={BTN.danger}>
+              <Trash2 size={14} /> Delete user
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700">
+          Are you sure you want to delete this user? Related data may also be affected.
+        </p>
+      </Modal>
     </div>
   );
 }
