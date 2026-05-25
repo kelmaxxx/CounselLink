@@ -1,11 +1,16 @@
 // src/pages/Login.jsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { COLLEGES } from "../data/mockData";
 import { useNavigate } from "react-router-dom";
 import { Upload, FileText, CheckCircle } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
+const readResetTokenFromUrl = () => {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("reset") || "";
+};
 
 const emptyLoginErrors = { identifier: "", password: "", form: "" };
 const emptySignupErrors = {
@@ -27,7 +32,14 @@ export default function Login() {
   const [selectedRole, setSelectedRole] = useState("student");
   const [loginLoading, setLoginLoading] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
-  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetTokenFromUrl, setResetTokenFromUrl] = useState(readResetTokenFromUrl);
+  const [forgotOpen, setForgotOpen] = useState(() => Boolean(readResetTokenFromUrl()));
+
+  useEffect(() => {
+    if (resetTokenFromUrl) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [resetTokenFromUrl]);
 
   const [loginForm, setLoginForm] = useState({
     identifier: "",
@@ -415,31 +427,23 @@ export default function Login() {
         <p className="text-gray-600 mb-6">MSU-Marawi City Division of Student Affairs</p>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">Select Role</label>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { value: "student", label: "Student" },
-              { value: "counselor", label: "Counselor" },
-              { value: "college_rep", label: "College Dean" },
-              { value: "admin", label: "Admin" },
-            ].map((role) => (
-              <button
-                key={role.value}
-                type="button"
-                onClick={() => {
-                  setSelectedRole(role.value);
-                  resetLoginErrors();
-                }}
-                className={`py-2 px-3 rounded-lg font-medium transition ${
-                  selectedRole === role.value
-                    ? "bg-maroon-500 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {role.label}
-              </button>
-            ))}
-          </div>
+          <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+            Select Role
+          </label>
+          <select
+            id="role"
+            value={selectedRole}
+            onChange={(e) => {
+              setSelectedRole(e.target.value);
+              resetLoginErrors();
+            }}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500"
+          >
+            <option value="student">Student</option>
+            <option value="counselor">Counselor</option>
+            <option value="college_rep">College Dean</option>
+            <option value="admin">Admin</option>
+          </select>
           {selectedRole !== "student" && (
             <p className="text-xs text-gray-500 mt-2">
               Staff accounts are created by the admin. Please contact the DSA office if you need access.
@@ -510,15 +514,23 @@ export default function Login() {
         )}
       </div>
 
-      {forgotOpen && <ForgotPasswordModal onClose={() => setForgotOpen(false)} />}
+      {forgotOpen && (
+        <ForgotPasswordModal
+          onClose={() => {
+            setForgotOpen(false);
+            setResetTokenFromUrl("");
+          }}
+          initialToken={resetTokenFromUrl}
+        />
+      )}
     </div>
   );
 }
 
-function ForgotPasswordModal({ onClose }) {
-  const [step, setStep] = useState("request");
+function ForgotPasswordModal({ onClose, initialToken = "" }) {
+  const [step, setStep] = useState(initialToken ? "reset" : "request");
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState(initialToken);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [message, setMessage] = useState("");
@@ -599,8 +611,10 @@ function ForgotPasswordModal({ onClose }) {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-bold text-maroon-700 mb-1">Forgot password</h2>
         <p className="text-sm text-gray-600 mb-4">
-          {step === "request" && "Enter your registered email. We'll send you a reset token."}
-          {step === "reset" && "Paste the token from the email and choose a new password."}
+          {step === "request" && "Enter your registered email. We'll send you a reset link."}
+          {step === "reset" && (initialToken
+            ? "Choose a new password to finish resetting your account."
+            : "Paste the token from the email and choose a new password.")}
           {step === "done" && "All set."}
         </p>
 
