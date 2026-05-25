@@ -2,16 +2,47 @@ import React, { useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
-import { User2, MessageCircle } from "lucide-react";
+import {
+  User2,
+  MessageCircle,
+  Calendar,
+  ClipboardList,
+  ArrowRight,
+  FileText,
+  Hash,
+  CalendarClock,
+} from "lucide-react";
+import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
+import {
+  PageHeader,
+  StatCard,
+  SectionCard,
+  EmptyState,
+  StatusPill,
+  initialsOf,
+} from "../../components/ui";
+
+const TIME_LABEL = {
+  "9:00-10:00": "9:00 – 10:00 AM",
+  "10:00-11:00": "10:00 – 11:00 AM",
+  "11:00-12:00": "11:00 – 12:00 PM",
+  "1:00-2:00": "1:00 – 2:00 PM",
+  "2:00-3:00": "2:00 – 3:00 PM",
+  "3:00-4:00": "3:00 – 4:00 PM",
+};
+const timeLabel = (slot) => TIME_LABEL[slot] || slot || "—";
 
 export default function CounselorAppointments() {
-  const { currentUser, users, lookupUser } = useAuth();
+  const { users, lookupUser } = useAuth();
   const { getAppointmentsForCurrentUser } = useAppointments();
   const { getTestsForCurrentUser } = useTests();
 
-  const myAppointments = useMemo(() => getAppointmentsForCurrentUser(), [getAppointmentsForCurrentUser]);
+  const myAppointments = useMemo(
+    () => getAppointmentsForCurrentUser(),
+    [getAppointmentsForCurrentUser]
+  );
   const myTests = useMemo(() => getTestsForCurrentUser(), [getTestsForCurrentUser]);
 
   const [selectedProfile, setSelectedProfile] = useState(null);
@@ -19,8 +50,11 @@ export default function CounselorAppointments() {
 
   const openProfile = async (id, fallbackName) => {
     if (!id) return;
-    const cached = users?.find(u => u.id === id);
-    if (cached) { setSelectedProfile(cached); return; }
+    const cached = users?.find((u) => u.id === id);
+    if (cached) {
+      setSelectedProfile(cached);
+      return;
+    }
     const fetched = await lookupUser?.(id);
     if (fetched) setSelectedProfile(fetched);
     else if (fallbackName) setSelectedProfile({ id, name: fallbackName });
@@ -28,145 +62,283 @@ export default function CounselorAppointments() {
 
   const openChat = async (id, fallbackName) => {
     if (!id) return;
-    const cached = users?.find(u => u.id === id);
-    if (cached) { setChatRecipient(cached); return; }
+    const cached = users?.find((u) => u.id === id);
+    if (cached) {
+      setChatRecipient(cached);
+      return;
+    }
     const fetched = await lookupUser?.(id);
     if (fetched) setChatRecipient(fetched);
     else if (fallbackName) setChatRecipient({ id, name: fallbackName });
   };
 
-  const timeLabel = (slot) => {
-    const map = {
-      "9:00-10:00": "9:00 - 10:00 AM",
-      "10:00-11:00": "10:00 - 11:00 AM",
-      "11:00-12:00": "11:00 - 12:00 PM",
-      "1:00-2:00": "1:00 - 2:00 PM",
-      "2:00-3:00": "2:00 - 3:00 PM",
-      "3:00-4:00": "3:00 - 4:00 PM",
-    };
-    return map[slot] || slot;
-  };
-
-  // Filter only approved/rescheduled appointments (DB uses 'approved')
-  const upcomingAppointments = myAppointments.filter(a => a.status === 'approved' || a.status === 'rescheduled');
-  const upcomingTests = myTests.filter(t => t.status === 'approved' || t.status === 'rescheduled');
+  const upcomingAppointments = myAppointments.filter(
+    (a) => a.status === "approved" || a.status === "rescheduled"
+  );
+  const upcomingTests = myTests.filter(
+    (t) => t.status === "approved" || t.status === "rescheduled"
+  );
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">My Upcoming Appointments</h2>
+    <div className="px-6 py-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="Counselor"
+        title="Upcoming appointments"
+        subtitle="Scheduled counseling sessions and psychological tests"
+      />
 
-      {/* Appointments Section */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-3">Scheduled Counseling Sessions</h3>
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow space-y-3">
-          {upcomingAppointments.length === 0 && (
-            <p className="text-gray-600">No upcoming appointments. Check your dashboard for pending requests.</p>
-          )}
-
-          {upcomingAppointments.map((a) => {
-            const studentId = a.student_id || a.studentUserId;
-            return (
-              <div key={a.id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{a.studentName} ({a.college || "N/A"})</p>
-                    <p className="text-sm text-gray-600">
-                      Originally Requested: {a.preferredDate} at {timeLabel(a.timeSlot || (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : ''))}
-                    </p>
-                    {a.scheduledDate && (
-                      <p className="text-sm font-medium text-gray-700 mt-1">
-                        📅 Scheduled: {a.scheduledDate} at {timeLabel(a.scheduledTimeSlot)}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className={`text-xs px-2 py-1 rounded-full ${a.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {a.status === 'approved' ? 'Confirmed' : a.status.charAt(0).toUpperCase() + a.status.slice(1)}
-                      </span>
-                      <p className="text-xs text-gray-400">Control #: {a.controlNo}</p>
-                    </div>
-                    {a.note && <p className="text-xs text-gray-500 mt-1">Note: {a.note}</p>}
-                  </div>
-                  <a href={`/counselor/appointments/${a.id}/form`} className="px-4 py-2 bg-maroon-600 text-white rounded hover:bg-maroon-700 inline-block whitespace-nowrap">Open Counseling Form</a>
-                </div>
-
-                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
-                  <button
-                    onClick={() => openProfile(studentId, a.studentName)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs bg-white text-maroon-600 border border-maroon-300 rounded-lg hover:bg-maroon-50 transition font-medium"
-                  >
-                    <User2 size={14} />
-                    View Profile
-                  </button>
-                  <button
-                    onClick={() => openChat(studentId, a.studentName)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium"
-                  >
-                    <MessageCircle size={14} />
-                    Message Student
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {/* Quick stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <StatCard
+          label="Counseling"
+          value={upcomingAppointments.length}
+          hint="Confirmed sessions"
+          icon={Calendar}
+          accent="bg-emerald-500"
+        />
+        <StatCard
+          label="Psych tests"
+          value={upcomingTests.length}
+          hint="Confirmed tests"
+          icon={ClipboardList}
+          accent="bg-blue-500"
+        />
+        <StatCard
+          label="Rescheduled"
+          value={
+            upcomingAppointments.filter((a) => a.status === "rescheduled").length +
+            upcomingTests.filter((t) => t.status === "rescheduled").length
+          }
+          hint="Across both queues"
+          icon={CalendarClock}
+          accent="bg-sky-500"
+        />
+        <StatCard
+          label="Total upcoming"
+          value={upcomingAppointments.length + upcomingTests.length}
+          hint="All schedules"
+          icon={FileText}
+          accent="bg-gray-400"
+        />
       </div>
 
-      {/* Psychological Test Requests Section */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-3">Scheduled Psychological Tests</h3>
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow space-y-3">
-          {upcomingTests.length === 0 && (
-            <p className="text-gray-600">No scheduled tests. Check your dashboard for pending requests.</p>
-          )}
+      {/* Counseling sessions */}
+      <SectionCard
+        className="mb-6"
+        title="Counseling sessions"
+        subtitle={`${upcomingAppointments.length} scheduled`}
+        noBodyPadding
+        action={
+          <Link
+            to="/"
+            className="text-xs font-medium text-gray-600 hover:text-gray-900 inline-flex items-center gap-1"
+          >
+            Pending requests <ArrowRight size={12} />
+          </Link>
+        }
+      >
+        {upcomingAppointments.length === 0 ? (
+          <EmptyState
+            icon={Calendar}
+            title="No upcoming counseling sessions"
+            hint="Pending appointment requests can be reviewed from the dashboard."
+          />
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {upcomingAppointments.map((a) => {
+              const studentId = a.student_id || a.studentUserId;
+              const original = a.preferredDate
+                ? `${a.preferredDate} · ${timeLabel(
+                    a.timeSlot ||
+                      (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : "")
+                  )}`
+                : "—";
+              return (
+                <li key={a.id} className="px-4 py-3 hover:bg-gray-50/70 transition">
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => openProfile(studentId, a.studentName)}
+                      className="w-9 h-9 rounded-full bg-maroon-100 text-maroon-700 hover:bg-maroon-200 flex items-center justify-center text-xs font-semibold flex-shrink-0 transition"
+                      title="View profile"
+                    >
+                      {initialsOf(a.studentName)}
+                    </button>
 
-          {upcomingTests.map((t) => {
-            const studentId = t.student_id || t.studentUserId;
-            return (
-              <div key={t.id} className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{t.studentName} ({t.college || "N/A"})</p>
-                    <p className="text-sm text-gray-600">Test Type: {t.testType}</p>
-                    <p className="text-sm text-gray-600">
-                      Originally Requested: {t.preferredDate} at {Array.isArray(t.preferredSlots) ? t.preferredSlots.map(s => timeLabel(s)).join(', ') : 'N/A'}
-                    </p>
-                    {t.scheduledDate && (
-                      <p className="text-sm font-medium text-gray-700 mt-1">
-                        📅 Scheduled: {t.scheduledDate} at {timeLabel(t.scheduledTimeSlot)}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className={`text-xs px-2 py-1 rounded-full ${t.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {t.status === 'approved' ? 'Confirmed' : t.status.charAt(0).toUpperCase() + t.status.slice(1)}
-                      </span>
-                      <p className="text-xs text-gray-400">Control #: {t.controlNo}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => openProfile(studentId, a.studentName)}
+                          className="text-sm font-semibold text-gray-900 hover:underline"
+                        >
+                          {a.studentName}
+                        </button>
+                        <span className="text-xs text-gray-500">{a.college || "—"}</span>
+                        <StatusPill status={a.status} />
+                        {a.controlNo && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 font-medium">
+                            <Hash size={10} />
+                            {a.controlNo}
+                          </span>
+                        )}
+                      </div>
+
+                      <dl className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0.5 text-xs">
+                        <div className="flex items-baseline gap-1.5">
+                          <dt className="text-gray-500">Requested</dt>
+                          <dd className="text-gray-700 tabular-nums">{original}</dd>
+                        </div>
+                        {a.scheduledDate && (
+                          <div className="flex items-baseline gap-1.5">
+                            <dt className="text-gray-500">Scheduled</dt>
+                            <dd className="text-gray-900 font-medium tabular-nums">
+                              {a.scheduledDate} · {timeLabel(a.scheduledTimeSlot)}
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                      {a.note && (
+                        <p className="text-xs text-gray-500 mt-1.5 italic">“{a.note}”</p>
+                      )}
                     </div>
-                    {t.note && <p className="text-xs text-gray-500 mt-1">Note: {t.note}</p>}
-                    {t.reason && <p className="text-xs text-gray-500">Reason: {t.reason}</p>}
-                  </div>
-                </div>
 
-                <div className="flex gap-2 mt-3 pt-3 border-t border-blue-200">
-                  <button
-                    onClick={() => openProfile(studentId, t.studentName)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs bg-white text-maroon-600 border border-maroon-300 rounded-lg hover:bg-maroon-50 transition font-medium"
-                  >
-                    <User2 size={14} />
-                    View Profile
-                  </button>
-                  <button
-                    onClick={() => openChat(studentId, t.studentName)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium"
-                  >
-                    <MessageCircle size={14} />
-                    Message Student
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => openProfile(studentId, a.studentName)}
+                        className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
+                        title="View profile"
+                      >
+                        <User2 size={15} />
+                      </button>
+                      <button
+                        onClick={() => openChat(studentId, a.studentName)}
+                        className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
+                        title="Message"
+                      >
+                        <MessageCircle size={15} />
+                      </button>
+                      <a
+                        href={`/counselor/appointments/${a.id}/form`}
+                        className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
+                      >
+                        <FileText size={13} />
+                        Open form
+                      </a>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SectionCard>
+
+      {/* Psychological tests */}
+      <SectionCard
+        title="Psychological tests"
+        subtitle={`${upcomingTests.length} scheduled`}
+        noBodyPadding
+      >
+        {upcomingTests.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            title="No scheduled tests"
+            hint="Pending test requests can be reviewed from the dashboard."
+          />
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {upcomingTests.map((t) => {
+              const studentId = t.student_id || t.studentUserId;
+              const original = t.preferredDate
+                ? `${t.preferredDate} · ${
+                    Array.isArray(t.preferredSlots)
+                      ? t.preferredSlots.map((s) => timeLabel(s)).join(", ")
+                      : "—"
+                  }`
+                : "—";
+              return (
+                <li key={t.id} className="px-4 py-3 hover:bg-gray-50/70 transition">
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => openProfile(studentId, t.studentName)}
+                      className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center justify-center text-xs font-semibold flex-shrink-0 transition"
+                      title="View profile"
+                    >
+                      {initialsOf(t.studentName)}
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => openProfile(studentId, t.studentName)}
+                          className="text-sm font-semibold text-gray-900 hover:underline"
+                        >
+                          {t.studentName}
+                        </button>
+                        <span className="text-xs text-gray-500">{t.college || "—"}</span>
+                        <StatusPill status={t.status} />
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                          <ClipboardList size={11} />
+                          {t.testType || "Psychological test"}
+                        </span>
+                        {t.controlNo && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 font-medium">
+                            <Hash size={10} />
+                            {t.controlNo}
+                          </span>
+                        )}
+                      </div>
+
+                      <dl className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0.5 text-xs">
+                        <div className="flex items-baseline gap-1.5">
+                          <dt className="text-gray-500">Requested</dt>
+                          <dd className="text-gray-700 tabular-nums">{original}</dd>
+                        </div>
+                        {t.scheduledDate && (
+                          <div className="flex items-baseline gap-1.5">
+                            <dt className="text-gray-500">Scheduled</dt>
+                            <dd className="text-gray-900 font-medium tabular-nums">
+                              {t.scheduledDate} · {timeLabel(t.scheduledTimeSlot)}
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                      {(t.note || t.reason) && (
+                        <div className="mt-1.5 space-y-0.5">
+                          {t.reason && (
+                            <p className="text-xs text-gray-500">
+                              <span className="font-medium text-gray-600">Reason:</span> {t.reason}
+                            </p>
+                          )}
+                          {t.note && (
+                            <p className="text-xs text-gray-500 italic">“{t.note}”</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => openProfile(studentId, t.studentName)}
+                        className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
+                        title="View profile"
+                      >
+                        <User2 size={15} />
+                      </button>
+                      <button
+                        onClick={() => openChat(studentId, t.studentName)}
+                        className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
+                        title="Message"
+                      >
+                        <MessageCircle size={15} />
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SectionCard>
 
       {selectedProfile && (
         <ProfileViewModal
@@ -179,10 +351,7 @@ export default function CounselorAppointments() {
         />
       )}
       {chatRecipient && (
-        <ChatModal
-          recipientUser={chatRecipient}
-          onClose={() => setChatRecipient(null)}
-        />
+        <ChatModal recipientUser={chatRecipient} onClose={() => setChatRecipient(null)} />
       )}
     </div>
   );

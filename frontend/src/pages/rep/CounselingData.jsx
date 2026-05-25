@@ -1,9 +1,29 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
+import {
+  Printer,
+  Download,
+  Search,
+  Users,
+  CheckCircle2,
+  Activity,
+  Filter as FilterIcon,
+  GraduationCap,
+} from "lucide-react";
+import {
+  PageHeader,
+  StatCard,
+  SectionCard,
+  EmptyState,
+  StatusPill,
+  BTN,
+  INPUT,
+  LABEL,
+} from "../../components/ui";
 
 const STATUS_OPTIONS = [
-  { value: "all", label: "All Statuses" },
+  { value: "all", label: "All statuses" },
   { value: "pending", label: "Pending" },
   { value: "accepted", label: "Accepted" },
   { value: "approved", label: "Approved" },
@@ -14,9 +34,7 @@ const STATUS_OPTIONS = [
 
 const normalizeDateValue = (value) => {
   if (!value) return "";
-  if (typeof value === "string" && value.includes("T")) {
-    return value.split("T")[0];
-  }
+  if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
   return value;
 };
 
@@ -28,7 +46,12 @@ export default function CounselingData() {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({ status: "all", dateFrom: "", dateTo: "", search: "" });
+  const [filters, setFilters] = useState({
+    status: "all",
+    dateFrom: "",
+    dateTo: "",
+    search: "",
+  });
 
   const fetchReport = async () => {
     if (!token) return;
@@ -42,9 +65,7 @@ export default function CounselingData() {
         },
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to load report");
-      }
+      if (!response.ok) throw new Error(data.message || "Unable to load report");
       setReportData(data);
       await fetchAppointments();
     } catch (err) {
@@ -62,34 +83,24 @@ export default function CounselingData() {
     setFilters((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
-  const clearFilters = () => {
+  const clearFilters = () =>
     setFilters({ status: "all", dateFrom: "", dateTo: "", search: "" });
-  };
 
   const myCollege = reportData?.college || currentUser?.college;
   const studentsInCollege = reportData?.students || [];
 
   const collegeAppointments = useMemo(() => {
     if (!myCollege) return [];
-    return (appointments || []).filter((apt) => {
-      if (!apt.college || apt.college !== myCollege) {
-        return false;
-      }
-      return true;
-    });
+    return (appointments || []).filter((apt) => apt.college === myCollege);
   }, [appointments, myCollege]);
 
   const filteredAppointments = useMemo(() => {
     return collegeAppointments.filter((apt) => {
-      if (filters.status !== "all" && apt.status !== filters.status) {
-        return false;
-      }
+      if (filters.status !== "all" && apt.status !== filters.status) return false;
       if (filters.search) {
         const searchValue = filters.search.toLowerCase();
         const name = `${apt.studentName || ""} ${apt.studentId || ""}`.toLowerCase();
-        if (!name.includes(searchValue)) {
-          return false;
-        }
+        if (!name.includes(searchValue)) return false;
       }
       if (filters.dateFrom || filters.dateTo) {
         const dateValue =
@@ -111,9 +122,7 @@ export default function CounselingData() {
   ).length;
   const completed = filteredAppointments.filter((apt) => apt.status === "completed").length;
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
   const handleSave = () => {
     if (!reportData) return;
@@ -131,171 +140,192 @@ export default function CounselingData() {
     link.download = `college-report-${myCollege || "college"}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    setSaveMessage("Report saved successfully!");
+    setSaveMessage("Report saved successfully");
     setTimeout(() => setSaveMessage(""), 3000);
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <p className="text-gray-600">Loading report...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <p className="text-red-600">{error}</p>
-      </div>
-    );
-  }
+  const hasActiveFilters =
+    filters.status !== "all" || filters.dateFrom || filters.dateTo || filters.search;
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">Open Counseling Data</h2>
+    <div className="px-6 py-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="College Dean"
+        title="Open counseling data"
+        subtitle={`Aggregated counseling activity${myCollege ? ` for ${myCollege}` : ""}`}
+        actions={
+          <>
+            <button onClick={handleSave} className={BTN.secondary}>
+              <Download size={14} /> Save JSON
+            </button>
+            <button onClick={handlePrint} className={BTN.primary}>
+              <Printer size={14} /> Print
+            </button>
+          </>
+        }
+      />
 
       {saveMessage && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800">✓ {saveMessage}</p>
+        <div className="mb-4 px-3 py-2 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm">
+          {saveMessage}
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              className="w-full border rounded px-3 py-2"
-              value={filters.status}
-              onChange={updateFilter("status")}
+      {error && (
+        <div className="mb-4 px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <StatCard
+          label="Total sessions"
+          value={totalSessions}
+          hint="Across filters"
+          icon={Activity}
+          accent="bg-gray-400"
+        />
+        <StatCard
+          label="Active cases"
+          value={activeCases}
+          hint="Pending / accepted / approved"
+          icon={Users}
+          accent="bg-amber-500"
+        />
+        <StatCard
+          label="Completed"
+          value={completed}
+          hint="Finalized sessions"
+          icon={CheckCircle2}
+          accent="bg-emerald-500"
+        />
+      </div>
+
+      {/* Filters */}
+      <SectionCard
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            <FilterIcon size={13} /> Filters
+          </span>
+        }
+        subtitle="Refine the list below"
+        className="mb-4"
+        action={
+          hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs font-medium text-gray-600 hover:text-gray-900"
             >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              Clear filters
+            </button>
+          )
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label className={LABEL}>Status</label>
+            <select className={INPUT} value={filters.status} onChange={updateFilter("status")}>
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
+            <label className={LABEL}>Date from</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2"
+              className={INPUT}
               value={filters.dateFrom}
               onChange={updateFilter("dateFrom")}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date To</label>
+            <label className={LABEL}>Date to</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2"
+              className={INPUT}
               value={filters.dateTo}
               onChange={updateFilter("dateTo")}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student Search</label>
-            <input
-              type="text"
-              className="w-full border rounded px-3 py-2"
-              placeholder="Name or ID"
-              value={filters.search}
-              onChange={updateFilter("search")}
-            />
+            <label className={LABEL}>Student search</label>
+            <div className="relative">
+              <Search
+                size={13}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                className={`${INPUT} pl-8`}
+                placeholder="Name or ID"
+                value={filters.search}
+                onChange={updateFilter("search")}
+              />
+            </div>
           </div>
         </div>
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={clearFilters}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
-          >
-            Clear Filters
-          </button>
-        </div>
-      </div>
+      </SectionCard>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-maroon-500 text-white p-6 rounded-xl shadow">
-          <h3 className="text-sm font-medium text-maroon-100">Total Sessions</h3>
-          <p className="text-3xl font-bold">{totalSessions}</p>
-        </div>
-        <div className="bg-maroon-600 text-white p-6 rounded-xl shadow">
-          <h3 className="text-sm font-medium text-maroon-100">Active Cases</h3>
-          <p className="text-3xl font-bold">{activeCases}</p>
-        </div>
-        <div className="bg-maroon-700 text-white p-6 rounded-xl shadow">
-          <h3 className="text-sm font-medium text-maroon-100">Completed</h3>
-          <p className="text-3xl font-bold">{completed}</p>
-        </div>
-      </div>
+      <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+        This is aggregated data available for your college. For detailed individual student records,
+        submit a Request for Student Counseling Data.
+      </p>
 
-      <div className="bg-white border border-gray-200 p-6 rounded-xl shadow mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Summary Statistics - {myCollege}</h3>
-        <p className="text-gray-600 mb-6">
-          This is aggregated data available for your college. For detailed individual student records, submit a request below.
-        </p>
-
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={handlePrint}
-            className="px-4 py-2 bg-maroon-500 text-white rounded-lg hover:bg-maroon-600 transition"
-          >
-            Print Report
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-          >
-            Save Report
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-xl shadow overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Students in {myCollege}</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Student ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Program</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Year Level</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {studentsInCollege.length > 0 ? (
-                studentsInCollege.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900">{student.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {student.studentId || student.student_id || "N/A"}
+      <SectionCard
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            <GraduationCap size={14} className="text-maroon-600" />
+            Students in {myCollege || "your college"}
+          </span>
+        }
+        subtitle={`${studentsInCollege.length} total`}
+        noBodyPadding
+      >
+        {loading ? (
+          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
+        ) : studentsInCollege.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No students found"
+            hint={`No students are registered in ${myCollege || "your college"} yet.`}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                  <th className="px-4 py-2.5">Name</th>
+                  <th className="px-4 py-2.5">Student ID</th>
+                  <th className="px-4 py-2.5">Program</th>
+                  <th className="px-4 py-2.5">Year level</th>
+                  <th className="px-4 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {studentsInCollege.map((student) => (
+                  <tr key={student.id} className="hover:bg-gray-50/70 transition">
+                    <td className="px-4 py-3 font-medium text-gray-900">{student.name}</td>
+                    <td className="px-4 py-3 text-gray-600 tabular-nums">
+                      {student.studentId || student.student_id || "—"}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{student.program || "N/A"}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{student.yearLevel || student.year_level || "N/A"}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                        Active
-                      </span>
+                    <td className="px-4 py-3 text-gray-600">{student.program || "—"}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {student.yearLevel || student.year_level || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusPill status="active" />
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
-                    No students found in {myCollege}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }

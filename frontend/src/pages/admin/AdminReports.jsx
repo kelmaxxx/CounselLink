@@ -2,10 +2,31 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useReactToPrint } from "react-to-print";
-import { X, Download } from "lucide-react";
+import {
+  Download,
+  Printer,
+  Users,
+  Calendar,
+  ClipboardList,
+  Clock3,
+  CheckCircle2,
+  XCircle,
+  Filter as FilterIcon,
+} from "lucide-react";
+import {
+  PageHeader,
+  StatCard,
+  SectionCard,
+  EmptyState,
+  StatusPill,
+  Modal,
+  BTN,
+  INPUT,
+  LABEL,
+} from "../../components/ui";
 
 const STATUS_LABELS = [
-  { value: "all", label: "All Statuses" },
+  { value: "all", label: "All statuses" },
   { value: "pending", label: "Pending" },
   { value: "accepted", label: "Accepted" },
   { value: "approved", label: "Approved" },
@@ -16,16 +37,14 @@ const STATUS_LABELS = [
 ];
 
 const TYPE_OPTIONS = [
-  { value: "all", label: "All Types" },
+  { value: "all", label: "All types" },
   { value: "counseling", label: "Counseling" },
-  { value: "psychological_test", label: "Psychological Test" },
+  { value: "psychological_test", label: "Psychological test" },
 ];
 
 const normalizeDateValue = (value) => {
   if (!value) return "";
-  if (typeof value === "string" && value.includes("T")) {
-    return value.split("T")[0];
-  }
+  if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
   return value;
 };
 
@@ -55,9 +74,7 @@ export default function AdminReports() {
         },
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to load report");
-      }
+      if (!response.ok) throw new Error(data.message || "Unable to load report");
       setReportData(data);
       await fetchAppointments();
     } catch (err) {
@@ -81,12 +98,8 @@ export default function AdminReports() {
 
   const filteredAppointments = useMemo(() => {
     return (appointments || []).filter((apt) => {
-      if (filters.type !== "all" && apt.appointment_type !== filters.type) {
-        return false;
-      }
-      if (filters.status !== "all" && apt.status !== filters.status) {
-        return false;
-      }
+      if (filters.type !== "all" && apt.appointment_type !== filters.type) return false;
+      if (filters.status !== "all" && apt.status !== filters.status) return false;
       if (filters.dateFrom || filters.dateTo) {
         const dateValue =
           normalizeDateValue(apt.preferredDate) ||
@@ -108,18 +121,14 @@ export default function AdminReports() {
     (apt) => apt.appointment_type === "psychological_test"
   );
 
-  const appointmentStatuses = counselingAppointments.reduce(
-    (acc, apt) => {
-      acc[apt.status] = (acc[apt.status] || 0) + 1;
-      return acc;
-    },
-    {}
-  );
+  const appointmentStatuses = counselingAppointments.reduce((acc, apt) => {
+    acc[apt.status] = (acc[apt.status] || 0) + 1;
+    return acc;
+  }, {});
 
   const totalAppointments = counselingAppointments.length;
   const totalTests = testAppointments.length;
   const pendingRequests = filteredAppointments.filter((apt) => apt.status === "pending").length;
-
   const acceptedCount =
     (appointmentStatuses.accepted || 0) +
     (appointmentStatuses.approved || 0) +
@@ -150,7 +159,6 @@ export default function AdminReports() {
   });
 
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const handleViewDetails = () => setDetailsOpen(true);
 
   const detailsPayload = useMemo(
     () => ({
@@ -165,7 +173,15 @@ export default function AdminReports() {
       appointmentStatuses,
       recentActivity,
     }),
-    [filters, reportData, totalAppointments, totalTests, pendingRequests, appointmentStatuses, recentActivity]
+    [
+      filters,
+      reportData,
+      totalAppointments,
+      totalTests,
+      pendingRequests,
+      appointmentStatuses,
+      recentActivity,
+    ]
   );
 
   const exportCsv = () => {
@@ -197,7 +213,11 @@ export default function AdminReports() {
     rows.push(["Recent Activity"]);
     rows.push(["Student", "Date", "Status"]);
     recentActivity.forEach((apt) =>
-      rows.push([apt.studentName || "Student", apt.preferredDate || apt.scheduledDate || "", apt.status])
+      rows.push([
+        apt.studentName || "Student",
+        apt.preferredDate || apt.scheduledDate || "",
+        apt.status,
+      ])
     );
 
     const csv = rows
@@ -220,279 +240,286 @@ export default function AdminReports() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <p className="text-gray-600">Loading report...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <p className="text-red-600">{error}</p>
-      </div>
-    );
-  }
+  const hasActiveFilters =
+    filters.type !== "all" || filters.status !== "all" || filters.dateFrom || filters.dateTo;
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-4">System Reports</h2>
-
-      <div ref={printRef} className="space-y-6 print:space-y-4">
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-            <select
-              className="w-full border rounded px-3 py-2"
-              value={filters.type}
-              onChange={updateFilter("type")}
-            >
-              {TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              className="w-full border rounded px-3 py-2"
-              value={filters.status}
-              onChange={updateFilter("status")}
-            >
-              {STATUS_LABELS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-            <input
-              type="date"
-              className="w-full border rounded px-3 py-2"
-              value={filters.dateFrom}
-              onChange={updateFilter("dateFrom")}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-            <input
-              type="date"
-              className="w-full border rounded px-3 py-2"
-              value={filters.dateTo}
-              onChange={updateFilter("dateTo")}
-            />
-          </div>
-        </div>
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={clearFilters}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
-          >
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">User Statistics</h3>
-          <div className="space-y-2 text-sm text-gray-600">
-            <div className="flex justify-between">
-              <span>Total Students:</span>
-              <span className="font-medium text-gray-900">{students}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total Counselors:</span>
-              <span className="font-medium text-gray-900">{counselors}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total College Reps:</span>
-              <span className="font-medium text-gray-900">{reps}</span>
-            </div>
-            <div className="flex justify-between border-t pt-2 mt-2">
-              <span>Total Users:</span>
-              <span className="font-medium text-gray-900">{totalUsers}</span>
-            </div>
-          </div>
-          <button
-            onClick={handlePrint}
-            className="mt-4 w-full bg-maroon-500 text-white py-2 rounded-lg hover:bg-maroon-600 transition"
-          >
-            Export Report
-          </button>
-        </div>
-
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">System Activity</h3>
-          <div className="space-y-2 text-sm text-gray-600">
-            <div className="flex justify-between">
-              <span>Total Counseling Sessions:</span>
-              <span className="font-medium text-gray-900">{totalAppointments}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total Test Requests:</span>
-              <span className="font-medium text-gray-900">{totalTests}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Requests Pending:</span>
-              <span className="font-medium text-gray-900">{pendingRequests}</span>
-            </div>
-            <div className="flex justify-between border-t pt-2 mt-2">
-              <span>Filtered Records:</span>
-              <span className="font-medium text-gray-900">{filteredAppointments.length}</span>
-            </div>
-          </div>
-          <button
-            onClick={handleViewDetails}
-            className="mt-4 w-full bg-maroon-500 text-white py-2 rounded-lg hover:bg-maroon-600 transition"
-          >
-            View Details
-          </button>
-        </div>
-
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Counseling Status Breakdown</h3>
-          <div className="space-y-2 text-sm text-gray-600">
-            <div className="flex justify-between">
-              <span>Pending:</span>
-              <span className="font-medium text-yellow-600">{appointmentStatuses.pending || 0}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Accepted:</span>
-              <span className="font-medium text-green-600">{acceptedCount}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Rejected:</span>
-              <span className="font-medium text-red-600">{appointmentStatuses.rejected || 0}</span>
-            </div>
-            <div className="flex justify-between border-t pt-2 mt-2">
-              <span>Total:</span>
-              <span className="font-medium text-gray-900">{totalAppointments}</span>
-            </div>
-          </div>
-          <button
-            onClick={handlePrint}
-            className="mt-4 w-full bg-maroon-500 text-white py-2 rounded-lg hover:bg-maroon-600 transition"
-          >
-            View Details
-          </button>
-        </div>
-      </div>
-
-      {recentActivity.length > 0 && (
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-          <div className="space-y-3">
-            {recentActivity.map((apt) => (
-              <div key={apt.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{apt.studentName || "Student"}</p>
-                  <p className="text-xs text-gray-500">{apt.preferredDate || apt.scheduledDate || "No date"}</p>
-                </div>
-                <span className="text-xs font-semibold text-gray-600">{apt.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      </div>
-
-      {detailsOpen && (
-        <DetailsModal
-          payload={detailsPayload}
-          students={students}
-          counselors={counselors}
-          reps={reps}
-          admins={admins}
-          totalAppointments={totalAppointments}
-          totalTests={totalTests}
-          pendingRequests={pendingRequests}
-          appointmentStatuses={appointmentStatuses}
-          recentActivity={recentActivity}
-          onClose={() => setDetailsOpen(false)}
-          onExportCsv={exportCsv}
-        />
-      )}
-    </div>
-  );
-}
-
-function DetailsModal({
-  payload,
-  students,
-  counselors,
-  reps,
-  admins,
-  totalAppointments,
-  totalTests,
-  pendingRequests,
-  appointmentStatuses,
-  recentActivity,
-  onClose,
-  onExportCsv,
-}) {
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center px-4 py-8 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-900">Report Details</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={onExportCsv}
-              className="text-sm px-3 py-1.5 rounded bg-maroon-500 text-white hover:bg-maroon-600 inline-flex items-center gap-1"
-            >
-              <Download size={16} /> Export CSV
+    <div className="px-6 py-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="Administrator"
+        title="System reports"
+        subtitle="Aggregated counseling and user activity"
+        actions={
+          <>
+            <button onClick={exportCsv} className={BTN.secondary}>
+              <Download size={14} /> Export CSV
             </button>
-            <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100">
-              <X size={20} />
+            <button onClick={handlePrint} className={BTN.primary}>
+              <Printer size={14} /> Print
             </button>
+          </>
+        }
+      />
+
+      <div ref={printRef}>
+        {/* Filters */}
+        <SectionCard
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              <FilterIcon size={13} /> Filters
+            </span>
+          }
+          subtitle="Refine all sections below"
+          className="mb-4"
+          action={
+            hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs font-medium text-gray-600 hover:text-gray-900"
+              >
+                Clear filters
+              </button>
+            )
+          }
+        >
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label className={LABEL}>Type</label>
+              <select className={INPUT} value={filters.type} onChange={updateFilter("type")}>
+                {TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>Status</label>
+              <select className={INPUT} value={filters.status} onChange={updateFilter("status")}>
+                {STATUS_LABELS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>Date from</label>
+              <input
+                type="date"
+                className={INPUT}
+                value={filters.dateFrom}
+                onChange={updateFilter("dateFrom")}
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Date to</label>
+              <input
+                type="date"
+                className={INPUT}
+                value={filters.dateTo}
+                onChange={updateFilter("dateTo")}
+              />
+            </div>
           </div>
-        </div>
+        </SectionCard>
 
-        <p className="text-xs text-gray-500 mb-4">
-          Generated {new Date(payload.generatedAt).toLocaleString()}
-        </p>
+        {loading ? (
+          <SectionCard noBodyPadding>
+            <div className="px-4 py-8 text-center text-sm text-gray-500">Loading report…</div>
+          </SectionCard>
+        ) : error ? (
+          <div className="px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-sm">
+            {error}
+          </div>
+        ) : (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <StatCard
+                label="Total users"
+                value={totalUsers}
+                hint={`${students} students · ${counselors} counselors`}
+                icon={Users}
+                accent="bg-gray-400"
+              />
+              <StatCard
+                label="Counseling sessions"
+                value={totalAppointments}
+                hint="Filtered records"
+                icon={Calendar}
+                accent="bg-emerald-500"
+              />
+              <StatCard
+                label="Test requests"
+                value={totalTests}
+                hint="Filtered records"
+                icon={ClipboardList}
+                accent="bg-blue-500"
+              />
+              <StatCard
+                label="Pending"
+                value={pendingRequests}
+                hint="Across all queues"
+                icon={Clock3}
+                accent="bg-amber-500"
+              />
+            </div>
 
-        <section className="mb-5">
-          <h4 className="font-semibold text-gray-800 mb-2">Users by Role</h4>
-          <table className="w-full text-sm border border-gray-200">
-            <tbody>
-              <tr className="border-b"><td className="p-2">Students</td><td className="p-2 text-right">{students}</td></tr>
-              <tr className="border-b"><td className="p-2">Counselors</td><td className="p-2 text-right">{counselors}</td></tr>
-              <tr className="border-b"><td className="p-2">College Dean</td><td className="p-2 text-right">{reps}</td></tr>
-              <tr><td className="p-2">Admins</td><td className="p-2 text-right">{admins}</td></tr>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+              <SectionCard title="User statistics" subtitle="By role">
+                <dl className="space-y-2 text-sm">
+                  <Row label="Students" value={students} />
+                  <Row label="Counselors" value={counselors} />
+                  <Row label="College deans" value={reps} />
+                  <Row label="Admins" value={admins} />
+                  <div className="pt-2 mt-1 border-t border-gray-100">
+                    <Row label="Total" value={totalUsers} strong />
+                  </div>
+                </dl>
+              </SectionCard>
+
+              <SectionCard
+                title="System activity"
+                subtitle="Counseling and tests"
+                action={
+                  <button
+                    onClick={() => setDetailsOpen(true)}
+                    className="text-xs font-medium text-gray-600 hover:text-gray-900"
+                  >
+                    Details
+                  </button>
+                }
+              >
+                <dl className="space-y-2 text-sm">
+                  <Row label="Counseling sessions" value={totalAppointments} />
+                  <Row label="Test requests" value={totalTests} />
+                  <Row label="Pending requests" value={pendingRequests} />
+                  <div className="pt-2 mt-1 border-t border-gray-100">
+                    <Row label="Filtered records" value={filteredAppointments.length} strong />
+                  </div>
+                </dl>
+              </SectionCard>
+
+              <SectionCard title="Counseling status" subtitle="Breakdown">
+                <dl className="space-y-2 text-sm">
+                  <Row
+                    label={
+                      <span className="inline-flex items-center gap-1.5">
+                        <Clock3 size={12} className="text-amber-500" /> Pending
+                      </span>
+                    }
+                    value={appointmentStatuses.pending || 0}
+                  />
+                  <Row
+                    label={
+                      <span className="inline-flex items-center gap-1.5">
+                        <CheckCircle2 size={12} className="text-emerald-500" /> Accepted
+                      </span>
+                    }
+                    value={acceptedCount}
+                  />
+                  <Row
+                    label={
+                      <span className="inline-flex items-center gap-1.5">
+                        <XCircle size={12} className="text-red-500" /> Rejected
+                      </span>
+                    }
+                    value={appointmentStatuses.rejected || 0}
+                  />
+                  <div className="pt-2 mt-1 border-t border-gray-100">
+                    <Row label="Total" value={totalAppointments} strong />
+                  </div>
+                </dl>
+              </SectionCard>
+            </div>
+
+            <SectionCard title="Recent activity" subtitle="Latest 5 records" noBodyPadding>
+              {recentActivity.length === 0 ? (
+                <EmptyState
+                  icon={Calendar}
+                  title="No recent activity"
+                  hint="Try adjusting the filters above."
+                />
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {recentActivity.map((apt) => (
+                    <li
+                      key={apt.id}
+                      className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50/60 transition"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {apt.studentName || "Student"}
+                        </p>
+                        <p className="text-xs text-gray-500 tabular-nums">
+                          {apt.preferredDate || apt.scheduledDate || "No date"}
+                        </p>
+                      </div>
+                      <StatusPill status={apt.status} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SectionCard>
+          </>
+        )}
+      </div>
+
+      <Modal
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title="Report details"
+        subtitle={`Generated ${new Date(detailsPayload.generatedAt).toLocaleString()}`}
+        size="2xl"
+        align="top"
+        footer={
+          <>
+            <button onClick={exportCsv} className={BTN.secondary}>
+              <Download size={14} /> Export CSV
+            </button>
+            <button onClick={() => setDetailsOpen(false)} className={BTN.primary}>
+              Close
+            </button>
+          </>
+        }
+      >
+        <section className="mb-4">
+          <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
+            Users by role
+          </h4>
+          <table className="w-full text-sm border border-gray-200 rounded-md overflow-hidden">
+            <tbody className="divide-y divide-gray-100">
+              <DetailRow label="Students" value={students} />
+              <DetailRow label="Counselors" value={counselors} />
+              <DetailRow label="College deans" value={reps} />
+              <DetailRow label="Admins" value={admins} />
             </tbody>
           </table>
         </section>
 
-        <section className="mb-5">
-          <h4 className="font-semibold text-gray-800 mb-2">Totals</h4>
-          <table className="w-full text-sm border border-gray-200">
-            <tbody>
-              <tr className="border-b"><td className="p-2">Counseling Appointments</td><td className="p-2 text-right">{totalAppointments}</td></tr>
-              <tr className="border-b"><td className="p-2">Test Requests</td><td className="p-2 text-right">{totalTests}</td></tr>
-              <tr><td className="p-2">Pending</td><td className="p-2 text-right">{pendingRequests}</td></tr>
+        <section className="mb-4">
+          <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
+            Totals
+          </h4>
+          <table className="w-full text-sm border border-gray-200 rounded-md overflow-hidden">
+            <tbody className="divide-y divide-gray-100">
+              <DetailRow label="Counseling appointments" value={totalAppointments} />
+              <DetailRow label="Test requests" value={totalTests} />
+              <DetailRow label="Pending" value={pendingRequests} />
             </tbody>
           </table>
         </section>
 
         {Object.keys(appointmentStatuses).length > 0 && (
-          <section className="mb-5">
-            <h4 className="font-semibold text-gray-800 mb-2">Appointment Statuses</h4>
-            <table className="w-full text-sm border border-gray-200">
-              <tbody>
+          <section className="mb-4">
+            <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
+              Appointment statuses
+            </h4>
+            <table className="w-full text-sm border border-gray-200 rounded-md overflow-hidden">
+              <tbody className="divide-y divide-gray-100">
                 {Object.entries(appointmentStatuses).map(([k, v]) => (
-                  <tr key={k} className="border-b last:border-b-0">
-                    <td className="p-2 capitalize">{k}</td>
-                    <td className="p-2 text-right">{v}</td>
-                  </tr>
+                  <DetailRow key={k} label={k} value={v} capitalize />
                 ))}
               </tbody>
             </table>
@@ -501,24 +528,62 @@ function DetailsModal({
 
         {recentActivity.length > 0 && (
           <section>
-            <h4 className="font-semibold text-gray-800 mb-2">Recent Activity</h4>
-            <table className="w-full text-sm border border-gray-200">
+            <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
+              Recent activity
+            </h4>
+            <table className="w-full text-sm border border-gray-200 rounded-md overflow-hidden">
               <thead className="bg-gray-50">
-                <tr><th className="p-2 text-left">Student</th><th className="p-2 text-left">Date</th><th className="p-2 text-left">Status</th></tr>
+                <tr>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                    Student
+                  </th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                    Date
+                  </th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                    Status
+                  </th>
+                </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100">
                 {recentActivity.map((apt) => (
-                  <tr key={apt.id} className="border-b last:border-b-0">
-                    <td className="p-2">{apt.studentName || "Student"}</td>
-                    <td className="p-2">{apt.preferredDate || apt.scheduledDate || "—"}</td>
-                    <td className="p-2 capitalize">{apt.status}</td>
+                  <tr key={apt.id}>
+                    <td className="px-3 py-2">{apt.studentName || "Student"}</td>
+                    <td className="px-3 py-2 tabular-nums">
+                      {apt.preferredDate || apt.scheduledDate || "—"}
+                    </td>
+                    <td className="px-3 py-2 capitalize">{apt.status}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </section>
         )}
-      </div>
+      </Modal>
     </div>
+  );
+}
+
+function Row({ label, value, strong }) {
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-gray-600">{label}</dt>
+      <dd
+        className={`tabular-nums ${
+          strong ? "font-semibold text-gray-900" : "text-gray-900 font-medium"
+        }`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, capitalize = false }) {
+  return (
+    <tr>
+      <td className={`px-3 py-2 text-gray-700 ${capitalize ? "capitalize" : ""}`}>{label}</td>
+      <td className="px-3 py-2 text-right font-medium text-gray-900 tabular-nums">{value}</td>
+    </tr>
   );
 }

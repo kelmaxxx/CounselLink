@@ -15,8 +15,7 @@ export default function Layout({ children }) {
   };
 
   return (
-    <div className="flex bg-white min-h-screen">
-      {/* Sidebar - fixed width */}
+    <div className="flex bg-gray-50 min-h-screen text-gray-800">
       <Sidebar
         currentUser={currentUser}
         activeView={activeView}
@@ -24,11 +23,10 @@ export default function Layout({ children }) {
         handleLogout={handleLogout}
       />
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header currentUser={currentUser} />
 
-        <main className="flex-1 overflow-auto bg-gray-50 pt-4 px-6">
+        <main className="flex-1 overflow-auto bg-gray-50">
           {children}
         </main>
       </div>
