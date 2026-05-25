@@ -45,6 +45,38 @@ mysql -u root -p < backend\schema.sql
 mysql -u root -p < backend\seed.sql
 ```
 
+## Pulling Latest Changes (for collaborators)
+
+After every `git pull`, run this checklist. Skipping any step is the #1 cause of "it doesn't work on my machine" errors.
+
+```powershell
+# 1. Make sure you're on the right branch.
+# Active sprint work lives on 'final-sprint-2026-05', not 'main'.
+# (If the sprint PR has already been merged, switch back to 'main'.)
+git fetch
+git checkout final-sprint-2026-05
+git pull
+
+# 2. Reinstall dependencies — root (frontend) AND backend each have their own package.json
+npm install
+cd backend ; npm install ; cd ..
+
+# 3. Apply any new database migrations
+# Check backend\migrations\ for files newer than your last pull and run each one.
+mysql -u root -p counselink < backend\migrations\006_password_resets.sql
+# Repeat for any other new migration files (001-005 if you don't have them yet)
+
+# 4. Update your backend\.env if backend\.env.example added new keys
+# Open both files side by side. Any key in .env.example that's missing from
+# your .env -> add it (especially EMAIL_HOST/PORT/USER/PASS/FROM for password reset).
+
+# 5. Start both servers
+cd backend ; npm run dev    # terminal 1 (backend on :5000)
+npm run dev                 # terminal 2 in repo root (frontend on :5173)
+```
+
+If you still see "module not found" or "Unknown column" errors after these steps, paste the full error to the team chat before assuming the code is broken.
+
 ## Running
 
 Open two terminals:
