@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, MessageCircle, Mail, Briefcase, Award } from "lucide-react";
+import { ArrowLeft, MessageCircle, Mail, Briefcase, Award, User } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ChatModal from "../../components/ChatModal";
+import { PageHeader, SectionCard, BTN, initialsOf } from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -42,55 +43,69 @@ export default function CounselorPublicProfile() {
   }, [id, token, lookupUser]);
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="px-6 py-6 max-w-4xl mx-auto">
       <Link
         to="/student/counselors"
-        className="inline-flex items-center gap-1 text-sm text-maroon-600 hover:text-maroon-700 mb-4"
+        className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 mb-4 transition"
       >
-        <ArrowLeft size={16} /> Back to Counselors
+        <ArrowLeft size={14} /> Back to counselors
       </Link>
 
       {loading ? (
-        <p className="text-sm text-gray-500">Loading...</p>
+        <SectionCard noBodyPadding>
+          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
+        </SectionCard>
       ) : error ? (
-        <p className="text-sm text-red-600">{error}</p>
+        <div className="px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-sm">
+          {error}
+        </div>
       ) : !user ? (
-        <p className="text-sm text-gray-500">Counselor not found.</p>
+        <SectionCard>
+          <p className="text-sm text-gray-500 text-center py-4">Counselor not found.</p>
+        </SectionCard>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl shadow p-6">
-          <div className="flex items-start gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-maroon-600 text-white flex items-center justify-center text-2xl font-semibold">
-              {user.name?.charAt(0).toUpperCase()}
+        <>
+          <PageHeader
+            eyebrow="Counselor profile"
+            title={user.name}
+            subtitle={`${user.department || "Counselor"}${user.specialization ? ` · ${user.specialization}` : ""}`}
+            actions={
+              <button onClick={() => setChatOpen(true)} className={BTN.primary}>
+                <MessageCircle size={15} /> Send message
+              </button>
+            }
+          />
+
+          {/* Hero card */}
+          <div className="bg-white border border-gray-200 rounded-lg p-5 mb-4">
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-lg font-semibold flex-shrink-0">
+                {initialsOf(user.name) || <User size={24} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
+                <p className="text-sm text-gray-500 capitalize">{user.role?.replace("_", " ")}</p>
+                <dl className="mt-3 space-y-2 text-sm">
+                  {user.department && (
+                    <Row icon={Briefcase} label="Department" value={user.department} />
+                  )}
+                  {user.specialization && (
+                    <Row icon={Award} label="Specialization" value={user.specialization} />
+                  )}
+                  {user.email && <Row icon={Mail} label="Email" value={user.email} />}
+                </dl>
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold text-gray-900">{user.name}</h2>
-              <p className="text-sm text-gray-600 capitalize">{user.role?.replace("_", " ")}</p>
-            </div>
-            <button
-              onClick={() => setChatOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700"
-            >
-              <MessageCircle size={16} /> Send Message
-            </button>
           </div>
 
-          <dl className="divide-y divide-gray-100">
-            {user.department && (
-              <Row icon={<Briefcase size={16} />} label="Department" value={user.department} />
-            )}
-            {user.specialization && (
-              <Row icon={<Award size={16} />} label="Specialization" value={user.specialization} />
-            )}
-            {user.email && <Row icon={<Mail size={16} />} label="Email" value={user.email} />}
-          </dl>
-
           {user.bio && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h3 className="text-sm font-medium text-gray-900 mb-1">About</h3>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{user.bio}</p>
-            </div>
+            <SectionCard title="About" subtitle="Approach and background">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                {user.bio}
+              </p>
+            </SectionCard>
           )}
-        </div>
+        </>
       )}
 
       {chatOpen && user && <ChatModal recipientUser={user} onClose={() => setChatOpen(false)} />}
@@ -98,14 +113,14 @@ export default function CounselorPublicProfile() {
   );
 }
 
-function Row({ icon, label, value }) {
+function Row({ icon: Icon, label, value }) {
   return (
-    <div className="py-3 grid grid-cols-1 sm:grid-cols-3 gap-2 items-start">
-      <dt className="text-sm font-medium text-gray-600 inline-flex items-center gap-2">
-        {icon}
+    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-baseline">
+      <dt className="text-xs font-medium text-gray-500 inline-flex items-center gap-1.5 uppercase tracking-wider">
+        {Icon && <Icon size={11} className="text-gray-400" />}
         {label}
       </dt>
-      <dd className="sm:col-span-2 text-sm text-gray-900">{value}</dd>
+      <dd className="sm:col-span-3 text-sm text-gray-900">{value}</dd>
     </div>
   );
 }

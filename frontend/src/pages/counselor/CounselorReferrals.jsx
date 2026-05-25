@@ -2,19 +2,28 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useReferrals } from "../../context/ReferralsContext";
-import { ArrowRight, CheckCircle2, XCircle, Inbox, Send, Plus, X } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  XCircle,
+  Inbox,
+  Send,
+  Plus,
+  History,
+} from "lucide-react";
+import {
+  PageHeader,
+  SectionCard,
+  EmptyState,
+  StatusPill,
+  Modal,
+  BTN,
+  INPUT,
+  LABEL,
+  initialsOf,
+} from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-
-const statusPill = (status) => {
-  const map = {
-    pending: "bg-yellow-100 text-yellow-800",
-    accepted: "bg-green-100 text-green-800",
-    rejected: "bg-red-100 text-red-800",
-    cancelled: "bg-gray-200 text-gray-700",
-  };
-  return map[status] || "bg-gray-100 text-gray-700";
-};
 
 export default function CounselorReferrals() {
   const { currentUser, token } = useAuth();
@@ -32,21 +41,26 @@ export default function CounselorReferrals() {
     fetchReferrals();
   }, [fetchReferrals]);
 
-  const filtered = useMemo(() => {
-    if (!currentUser) return [];
-    if (activeTab === "incoming") {
-      return referrals.filter(
-        (r) => r.receiving_counselor_id === currentUser.id && r.status === "pending"
-      );
-    }
-    if (activeTab === "outgoing") {
-      return referrals.filter(
-        (r) => r.referring_counselor_id === currentUser.id && r.status === "pending"
-      );
-    }
-    // history
-    return referrals.filter((r) => r.status !== "pending");
-  }, [referrals, activeTab, currentUser]);
+  const incomingPending = useMemo(
+    () =>
+      referrals.filter(
+        (r) => r.receiving_counselor_id === currentUser?.id && r.status === "pending"
+      ),
+    [referrals, currentUser?.id]
+  );
+  const outgoingPending = useMemo(
+    () =>
+      referrals.filter(
+        (r) => r.referring_counselor_id === currentUser?.id && r.status === "pending"
+      ),
+    [referrals, currentUser?.id]
+  );
+  const history = useMemo(
+    () => referrals.filter((r) => r.status !== "pending"),
+    [referrals]
+  );
+
+  const filtered = activeTab === "incoming" ? incomingPending : activeTab === "outgoing" ? outgoingPending : history;
 
   const openDecision = (referral, status) => {
     setDecisionModal({ open: true, referral, status });
@@ -79,183 +93,283 @@ export default function CounselorReferrals() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Referrals</h2>
-          <p className="text-sm text-gray-600">Hand off students between counselors with a tracked decision.</p>
-        </div>
-        <button
-          onClick={() => setNewOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700"
-        >
-          <Plus size={16} /> New Referral
-        </button>
-      </div>
+    <div className="px-6 py-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="Counselor"
+        title="Referrals"
+        subtitle="Hand off students between counselors with a tracked decision."
+        actions={
+          <button onClick={() => setNewOpen(true)} className={BTN.primary}>
+            <Plus size={15} /> New referral
+          </button>
+        }
+      />
 
-      <div className="flex gap-2 border-b border-gray-200 mb-6">
-        <TabBtn active={activeTab === "incoming"} onClick={() => setActiveTab("incoming")} icon={<Inbox size={16} />}>
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-gray-200 mb-4">
+        <TabBtn
+          active={activeTab === "incoming"}
+          onClick={() => setActiveTab("incoming")}
+          icon={<Inbox size={14} />}
+          count={incomingPending.length}
+        >
           Incoming
         </TabBtn>
-        <TabBtn active={activeTab === "outgoing"} onClick={() => setActiveTab("outgoing")} icon={<Send size={16} />}>
+        <TabBtn
+          active={activeTab === "outgoing"}
+          onClick={() => setActiveTab("outgoing")}
+          icon={<Send size={14} />}
+          count={outgoingPending.length}
+        >
           Outgoing
         </TabBtn>
-        <TabBtn active={activeTab === "history"} onClick={() => setActiveTab("history")} icon={<ArrowRight size={16} />}>
+        <TabBtn
+          active={activeTab === "history"}
+          onClick={() => setActiveTab("history")}
+          icon={<History size={14} />}
+          count={history.length}
+        >
           History
         </TabBtn>
       </div>
 
-      {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-      {loading && <p className="text-sm text-gray-500">Loading...</p>}
+      {error && (
+        <div className="mb-3 px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow overflow-x-auto">
-        <table className="min-w-full divide-y">
-          <thead className="bg-gray-50">
-            <tr className="text-left text-xs text-gray-700">
-              <th className="px-4 py-3 font-medium">Student</th>
-              <th className="px-4 py-3 font-medium">
-                {activeTab === "outgoing" ? "Sent to" : "From"}
-              </th>
-              <th className="px-4 py-3 font-medium">Reason</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Created</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y text-sm">
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                  No referrals in this view.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{r.studentName}</div>
-                    <div className="text-xs text-gray-500">{r.studentCollege || r.studentEmail}</div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">
-                    {activeTab === "outgoing" ? r.receivingCounselorName : r.referringCounselorName}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700 max-w-sm">
-                    <p className="line-clamp-2">{r.reason}</p>
-                    {r.decision_note && (
-                      <p className="text-xs text-gray-500 mt-1">Note: {r.decision_note}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full ${statusPill(r.status)}`}>
-                      {r.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">
-                    {new Date(r.created_at).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {activeTab === "incoming" && r.status === "pending" && (
-                      <div className="inline-flex gap-1">
-                        <button
-                          onClick={() => openDecision(r, "accepted")}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700"
-                        >
-                          <CheckCircle2 size={14} /> Accept
-                        </button>
-                        <button
-                          onClick={() => openDecision(r, "rejected")}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700"
-                        >
-                          <XCircle size={14} /> Reject
-                        </button>
-                      </div>
-                    )}
-                    {activeTab === "outgoing" && r.status === "pending" && (
-                      <button
-                        onClick={() => handleCancel(r.id)}
-                        className="px-2.5 py-1 rounded border border-gray-300 text-xs hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </td>
+      <SectionCard
+        title={
+          activeTab === "incoming"
+            ? "Incoming referrals"
+            : activeTab === "outgoing"
+            ? "Outgoing referrals"
+            : "Referral history"
+        }
+        subtitle={
+          activeTab === "history"
+            ? "Past decisions and cancelled referrals"
+            : "Pending action"
+        }
+        noBodyPadding
+      >
+        {loading ? (
+          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={activeTab === "incoming" ? Inbox : activeTab === "outgoing" ? Send : History}
+            title={
+              activeTab === "incoming"
+                ? "No incoming referrals"
+                : activeTab === "outgoing"
+                ? "No outgoing referrals"
+                : "No history yet"
+            }
+            hint={
+              activeTab === "incoming"
+                ? "When another counselor hands off a student to you, it will appear here."
+                : activeTab === "outgoing"
+                ? "Use “New referral” to hand off a student to another counselor."
+                : "Resolved referrals (accepted, rejected, or cancelled) will collect here."
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                  <th className="px-4 py-2.5">Student</th>
+                  <th className="px-4 py-2.5">{activeTab === "outgoing" ? "Sent to" : "From"}</th>
+                  <th className="px-4 py-2.5">Reason</th>
+                  <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5">Created</th>
+                  <th className="px-4 py-2.5 text-right">Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map((r) => (
+                  <tr key={r.id} className="hover:bg-gray-50/70 transition">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-[11px] font-semibold flex-shrink-0">
+                          {initialsOf(r.studentName)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 text-sm truncate">
+                            {r.studentName}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {r.studentCollege || r.studentEmail || "—"}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {activeTab === "outgoing"
+                        ? r.receivingCounselorName
+                        : r.referringCounselorName}
+                    </td>
+                    <td className="px-4 py-3 max-w-sm">
+                      <p className="text-gray-700 line-clamp-2">{r.reason}</p>
+                      {r.decision_note && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          <span className="font-medium">Note:</span> {r.decision_note}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusPill status={r.status} />
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                      {new Date(r.created_at).toLocaleString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {activeTab === "incoming" && r.status === "pending" && (
+                        <div className="inline-flex gap-1">
+                          <button
+                            onClick={() => openDecision(r, "accepted")}
+                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
+                          >
+                            <CheckCircle2 size={13} /> Accept
+                          </button>
+                          <button
+                            onClick={() => openDecision(r, "rejected")}
+                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition"
+                          >
+                            <XCircle size={13} /> Reject
+                          </button>
+                        </div>
+                      )}
+                      {activeTab === "outgoing" && r.status === "pending" && (
+                        <button
+                          onClick={() => handleCancel(r.id)}
+                          className="inline-flex items-center h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
 
-      {decisionModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-1">
-              {decisionModal.status === "accepted" ? "Accept Referral" : "Reject Referral"}
-            </h3>
-            <p className="text-sm text-gray-600 mb-3">
-              {decisionModal.status === "accepted"
-                ? "Confirm you can take over this student. The referring counselor will be notified."
-                : "Add a short note explaining why this referral was declined. Required."}
-            </p>
-            <div className="bg-gray-50 border border-gray-200 rounded p-3 mb-3 text-sm">
-              <p><strong>Student:</strong> {decisionModal.referral.studentName}</p>
-              <p><strong>From:</strong> {decisionModal.referral.referringCounselorName}</p>
-              <p className="mt-1"><strong>Reason:</strong> {decisionModal.referral.reason}</p>
+      <Modal
+        open={decisionModal.open}
+        onClose={() => setDecisionModal({ open: false, referral: null, status: null })}
+        title={decisionModal.status === "accepted" ? "Accept referral" : "Reject referral"}
+        subtitle={
+          decisionModal.status === "accepted"
+            ? "Confirm you can take over this student. The referring counselor will be notified."
+            : "Add a short note explaining why this referral was declined. Required."
+        }
+        danger={decisionModal.status === "rejected"}
+        footer={
+          <>
+            <button
+              className={BTN.secondary}
+              onClick={() => setDecisionModal({ open: false, referral: null, status: null })}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submitDecision}
+              disabled={decisionBusy}
+              className={decisionModal.status === "accepted" ? BTN.success : BTN.danger}
+            >
+              {decisionBusy
+                ? "Submitting…"
+                : decisionModal.status === "accepted"
+                ? "Confirm accept"
+                : "Confirm reject"}
+            </button>
+          </>
+        }
+      >
+        {decisionModal.referral && (
+          <>
+            <div className="bg-gray-50 border border-gray-200 rounded-md p-3 mb-3 text-sm space-y-1">
+              <div>
+                <span className="text-xs uppercase tracking-wider text-gray-500 font-medium">
+                  Student
+                </span>
+                <div className="text-gray-900">{decisionModal.referral.studentName}</div>
+              </div>
+              <div>
+                <span className="text-xs uppercase tracking-wider text-gray-500 font-medium">
+                  From
+                </span>
+                <div className="text-gray-900">{decisionModal.referral.referringCounselorName}</div>
+              </div>
+              <div>
+                <span className="text-xs uppercase tracking-wider text-gray-500 font-medium">
+                  Reason
+                </span>
+                <div className="text-gray-700 text-sm">{decisionModal.referral.reason}</div>
+              </div>
             </div>
+            <label className={LABEL}>
+              {decisionModal.status === "accepted" ? "Note (optional)" : "Note (required)"}
+            </label>
             <textarea
               rows={3}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-maroon-500"
+              className={INPUT}
               placeholder={
                 decisionModal.status === "accepted"
-                  ? "Optional note (e.g. estimated first session date)"
-                  : "Required: e.g. caseload full, scope mismatch..."
+                  ? "e.g. estimated first session date"
+                  : "e.g. caseload full, scope mismatch…"
               }
               value={decisionNote}
               onChange={(e) => setDecisionNote(e.target.value)}
             />
             {decisionError && <p className="text-sm text-red-600 mt-2">{decisionError}</p>}
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => setDecisionModal({ open: false, referral: null, status: null })}
-                className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitDecision}
-                disabled={decisionBusy}
-                className={`px-3 py-2 text-white rounded disabled:opacity-60 ${
-                  decisionModal.status === "accepted"
-                    ? "bg-green-600 hover:bg-green-700"
-                    : "bg-red-600 hover:bg-red-700"
-                }`}
-              >
-                {decisionBusy
-                  ? "Submitting..."
-                  : decisionModal.status === "accepted"
-                  ? "Confirm Accept"
-                  : "Confirm Reject"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
-      {newOpen && <NewReferralModal token={token} currentUser={currentUser} onClose={() => setNewOpen(false)} onCreated={() => fetchReferrals()} />}
+      {newOpen && (
+        <NewReferralModal
+          token={token}
+          currentUser={currentUser}
+          onClose={() => setNewOpen(false)}
+          onCreated={() => fetchReferrals()}
+        />
+      )}
     </div>
   );
 }
 
-function TabBtn({ active, onClick, children, icon }) {
+function TabBtn({ active, onClick, children, icon, count }) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 font-medium transition inline-flex items-center gap-2 ${
-        active ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"
+      className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+        active
+          ? "text-maroon-700 border-maroon-600"
+          : "text-gray-500 border-transparent hover:text-gray-900"
       }`}
     >
       {icon}
       {children}
+      {typeof count === "number" && (
+        <span
+          className={`ml-1 inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[10px] font-semibold tabular-nums ${
+            active ? "bg-maroon-100 text-maroon-700" : "bg-gray-100 text-gray-600"
+          }`}
+        >
+          {count}
+        </span>
+      )}
     </button>
   );
 }
@@ -275,9 +389,9 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
     if (!token) return;
     setLoadingLists(true);
     Promise.all([
-      fetch(`${API_BASE}/api/users?role=student`, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
-        r.json()
-      ),
+      fetch(`${API_BASE}/api/users?role=student`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json()),
       fetch(`${API_BASE}/api/users?role=counselor`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then((r) => r.json()),
@@ -327,84 +441,81 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-start justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-xl p-6 w-full max-w-lg mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">New Referral</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X size={20} />
+    <Modal
+      open
+      onClose={onClose}
+      title="New referral"
+      subtitle="Hand off a student to another counselor with a reason for the decision."
+      size="lg"
+      align="top"
+      footer={
+        <>
+          <button type="button" onClick={onClose} className={BTN.secondary}>
+            Cancel
           </button>
+          <button type="submit" form="new-referral-form" disabled={submitting} className={BTN.primary}>
+            {submitting ? "Sending…" : "Send referral"}
+          </button>
+        </>
+      }
+    >
+      <form id="new-referral-form" onSubmit={submit} className="space-y-3">
+        <div>
+          <label className={LABEL}>Student *</label>
+          <select
+            required
+            className={INPUT}
+            value={studentId}
+            onChange={(e) => setStudentId(e.target.value)}
+            disabled={loadingLists}
+          >
+            <option value="">{loadingLists ? "Loading…" : "Select a student"}</option>
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} {s.college ? `· ${s.college}` : ""}
+              </option>
+            ))}
+          </select>
         </div>
-        <form onSubmit={submit} className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student *</label>
-            <select
-              required
-              className="w-full border rounded px-3 py-2"
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value)}
-              disabled={loadingLists}
-            >
-              <option value="">{loadingLists ? "Loading..." : "Select a student"}</option>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} {s.college ? `· ${s.college}` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Refer to counselor *</label>
-            <select
-              required
-              className="w-full border rounded px-3 py-2"
-              value={receivingCounselorId}
-              onChange={(e) => setReceivingCounselorId(e.target.value)}
-              disabled={loadingLists}
-            >
-              <option value="">{loadingLists ? "Loading..." : "Select a counselor"}</option>
-              {counselors.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} {c.department ? `· ${c.department}` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
-            <textarea
-              required
-              rows={3}
-              className="w-full border rounded px-3 py-2"
-              placeholder="Why are you handing off this student?"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-            <textarea
-              rows={2}
-              className="w-full border rounded px-3 py-2"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={onClose} className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-3 py-2 bg-maroon-600 text-white rounded hover:bg-maroon-700 disabled:opacity-60"
-            >
-              {submitting ? "Sending..." : "Send Referral"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div>
+          <label className={LABEL}>Refer to counselor *</label>
+          <select
+            required
+            className={INPUT}
+            value={receivingCounselorId}
+            onChange={(e) => setReceivingCounselorId(e.target.value)}
+            disabled={loadingLists}
+          >
+            <option value="">{loadingLists ? "Loading…" : "Select a counselor"}</option>
+            {counselors.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.department ? `· ${c.department}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={LABEL}>Reason *</label>
+          <textarea
+            required
+            rows={3}
+            className={INPUT}
+            placeholder="Why are you handing off this student?"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className={LABEL}>Notes (optional)</label>
+          <textarea
+            rows={2}
+            className={INPUT}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+      </form>
+    </Modal>
   );
 }

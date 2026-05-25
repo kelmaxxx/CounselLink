@@ -16,164 +16,237 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Count pending registrations for admin
   const pendingCount = users?.filter(u => u.role === "student" && u.status === "pending_approval").length || 0;
 
-const idToPath = {
-  // Student
-  dashboard: "/",
-  "request-appointment": "/student/request-appointment",
-  "my-appointments": "/student/appointments",
-  "request-psych-test": "/student/request-psych-test",
-  "counselor-directory": "/student/counselors",
-  "student-feedback": "/student/feedback",
-  consent: "/student/consent",
-  profile: "/student/profile",
-  notifications: "/student/notifications",
-  
-  // Counselor
-  "manage-students": "/students",
-  appointments: "/counselor/appointments",
-  referrals: "/counselor/referrals",
-  "generate-reports": "/counselor/reports",
-  
-  // College Rep
-  "counseling-data": "/rep/counseling-data",
-  "request-data": "/rep/request-data",
-  
-  // Admin
-  "pending-registrations": "/admin/pending-registrations",
-  "manage-users": "/admin/manage-users",
-  announcements: "/admin/announcements",
-  reports: "/admin/reports",
-  "audit-logs": "/admin/audit-logs",
+  const idToPath = {
+    // Student
+    dashboard: "/",
+    "request-appointment": "/student/request-appointment",
+    "my-appointments": "/student/appointments",
+    "request-psych-test": "/student/request-psych-test",
+    "counselor-directory": "/student/counselors",
+    "student-feedback": "/student/feedback",
+    consent: "/student/consent",
+    profile: "/student/profile",
+    notifications: "/student/notifications",
 
-  // Shared
-  messages: "/messages",
-};
+    // Counselor
+    "manage-students": "/students",
+    appointments: "/counselor/appointments",
+    referrals: "/counselor/referrals",
+    "generate-reports": "/counselor/reports",
 
-  const getNavItems = () => {
+    // College Rep
+    "counseling-data": "/rep/counseling-data",
+    "request-data": "/rep/request-data",
+
+    // Admin
+    "pending-registrations": "/admin/pending-registrations",
+    "manage-users": "/admin/manage-users",
+    announcements: "/admin/announcements",
+    reports: "/admin/reports",
+    "audit-logs": "/admin/audit-logs",
+
+    // Shared
+    messages: "/messages",
+  };
+
+  const getNavGroups = () => {
     if (!currentUser) return [];
     switch (currentUser.role) {
       case "student":
         return [
-          { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-          { id: "request-appointment", label: "Request Appointment", icon: Calendar },
-          { id: "my-appointments", label: "My Appointments", icon: Calendar },
-          { id: "request-psych-test", label: "Request Psych Test", icon: ClipboardList },
-          { id: "counselor-directory", label: "Counselors", icon: Users },
-          { id: "student-feedback", label: "Leave Feedback", icon: MessageCircle },
-          { id: "consent", label: "View Psychological Test Result and Save Result", icon: FileSignature },
-          { id: "messages", label: "Messages", icon: MessageCircle },
-          { id: "profile", label: "My Profile", icon: User },
-          { id: "notifications", label: "Notifications", icon: Bell }
+          {
+            label: "Workspace",
+            items: [
+              { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+              { id: "request-appointment", label: "Request Appointment", icon: Calendar },
+              { id: "my-appointments", label: "My Appointments", icon: Calendar },
+              { id: "request-psych-test", label: "Request Psych Test", icon: ClipboardList },
+              { id: "counselor-directory", label: "Counselors", icon: Users },
+              { id: "student-feedback", label: "Leave Feedback", icon: MessageCircle },
+              { id: "consent", label: "Test Results", icon: FileSignature },
+            ],
+          },
+          {
+            label: "Account",
+            items: [
+              { id: "messages", label: "Messages", icon: MessageCircle },
+              { id: "profile", label: "My Profile", icon: User },
+              { id: "notifications", label: "Notifications", icon: Bell },
+            ],
+          },
         ];
       case "counselor":
         return [
-          { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-          { id: "manage-students", label: "Manage Students Records", icon: Users },
-          { id: "appointments", label: "Appointments", icon: Calendar },
-          { id: "referrals", label: "Referrals", icon: ArrowRightLeft },
-          { id: "messages", label: "Messages", icon: MessageCircle },
-          { id: "generate-reports", label: "Generate Reports", icon: FileText },
-          { id: "profile", label: "My Profile", icon: User },
-          { id: "notifications", label: "Notifications", icon: Bell }
+          {
+            label: "Workspace",
+            items: [
+              { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+              { id: "manage-students", label: "Student Records", icon: Users },
+              { id: "appointments", label: "Appointments", icon: Calendar },
+              { id: "referrals", label: "Referrals", icon: ArrowRightLeft },
+              { id: "generate-reports", label: "Reports", icon: FileText },
+            ],
+          },
+          {
+            label: "Account",
+            items: [
+              { id: "messages", label: "Messages", icon: MessageCircle },
+              { id: "profile", label: "My Profile", icon: User },
+              { id: "notifications", label: "Notifications", icon: Bell },
+            ],
+          },
         ];
       case "college_rep":
         return [
-          { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-          { id: "counseling-data", label: "Open Counseling Data", icon: BookOpen },
-          { id: "request-data", label: "Request Student Data", icon: ClipboardList },
-          { id: "messages", label: "Messages", icon: MessageCircle },
-          { id: "profile", label: "My Profile", icon: User },
-          { id: "notifications", label: "Notifications", icon: Bell }
+          {
+            label: "Workspace",
+            items: [
+              { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+              { id: "counseling-data", label: "Counseling Data", icon: BookOpen },
+              { id: "request-data", label: "Request Student Data", icon: ClipboardList },
+            ],
+          },
+          {
+            label: "Account",
+            items: [
+              { id: "messages", label: "Messages", icon: MessageCircle },
+              { id: "profile", label: "My Profile", icon: User },
+              { id: "notifications", label: "Notifications", icon: Bell },
+            ],
+          },
         ];
       case "admin":
         return [
-          { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-          { id: "pending-registrations", label: "Pending Registrations", icon: UserCheck },
-          { id: "manage-users", label: "Manage User Accounts", icon: Settings },
-          { id: "announcements", label: "Create Announcement", icon: AlertCircle },
-          { id: "reports", label: "System Reports", icon: FileText },
-          { id: "audit-logs", label: "Audit Logs", icon: Shield },
-          { id: "profile", label: "My Profile", icon: User },
-          { id: "notifications", label: "Notifications", icon: Bell }
+          {
+            label: "Administration",
+            items: [
+              { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+              { id: "pending-registrations", label: "Pending Registrations", icon: UserCheck },
+              { id: "manage-users", label: "Manage Users", icon: Settings },
+              { id: "announcements", label: "Announcements", icon: AlertCircle },
+              { id: "reports", label: "System Reports", icon: FileText },
+              { id: "audit-logs", label: "Audit Logs", icon: Shield },
+            ],
+          },
+          {
+            label: "Account",
+            items: [
+              { id: "profile", label: "My Profile", icon: User },
+              { id: "notifications", label: "Notifications", icon: Bell },
+            ],
+          },
         ];
       default:
         return [];
     }
   };
 
+  const initials = (currentUser?.name || "")
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
   if (!currentUser) {
     return (
-      <div className="w-64 bg-maroon-500 text-white flex flex-col shadow-lg">
-        <div className="p-6 border-b border-maroon-700">
-          <h1 className="text-2xl font-bold">CounseLink</h1>
+      <aside className="w-60 bg-maroon-700 text-white flex flex-col">
+        <div className="px-5 py-5 border-b border-maroon-800/60">
+          <h1 className="text-base font-semibold tracking-tight">CounseLink</h1>
         </div>
-      </div>
+      </aside>
     );
   }
 
-  const navItems = getNavItems();
+  const navGroups = getNavGroups();
 
   return (
-    <div className="w-64 bg-maroon-500 text-white flex flex-col shadow-lg">
-      <div className="p-6 border-b border-maroon-700">
-        <h1 className="text-2xl font-bold">CounseLink</h1>
-        <div className="mt-2 text-sm text-maroon-100">
-          <div className="font-medium text-white">{currentUser.name}</div>
-          <div className="capitalize">{currentUser.role?.replace('_', ' ')}</div>
-          {currentUser.college && <div className="text-maroon-50">{currentUser.college}</div>}
+    <aside className="w-60 bg-maroon-700 text-maroon-50 flex flex-col border-r border-maroon-800/60">
+      {/* Brand */}
+      <div className="px-5 py-4 border-b border-maroon-800/60">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-md bg-maroon-50 text-maroon-700 flex items-center justify-center font-bold text-sm">
+            C
+          </div>
+          <h1 className="text-sm font-semibold tracking-tight text-white">CounseLink</h1>
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const showPendingBadge = item.id === "pending-registrations" && pendingCount > 0;
-          const showMessagesBadge = item.id === "messages" && unreadMessages > 0;
-          const itemPath = idToPath[item.id] || "/";
-          const isActive = location.pathname === itemPath || location.pathname.startsWith(itemPath + "/");
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (setActiveView) setActiveView(item.id);
-                navigate(itemPath);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                isActive
-                  ? "bg-maroon-700 text-white"
-                  : "text-maroon-50 hover:bg-maroon-600"
-              }`}
-            >
-              <Icon size={20} />
-              <span className="flex-1 text-left">{item.label}</span>
-              {showPendingBadge && (
-                <span className="bg-yellow-400 text-maroon-900 text-xs font-bold px-2 py-1 rounded-full">
-                  {pendingCount}
-                </span>
-              )}
-              {showMessagesBadge && (
-                <span className="bg-yellow-400 text-maroon-900 text-xs font-bold px-2 py-1 rounded-full">
-                  {unreadMessages}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* User block */}
+      <div className="px-5 py-3 border-b border-maroon-800/60">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-maroon-500 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+            {initials || <User size={14} />}
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-white truncate">{currentUser.name}</div>
+            <div className="text-[11px] text-maroon-200 capitalize truncate">
+              {currentUser.role?.replace("_", " ")}
+              {currentUser.college ? ` · ${currentUser.college}` : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        {navGroups.map((group) => (
+          <div key={group.label}>
+            <div className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-maroon-300">
+              {group.label}
+            </div>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const showPendingBadge = item.id === "pending-registrations" && pendingCount > 0;
+                const showMessagesBadge = item.id === "messages" && unreadMessages > 0;
+                const itemPath = idToPath[item.id] || "/";
+                const isActive =
+                  location.pathname === itemPath ||
+                  (itemPath !== "/" && location.pathname.startsWith(itemPath + "/"));
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (setActiveView) setActiveView(item.id);
+                      navigate(itemPath);
+                    }}
+                    className={`group w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm transition relative ${
+                      isActive
+                        ? "bg-maroon-800/80 text-white"
+                        : "text-maroon-100 hover:bg-maroon-600/60 hover:text-white"
+                    }`}
+                  >
+                    {isActive && (
+                      <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-white" />
+                    )}
+                    <Icon size={16} className="flex-shrink-0" />
+                    <span className="flex-1 text-left truncate">{item.label}</span>
+                    {(showPendingBadge || showMessagesBadge) && (
+                      <span className="bg-amber-400 text-maroon-900 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
+                        {showPendingBadge ? pendingCount : unreadMessages}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      <div className="p-4 border-t border-maroon-700">
+      <div className="px-3 py-3 border-t border-maroon-800/60">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 w-full text-maroon-50 hover:text-white hover:bg-maroon-600 px-3 py-2 rounded transition"
+          className="flex items-center gap-2.5 w-full text-maroon-100 hover:text-white hover:bg-maroon-600/60 px-2.5 py-1.5 rounded-md text-sm transition"
         >
-          <LogOut size={20} />
-          <span>Logout</span>
+          <LogOut size={16} />
+          <span>Sign out</span>
         </button>
       </div>
-    </div>
+    </aside>
   );
 }
 

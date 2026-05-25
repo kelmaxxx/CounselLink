@@ -1,5 +1,13 @@
 import React, { useState } from "react";
 import { useNotifications } from "../../context/NotificationsContext";
+import { Megaphone, Send } from "lucide-react";
+import {
+  PageHeader,
+  SectionCard,
+  BTN,
+  INPUT,
+  LABEL,
+} from "../../components/ui";
 
 export default function CreateAnnouncement() {
   const { addNotification } = useNotifications();
@@ -36,70 +44,78 @@ export default function CreateAnnouncement() {
   };
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-6">Create Announcement</h2>
+    <div className="px-6 py-6 max-w-3xl mx-auto">
+      <PageHeader
+        eyebrow="Administrator"
+        title="Create announcement"
+        subtitle="Broadcast a message to students, counselors, or college deans."
+        actions={
+          <button type="submit" form="announcement-form" disabled={submitting} className={BTN.primary}>
+            <Send size={14} /> {submitting ? "Sending…" : "Send announcement"}
+          </button>
+        }
+      />
 
       {feedback && (
         <div
-          className={`mb-6 p-4 rounded-lg border ${
+          className={`mb-4 px-3 py-2 rounded-md border text-sm ${
             feedback.type === "success"
-              ? "bg-green-50 border-green-200 text-green-800"
-              : "bg-red-50 border-red-200 text-red-800"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+              : "bg-red-50 border-red-200 text-red-700"
           }`}
         >
           {feedback.text}
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 p-6 rounded-xl shadow max-w-2xl">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <SectionCard
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            <Megaphone size={14} className="text-maroon-600" /> Announcement
+          </span>
+        }
+        subtitle="Title, body, and audience"
+      >
+        <form id="announcement-form" onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Announcement Title</label>
+            <label className={LABEL}>Title *</label>
             <input
               type="text"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+              className={INPUT}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="Enter announcement title..."
+              placeholder="e.g. Counseling office hours updated"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+            <label className={LABEL}>Message *</label>
             <textarea
               required
-              rows="6"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+              rows={6}
+              className={INPUT}
               value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
-              placeholder="Type your announcement message here..."
-            ></textarea>
+              placeholder="Type your announcement message here…"
+            />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Send To</label>
+            <label className={LABEL}>Send to</label>
             <select
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500"
+              className={INPUT}
               value={form.sendTo}
               onChange={(e) => setForm({ ...form, sendTo: e.target.value })}
             >
-              <option value="all">All Users</option>
-              <option value="students">Students Only</option>
-              <option value="counselors">Counselors Only</option>
-              <option value="reps">College Representatives Only</option>
+              <option value="all">All users</option>
+              <option value="students">Students only</option>
+              <option value="counselors">Counselors only</option>
+              <option value="reps">College deans only</option>
             </select>
           </div>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-maroon-500 text-white py-3 rounded-lg hover:bg-maroon-600 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? "Sending..." : "Send Announcement"}
-          </button>
         </form>
-      </div>
+      </SectionCard>
     </div>
   );
 }

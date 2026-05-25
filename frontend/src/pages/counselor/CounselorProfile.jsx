@@ -1,8 +1,39 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { User, Mail, Phone, Briefcase, Award, FileText, Edit2, Save, X, Star } from "lucide-react";
+import {
+  User,
+  Mail,
+  Phone,
+  Briefcase,
+  Award,
+  FileText,
+  Edit2,
+  Save,
+  X,
+  Star,
+  Hash,
+  MessageSquare,
+} from "lucide-react";
+import {
+  PageHeader,
+  SectionCard,
+  EmptyState,
+  BTN,
+  INPUT,
+  LABEL,
+  initialsOf,
+} from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
+const DEPARTMENTS = [
+  "Guidance Office",
+  "Psychology Department",
+  "Student Affairs",
+  "Health Services",
+  "Academic Counseling",
+  "Career Development",
+];
 
 export default function CounselorProfile() {
   const { currentUser, refreshCurrentUser, updateProfile } = useAuth();
@@ -21,7 +52,7 @@ export default function CounselorProfile() {
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     refreshCurrentUser?.().then((fresh) => {
       if (!fresh) return;
       setFormData((f) => ({
@@ -37,15 +68,6 @@ export default function CounselorProfile() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const departments = [
-    "Guidance Office",
-    "Psychology Department",
-    "Student Affairs",
-    "Health Services",
-    "Academic Counseling",
-    "Career Development"
-  ];
 
   const handleSave = async () => {
     if (!formData.name || !formData.email) {
@@ -63,7 +85,7 @@ export default function CounselorProfile() {
         specialization: formData.specialization,
       });
       setIsEditing(false);
-      setMessage({ type: "success", text: "Profile updated successfully!" });
+      setMessage({ type: "success", text: "Profile updated successfully" });
     } catch (err) {
       setMessage({ type: "error", text: err.message || "Failed to update profile" });
     } finally {
@@ -86,227 +108,226 @@ export default function CounselorProfile() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900">My Profile</h2>
-        {!isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition"
-          >
-            <Edit2 size={18} />
-            Edit Profile
-          </button>
-        )}
-      </div>
+    <div className="px-6 py-6 max-w-7xl mx-auto">
+      <PageHeader
+        eyebrow="Counselor"
+        title="My profile"
+        subtitle="Manage your professional information and what students see."
+        actions={
+          !isEditing ? (
+            <button onClick={() => setIsEditing(true)} className={BTN.primary}>
+              <Edit2 size={15} />
+              Edit profile
+            </button>
+          ) : (
+            <>
+              <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
+                <X size={15} />
+                Cancel
+              </button>
+              <button onClick={handleSave} className={BTN.primary} disabled={saving}>
+                <Save size={15} />
+                {saving ? "Saving…" : "Save changes"}
+              </button>
+            </>
+          )
+        }
+      />
 
-      {/* Success/Error Message */}
       {message && (
-        <div className={`mb-4 p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
+        <div
+          className={`mb-4 px-3 py-2 rounded-md border text-sm ${
+            message.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+              : "bg-red-50 border-red-200 text-red-700"
+          }`}
+        >
           {message.text}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Personal Information */}
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-          
+      {/* Hero card */}
+      <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-lg font-semibold flex-shrink-0">
+            {initialsOf(myRecord?.name) || <User size={24} />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">
+              {myRecord?.name || "—"}
+            </h3>
+            <p className="text-sm text-gray-500 truncate">
+              {myRecord?.department || "Counselor"}
+              {myRecord?.specialization ? ` · ${myRecord.specialization}` : ""}
+            </p>
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
+              <span className="inline-flex items-center gap-1">
+                <Mail size={12} className="text-gray-400" />
+                {myRecord?.email || "—"}
+              </span>
+              {myRecord?.phone && (
+                <span className="inline-flex items-center gap-1">
+                  <Phone size={12} className="text-gray-400" />
+                  {myRecord.phone}
+                </span>
+              )}
+              {myRecord?.employeeId && (
+                <span className="inline-flex items-center gap-1">
+                  <Hash size={12} className="text-gray-400" />
+                  {myRecord.employeeId}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        {/* Personal information */}
+        <SectionCard title="Personal information" subtitle="Contact and identity details">
           {isEditing ? (
-            <div className="space-y-4">
-              {/* Name */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium flex items-center gap-2 mb-1">
-                  <User size={16} />
-                  Name *
-                </label>
+            <div className="space-y-3">
+              <Field icon={User} label="Name *">
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="Enter your name"
                 />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium flex items-center gap-2 mb-1">
-                  <Mail size={16} />
-                  Email *
-                </label>
+              </Field>
+              <Field icon={Mail} label="Email *">
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="Enter your email"
                 />
-              </div>
-
-              {/* Phone */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium flex items-center gap-2 mb-1">
-                  <Phone size={16} />
-                  Phone Number
-                </label>
+              </Field>
+              <Field icon={Phone} label="Phone number">
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="Enter phone number"
                 />
-              </div>
-
-              {/* Employee ID (Read-only) */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium mb-1 block">Employee ID</label>
-                <p className="px-3 py-2 bg-gray-100 rounded-lg text-gray-700">{myRecord?.employeeId || "Not assigned"}</p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Save size={18} />
-                  {saving ? "Saving..." : "Save"}
-                </button>
-                <button
-                  onClick={handleCancel}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
-                >
-                  <X size={18} />
-                  Cancel
-                </button>
-              </div>
+              </Field>
+              <Field icon={Hash} label="Employee ID">
+                <input
+                  type="text"
+                  value={myRecord?.employeeId || ""}
+                  disabled
+                  className={INPUT}
+                />
+              </Field>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
-                  <User size={16} />
-                  Name
-                </label>
-                <p className="font-medium text-gray-900">{myRecord?.name}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
-                  <Mail size={16} />
-                  Email
-                </label>
-                <p className="font-medium text-gray-900">{myRecord?.email}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
-                  <Phone size={16} />
-                  Phone
-                </label>
-                <p className="font-medium text-gray-900">{myRecord?.phone || "Not provided"}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600">Employee ID</label>
-                <p className="font-medium text-gray-900">{myRecord?.employeeId || "Not assigned"}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600">Role</label>
-                <p className="font-medium text-gray-900">Counselor</p>
-              </div>
-            </div>
+            <dl className="space-y-2.5 text-sm">
+              <Readout icon={User} label="Name" value={myRecord?.name} />
+              <Readout icon={Mail} label="Email" value={myRecord?.email} />
+              <Readout icon={Phone} label="Phone" value={myRecord?.phone || "Not provided"} />
+              <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
+              <Readout icon={User} label="Role" value="Counselor" />
+            </dl>
           )}
-        </div>
+        </SectionCard>
 
-        {/* Professional Information */}
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Professional Information</h3>
-          
+        {/* Professional information */}
+        <SectionCard title="Professional information" subtitle="Department and expertise">
           {isEditing ? (
-            <div className="space-y-4">
-              {/* Department */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium flex items-center gap-2 mb-1">
-                  <Briefcase size={16} />
-                  Department
-                </label>
+            <div className="space-y-3">
+              <Field icon={Briefcase} label="Department">
                 <select
                   value={formData.department}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
+                  className={INPUT}
                 >
-                  <option value="">Select Department</option>
-                  {departments.map(dept => (
-                    <option key={dept} value={dept}>{dept}</option>
+                  <option value="">Select department</option>
+                  {DEPARTMENTS.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
                   ))}
                 </select>
-              </div>
-
-              {/* Specialization */}
-              <div>
-                <label className="text-sm text-gray-600 font-medium flex items-center gap-2 mb-1">
-                  <Award size={16} />
-                  Specialization
-                </label>
+              </Field>
+              <Field icon={Award} label="Specialization">
                 <input
                   type="text"
                   value={formData.specialization}
                   onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent"
-                  placeholder="e.g., Academic Counseling, Career Guidance"
+                  className={INPUT}
+                  placeholder="e.g. Academic Counseling, Career Guidance"
                 />
-              </div>
+              </Field>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
-                  <Briefcase size={16} />
-                  Department
-                </label>
-                <p className="font-medium text-gray-900">{myRecord?.department || "Not provided"}</p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600 flex items-center gap-2">
-                  <Award size={16} />
-                  Specialization
-                </label>
-                <p className="font-medium text-gray-900">{myRecord?.specialization || "Not provided"}</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Bio/About */}
-        <div className="bg-white border border-gray-200 p-6 rounded-xl shadow">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">About Me</h3>
-          
-          {isEditing ? (
-            <div>
-              <label className="text-sm text-gray-600 font-medium flex items-center gap-2 mb-1">
-                <FileText size={16} />
-                Bio
-              </label>
-              <textarea
-                value={formData.bio}
-                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon-500 focus:border-transparent resize-none"
-                rows="6"
-                placeholder="Tell students about yourself and your counseling approach..."
+            <dl className="space-y-2.5 text-sm">
+              <Readout
+                icon={Briefcase}
+                label="Department"
+                value={myRecord?.department || "Not provided"}
               />
-            </div>
-          ) : (
-            <p className="text-gray-700 text-sm">
-              {myRecord?.bio || "No bio provided yet. Click 'Edit Profile' to add information about yourself and your counseling approach."}
-            </p>
+              <Readout
+                icon={Award}
+                label="Specialization"
+                value={myRecord?.specialization || "Not provided"}
+              />
+            </dl>
           )}
-        </div>
+        </SectionCard>
       </div>
 
+      {/* About */}
+      <SectionCard
+        title="About me"
+        subtitle="A short bio shown on your public counselor profile"
+        className="mb-6"
+      >
+        {isEditing ? (
+          <textarea
+            value={formData.bio}
+            onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+            className={`${INPUT} resize-none`}
+            rows={5}
+            placeholder="Tell students about yourself and your counseling approach…"
+          />
+        ) : myRecord?.bio ? (
+          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{myRecord.bio}</p>
+        ) : (
+          <p className="text-sm text-gray-500 italic">
+            No bio yet. Click <span className="font-medium">Edit profile</span> to add information
+            about yourself and your counseling approach.
+          </p>
+        )}
+      </SectionCard>
+
       <FeedbackPanel />
+    </div>
+  );
+}
+
+function Field({ icon: Icon, label, children }) {
+  return (
+    <div>
+      <label className={`${LABEL} inline-flex items-center gap-1.5`}>
+        {Icon && <Icon size={12} className="text-gray-400" />}
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function Readout({ icon: Icon, label, value }) {
+  return (
+    <div>
+      <dt className="text-[11px] uppercase tracking-wider text-gray-500 font-medium inline-flex items-center gap-1.5">
+        {Icon && <Icon size={11} className="text-gray-400" />}
+        {label}
+      </dt>
+      <dd className="text-sm text-gray-900 font-medium mt-0.5">{value || "—"}</dd>
     </div>
   );
 }
@@ -346,58 +367,85 @@ function FeedbackPanel() {
   }, [token]);
 
   return (
-    <div className="mt-6 bg-white border border-gray-200 p-6 rounded-xl shadow">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Student Feedback</h3>
-          <p className="text-sm text-gray-600">
-            {data.count > 0
-              ? `${data.count} response${data.count === 1 ? "" : "s"} · average ${
-                  data.average?.toFixed(1) ?? "—"
-                } / 5`
-              : "No feedback received yet."}
-          </p>
+    <SectionCard
+      title="Student feedback"
+      subtitle={
+        data.count > 0
+          ? `${data.count} response${data.count === 1 ? "" : "s"} · average ${
+              data.average?.toFixed(1) ?? "—"
+            } / 5`
+          : "No feedback received yet"
+      }
+      noBodyPadding
+      action={
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-0.5 text-amber-500">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star
+                key={i}
+                size={14}
+                fill={data.average && i < Math.round(data.average) ? "currentColor" : "none"}
+                stroke="currentColor"
+              />
+            ))}
+          </div>
+          {data.average !== null && data.average !== undefined && (
+            <span className="text-sm font-semibold text-gray-900 tabular-nums">
+              {data.average?.toFixed(1)}
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-1 text-amber-500">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star
-              key={i}
-              size={18}
-              fill={data.average && i < Math.round(data.average) ? "currentColor" : "none"}
-              stroke="currentColor"
-            />
-          ))}
+      }
+    >
+      {error && (
+        <div className="px-4 py-2 text-sm text-red-600 bg-red-50 border-b border-red-100">
+          {error}
         </div>
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {loading && <p className="text-sm text-gray-500">Loading...</p>}
-      {!loading && data.items.length > 0 && (
+      )}
+      {loading ? (
+        <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
+      ) : data.items.length === 0 && !error ? (
+        <EmptyState
+          icon={MessageSquare}
+          title="No feedback yet"
+          hint="When students submit feedback after a session, it will appear here."
+        />
+      ) : (
         <ul className="divide-y divide-gray-100">
           {data.items.map((fb) => (
-            <li key={fb.id} className="py-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{fb.studentName || "Anonymous"}</p>
-                  <p className="text-xs text-gray-500">
-                    {fb.created_at ? new Date(fb.created_at).toLocaleString() : ""}
-                  </p>
+            <li key={fb.id} className="px-4 py-3 hover:bg-gray-50/60 transition">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                    {initialsOf(fb.studentName) || "AN"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {fb.studentName || "Anonymous"}
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      {fb.created_at ? new Date(fb.created_at).toLocaleString() : ""}
+                    </p>
+                    {fb.comment && (
+                      <p className="text-sm text-gray-700 mt-1 leading-relaxed">{fb.comment}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-0.5 text-amber-500">
+                <div className="flex items-center gap-0.5 text-amber-500 flex-shrink-0">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star
                       key={i}
-                      size={14}
+                      size={12}
                       fill={i < fb.rating ? "currentColor" : "none"}
                       stroke="currentColor"
                     />
                   ))}
                 </div>
               </div>
-              {fb.comment && <p className="text-sm text-gray-700 mt-1">{fb.comment}</p>}
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </SectionCard>
   );
 }
