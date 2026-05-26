@@ -7,6 +7,7 @@
 // the contract; do not rename keys without a data migration.
 import React, { useEffect, useMemo, useState } from "react";
 import { Save, FileUp, Trash2, ExternalLink } from "lucide-react";
+import { Modal, BTN } from "../ui";
 
 const EDUC_LEVELS = ["Elementary", "Junior High School", "Vocational", "Senior High School", "College"];
 
@@ -615,18 +616,27 @@ export default function InventoryForm({
         )
       )}
 
-      {confirmRemoveScan && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-red-700 mb-2">Remove inventory scan?</h3>
-            <p className="text-sm text-gray-700 mb-4">This will detach the uploaded file from this student's inventory. The digital form data will not be affected.</p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmRemoveScan(false)} className="px-4 py-2 rounded border">Cancel</button>
-              <button onClick={handleScanDelete} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700">Remove</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={confirmRemoveScan}
+        onClose={() => setConfirmRemoveScan(false)}
+        title="Remove inventory scan?"
+        subtitle="Detach the uploaded file from this student's inventory."
+        danger
+        footer={
+          <>
+            <button onClick={() => setConfirmRemoveScan(false)} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button onClick={handleScanDelete} className={BTN.danger}>
+              Remove
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          The digital form data will not be affected. Only the uploaded scan file will be detached.
+        </p>
+      </Modal>
     </div>
   );
 }

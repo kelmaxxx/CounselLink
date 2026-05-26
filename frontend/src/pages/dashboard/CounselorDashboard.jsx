@@ -622,168 +622,154 @@ export default function CounselorDashboard() {
       )}
 
       {/* ── Modals ─────────────────────────────────────────────────────── */}
-      {rescheduleModal.open && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-xl w-full max-w-md">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h3 className="text-base font-semibold text-gray-900">Reschedule appointment</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Propose a new date and time. The student will be notified.
-              </p>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">New date</label>
-                <input
-                  type="date"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500"
-                  value={rescheduleModal.date}
-                  onChange={(e) => setRescheduleModal((s) => ({ ...s, date: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">New time slot</label>
-                <select
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500"
-                  value={rescheduleModal.timeSlot}
-                  onChange={(e) => setRescheduleModal((s) => ({ ...s, timeSlot: e.target.value }))}
-                >
-                  <option value="">Select a slot</option>
-                  {Object.entries(TIME_LABEL).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Note (optional)</label>
-                <textarea
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500"
-                  value={rescheduleModal.note}
-                  onChange={(e) => setRescheduleModal((s) => ({ ...s, note: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/60 rounded-b-lg">
-              <button
-                className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-100"
-                onClick={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}
-              >
-                Cancel
-              </button>
-              <button
-                className="h-9 px-3 rounded-md bg-maroon-600 text-white text-sm font-medium hover:bg-maroon-700"
-                onClick={submitReschedule}
-              >
-                Confirm reschedule
-              </button>
-            </div>
+      <Modal
+        open={rescheduleModal.open}
+        onClose={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}
+        title="Reschedule appointment"
+        subtitle="Propose a new date and time. The student will be notified."
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN.secondary}
+              onClick={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}
+            >
+              Cancel
+            </button>
+            <button type="button" className={BTN.primary} onClick={submitReschedule}>
+              Confirm reschedule
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className={LABEL}>New date</label>
+            <input
+              type="date"
+              className={INPUT}
+              value={rescheduleModal.date}
+              onChange={(e) => setRescheduleModal((s) => ({ ...s, date: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className={LABEL}>New time slot</label>
+            <select
+              className={INPUT}
+              value={rescheduleModal.timeSlot}
+              onChange={(e) => setRescheduleModal((s) => ({ ...s, timeSlot: e.target.value }))}
+            >
+              <option value="">Select a slot</option>
+              {Object.entries(TIME_LABEL).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>Note (optional)</label>
+            <textarea
+              rows={3}
+              className={`${INPUT} resize-none`}
+              value={rescheduleModal.note}
+              onChange={(e) => setRescheduleModal((s) => ({ ...s, note: e.target.value }))}
+            />
           </div>
         </div>
-      )}
+      </Modal>
 
-      {rescheduleTestModal.open && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-xl w-full max-w-md">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h3 className="text-base font-semibold text-gray-900">Reschedule test</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Propose a new date and time for the psychological test.
-              </p>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">New date</label>
-                <input
-                  type="date"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500"
-                  value={rescheduleTestModal.date}
-                  onChange={(e) => setRescheduleTestModal((s) => ({ ...s, date: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">New time slot</label>
-                <select
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500"
-                  value={rescheduleTestModal.timeSlot}
-                  onChange={(e) => setRescheduleTestModal((s) => ({ ...s, timeSlot: e.target.value }))}
-                >
-                  <option value="">Select a slot</option>
-                  {Object.entries(TIME_LABEL).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Note (optional)</label>
-                <textarea
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500"
-                  value={rescheduleTestModal.note}
-                  onChange={(e) => setRescheduleTestModal((s) => ({ ...s, note: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/60 rounded-b-lg">
-              <button
-                className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-100"
-                onClick={() => setRescheduleTestModal({ open: false, testId: null, date: "", timeSlot: "", note: "" })}
-              >
-                Cancel
-              </button>
-              <button
-                className="h-9 px-3 rounded-md bg-maroon-600 text-white text-sm font-medium hover:bg-maroon-700"
-                onClick={submitRescheduleTest}
-              >
-                Confirm reschedule
-              </button>
-            </div>
+      <Modal
+        open={rescheduleTestModal.open}
+        onClose={() => setRescheduleTestModal({ open: false, testId: null, date: "", timeSlot: "", note: "" })}
+        title="Reschedule test"
+        subtitle="Propose a new date and time for the psychological test."
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN.secondary}
+              onClick={() => setRescheduleTestModal({ open: false, testId: null, date: "", timeSlot: "", note: "" })}
+            >
+              Cancel
+            </button>
+            <button type="button" className={BTN.primary} onClick={submitRescheduleTest}>
+              Confirm reschedule
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className={LABEL}>New date</label>
+            <input
+              type="date"
+              className={INPUT}
+              value={rescheduleTestModal.date}
+              onChange={(e) => setRescheduleTestModal((s) => ({ ...s, date: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className={LABEL}>New time slot</label>
+            <select
+              className={INPUT}
+              value={rescheduleTestModal.timeSlot}
+              onChange={(e) => setRescheduleTestModal((s) => ({ ...s, timeSlot: e.target.value }))}
+            >
+              <option value="">Select a slot</option>
+              {Object.entries(TIME_LABEL).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>Note (optional)</label>
+            <textarea
+              rows={3}
+              className={`${INPUT} resize-none`}
+              value={rescheduleTestModal.note}
+              onChange={(e) => setRescheduleTestModal((s) => ({ ...s, note: e.target.value }))}
+            />
           </div>
         </div>
-      )}
+      </Modal>
 
-      {rejectModal.open && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-xl w-full max-w-md">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h3 className="text-base font-semibold text-red-700">
-                Reject {rejectModal.kind === "test" ? "test request" : "appointment"}
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                The student will be notified. Please add a short note explaining why.
-              </p>
-            </div>
-            <div className="px-5 py-4">
-              <textarea
-                rows={4}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                placeholder="e.g. Schedule conflict — please request another slot."
-                value={rejectModal.note}
-                onChange={(e) => setRejectModal((s) => ({ ...s, note: e.target.value }))}
-              />
-            </div>
-            <div className="flex justify-end gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/60 rounded-b-lg">
-              <button
-                className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-100"
-                onClick={() => setRejectModal({ open: false, kind: null, id: null, note: "" })}
-              >
-                Cancel
-              </button>
-              <button
-                className="h-9 px-3 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                onClick={submitReject}
-                disabled={!rejectModal.note.trim()}
-              >
-                Confirm reject
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={rejectModal.open}
+        onClose={() => setRejectModal({ open: false, kind: null, id: null, note: "" })}
+        title={`Reject ${rejectModal.kind === "test" ? "test request" : "appointment"}`}
+        subtitle="The student will be notified. Please add a short note explaining why."
+        danger
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN.secondary}
+              onClick={() => setRejectModal({ open: false, kind: null, id: null, note: "" })}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={BTN.danger}
+              onClick={submitReject}
+              disabled={!rejectModal.note.trim()}
+            >
+              Confirm reject
+            </button>
+          </>
+        }
+      >
+        <textarea
+          rows={4}
+          className={`${INPUT} resize-none`}
+          placeholder="e.g. Schedule conflict — please request another slot."
+          value={rejectModal.note}
+          onChange={(e) => setRejectModal((s) => ({ ...s, note: e.target.value }))}
+        />
+      </Modal>
 
       {selectedProfile && (
         <ProfileViewModal

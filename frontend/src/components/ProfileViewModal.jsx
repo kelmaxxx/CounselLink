@@ -1,178 +1,167 @@
-import React, { useState } from "react";
-import { X, Mail, Phone, MapPin, GraduationCap, Briefcase, MessageCircle } from "lucide-react";
-import { useMessages } from "../context/MessagesContext";
+import React from "react";
+import {
+  Mail,
+  Phone,
+  GraduationCap,
+  Briefcase,
+  MessageCircle,
+  Hash,
+  Building2,
+  Award,
+  BookOpen,
+  Calendar,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { Modal, BTN } from "./ui";
+import Avatar from "./Avatar";
+
+const ROLE_THEME = {
+  student: "student",
+  counselor: "counselor",
+  college_rep: "rep",
+  admin: "admin",
+};
+
+const ROLE_BANNER = {
+  student: "from-maroon-700 to-maroon-600 border-maroon-800/30",
+  counselor: "from-emerald-700 to-teal-600 border-emerald-800/30",
+  college_rep: "from-blue-700 to-indigo-600 border-indigo-800/30",
+  admin: "from-slate-800 to-zinc-700 border-slate-900/40",
+};
+
+const ROLE_LABEL = {
+  student: "Student",
+  counselor: "Counselor",
+  admin: "Administrator",
+  college_rep: "College Representative",
+};
 
 export default function ProfileViewModal({ user, onClose, onOpenChat }) {
   const { currentUser } = useAuth();
-  
   if (!user) return null;
 
-  const getRoleDisplay = (role) => {
-    const roleMap = {
-      student: "Student",
-      counselor: "Counselor",
-      admin: "Administrator",
-      college_rep: "College Representative",
-    };
-    return roleMap[role] || role;
-  };
+  const showChat = currentUser && currentUser.id !== user.id;
+  const isStaff =
+    user.role === "counselor" || user.role === "admin" || user.role === "college_rep";
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="bg-gradient-to-r from-maroon-600 to-maroon-500 text-white p-6 relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition"
-          >
-            <X size={20} />
+    <Modal
+      open
+      onClose={onClose}
+      title={user.name || "Profile"}
+      subtitle={ROLE_LABEL[user.role] || user.role}
+      size="xl"
+      footer={
+        showChat ? (
+          <>
+            <button type="button" onClick={onClose} className={BTN.secondary}>
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenChat?.(user);
+              }}
+              className={BTN.primary}
+            >
+              <MessageCircle size={14} /> Send message
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={onClose} className={BTN.secondary}>
+            Close
           </button>
-          
-          <div className="flex items-start gap-4">
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold">
-              {user.name?.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold">{user.name}</h2>
-              <p className="text-maroon-100">{getRoleDisplay(user.role)}</p>
-              {user.college && (
-                <p className="text-maroon-100 text-sm mt-1">{user.college}</p>
-              )}
-            </div>
+        )
+      }
+    >
+      <div
+        className={`-mx-5 -mt-4 mb-4 px-5 py-5 bg-gradient-to-r text-white border-b ${
+          ROLE_BANNER[user.role] || ROLE_BANNER.student
+        }`}
+      >
+        <div className="flex items-center gap-4">
+          <Avatar
+            name={user.name}
+            url={user.avatarUrl}
+            size="md"
+            theme="light"
+            ringClassName="ring-2 ring-white/30"
+          />
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold truncate">{user.name || "—"}</h3>
+            <p className="text-xs text-white/85">
+              {ROLE_LABEL[user.role] || user.role}
+              {user.college ? ` · ${user.college}` : ""}
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* Body */}
-        <div className="p-6 space-y-6">
-          {/* Contact Information */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 text-gray-700">
-                <Mail size={18} className="text-maroon-600" />
-                <div>
-                  <p className="text-sm text-gray-500">Email</p>
-                  <p className="font-medium">{user.email}</p>
-                </div>
-              </div>
-              {user.phone && (
-                <div className="flex items-center gap-3 text-gray-700">
-                  <Phone size={18} className="text-maroon-600" />
-                  <div>
-                    <p className="text-sm text-gray-500">Phone</p>
-                    <p className="font-medium">{user.phone}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Section title="Contact information">
+          <Row icon={Mail} label="Email" value={user.email} />
+          <Row icon={Phone} label="Phone" value={user.phone} />
+        </Section>
 
-          {/* Academic/Professional Information */}
-          {user.role === "student" && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Academic Information</h3>
-              <div className="space-y-3">
-                {user.studentId && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <GraduationCap size={18} className="text-maroon-600" />
-                    <div>
-                      <p className="text-sm text-gray-500">Student ID</p>
-                      <p className="font-medium">{user.studentId}</p>
-                    </div>
-                  </div>
-                )}
-                {user.college && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <GraduationCap size={18} className="text-maroon-600" />
-                    <div>
-                      <p className="text-sm text-gray-500">College</p>
-                      <p className="font-medium">{user.college}</p>
-                    </div>
-                  </div>
-                )}
-                {user.program && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <GraduationCap size={18} className="text-maroon-600" />
-                    <div>
-                      <p className="text-sm text-gray-500">Program</p>
-                      <p className="font-medium">{user.program}</p>
-                    </div>
-                  </div>
-                )}
-                {user.yearLevel && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <GraduationCap size={18} className="text-maroon-600" />
-                    <div>
-                      <p className="text-sm text-gray-500">Year Level</p>
-                      <p className="font-medium">{user.yearLevel}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+        {user.role === "student" && (
+          <Section title="Academic information">
+            <Row icon={Hash} label="Student ID" value={user.studentId} />
+            <Row icon={GraduationCap} label="College" value={user.college} />
+            <Row icon={BookOpen} label="Program" value={user.program} />
+            <Row icon={Calendar} label="Year level" value={user.yearLevel} />
+          </Section>
+        )}
 
-          {(user.role === "counselor" || user.role === "admin" || user.role === "college_rep") && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Professional Information</h3>
-              <div className="space-y-3">
-                {user.employeeId && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <Briefcase size={18} className="text-maroon-600" />
-                    <div>
-                      <p className="text-sm text-gray-500">Employee ID</p>
-                      <p className="font-medium">{user.employeeId}</p>
-                    </div>
-                  </div>
-                )}
-                {user.department && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <Briefcase size={18} className="text-maroon-600" />
-                    <div>
-                      <p className="text-sm text-gray-500">Department</p>
-                      <p className="font-medium">{user.department}</p>
-                    </div>
-                  </div>
-                )}
-                {user.specialization && (
-                  <div className="flex items-center gap-3 text-gray-700">
-                    <Briefcase size={18} className="text-maroon-600" />
-                    <div>
-                      <p className="text-sm text-gray-500">Specialization</p>
-                      <p className="font-medium">{user.specialization}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+        {isStaff && (
+          <Section title="Professional information">
+            <Row icon={Hash} label="Employee ID" value={user.employeeId} />
+            {user.role === "college_rep" ? (
+              <Row icon={GraduationCap} label="College" value={user.college} />
+            ) : (
+              <Row icon={Building2} label="Unit" value={user.department} />
+            )}
+            {user.specialization && (
+              <Row icon={Award} label="Specialization" value={user.specialization} />
+            )}
+            {!user.specialization && user.role !== "college_rep" && !user.department && (
+              <Row icon={Briefcase} label="Role" value={ROLE_LABEL[user.role]} />
+            )}
+          </Section>
+        )}
+      </div>
 
-          {/* Bio */}
-          {user.bio && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">About</h3>
-              <p className="text-gray-700">{user.bio}</p>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          {currentUser && currentUser.id !== user.id && (
-            <div className="flex gap-3 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  onClose();
-                  onOpenChat(user);
-                }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium"
-              >
-                <MessageCircle size={18} />
-                Send Message
-              </button>
-            </div>
-          )}
+      {user.bio && (
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-1.5">
+            About
+          </p>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{user.bio}</p>
         </div>
+      )}
+    </Modal>
+  );
+}
+
+function Section({ title, children }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-2">
+        {title}
+      </p>
+      <dl className="space-y-2">{children}</dl>
+    </div>
+  );
+}
+
+function Row({ icon: Icon, label, value }) {
+  if (!value) return null;
+  return (
+    <div className="flex items-start gap-2.5">
+      {Icon && <Icon size={14} className="text-maroon-600 mt-0.5 flex-shrink-0" />}
+      <div className="min-w-0">
+        <dt className="text-[11px] text-gray-500">{label}</dt>
+        <dd className="text-sm font-medium text-gray-900 truncate">{value}</dd>
       </div>
     </div>
   );

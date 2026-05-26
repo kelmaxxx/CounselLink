@@ -10,6 +10,7 @@ import {
   X,
   Hash,
   CheckCircle2,
+  Building2,
 } from "lucide-react";
 import {
   PageHeader,
@@ -17,8 +18,11 @@ import {
   BTN,
   INPUT,
   LABEL,
-  initialsOf,
 } from "../../components/ui";
+import ProfileHero from "../../components/ProfileHero";
+
+const DSA_OFFICE = "Division of Student Affairs (DSA)";
+const DSA_UNIT = "DSA - Office of the Director · System Administration";
 
 const PERMISSIONS = [
   "Manage all user accounts (create, edit, delete)",
@@ -29,8 +33,10 @@ const PERMISSIONS = [
   "Configure system settings",
 ];
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
 export default function AdminProfile() {
-  const { currentUser, refreshCurrentUser, updateProfile } = useAuth();
+  const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -42,6 +48,34 @@ export default function AdminProfile() {
   });
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleChangePhoto = async (file) => {
+    if (!file || !token) return;
+    setUploadingAvatar(true);
+    try {
+      const fd = new FormData();
+      fd.append("avatar", file);
+      const res = await fetch(`${API_BASE}/api/uploads/avatar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Upload failed");
+      await updateProfile({
+        avatarUrl: data.avatarUrl,
+        avatarFileName: data.avatarFileName,
+        avatarFileType: data.avatarFileType,
+      });
+      setMessage({ type: "success", text: "Profile photo updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Unable to update photo" });
+    } finally {
+      setUploadingAvatar(false);
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
 
   useEffect(() => {
     refreshCurrentUser?.().then((fresh) => {
@@ -125,41 +159,19 @@ export default function AdminProfile() {
         </div>
       )}
 
-      {/* Hero card */}
-      <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-lg font-semibold flex-shrink-0">
-            {initialsOf(myRecord?.name) || <User size={24} />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 truncate">
-              {myRecord?.name || "—"}
-            </h3>
-            <p className="text-sm text-gray-500 truncate inline-flex items-center gap-1.5">
-              <Shield size={13} className="text-maroon-600" />
-              System Administrator · Full system access
-            </p>
-            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
-              <span className="inline-flex items-center gap-1">
-                <Mail size={12} className="text-gray-400" />
-                {myRecord?.email || "—"}
-              </span>
-              {myRecord?.phone && (
-                <span className="inline-flex items-center gap-1">
-                  <Phone size={12} className="text-gray-400" />
-                  {myRecord.phone}
-                </span>
-              )}
-              {myRecord?.employeeId && (
-                <span className="inline-flex items-center gap-1">
-                  <Hash size={12} className="text-gray-400" />
-                  {myRecord.employeeId}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProfileHero
+        theme="admin"
+        name={myRecord?.name}
+        subtitle={`${DSA_OFFICE} · ${DSA_UNIT}`}
+        email={myRecord?.email}
+        phone={myRecord?.phone}
+        identifier={myRecord?.employeeId}
+        identifierIcon={Hash}
+        avatarUrl={myRecord?.avatarUrl}
+        onChangePhoto={handleChangePhoto}
+        uploading={uploadingAvatar}
+        chips={[{ label: "Full system access", icon: Shield }]}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <SectionCard title="Administrator information" subtitle="Contact and identity">
@@ -203,6 +215,8 @@ export default function AdminProfile() {
               <Readout icon={Phone} label="Phone" value={myRecord?.phone || "Not provided"} />
               <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
               <Readout icon={Shield} label="Role" value="System Administrator" />
+              <Readout icon={Building2} label="Office" value={DSA_OFFICE} />
+              <Readout icon={Building2} label="Assignment" value={DSA_UNIT} />
             </dl>
           )}
         </SectionCard>

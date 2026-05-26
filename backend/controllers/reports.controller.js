@@ -135,7 +135,9 @@ export const getAdminReport = async (_req, res) => {
 };
 
 export const getCollegeReport = async (req, res) => {
-  const college = req.user?.college;
+  const userId = req.user?.id;
+  const userRows = await query("SELECT college FROM users WHERE id = ?", [userId]);
+  const college = userRows[0]?.college;
   if (!college) {
     return res.status(400).json({ message: "College not assigned" });
   }
@@ -204,7 +206,7 @@ export const sendReportToRecipient = async (req, res) => {
     [recipientId]
   );
   if (!recipient.length) {
-    return res.status(404).json({ message: "Recipient must be a College Dean (college_rep)" });
+    return res.status(404).json({ message: "Recipient must be a College Representative (college_rep)" });
   }
 
   const payloadJson = typeof payload === "string" ? payload : JSON.stringify(payload);

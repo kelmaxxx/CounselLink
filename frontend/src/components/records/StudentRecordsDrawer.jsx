@@ -10,6 +10,7 @@ import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
+import { Modal, BTN } from "../ui";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -154,31 +155,50 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
         </div>
       )}
 
-      {confirmRevoke && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-red-700 mb-2">Revoke consent?</h3>
-            <p className="text-sm text-gray-700 mb-4">This sets a revoked timestamp on {student?.name}'s consent record. The student will need to e-sign again before further counseling.</p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmRevoke(false)} className="px-4 py-2 rounded border">Cancel</button>
-              <button onClick={handleRevoke} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700">Revoke</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={confirmRevoke}
+        onClose={() => setConfirmRevoke(false)}
+        title="Revoke consent?"
+        subtitle={student?.name ? `Consent record for ${student.name}` : undefined}
+        danger
+        footer={
+          <>
+            <button onClick={() => setConfirmRevoke(false)} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button onClick={handleRevoke} className={BTN.danger}>
+              Revoke
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          This sets a revoked timestamp on the consent record. The student will need to e-sign
+          again before further counseling.
+        </p>
+      </Modal>
 
-      {confirmRemoveScan && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-red-700 mb-2">Remove signed paper scan?</h3>
-            <p className="text-sm text-gray-700 mb-4">The e-sign record (if any) will not be affected.</p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmRemoveScan(false)} className="px-4 py-2 rounded border">Cancel</button>
-              <button onClick={handleScanDelete} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700">Remove</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={confirmRemoveScan}
+        onClose={() => setConfirmRemoveScan(false)}
+        title="Remove signed paper scan?"
+        subtitle="The e-sign record (if any) will not be affected."
+        danger
+        footer={
+          <>
+            <button onClick={() => setConfirmRemoveScan(false)} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button onClick={handleScanDelete} className={BTN.danger}>
+              Remove
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          Only the uploaded scan file will be detached.
+        </p>
+      </Modal>
     </div>
   );
 }

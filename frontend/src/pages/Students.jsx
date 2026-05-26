@@ -6,12 +6,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Search, Plus, Edit, Trash2, Users, FileText, Download, Calendar,
-  TrendingUp, Activity, X, AlertCircle, ClipboardList, FileSignature, BookOpen, RefreshCw
+  TrendingUp, Activity, AlertCircle, ClipboardList, FileSignature, BookOpen, RefreshCw
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCounselingSessions } from "../context/CounselingSessionsContext";
 import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
+import { Modal, BTN, INPUT, LABEL } from "../components/ui";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 
@@ -546,130 +547,137 @@ export default function ManageStudents() {
       </div>
 
       {/* Add / Edit Modal */}
-      {editing !== null && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 my-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">{editing.id ? "Edit Session Record" : "Add Session Record"}</h3>
-              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Student *</label>
-                  <select
-                    required
-                    className="w-full border rounded px-3 py-2"
-                    value={form.studentId}
-                    onChange={(e) => setForm({ ...form, studentId: e.target.value })}
-                    disabled={!!editing.id}
-                  >
-                    <option value="">Select a student...</option>
-                    {students.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.studentId || s.email})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Session Date *</label>
-                  <input
-                    type="date"
-                    required
-                    className="w-full border rounded px-3 py-2"
-                    value={form.sessionDate}
-                    onChange={(e) => setForm({ ...form, sessionDate: e.target.value })}
-                  />
-                </div>
-              </div>
-
+      <Modal
+        open={editing !== null}
+        onClose={closeModal}
+        title={editing?.id ? "Edit session record" : "Add session record"}
+        subtitle="Counseling session details"
+        size="2xl"
+        align="top"
+        footer={
+          <>
+            <button type="button" onClick={closeModal} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="session-record-form"
+              disabled={busy}
+              className={BTN.primary}
+            >
+              {busy ? "Saving…" : editing?.id ? "Save changes" : "Add record"}
+            </button>
+          </>
+        }
+      >
+        {editing !== null && (
+          <form id="session-record-form" onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Presenting concern</label>
-                <textarea
-                  rows={2}
-                  className="w-full border rounded px-3 py-2"
-                  value={form.presentingConcern}
-                  onChange={(e) => setForm({ ...form, presentingConcern: e.target.value })}
-                  placeholder="What brought the student to counseling?"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Goals</label>
-                <textarea
-                  rows={2}
-                  className="w-full border rounded px-3 py-2"
-                  value={form.goals}
-                  onChange={(e) => setForm({ ...form, goals: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Summary / Key points of discussion</label>
-                <textarea
-                  rows={3}
-                  className="w-full border rounded px-3 py-2"
-                  value={form.summary}
-                  onChange={(e) => setForm({ ...form, summary: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Plan of action</label>
-                <textarea
-                  rows={2}
-                  className="w-full border rounded px-3 py-2"
-                  value={form.plan}
-                  onChange={(e) => setForm({ ...form, plan: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Counselor's comments</label>
-                <textarea
-                  rows={2}
-                  className="w-full border rounded px-3 py-2"
-                  value={form.comments}
-                  onChange={(e) => setForm({ ...form, comments: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Next session</label>
-                  <select
-                    className="w-full border rounded px-3 py-2"
-                    value={form.nextSession}
-                    onChange={(e) => setForm({ ...form, nextSession: e.target.value })}
-                  >
-                    <option value="followup">Follow-up</option>
-                    <option value="termination">Termination</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Counselor signature</label>
-                  <input
-                    className="w-full border rounded px-3 py-2"
-                    value={form.counselorSignature}
-                    onChange={(e) => setForm({ ...form, counselorSignature: e.target.value })}
-                    placeholder="Type counselor name"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
-                <button type="button" onClick={closeModal} className="px-4 py-2 rounded border">Cancel</button>
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700 disabled:opacity-50"
+                <label className={LABEL}>Student *</label>
+                <select
+                  required
+                  className={INPUT}
+                  value={form.studentId}
+                  onChange={(e) => setForm({ ...form, studentId: e.target.value })}
+                  disabled={!!editing.id}
                 >
-                  {busy ? "Saving..." : (editing.id ? "Save changes" : "Add record")}
-                </button>
+                  <option value="">Select a student…</option>
+                  {students.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.studentId || s.email})
+                    </option>
+                  ))}
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <div>
+                <label className={LABEL}>Session date *</label>
+                <input
+                  type="date"
+                  required
+                  className={INPUT}
+                  value={form.sessionDate}
+                  onChange={(e) => setForm({ ...form, sessionDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={LABEL}>Presenting concern</label>
+              <textarea
+                rows={2}
+                className={`${INPUT} resize-none`}
+                value={form.presentingConcern}
+                onChange={(e) => setForm({ ...form, presentingConcern: e.target.value })}
+                placeholder="What brought the student to counseling?"
+              />
+            </div>
+
+            <div>
+              <label className={LABEL}>Goals</label>
+              <textarea
+                rows={2}
+                className={`${INPUT} resize-none`}
+                value={form.goals}
+                onChange={(e) => setForm({ ...form, goals: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL}>Summary / key points of discussion</label>
+              <textarea
+                rows={3}
+                className={`${INPUT} resize-none`}
+                value={form.summary}
+                onChange={(e) => setForm({ ...form, summary: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL}>Plan of action</label>
+              <textarea
+                rows={2}
+                className={`${INPUT} resize-none`}
+                value={form.plan}
+                onChange={(e) => setForm({ ...form, plan: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL}>Counselor&apos;s comments</label>
+              <textarea
+                rows={2}
+                className={`${INPUT} resize-none`}
+                value={form.comments}
+                onChange={(e) => setForm({ ...form, comments: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>Next session</label>
+                <select
+                  className={INPUT}
+                  value={form.nextSession}
+                  onChange={(e) => setForm({ ...form, nextSession: e.target.value })}
+                >
+                  <option value="followup">Follow-up</option>
+                  <option value="termination">Termination</option>
+                </select>
+              </div>
+              <div>
+                <label className={LABEL}>Counselor signature</label>
+                <input
+                  className={INPUT}
+                  value={form.counselorSignature}
+                  onChange={(e) => setForm({ ...form, counselorSignature: e.target.value })}
+                  placeholder="Type counselor name"
+                />
+              </div>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {drawerStudent && (
         <StudentRecordsDrawer
@@ -681,25 +689,36 @@ export default function ManageStudents() {
       )}
 
       {/* Delete confirm */}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <AlertCircle className="text-red-600" size={24} />
-              <h3 className="text-lg font-semibold text-red-700">Delete session record?</h3>
-            </div>
-            <p className="text-sm text-gray-700 mb-4">
-              This will permanently delete the session record for <span className="font-medium">{confirmDelete.studentName}</span> on {(confirmDelete.sessionDate || "").split("T")[0]}.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 rounded border">Cancel</button>
-              <button onClick={handleDelete} disabled={busy} className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
-                {busy ? "Deleting..." : "Delete"}
-              </button>
-            </div>
+      <Modal
+        open={Boolean(confirmDelete)}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete session record?"
+        subtitle={
+          confirmDelete
+            ? `${confirmDelete.studentName} · ${(confirmDelete.sessionDate || "").split("T")[0]}`
+            : ""
+        }
+        danger
+        footer={
+          <>
+            <button onClick={() => setConfirmDelete(null)} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button onClick={handleDelete} disabled={busy} className={BTN.danger}>
+              {busy ? "Deleting…" : "Delete"}
+            </button>
+          </>
+        }
+      >
+        <div className="flex items-start gap-3">
+          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 flex-shrink-0">
+            <AlertCircle size={16} />
           </div>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            This will permanently delete the session record. This action cannot be undone.
+          </p>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

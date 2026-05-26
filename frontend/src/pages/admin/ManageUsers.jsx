@@ -201,7 +201,7 @@ export default function ManageUsers() {
               <option value="All">All roles</option>
               <option value="student">Students</option>
               <option value="counselor">Counselors</option>
-              <option value="college_rep">College deans</option>
+              <option value="college_rep">College representatives</option>
               <option value="admin">Administrators</option>
             </select>
           </div>
@@ -460,7 +460,7 @@ export default function ManageUsers() {
           {editModal.user?.role === "student" && (
             <div className="px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-xs text-blue-800">
               Academic information (college, program, year level, student ID) is managed by the
-              student or the College Dean and is no longer editable here.
+              student or the College Representative and is no longer editable here.
             </div>
           )}
 
