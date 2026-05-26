@@ -158,7 +158,7 @@ export default function CounselorReports() {
       <PageHeader
         eyebrow="Counselor"
         title="Reports"
-        subtitle="Filter your test caseload, send results to students, and report to the College Dean."
+        subtitle="Filter your test caseload, send results to students, and report to the College Representative."
         actions={
           <>
             <button onClick={openSendResultModal} className={BTN.secondary}>
@@ -540,7 +540,7 @@ function SendReportModal({ token, currentUser, filters, counselingAppointments, 
     <Modal
       open
       onClose={onClose}
-      title="Send counseling report to College Dean"
+      title="Send counseling report to College Representative"
       subtitle="Includes current filters, counts, and status breakdown."
       size="xl"
       align="top"
@@ -577,7 +577,7 @@ function SendReportModal({ token, currentUser, filters, counselingAppointments, 
               disabled={loadingRecipients}
             >
               <option value="">
-                {loadingRecipients ? "Loading…" : "Select a College Dean"}
+                {loadingRecipients ? "Loading…" : "Select a College Representative"}
               </option>
               {recipients.map((u) => (
                 <option key={u.id} value={u.id}>

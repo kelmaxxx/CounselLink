@@ -27,7 +27,7 @@ export default function RequestStudentData() {
   return (
     <div className="px-6 py-6 max-w-3xl mx-auto">
       <PageHeader
-        eyebrow="College Dean"
+        eyebrow="College Representative"
         title="Request student counseling data"
         subtitle="File a formal data access request. The admin reviews each request."
         actions={

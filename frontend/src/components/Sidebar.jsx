@@ -7,6 +7,7 @@ import {
   ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft
 } from "lucide-react";
 import { useMessages } from "../context/MessagesContext";
+import Avatar from "./Avatar";
 
 function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogout }) {
   const { currentUser: ctxUser, users } = useAuth();
@@ -18,6 +19,14 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
 
   const pendingCount = users?.filter(u => u.role === "student" && u.status === "pending_approval").length || 0;
 
+  const profileBaseByRole = {
+    student: "/student",
+    counselor: "/counselor",
+    college_rep: "/rep",
+    admin: "/admin",
+  };
+  const roleBase = profileBaseByRole[currentUser?.role] || "/student";
+
   const idToPath = {
     // Student
     dashboard: "/",
@@ -27,8 +36,10 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     "counselor-directory": "/student/counselors",
     "student-feedback": "/student/feedback",
     consent: "/student/consent",
-    profile: "/student/profile",
-    notifications: "/student/notifications",
+
+    // Role-aware shared items
+    profile: `${roleBase}/profile`,
+    notifications: `${roleBase}/notifications`,
 
     // Counselor
     "manage-students": "/students",
@@ -143,13 +154,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     }
   };
 
-  const initials = (currentUser?.name || "")
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   if (!currentUser) {
     return (
       <aside className="w-60 bg-maroon-700 text-white flex flex-col">
@@ -177,9 +181,12 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       {/* User block */}
       <div className="px-5 py-3 border-b border-maroon-800/60">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-full bg-maroon-500 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
-            {initials || <User size={14} />}
-          </div>
+          <Avatar
+            name={currentUser.name}
+            url={currentUser.avatarUrl}
+            size="sm"
+            theme="light"
+          />
           <div className="min-w-0">
             <div className="text-sm font-medium text-white truncate">{currentUser.name}</div>
             <div className="text-[11px] text-maroon-200 capitalize truncate">

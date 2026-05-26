@@ -4,8 +4,18 @@ import crypto from "crypto";
 import { query } from "../config/db.js";
 import { sendEmail } from "../services/email.service.js";
 
-const RESET_TTL_MINUTES = 30;
+const RESET_TTL_MINUTES = 10;
+const MAX_OTP_ATTEMPTS = 5;
+const MAX_REQUESTS_PER_HOUR = 5;
 const hashResetToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
+
+const generateOtp = () =>
+  String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+
+const safeEqual = (a, b) => {
+  if (!a || !b || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+};
 
 const buildToken = (user) =>
   jwt.sign(
@@ -147,42 +157,114 @@ export const requestPasswordReset = async (req, res) => {
     return res.status(400).json({ message: "Email is required" });
   }
 
-  const genericMessage = "If that email is registered, a reset link has been generated.";
+  const genericMessage =
+    "If that email is registered, a 6-digit verification code has been sent.";
   const userRows = await query("SELECT id, email, name FROM users WHERE email = ?", [email]);
   if (!userRows.length) {
     return res.json({ message: genericMessage });
   }
 
   const user = userRows[0];
+
+  const recent = await query(
+    `SELECT COUNT(*) AS n FROM password_resets
+     WHERE user_id = ? AND created_at > (NOW() - INTERVAL 1 HOUR)`,
+    [user.id]
+  );
+  if (recent[0]?.n >= MAX_REQUESTS_PER_HOUR) {
+    return res.status(429).json({
+      message: "Too many reset requests. Please try again later.",
+    });
+  }
+
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = hashResetToken(rawToken);
+  const otp = generateOtp();
   const expiresAt = new Date(Date.now() + RESET_TTL_MINUTES * 60 * 1000);
 
   await query(
-    "INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
-    [user.id, tokenHash, expiresAt]
+    "INSERT INTO password_resets (user_id, token_hash, otp_code, expires_at) VALUES (?, ?, ?, ?)",
+    [user.id, tokenHash, otp, expiresAt]
   );
 
-  const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/?reset=${rawToken}`;
-  let emailDelivered = false;
   try {
     await sendEmail({
       to: user.email,
-      subject: "CounselLink password reset",
-      text: `Hello ${user.name},\n\nUse this token within ${RESET_TTL_MINUTES} minutes to reset your password: ${rawToken}\n\nOr open: ${resetUrl}\n\nIf you did not request this, ignore this email.`,
-      html: `<p>Hello ${user.name},</p><p>Use this token within ${RESET_TTL_MINUTES} minutes to reset your password:</p><p style="font-family:monospace;background:#f3f4f6;padding:8px;border-radius:6px;">${rawToken}</p><p>Or open <a href="${resetUrl}">${resetUrl}</a>.</p><p>If you did not request this, ignore this email.</p>`,
+      subject: "Your CounselLink password reset code",
+      text: `Hello ${user.name},\n\nYour verification code is: ${otp}\n\nThis code expires in ${RESET_TTL_MINUTES} minutes. If you did not request a password reset, ignore this email.`,
+      html: `<p>Hello ${user.name},</p>
+<p>Your CounselLink password reset code is:</p>
+<p style="font-family:monospace;font-size:28px;letter-spacing:6px;background:#f3f4f6;padding:12px 16px;border-radius:8px;text-align:center;font-weight:600;color:#7f1d1d;">${otp}</p>
+<p>This code expires in <strong>${RESET_TTL_MINUTES} minutes</strong>. If you did not request a password reset, ignore this email.</p>`,
     });
-    emailDelivered = true;
   } catch (err) {
-    console.warn("[password-reset] SMTP not configured, falling back to console log:", err.message);
-    console.info(`[password-reset] token for ${user.email}: ${rawToken}`);
+    console.warn("[password-reset] SMTP not configured, OTP shown in console:", err.message);
+    if (process.env.NODE_ENV !== "production") {
+      console.info(`[password-reset] OTP for ${user.email}: ${otp}`);
+    }
   }
 
-  const payload = { message: genericMessage };
-  if (process.env.NODE_ENV !== "production" && !emailDelivered) {
-    payload.devToken = rawToken;
+  return res.json({ message: genericMessage });
+};
+
+export const verifyResetOtp = async (req, res) => {
+  const { email, otp } = req.body || {};
+  if (!email || !otp) {
+    return res.status(400).json({ message: "Email and code are required" });
   }
-  return res.json(payload);
+
+  const userRows = await query("SELECT id FROM users WHERE email = ?", [email]);
+  if (!userRows.length) {
+    return res.status(400).json({ message: "Invalid code" });
+  }
+  const userId = userRows[0].id;
+
+  const rows = await query(
+    `SELECT id, token_hash, otp_code, otp_attempts, expires_at, used_at
+     FROM password_resets
+     WHERE user_id = ? AND used_at IS NULL AND expires_at > NOW()
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+  if (!rows.length) {
+    return res.status(400).json({ message: "Code expired. Request a new one." });
+  }
+
+  const record = rows[0];
+  if (record.otp_attempts >= MAX_OTP_ATTEMPTS) {
+    await query("UPDATE password_resets SET used_at = NOW() WHERE id = ?", [record.id]);
+    return res.status(400).json({
+      message: "Too many wrong codes. Request a new one.",
+    });
+  }
+
+  const submitted = String(otp).trim();
+  if (!safeEqual(submitted, record.otp_code || "")) {
+    await query(
+      "UPDATE password_resets SET otp_attempts = otp_attempts + 1 WHERE id = ?",
+      [record.id]
+    );
+    const left = MAX_OTP_ATTEMPTS - (record.otp_attempts + 1);
+    return res.status(400).json({
+      message:
+        left > 0
+          ? `Invalid code. ${left} attempt${left === 1 ? "" : "s"} left.`
+          : "Invalid code. Request a new one.",
+    });
+  }
+
+  await query(
+    "UPDATE password_resets SET otp_verified_at = NOW() WHERE id = ?",
+    [record.id]
+  );
+
+  // Hand back the raw token only after OTP success. We never persisted it raw —
+  // re-issue a NEW raw token tied to this row so the next step can authenticate.
+  const newRaw = crypto.randomBytes(32).toString("hex");
+  const newHash = hashResetToken(newRaw);
+  await query("UPDATE password_resets SET token_hash = ? WHERE id = ?", [newHash, record.id]);
+
+  return res.json({ token: newRaw });
 };
 
 export const resetPassword = async (req, res) => {
@@ -196,7 +278,8 @@ export const resetPassword = async (req, res) => {
 
   const tokenHash = hashResetToken(token);
   const rows = await query(
-    "SELECT id, user_id, expires_at, used_at FROM password_resets WHERE token_hash = ? LIMIT 1",
+    `SELECT id, user_id, expires_at, used_at, otp_verified_at
+     FROM password_resets WHERE token_hash = ? LIMIT 1`,
     [tokenHash]
   );
   if (!rows.length) {
@@ -208,6 +291,9 @@ export const resetPassword = async (req, res) => {
   }
   if (new Date(record.expires_at) < new Date()) {
     return res.status(400).json({ message: "This reset token has expired" });
+  }
+  if (!record.otp_verified_at) {
+    return res.status(400).json({ message: "Verify your code before resetting the password" });
   }
 
   const hashed = await bcrypt.hash(password, 10);

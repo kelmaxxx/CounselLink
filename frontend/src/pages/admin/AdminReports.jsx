@@ -199,7 +199,7 @@ export default function AdminReports() {
     rows.push(["Role", "Count"]);
     rows.push(["Students", students]);
     rows.push(["Counselors", counselors]);
-    rows.push(["College Dean", reps]);
+    rows.push(["College Representatives", reps]);
     rows.push(["Admins", admins]);
     rows.push([]);
     rows.push(["Totals"]);

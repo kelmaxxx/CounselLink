@@ -13,6 +13,7 @@ import {
   Star,
   Hash,
   MessageSquare,
+  Building2,
 } from "lucide-react";
 import {
   PageHeader,
@@ -23,20 +24,21 @@ import {
   LABEL,
   initialsOf,
 } from "../../components/ui";
+import ProfileHero from "../../components/ProfileHero";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-const DEPARTMENTS = [
-  "Guidance Office",
-  "Psychology Department",
-  "Student Affairs",
-  "Health Services",
-  "Academic Counseling",
-  "Career Development",
+const DSA_OFFICE = "Division of Student Affairs (DSA)";
+
+const DSA_UNITS = [
+  "DSA - Counseling & Guidance Services",
+  "DSA - Psychological Services",
+  "DSA - Wellness & Career Services",
+  "DSA - Office of the Director",
 ];
 
 export default function CounselorProfile() {
-  const { currentUser, refreshCurrentUser, updateProfile } = useAuth();
+  const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -51,6 +53,34 @@ export default function CounselorProfile() {
   });
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleChangePhoto = async (file) => {
+    if (!file || !token) return;
+    setUploadingAvatar(true);
+    try {
+      const fd = new FormData();
+      fd.append("avatar", file);
+      const res = await fetch(`${API_BASE}/api/uploads/avatar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Upload failed");
+      await updateProfile({
+        avatarUrl: data.avatarUrl,
+        avatarFileName: data.avatarFileName,
+        avatarFileType: data.avatarFileType,
+      });
+      setMessage({ type: "success", text: "Profile photo updated" });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Unable to update photo" });
+    } finally {
+      setUploadingAvatar(false);
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
 
   useEffect(() => {
     refreshCurrentUser?.().then((fresh) => {
@@ -146,41 +176,22 @@ export default function CounselorProfile() {
         </div>
       )}
 
-      {/* Hero card */}
-      <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-lg font-semibold flex-shrink-0">
-            {initialsOf(myRecord?.name) || <User size={24} />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 truncate">
-              {myRecord?.name || "—"}
-            </h3>
-            <p className="text-sm text-gray-500 truncate">
-              {myRecord?.department || "Counselor"}
-              {myRecord?.specialization ? ` · ${myRecord.specialization}` : ""}
-            </p>
-            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
-              <span className="inline-flex items-center gap-1">
-                <Mail size={12} className="text-gray-400" />
-                {myRecord?.email || "—"}
-              </span>
-              {myRecord?.phone && (
-                <span className="inline-flex items-center gap-1">
-                  <Phone size={12} className="text-gray-400" />
-                  {myRecord.phone}
-                </span>
-              )}
-              {myRecord?.employeeId && (
-                <span className="inline-flex items-center gap-1">
-                  <Hash size={12} className="text-gray-400" />
-                  {myRecord.employeeId}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProfileHero
+        theme="counselor"
+        name={myRecord?.name}
+        subtitle={DSA_OFFICE}
+        email={myRecord?.email}
+        phone={myRecord?.phone}
+        identifier={myRecord?.employeeId}
+        identifierIcon={Hash}
+        avatarUrl={myRecord?.avatarUrl}
+        onChangePhoto={handleChangePhoto}
+        uploading={uploadingAvatar}
+        chips={[
+          myRecord?.department && { label: myRecord.department, icon: Briefcase },
+          myRecord?.specialization && { label: myRecord.specialization, icon: Award },
+        ].filter(Boolean)}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         {/* Personal information */}
@@ -229,25 +240,28 @@ export default function CounselorProfile() {
               <Readout icon={Mail} label="Email" value={myRecord?.email} />
               <Readout icon={Phone} label="Phone" value={myRecord?.phone || "Not provided"} />
               <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
-              <Readout icon={User} label="Role" value="Counselor" />
+              <Readout icon={User} label="Role" value="DSA Counselor" />
             </dl>
           )}
         </SectionCard>
 
-        {/* Professional information */}
-        <SectionCard title="Professional information" subtitle="Department and expertise">
+        {/* DSA affiliation */}
+        <SectionCard title="DSA affiliation" subtitle="Your office, unit, and expertise">
           {isEditing ? (
             <div className="space-y-3">
-              <Field icon={Briefcase} label="Department">
+              <Field icon={Building2} label="Office">
+                <input type="text" value={DSA_OFFICE} disabled className={INPUT} />
+              </Field>
+              <Field icon={Briefcase} label="DSA unit">
                 <select
                   value={formData.department}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                   className={INPUT}
                 >
-                  <option value="">Select department</option>
-                  {DEPARTMENTS.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
+                  <option value="">Select DSA unit</option>
+                  {DSA_UNITS.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {unit}
                     </option>
                   ))}
                 </select>
@@ -264,9 +278,10 @@ export default function CounselorProfile() {
             </div>
           ) : (
             <dl className="space-y-2.5 text-sm">
+              <Readout icon={Building2} label="Office" value={DSA_OFFICE} />
               <Readout
                 icon={Briefcase}
-                label="Department"
+                label="DSA unit"
                 value={myRecord?.department || "Not provided"}
               />
               <Readout

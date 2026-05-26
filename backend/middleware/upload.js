@@ -41,3 +41,31 @@ export const recordScanUpload = multer({
   fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 },
 });
+
+const avatarsDir = path.join(uploadsDir, "avatars");
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+}
+
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, avatarsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const userId = req.user?.id || "anon";
+    cb(null, `avatar-${userId}-${Date.now()}${ext}`);
+  },
+});
+
+const avatarFileFilter = (_req, file, cb) => {
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowed.includes(file.mimetype)) {
+    return cb(new Error("Only JPG, PNG, or WEBP images are allowed"));
+  }
+  return cb(null, true);
+};
+
+export const avatarUpload = multer({
+  storage: avatarStorage,
+  fileFilter: avatarFileFilter,
+  limits: { fileSize: 2 * 1024 * 1024 },
+});

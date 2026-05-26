@@ -18,12 +18,12 @@ export default function RepresentativeDashboard() {
   const studentsInCollege =
     users?.filter((u) => u.role === "student" && u.college === myCollege) || [];
 
-  const firstName = currentUser?.name?.split(" ")[0] || "Dean";
+  const firstName = currentUser?.name?.split(" ")[0] || "Representative";
 
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
-        eyebrow="College Dean"
+        eyebrow="College Representative"
         title={`Welcome, ${firstName}`}
         subtitle={myCollege || "No college assigned"}
         actions={
