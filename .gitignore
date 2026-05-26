@@ -24,7 +24,7 @@ counsellink-data-*.json
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.ideam
 .DS_Store
 *.suo
 *.ntvs*

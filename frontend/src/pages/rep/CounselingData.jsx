@@ -150,7 +150,7 @@ export default function CounselingData() {
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
-        eyebrow="College Dean"
+        eyebrow="College Representative"
         title="Open counseling data"
         subtitle={`Aggregated counseling activity${myCollege ? ` for ${myCollege}` : ""}`}
         actions={

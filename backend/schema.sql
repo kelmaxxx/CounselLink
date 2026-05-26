@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS users (
   cor_url VARCHAR(255),
   cor_file_name VARCHAR(255),
   cor_file_type VARCHAR(100),
+  avatar_url VARCHAR(512),
+  avatar_file_name VARCHAR(255),
+  avatar_file_type VARCHAR(100),
   program VARCHAR(120),
   year_level VARCHAR(30),
   bio TEXT,
@@ -220,10 +223,14 @@ CREATE TABLE IF NOT EXISTS password_resets (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT NOT NULL,
   token_hash CHAR(64) NOT NULL,
+  otp_code VARCHAR(8) NULL,
+  otp_verified_at DATETIME NULL,
+  otp_attempts INT NOT NULL DEFAULT 0,
   expires_at DATETIME NOT NULL,
   used_at DATETIME NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   UNIQUE KEY uniq_token (token_hash),
-  INDEX idx_pwreset_user (user_id, used_at)
+  INDEX idx_pwreset_user (user_id, used_at),
+  INDEX idx_pwreset_email_lookup (user_id, used_at, expires_at)
 );

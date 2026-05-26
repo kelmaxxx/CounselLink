@@ -6,7 +6,9 @@ const SELECT_FIELDS = `
   id, name, email, role, status, college, student_id AS studentId, phone,
   program, year_level AS yearLevel, bio, department, specialization,
   employee_id AS employeeId, cor_url AS corUrl, cor_file_name AS corFileName,
-  cor_file_type AS corFileType, created_at, updated_at
+  cor_file_type AS corFileType, avatar_url AS avatarUrl,
+  avatar_file_name AS avatarFileName, avatar_file_type AS avatarFileType,
+  created_at, updated_at
 `;
 
 const FIELD_TO_COLUMN = {
@@ -20,18 +22,24 @@ const FIELD_TO_COLUMN = {
   program: "program",
   yearLevel: "year_level",
   employeeId: "employee_id",
+  avatarUrl: "avatar_url",
+  avatarFileName: "avatar_file_name",
+  avatarFileType: "avatar_file_type",
 };
 
+const AVATAR_FIELDS = ["avatarUrl", "avatarFileName", "avatarFileType"];
+
 const SELF_UPDATABLE = {
-  student: ["name", "email", "phone", "bio"],
-  counselor: ["name", "email", "phone", "bio", "department", "specialization"],
-  college_rep: ["name", "email", "phone", "college"],
-  admin: ["name", "email", "phone"],
+  student: ["name", "email", "phone", "bio", ...AVATAR_FIELDS],
+  counselor: ["name", "email", "phone", "bio", "department", "specialization", ...AVATAR_FIELDS],
+  college_rep: ["name", "email", "phone", "college", ...AVATAR_FIELDS],
+  admin: ["name", "email", "phone", ...AVATAR_FIELDS],
 };
 
 const ADMIN_UPDATABLE = [
   "name", "email", "phone", "bio", "college",
   "department", "specialization", "employeeId",
+  ...AVATAR_FIELDS,
 ];
 
 const buildUpdate = (allowedFields, body) => {
@@ -85,7 +93,8 @@ export const lookupUser = async (req, res) => {
   const { id } = req.params;
   const rows = await query(
     `SELECT id, name, role, college, student_id AS studentId, program, year_level AS yearLevel,
-            department, specialization, bio, employee_id AS employeeId, email
+            department, specialization, bio, employee_id AS employeeId, email,
+            avatar_url AS avatarUrl
      FROM users WHERE id = ?`,
     [id]
   );

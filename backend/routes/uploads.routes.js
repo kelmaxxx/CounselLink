@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { corUpload } from "../middleware/upload.js";
-import { query } from "../config/db.js";
+import { corUpload, avatarUpload } from "../middleware/upload.js";
+import { auth } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -16,6 +16,21 @@ router.post("/cor", corUpload.single("cor"), async (req, res) => {
     corUrl: fileUrl,
     corFileName: req.file.originalname,
     corFileType: req.file.mimetype,
+  });
+});
+
+router.post("/avatar", auth, avatarUpload.single("avatar"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
+  const fileUrl = `/uploads/avatars/${req.file.filename}`;
+
+  return res.status(201).json({
+    message: "Upload successful",
+    avatarUrl: fileUrl,
+    avatarFileName: req.file.originalname,
+    avatarFileType: req.file.mimetype,
   });
 });
 

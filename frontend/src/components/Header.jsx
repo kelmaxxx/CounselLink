@@ -3,6 +3,14 @@ import React from "react";
 import { Bell, Search } from "lucide-react";
 import { useLocation, Link, matchPath } from "react-router-dom";
 import { useNotifications } from "../context/NotificationsContext";
+import Avatar from "./Avatar";
+
+const ROLE_THEME = {
+  student: "student",
+  counselor: "counselor",
+  college_rep: "rep",
+  admin: "admin",
+};
 
 const ROUTE_TITLES = [
   { pattern: "/", title: "Dashboard" },
@@ -45,13 +53,6 @@ export default function Header({ currentUser }) {
   const { getUnreadCount } = useNotifications();
   const unreadCount = getUnreadCount();
 
-  const initials = (currentUser?.name || "")
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   const notifPath = `/${
     currentUser?.role === "student"
       ? "student"
@@ -91,9 +92,12 @@ export default function Header({ currentUser }) {
           </Link>
 
           <div className="flex items-center gap-2 pl-2 ml-1 border-l border-gray-200">
-            <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold">
-              {initials || "U"}
-            </div>
+            <Avatar
+              name={currentUser?.name}
+              url={currentUser?.avatarUrl}
+              size="xs"
+              theme={ROLE_THEME[currentUser?.role] || "default"}
+            />
             <div className="hidden sm:block min-w-0">
               <div className="text-xs font-medium text-gray-900 truncate max-w-[140px]">
                 {currentUser?.name}
