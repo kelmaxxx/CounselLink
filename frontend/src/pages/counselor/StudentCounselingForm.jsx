@@ -16,12 +16,14 @@ export default function StudentCounselingForm() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { appointments } = useAppointments();
-  const { fetchSessionByAppointment, createSession, updateSession } = useCounselingSessions();
+  const { fetchSessionByAppointment, createSession, updateSession, finalizeSession } = useCounselingSessions();
 
   const apptId = Number(id);
   const appt = useMemo(() => appointments.find(a => a.id === apptId), [appointments, apptId]);
 
   const [existingSessionId, setExistingSessionId] = useState(null);
+  const [finalizedAt, setFinalizedAt] = useState(null);
+  const [submittingReport, setSubmittingReport] = useState(false);
   const [reason, setReason] = useState(blankReason());
   const [form, setForm] = useState(() => ({
     studentName: "",
@@ -47,6 +49,7 @@ export default function StudentCounselingForm() {
       .then((session) => {
         if (session) {
           setExistingSessionId(session.id);
+          setFinalizedAt(session.finalizedAt || null);
           setForm({
             studentName: session.studentName || appt.studentName || "",
             sessionDate: session.sessionDate ? session.sessionDate.split("T")[0] : new Date().toISOString().split("T")[0],
@@ -108,10 +111,41 @@ export default function StudentCounselingForm() {
     }
   };
 
+  const handleSubmitReport = async () => {
+    if (!existingSessionId) return;
+    if (!window.confirm(
+      "Submit this session as the final Session Report? Once submitted the record becomes read-only and, if the appointment came from a referral, the report will be delivered to the referring College Representative."
+    )) return;
+    setSubmittingReport(true);
+    setFeedback(null);
+    const res = await finalizeSession(existingSessionId);
+    setSubmittingReport(false);
+    if (res.success) {
+      setFinalizedAt(res.session?.finalizedAt || new Date().toISOString());
+      setFeedback({
+        type: "success",
+        text: res.fannedOutToRep
+          ? "Session Report submitted and delivered to the referring College Representative."
+          : "Session Report submitted to the Student Record.",
+      });
+    } else {
+      setFeedback({ type: "error", text: res.message || "Failed to submit report" });
+    }
+  };
+
+  const isFinalized = !!finalizedAt;
+
   return (
     <div className="p-6">
       <h2 className="text-2xl font-semibold text-gray-900 mb-2">STUDENT COUNSELING FORM</h2>
-      {existingSessionId && (
+      {isFinalized && (
+        <div className="mb-4 p-3 rounded-lg border bg-blue-50 border-blue-200 text-blue-900 text-sm">
+          <strong>Submitted as Session Report</strong> on{" "}
+          {new Date(finalizedAt).toLocaleString()}. This record is now part of the
+          immutable Student Record and is read-only.
+        </div>
+      )}
+      {existingSessionId && !isFinalized && (
         <p className="text-xs text-gray-500 mb-4">
           Editing existing session record (ID #{existingSessionId}). Changes will overwrite the saved record.
         </p>
@@ -208,10 +242,25 @@ export default function StudentCounselingForm() {
           <input className="w-full border rounded px-3 py-2" placeholder="Type counselor name as signature" value={form.counselorSignature} onChange={(e) => setForm({ ...form, counselorSignature: e.target.value })} />
         </div>
 
-        <div className="flex gap-3">
-          <button type="submit" disabled={saving} className="px-4 py-2 bg-maroon-600 text-white rounded disabled:opacity-50">
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="submit"
+            disabled={saving || isFinalized}
+            title={isFinalized ? "Record is finalized and read-only" : undefined}
+            className="px-4 py-2 bg-maroon-600 text-white rounded disabled:opacity-50"
+          >
             {saving ? "Saving..." : (existingSessionId ? "Update Record" : "Save Record")}
           </button>
+          {existingSessionId && !isFinalized && (
+            <button
+              type="button"
+              onClick={handleSubmitReport}
+              disabled={submittingReport}
+              className="px-4 py-2 bg-emerald-600 text-white rounded disabled:opacity-50"
+            >
+              {submittingReport ? "Submitting..." : "Submit Report"}
+            </button>
+          )}
           <button type="button" onClick={() => window.print()} className="px-4 py-2 bg-gray-600 text-white rounded">Print</button>
           <button type="button" onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 rounded">Back</button>
         </div>

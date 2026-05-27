@@ -19,13 +19,12 @@ export function ReferralsProvider({ children }) {
   );
 
   const fetchReferrals = useCallback(
-    async ({ direction, status } = {}) => {
+    async ({ status } = {}) => {
       if (!token) return [];
       setLoading(true);
       setError("");
       try {
         const params = new URLSearchParams();
-        if (direction) params.append("direction", direction);
         if (status) params.append("status", status);
         const qs = params.toString() ? `?${params.toString()}` : "";
         const res = await fetch(`${API_BASE}/api/referrals${qs}`, { headers: headers() });

@@ -259,10 +259,19 @@ export function AuthProvider({ children }) {
     return { success: true };
   };
 
-  // Auto-fetch users when an admin is logged in
+  // Auto-fetch users for admins (full directory) and college reps
+  // (students in their own college + counselors, scoped server-side).
   useEffect(() => {
-    if (token && currentUser?.role === "admin") {
+    if (!token) return;
+    if (currentUser?.role === "admin") {
       fetchUsers().catch((err) => console.error("Failed to load users:", err));
+    } else if (currentUser?.role === "college_rep") {
+      Promise.all([
+        fetchUsersByRole("student"),
+        fetchUsersByRole("counselor"),
+      ])
+        .then(([students, counselors]) => setUsers([...students, ...counselors]))
+        .catch((err) => console.error("Failed to load users:", err));
     }
   }, [token, currentUser?.role]);
 

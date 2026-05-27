@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   id INT PRIMARY KEY AUTO_INCREMENT,
   student_id INT NOT NULL,
   counselor_id INT NULL,
+  referral_id INT NULL,
   appointment_type ENUM('counseling','psychological_test') NOT NULL,
   preferred_date DATE,
   preferred_time TIME,
@@ -46,7 +47,8 @@ CREATE TABLE IF NOT EXISTS appointments (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (student_id) REFERENCES users(id),
-  FOREIGN KEY (counselor_id) REFERENCES users(id)
+  FOREIGN KEY (counselor_id) REFERENCES users(id),
+  INDEX idx_appointment_referral (referral_id)
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -141,6 +143,7 @@ CREATE TABLE IF NOT EXISTS counseling_sessions (
   next_session ENUM('followup','termination') DEFAULT 'followup',
   counselor_signature VARCHAR(120),
   form_data JSON,
+  finalized_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (student_id) REFERENCES users(id),
@@ -148,7 +151,8 @@ CREATE TABLE IF NOT EXISTS counseling_sessions (
   FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL,
   INDEX idx_session_student (student_id),
   INDEX idx_session_counselor (counselor_id),
-  INDEX idx_session_date (session_date)
+  INDEX idx_session_date (session_date),
+  INDEX idx_session_finalized (student_id, finalized_at)
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -170,21 +174,54 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE TABLE IF NOT EXISTS referrals (
   id INT PRIMARY KEY AUTO_INCREMENT,
   student_id INT NOT NULL,
-  referring_counselor_id INT NOT NULL,
+  referrer_id INT NOT NULL,
   receiving_counselor_id INT NOT NULL,
   reason TEXT NOT NULL,
   notes TEXT,
-  status ENUM('pending','accepted','rejected','cancelled') DEFAULT 'pending',
+  status ENUM('pending','accepted','rejected','rescheduled','cancelled') DEFAULT 'pending',
   decision_note TEXT,
   decided_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (student_id) REFERENCES users(id),
-  FOREIGN KEY (referring_counselor_id) REFERENCES users(id),
+  FOREIGN KEY (referrer_id) REFERENCES users(id),
   FOREIGN KEY (receiving_counselor_id) REFERENCES users(id),
   INDEX idx_referral_receiver (receiving_counselor_id, status),
-  INDEX idx_referral_sender (referring_counselor_id, status),
+  INDEX idx_referral_referrer (referrer_id, status),
   INDEX idx_referral_student (student_id)
+);
+
+-- Forward FK: appointments.referral_id -> referrals.id. Declared here because
+-- the referrals table is defined after appointments. Guarded so re-runs are
+-- a no-op (CREATE TABLE IF NOT EXISTS does not idempotently add constraints).
+SET @has_fk := (
+  SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'appointments'
+    AND COLUMN_NAME = 'referral_id'
+    AND REFERENCED_TABLE_NAME = 'referrals'
+);
+SET @add_fk := IF(@has_fk = 0,
+  'ALTER TABLE appointments ADD CONSTRAINT fk_appointments_referral FOREIGN KEY (referral_id) REFERENCES referrals(id) ON DELETE SET NULL',
+  'SELECT 1');
+PREPARE stmt FROM @add_fk; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS report_requests (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  requester_id INT NOT NULL,
+  counselor_id INT NOT NULL,
+  student_name VARCHAR(255) NOT NULL,
+  student_identifier VARCHAR(100),
+  reason TEXT NOT NULL,
+  status ENUM('pending','fulfilled','declined','cancelled') DEFAULT 'pending',
+  response_note TEXT,
+  responded_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (requester_id) REFERENCES users(id),
+  FOREIGN KEY (counselor_id) REFERENCES users(id),
+  INDEX idx_report_request_counselor (counselor_id, status),
+  INDEX idx_report_request_requester (requester_id, status)
 );
 
 CREATE TABLE IF NOT EXISTS feedback (

@@ -49,7 +49,9 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
 
     // College Rep
     "counseling-data": "/rep/counseling-data",
-    "request-data": "/rep/request-data",
+    "rep-referrals": "/rep/referrals",
+    "request-report": "/rep/request-report",
+    "rep-reports": "/rep/reports",
 
     // Admin
     "pending-registrations": "/admin/pending-registrations",
@@ -116,7 +118,9 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
             items: [
               { id: "dashboard", label: "Dashboard", icon: BarChart3 },
               { id: "counseling-data", label: "Counseling Data", icon: BookOpen },
-              { id: "request-data", label: "Request Student Data", icon: ClipboardList },
+              { id: "rep-referrals", label: "Referrals", icon: ArrowRightLeft },
+              { id: "request-report", label: "Request Report", icon: ClipboardList },
+              { id: "rep-reports", label: "Reports", icon: FileText },
             ],
           },
           {

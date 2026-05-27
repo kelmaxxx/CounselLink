@@ -35,6 +35,8 @@ import StudentFeedback from "./pages/student/StudentFeedback";
 // College Rep pages
 import CounselingData from "./pages/rep/CounselingData";
 import RequestStudentData from "./pages/rep/RequestStudentData";
+import RepReferrals from "./pages/rep/RepReferrals";
+import RepReports from "./pages/rep/RepReports";
 import RepProfile from "./pages/rep/RepProfile";
 import RepNotifications from "./pages/rep/RepNotifications";
 
@@ -282,11 +284,31 @@ export default function App() {
           }
         />
         <Route
-          path="/rep/request-data"
+          path="/rep/referrals"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <RepReferrals />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rep/request-report"
           element={
             <ProtectedRoute>
               <Layout>
                 <RequestStudentData />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rep/reports"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <RepReports />
               </Layout>
             </ProtectedRoute>
           }

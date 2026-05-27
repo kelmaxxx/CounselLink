@@ -6,7 +6,8 @@ const SELECT_FIELDS = `
   cs.appointment_id AS appointmentId, cs.session_date AS sessionDate,
   cs.presenting_concern AS presentingConcern, cs.goals, cs.summary, cs.plan,
   cs.comments, cs.next_session AS nextSession, cs.counselor_signature AS counselorSignature,
-  cs.form_data AS formData, cs.created_at AS createdAt, cs.updated_at AS updatedAt,
+  cs.form_data AS formData, cs.finalized_at AS finalizedAt,
+  cs.created_at AS createdAt, cs.updated_at AS updatedAt,
   s.name AS studentName, s.college AS studentCollege, s.student_id AS studentNumber,
   c.name AS counselorName
 `;
@@ -136,9 +137,17 @@ export const updateSession = async (req, res) => {
   const { id } = req.params;
   const counselorId = req.user?.id;
 
-  const existing = await query("SELECT counselor_id FROM counseling_sessions WHERE id = ?", [id]);
+  const existing = await query(
+    "SELECT counselor_id, finalized_at FROM counseling_sessions WHERE id = ?",
+    [id]
+  );
   if (!existing.length) return res.status(404).json({ message: "Session not found" });
   if (existing[0].counselor_id !== counselorId) return res.status(403).json({ message: "You can only edit your own sessions" });
+  if (existing[0].finalized_at) {
+    return res.status(409).json({
+      message: "This session has been submitted as a Session Report and is now read-only.",
+    });
+  }
 
   const updates = [];
   const params = [];
@@ -173,9 +182,17 @@ export const deleteSession = async (req, res) => {
   const { id } = req.params;
   const counselorId = req.user?.id;
 
-  const existing = await query("SELECT counselor_id, student_id, session_date FROM counseling_sessions WHERE id = ?", [id]);
+  const existing = await query(
+    "SELECT counselor_id, student_id, session_date, finalized_at FROM counseling_sessions WHERE id = ?",
+    [id]
+  );
   if (!existing.length) return res.status(404).json({ message: "Session not found" });
   if (existing[0].counselor_id !== counselorId) return res.status(403).json({ message: "You can only delete your own sessions" });
+  if (existing[0].finalized_at) {
+    return res.status(409).json({
+      message: "Finalized Session Reports are part of the immutable Student Record and cannot be deleted.",
+    });
+  }
 
   await logAction(req, "delete_session", "counseling_session", id, {
     studentId: existing[0].student_id,
@@ -184,4 +201,112 @@ export const deleteSession = async (req, res) => {
 
   await query("DELETE FROM counseling_sessions WHERE id = ?", [id]);
   return res.json({ message: "Session deleted" });
+};
+
+// Marks the session as a submitted Session Report. From this point the row
+// becomes the immutable Student Record entry (updateSession + deleteSession
+// reject changes). If the underlying appointment was created from a referral,
+// the report is also fanned out to that referring College Representative.
+export const finalizeSession = async (req, res) => {
+  const { id } = req.params;
+  const counselorId = req.user?.id;
+
+  const sessionRows = await query(
+    `SELECT cs.id, cs.student_id, cs.counselor_id, cs.appointment_id, cs.session_date,
+            cs.presenting_concern, cs.goals, cs.summary, cs.plan, cs.comments,
+            cs.next_session, cs.counselor_signature, cs.form_data, cs.finalized_at,
+            s.name AS studentName, s.college AS studentCollege,
+            c.name AS counselorName
+     FROM counseling_sessions cs
+     JOIN users s ON cs.student_id = s.id
+     JOIN users c ON cs.counselor_id = c.id
+     WHERE cs.id = ?`,
+    [id]
+  );
+  if (!sessionRows.length) return res.status(404).json({ message: "Session not found" });
+  const session = sessionRows[0];
+  if (session.counselor_id !== counselorId) {
+    return res.status(403).json({ message: "Only the owning counselor can submit this report" });
+  }
+  if (session.finalized_at) {
+    return res.status(409).json({ message: "This session has already been submitted." });
+  }
+
+  // Resolve the originating College Rep, if any, via:
+  //   counseling_sessions.appointment_id -> appointments.referral_id -> referrals.referrer_id
+  let referrerId = null;
+  if (session.appointment_id) {
+    const chain = await query(
+      `SELECT r.referrer_id
+       FROM appointments a
+       JOIN referrals r ON a.referral_id = r.id
+       WHERE a.id = ?
+       LIMIT 1`,
+      [session.appointment_id]
+    );
+    if (chain.length) referrerId = chain[0].referrer_id;
+  }
+
+  await query(
+    "UPDATE counseling_sessions SET finalized_at = NOW() WHERE id = ?",
+    [id]
+  );
+
+  let reportRecipientId = null;
+  if (referrerId) {
+    let formData = session.form_data;
+    if (typeof formData === "string") {
+      try { formData = JSON.parse(formData); } catch { formData = null; }
+    }
+    const payload = {
+      sessionId: session.id,
+      sessionDate: session.session_date,
+      studentName: session.studentName,
+      studentCollege: session.studentCollege,
+      counselorName: session.counselorName,
+      presentingConcern: session.presenting_concern,
+      goals: session.goals,
+      summary: session.summary,
+      plan: session.plan,
+      comments: session.comments,
+      nextSession: session.next_session,
+      counselorSignature: session.counselor_signature,
+      formData,
+    };
+    const title = `Session Report — ${session.studentName} (${session.session_date})`;
+    const summaryText = (session.summary || session.presenting_concern || "").slice(0, 200) || null;
+
+    const insertResult = await query(
+      `INSERT INTO report_recipients (sender_id, recipient_id, title, summary, report_payload)
+       VALUES (?, ?, ?, ?, ?)`,
+      [counselorId, referrerId, title, summaryText, JSON.stringify(payload)]
+    );
+    reportRecipientId = insertResult.insertId;
+
+    await query(
+      `INSERT INTO notifications (user_id, title, message, status, link)
+       VALUES (?, ?, ?, 'unread', ?)`,
+      [
+        referrerId,
+        "Counseling report received",
+        `Session report for ${session.studentName} (${session.session_date}) is now available.`,
+        `/rep/reports`,
+      ]
+    );
+  }
+
+  await logAction(req, "finalize_session", "counseling_session", id, {
+    studentId: session.student_id,
+    appointmentId: session.appointment_id,
+    fannedOutToRep: referrerId,
+    reportRecipientId,
+  });
+
+  const rows = await query(`SELECT ${SELECT_FIELDS} ${FROM_JOIN} WHERE cs.id = ?`, [id]);
+  return res.json({
+    message: "Session report submitted",
+    session: parseFormData(rows[0]),
+    reportRecipientId,
+    fannedOutToRep: referrerId,
+  });
 };

@@ -55,14 +55,16 @@ export default function ReferralConfirmation() {
               <div>
                 <h2 className="text-2xl font-semibold text-gray-900">Referral Confirmed</h2>
                 <p className="text-sm text-gray-600">
-                  You have accepted this referral. {referral.referringCounselorName} has been notified.
+                  {referral.status === "rescheduled"
+                    ? `You have rescheduled this referral and a pending appointment was created. ${referral.referrerName} has been notified.`
+                    : `You have accepted this referral and a pending appointment was created. ${referral.referrerName} has been notified.`}
                 </p>
               </div>
             </div>
 
             <dl className="divide-y divide-gray-100">
               <Row label="Student" value={`${referral.studentName} ${referral.studentCollege ? `· ${referral.studentCollege}` : ""}`} />
-              <Row label="Referred by" value={referral.referringCounselorName} />
+              <Row label="Referred by" value={referral.referrerName} />
               <Row label="Reason" value={referral.reason} />
               {referral.notes && <Row label="Notes" value={referral.notes} />}
               <Row label="Status" value={<span className="text-green-700 font-semibold">{referral.status}</span>} />
@@ -72,7 +74,7 @@ export default function ReferralConfirmation() {
 
             <p className="text-xs text-gray-500 mt-4">
               This page acts as the formal confirmation slip. Print this for your records or share the
-              decision note with the referring counselor.
+              decision note with the referring College Representative.
             </p>
           </>
         )}

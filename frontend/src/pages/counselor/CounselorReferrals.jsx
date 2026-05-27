@@ -2,15 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useReferrals } from "../../context/ReferralsContext";
-import {
-  ArrowRight,
-  CheckCircle2,
-  XCircle,
-  Inbox,
-  Send,
-  Plus,
-  History,
-} from "lucide-react";
+import { CheckCircle2, XCircle, CalendarClock, Inbox, History } from "lucide-react";
 import {
   PageHeader,
   SectionCard,
@@ -23,15 +15,11 @@ import {
   initialsOf,
 } from "../../components/ui";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-
 export default function CounselorReferrals() {
-  const { currentUser, token } = useAuth();
-  const { referrals, loading, error, fetchReferrals, decideReferral, cancelReferral } =
-    useReferrals();
+  const { currentUser } = useAuth();
+  const { referrals, loading, error, fetchReferrals, decideReferral } = useReferrals();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("incoming");
-  const [newOpen, setNewOpen] = useState(false);
   const [decisionModal, setDecisionModal] = useState({ open: false, referral: null, status: null });
   const [decisionNote, setDecisionNote] = useState("");
   const [decisionError, setDecisionError] = useState("");
@@ -48,19 +36,12 @@ export default function CounselorReferrals() {
       ),
     [referrals, currentUser?.id]
   );
-  const outgoingPending = useMemo(
-    () =>
-      referrals.filter(
-        (r) => r.referring_counselor_id === currentUser?.id && r.status === "pending"
-      ),
-    [referrals, currentUser?.id]
-  );
   const history = useMemo(
     () => referrals.filter((r) => r.status !== "pending"),
     [referrals]
   );
 
-  const filtered = activeTab === "incoming" ? incomingPending : activeTab === "outgoing" ? outgoingPending : history;
+  const filtered = activeTab === "incoming" ? incomingPending : history;
 
   const openDecision = (referral, status) => {
     setDecisionModal({ open: true, referral, status });
@@ -70,8 +51,12 @@ export default function CounselorReferrals() {
 
   const submitDecision = async () => {
     const { referral, status } = decisionModal;
-    if (status === "rejected" && !decisionNote.trim()) {
-      setDecisionError("A note is required when rejecting.");
+    if ((status === "rejected" || status === "rescheduled") && !decisionNote.trim()) {
+      setDecisionError(
+        status === "rejected"
+          ? "A note is required when declining."
+          : "A note is required when rescheduling."
+      );
       return;
     }
     setDecisionBusy(true);
@@ -82,14 +67,9 @@ export default function CounselorReferrals() {
       return;
     }
     setDecisionModal({ open: false, referral: null, status: null });
-    if (status === "accepted") {
+    if (status === "accepted" || status === "rescheduled") {
       navigate(`/counselor/referrals/${referral.id}/confirmation`);
     }
-  };
-
-  const handleCancel = async (id) => {
-    if (!window.confirm("Cancel this referral?")) return;
-    await cancelReferral(id);
   };
 
   return (
@@ -97,15 +77,9 @@ export default function CounselorReferrals() {
       <PageHeader
         eyebrow="Counselor"
         title="Referrals"
-        subtitle="Hand off students between counselors with a tracked decision."
-        actions={
-          <button onClick={() => setNewOpen(true)} className={BTN.primary}>
-            <Plus size={15} /> New referral
-          </button>
-        }
+        subtitle="Review students referred to you by College Representatives."
       />
 
-      {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-gray-200 mb-4">
         <TabBtn
           active={activeTab === "incoming"}
@@ -114,14 +88,6 @@ export default function CounselorReferrals() {
           count={incomingPending.length}
         >
           Incoming
-        </TabBtn>
-        <TabBtn
-          active={activeTab === "outgoing"}
-          onClick={() => setActiveTab("outgoing")}
-          icon={<Send size={14} />}
-          count={outgoingPending.length}
-        >
-          Outgoing
         </TabBtn>
         <TabBtn
           active={activeTab === "history"}
@@ -140,17 +106,11 @@ export default function CounselorReferrals() {
       )}
 
       <SectionCard
-        title={
-          activeTab === "incoming"
-            ? "Incoming referrals"
-            : activeTab === "outgoing"
-            ? "Outgoing referrals"
-            : "Referral history"
-        }
+        title={activeTab === "incoming" ? "Incoming referrals" : "Referral history"}
         subtitle={
           activeTab === "history"
             ? "Past decisions and cancelled referrals"
-            : "Pending action"
+            : "Awaiting your decision"
         }
         noBodyPadding
       >
@@ -158,20 +118,12 @@ export default function CounselorReferrals() {
           <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
         ) : filtered.length === 0 ? (
           <EmptyState
-            icon={activeTab === "incoming" ? Inbox : activeTab === "outgoing" ? Send : History}
-            title={
-              activeTab === "incoming"
-                ? "No incoming referrals"
-                : activeTab === "outgoing"
-                ? "No outgoing referrals"
-                : "No history yet"
-            }
+            icon={activeTab === "incoming" ? Inbox : History}
+            title={activeTab === "incoming" ? "No incoming referrals" : "No history yet"}
             hint={
               activeTab === "incoming"
-                ? "When another counselor hands off a student to you, it will appear here."
-                : activeTab === "outgoing"
-                ? "Use “New referral” to hand off a student to another counselor."
-                : "Resolved referrals (accepted, rejected, or cancelled) will collect here."
+                ? "When a College Representative refers a student to you, it will appear here."
+                : "Resolved referrals (accepted, rescheduled, or declined) will collect here."
             }
           />
         ) : (
@@ -180,7 +132,7 @@ export default function CounselorReferrals() {
               <thead>
                 <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
                   <th className="px-4 py-2.5">Student</th>
-                  <th className="px-4 py-2.5">{activeTab === "outgoing" ? "Sent to" : "From"}</th>
+                  <th className="px-4 py-2.5">Referred by</th>
                   <th className="px-4 py-2.5">Reason</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5">Created</th>
@@ -206,9 +158,10 @@ export default function CounselorReferrals() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-700">
-                      {activeTab === "outgoing"
-                        ? r.receivingCounselorName
-                        : r.referringCounselorName}
+                      <div>{r.referrerName}</div>
+                      {r.referrerCollege && (
+                        <div className="text-xs text-gray-500">{r.referrerCollege}</div>
+                      )}
                     </td>
                     <td className="px-4 py-3 max-w-sm">
                       <p className="text-gray-700 line-clamp-2">{r.reason}</p>
@@ -240,20 +193,18 @@ export default function CounselorReferrals() {
                             <CheckCircle2 size={13} /> Accept
                           </button>
                           <button
+                            onClick={() => openDecision(r, "rescheduled")}
+                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition"
+                          >
+                            <CalendarClock size={13} /> Reschedule
+                          </button>
+                          <button
                             onClick={() => openDecision(r, "rejected")}
                             className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition"
                           >
-                            <XCircle size={13} /> Reject
+                            <XCircle size={13} /> Decline
                           </button>
                         </div>
-                      )}
-                      {activeTab === "outgoing" && r.status === "pending" && (
-                        <button
-                          onClick={() => handleCancel(r.id)}
-                          className="inline-flex items-center h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                        >
-                          Cancel
-                        </button>
                       )}
                     </td>
                   </tr>
@@ -267,10 +218,18 @@ export default function CounselorReferrals() {
       <Modal
         open={decisionModal.open}
         onClose={() => setDecisionModal({ open: false, referral: null, status: null })}
-        title={decisionModal.status === "accepted" ? "Accept referral" : "Reject referral"}
+        title={
+          decisionModal.status === "accepted"
+            ? "Accept referral"
+            : decisionModal.status === "rescheduled"
+            ? "Reschedule referral"
+            : "Decline referral"
+        }
         subtitle={
           decisionModal.status === "accepted"
-            ? "Confirm you can take over this student. The referring counselor will be notified."
+            ? "Confirm you can take on this student. A pending counseling appointment will be created, and the referring College Representative will be notified."
+            : decisionModal.status === "rescheduled"
+            ? "Add a short note explaining the reschedule (e.g. a proposed alternative date). A pending appointment will still be created so you can finalize a slot."
             : "Add a short note explaining why this referral was declined. Required."
         }
         danger={decisionModal.status === "rejected"}
@@ -285,13 +244,21 @@ export default function CounselorReferrals() {
             <button
               onClick={submitDecision}
               disabled={decisionBusy}
-              className={decisionModal.status === "accepted" ? BTN.success : BTN.danger}
+              className={
+                decisionModal.status === "accepted"
+                  ? BTN.success
+                  : decisionModal.status === "rescheduled"
+                  ? BTN.primary
+                  : BTN.danger
+              }
             >
               {decisionBusy
                 ? "Submitting…"
                 : decisionModal.status === "accepted"
                 ? "Confirm accept"
-                : "Confirm reject"}
+                : decisionModal.status === "rescheduled"
+                ? "Confirm reschedule"
+                : "Confirm decline"}
             </button>
           </>
         }
@@ -307,9 +274,9 @@ export default function CounselorReferrals() {
               </div>
               <div>
                 <span className="text-xs uppercase tracking-wider text-gray-500 font-medium">
-                  From
+                  Referred by
                 </span>
-                <div className="text-gray-900">{decisionModal.referral.referringCounselorName}</div>
+                <div className="text-gray-900">{decisionModal.referral.referrerName}</div>
               </div>
               <div>
                 <span className="text-xs uppercase tracking-wider text-gray-500 font-medium">
@@ -327,6 +294,8 @@ export default function CounselorReferrals() {
               placeholder={
                 decisionModal.status === "accepted"
                   ? "e.g. estimated first session date"
+                  : decisionModal.status === "rescheduled"
+                  ? "e.g. unavailable Friday — proposing the following Monday"
                   : "e.g. caseload full, scope mismatch…"
               }
               value={decisionNote}
@@ -336,15 +305,6 @@ export default function CounselorReferrals() {
           </>
         )}
       </Modal>
-
-      {newOpen && (
-        <NewReferralModal
-          token={token}
-          currentUser={currentUser}
-          onClose={() => setNewOpen(false)}
-          onCreated={() => fetchReferrals()}
-        />
-      )}
     </div>
   );
 }
@@ -371,151 +331,5 @@ function TabBtn({ active, onClick, children, icon, count }) {
         </span>
       )}
     </button>
-  );
-}
-
-function NewReferralModal({ token, currentUser, onClose, onCreated }) {
-  const [students, setStudents] = useState([]);
-  const [counselors, setCounselors] = useState([]);
-  const [loadingLists, setLoadingLists] = useState(false);
-  const [studentId, setStudentId] = useState("");
-  const [receivingCounselorId, setReceivingCounselorId] = useState("");
-  const [reason, setReason] = useState("");
-  const [notes, setNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!token) return;
-    setLoadingLists(true);
-    Promise.all([
-      fetch(`${API_BASE}/api/users?role=student`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-      fetch(`${API_BASE}/api/users?role=counselor`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-    ])
-      .then(([stu, cou]) => {
-        setStudents(Array.isArray(stu) ? stu : []);
-        setCounselors((Array.isArray(cou) ? cou : []).filter((c) => c.id !== currentUser?.id));
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoadingLists(false));
-  }, [token, currentUser?.id]);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (!studentId || !receivingCounselorId || !reason.trim()) {
-      setError("All required fields must be filled.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/referrals`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          studentId: Number(studentId),
-          receivingCounselorId: Number(receivingCounselorId),
-          reason: reason.trim(),
-          notes: notes.trim() || null,
-        }),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        setError(body.message || "Failed");
-      } else {
-        onCreated?.();
-        onClose();
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title="New referral"
-      subtitle="Hand off a student to another counselor with a reason for the decision."
-      size="lg"
-      align="top"
-      footer={
-        <>
-          <button type="button" onClick={onClose} className={BTN.secondary}>
-            Cancel
-          </button>
-          <button type="submit" form="new-referral-form" disabled={submitting} className={BTN.primary}>
-            {submitting ? "Sending…" : "Send referral"}
-          </button>
-        </>
-      }
-    >
-      <form id="new-referral-form" onSubmit={submit} className="space-y-3">
-        <div>
-          <label className={LABEL}>Student *</label>
-          <select
-            required
-            className={INPUT}
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            disabled={loadingLists}
-          >
-            <option value="">{loadingLists ? "Loading…" : "Select a student"}</option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} {s.college ? `· ${s.college}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={LABEL}>Refer to counselor *</label>
-          <select
-            required
-            className={INPUT}
-            value={receivingCounselorId}
-            onChange={(e) => setReceivingCounselorId(e.target.value)}
-            disabled={loadingLists}
-          >
-            <option value="">{loadingLists ? "Loading…" : "Select a counselor"}</option>
-            {counselors.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} {c.department ? `· ${c.department}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={LABEL}>Reason *</label>
-          <textarea
-            required
-            rows={3}
-            className={INPUT}
-            placeholder="Why are you handing off this student?"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className={LABEL}>Notes (optional)</label>
-          <textarea
-            rows={2}
-            className={INPUT}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-      </form>
-    </Modal>
   );
 }

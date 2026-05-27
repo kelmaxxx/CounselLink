@@ -13,10 +13,10 @@ const router = Router();
 
 router.use(auth);
 
-router.get("/", requireRole("counselor", "admin"), listReferrals);
-router.get("/:id", requireRole("counselor", "admin"), getReferral);
-router.post("/", requireRole("counselor"), createReferral);
+router.get("/", requireRole("counselor", "college_rep", "admin"), listReferrals);
+router.get("/:id", requireRole("counselor", "college_rep", "admin"), getReferral);
+router.post("/", requireRole("college_rep"), createReferral);
 router.put("/:id/decide", requireRole("counselor"), decideReferral);
-router.delete("/:id", requireRole("counselor"), cancelReferral);
+router.delete("/:id", requireRole("college_rep"), cancelReferral);
 
 export default router;
