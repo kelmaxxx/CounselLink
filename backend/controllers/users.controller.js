@@ -105,6 +105,10 @@ export const lookupUser = async (req, res) => {
 export const listUsers = async (req, res) => {
   const { role } = req.query;
   const requesterRole = req.user?.role;
+  const requesterCollege = req.user?.college || null;
+
+  // College reps can only see students from their own college and the full counselor directory.
+  let scopeToRepCollege = false;
 
   if (requesterRole === "admin") {
     // admin can list anything
@@ -114,6 +118,13 @@ export const listUsers = async (req, res) => {
   ) {
     // counselors can list students (session/appointment pickers),
     // other counselors (referral targets), and college_rep (report recipients)
+  } else if (
+    requesterRole === "college_rep" &&
+    ["student", "counselor"].includes(role)
+  ) {
+    // college reps need students (referral subjects, scoped to their college)
+    // and counselors (referral / report-request targets)
+    if (role === "student") scopeToRepCollege = true;
   } else if (requesterRole === "student" && role === "counselor") {
     // students can browse the counselor directory
   } else {
@@ -122,10 +133,20 @@ export const listUsers = async (req, res) => {
 
   let sql = `SELECT ${SELECT_FIELDS} FROM users`;
   const params = [];
+  const where = [];
   if (role) {
-    sql += " WHERE role = ?";
+    where.push("role = ?");
     params.push(role);
   }
+  if (scopeToRepCollege) {
+    if (!requesterCollege) {
+      // Rep with no college assigned should see no students.
+      return res.json([]);
+    }
+    where.push("college = ?");
+    params.push(requesterCollege);
+  }
+  if (where.length) sql += " WHERE " + where.join(" AND ");
   sql += " ORDER BY name ASC";
   const rows = await query(sql, params);
   return res.json(rows);

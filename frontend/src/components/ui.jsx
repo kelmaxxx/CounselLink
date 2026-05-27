@@ -84,10 +84,21 @@ const STATUS_PALETTE = {
   confirmed: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
+// User-facing label overrides for stored enum values. The DB still stores
+// 'rejected' so we keep that value end-to-end; only the rendered pill label
+// is swapped to the friendlier "Declined" wording the spec uses.
+const STATUS_LABEL_OVERRIDES = {
+  rejected: "Declined",
+};
+
 export function StatusPill({ status, children, className = "" }) {
   const key = (status || "").toLowerCase();
   const palette = STATUS_PALETTE[key] || "bg-gray-100 text-gray-700 border-gray-200";
-  const label = children ?? (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—");
+  const overridden = STATUS_LABEL_OVERRIDES[key];
+  const label =
+    children ??
+    overridden ??
+    (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—");
   return (
     <span
       className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${palette} ${className}`}

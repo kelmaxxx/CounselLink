@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import {
@@ -10,6 +11,8 @@ import {
   Activity,
   Filter as FilterIcon,
   GraduationCap,
+  ArrowRightLeft,
+  ClipboardList,
 } from "lucide-react";
 import {
   PageHeader,
@@ -303,24 +306,50 @@ export default function CounselingData() {
                   <th className="px-4 py-2.5">Program</th>
                   <th className="px-4 py-2.5">Year level</th>
                   <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {studentsInCollege.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50/70 transition">
-                    <td className="px-4 py-3 font-medium text-gray-900">{student.name}</td>
-                    <td className="px-4 py-3 text-gray-600 tabular-nums">
-                      {student.studentId || student.student_id || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{student.program || "—"}</td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {student.yearLevel || student.year_level || "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusPill status="active" />
-                    </td>
-                  </tr>
-                ))}
+                {studentsInCollege.map((student) => {
+                  const sid = student.studentId || student.student_id || "";
+                  const referHref = `/rep/referrals?studentId=${student.id}`;
+                  const requestHref = `/rep/request-report?studentName=${encodeURIComponent(
+                    student.name || ""
+                  )}${sid ? `&studentIdentifier=${encodeURIComponent(sid)}` : ""}`;
+                  return (
+                    <tr key={student.id} className="hover:bg-gray-50/70 transition">
+                      <td className="px-4 py-3 font-medium text-gray-900">{student.name}</td>
+                      <td className="px-4 py-3 text-gray-600 tabular-nums">
+                        {sid || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{student.program || "—"}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {student.yearLevel || student.year_level || "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusPill status="active" />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex gap-1">
+                          <Link
+                            to={referHref}
+                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition"
+                            title="Refer this student to a counselor"
+                          >
+                            <ArrowRightLeft size={12} /> Refer
+                          </Link>
+                          <Link
+                            to={requestHref}
+                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                            title="Request a report from a counselor"
+                          >
+                            <ClipboardList size={12} /> Request report
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

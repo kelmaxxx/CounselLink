@@ -19,6 +19,27 @@ export const query = async (sql, params = []) => {
   return rows;
 };
 
+// Run multiple writes atomically. The callback receives a query function
+// bound to a single pooled connection; throwing from it rolls back.
+export const withTransaction = async (fn) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const txQuery = async (sql, params = []) => {
+      const [rows] = await connection.execute(sql, params);
+      return rows;
+    };
+    const result = await fn(txQuery);
+    await connection.commit();
+    return result;
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+  } finally {
+    connection.release();
+  }
+};
+
 export const testConnection = async () => {
   await pool.query("SELECT 1");
 };

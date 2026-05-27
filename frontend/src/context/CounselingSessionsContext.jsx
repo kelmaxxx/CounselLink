@@ -71,6 +71,18 @@ export function CounselingSessionsProvider({ children }) {
     return { success: true };
   };
 
+  const finalizeSession = async (id) => {
+    const response = await authFetch(`${apiBase}/api/counseling-sessions/${id}/finalize`, {
+      method: "POST",
+    });
+    const data = await response.json();
+    if (!response.ok) return { success: false, message: data.message || "Failed to submit report" };
+    if (data.session) {
+      setSessions((prev) => prev.map((s) => (s.id === data.session.id ? data.session : s)));
+    }
+    return { success: true, ...data };
+  };
+
   useEffect(() => {
     if (!token) {
       setSessions([]);
@@ -91,6 +103,7 @@ export function CounselingSessionsProvider({ children }) {
         createSession,
         updateSession,
         deleteSession,
+        finalizeSession,
       }}
     >
       {children}
