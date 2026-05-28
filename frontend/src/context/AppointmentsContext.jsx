@@ -118,6 +118,22 @@ export function AppointmentsProvider({ children }) {
     return { success: true };
   };
 
+  const completeAppointment = async ({ id }) => {
+    const response = await fetch(`${apiBase}/api/appointments/${id}/complete`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, message: data.message || "Unable to mark appointment as done" };
+    }
+    await fetchAppointments();
+    return { success: true };
+  };
+
   const rejectAppointment = async ({ id, note = null }) => {
     const response = await fetch(`${apiBase}/api/appointments/${id}/reject`, {
       method: "PUT",
@@ -158,6 +174,7 @@ export function AppointmentsProvider({ children }) {
       acceptAppointment,
       rescheduleAppointment,
       rejectAppointment,
+      completeAppointment,
       getAppointmentsForCurrentUser,
       fetchAppointments,
       saveSessionForm,

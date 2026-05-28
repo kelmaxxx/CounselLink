@@ -19,7 +19,7 @@ const safeEqual = (a, b) => {
 
 const buildToken = (user) =>
   jwt.sign(
-    { id: user.id, role: user.role, email: user.email },
+    { id: user.id, role: user.role, email: user.email, college: user.college || null },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || "1d" }
   );

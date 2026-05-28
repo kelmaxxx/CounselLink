@@ -120,22 +120,32 @@ export const getReferral = async (req, res) => {
   return res.json(r);
 };
 
+const normalizeDate = (value) => {
+  if (!value) return null;
+  if (typeof value === "string" && value.includes("T")) return value.split("T")[0];
+  if (value instanceof Date) return value.toISOString().split("T")[0];
+  return value;
+};
+
 export const decideReferral = async (req, res) => {
   const { id } = req.params;
   const userId = req.user?.id;
-  const { status, decisionNote } = req.body || {};
+  const { status, decisionNote, scheduledDate, scheduledTime } = req.body || {};
 
-  if (!["accepted", "rejected", "rescheduled"].includes(status)) {
+  if (!["accepted", "rejected"].includes(status)) {
     return res
       .status(400)
-      .json({ message: "status must be 'accepted', 'rejected', or 'rescheduled'" });
+      .json({ message: "status must be 'accepted' or 'rejected'" });
   }
-  // Decline + Reschedule both require an explanatory note; accept may include
-  // one but does not require it.
-  if (["rejected", "rescheduled"].includes(status) && !decisionNote?.trim()) {
+  if (status === "rejected" && !decisionNote?.trim()) {
     return res
       .status(400)
-      .json({ message: `A decision note is required when ${status === "rejected" ? "rejecting" : "rescheduling"}` });
+      .json({ message: "A decision note is required when rejecting" });
+  }
+  if (status === "accepted" && (!scheduledDate || !scheduledTime)) {
+    return res
+      .status(400)
+      .json({ message: "Scheduled date and time are required when accepting" });
   }
 
   const [referral] = await query(
@@ -150,11 +160,8 @@ export const decideReferral = async (req, res) => {
     return res.status(409).json({ message: `Referral is already ${referral.status}` });
   }
 
-  // Accept / Reschedule both advance the referral into a scheduled session by
-  // bootstrapping a pending appointment owned by the receiving counselor. The
-  // existing appointment flow (counselor picks date + slot) takes it from
-  // there. Reject is a pure status flip with no downstream record.
-  const shouldCreateAppointment = status === "accepted" || status === "rescheduled";
+  const normalizedDate = status === "accepted" ? normalizeDate(scheduledDate) : null;
+  const trimmedTime = status === "accepted" ? String(scheduledTime).trim() : null;
 
   const appointmentId = await withTransaction(async (q) => {
     await q(
@@ -162,28 +169,36 @@ export const decideReferral = async (req, res) => {
       [status, decisionNote?.trim() || null, id]
     );
 
-    if (!shouldCreateAppointment) return null;
+    if (status !== "accepted") return null;
 
     const insertResult = await q(
       `INSERT INTO appointments
-         (student_id, counselor_id, referral_id, appointment_type, status, reason)
-       VALUES (?, ?, ?, 'counseling', 'pending', ?)`,
-      [referral.student_id, referral.receiving_counselor_id, referral.id, referral.reason]
+         (student_id, counselor_id, referral_id, appointment_type, status, reason,
+          scheduled_date, scheduled_time)
+       VALUES (?, ?, ?, 'counseling', 'approved', ?, ?, ?)`,
+      [
+        referral.student_id,
+        referral.receiving_counselor_id,
+        referral.id,
+        referral.reason,
+        normalizedDate,
+        trimmedTime,
+      ]
     );
     return insertResult.insertId;
   });
 
+  const repMessage =
+    status === "accepted"
+      ? `Your referral was accepted. A session is scheduled for ${normalizedDate} at ${trimmedTime}.`
+      : decisionNote?.trim()
+      ? `Your referral was rejected. Reason: ${decisionNote.trim().slice(0, 120)}`
+      : "Your referral was rejected.";
+
   await query(
     `INSERT INTO notifications (user_id, title, message, status, link)
      VALUES (?, ?, ?, 'unread', ?)`,
-    [
-      referral.referrer_id,
-      `Referral ${status}`,
-      decisionNote?.trim()
-        ? `Your referral was ${status}. Note: ${decisionNote.trim().slice(0, 120)}`
-        : `Your referral was ${status}.`,
-      `/rep/referrals`,
-    ]
+    [referral.referrer_id, `Referral ${status}`, repMessage, `/rep/referrals`]
   );
 
   if (appointmentId) {
@@ -193,7 +208,7 @@ export const decideReferral = async (req, res) => {
       [
         referral.student_id,
         "Counseling session scheduled",
-        `A counselor has ${status === "rescheduled" ? "proposed a rescheduled" : "scheduled a"} counseling session for you. Open your appointments to confirm the date and time.`,
+        `A counselor has scheduled a counseling session for you on ${normalizedDate} at ${trimmedTime}.`,
         `/student/appointments`,
       ]
     );
@@ -202,12 +217,16 @@ export const decideReferral = async (req, res) => {
   await logAction(req, `referral_${status}`, "referral", id, {
     decisionNote: decisionNote || null,
     appointmentId: appointmentId || null,
+    scheduledDate: normalizedDate,
+    scheduledTime: trimmedTime,
   });
 
   return res.json({
     message: `Referral ${status}`,
     id: Number(id),
     appointmentId: appointmentId || null,
+    scheduledDate: normalizedDate,
+    scheduledTime: trimmedTime,
   });
 };
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { FileText, Eye, Inbox } from "lucide-react";
+import { FileText, Eye, Inbox, Download, FileDown } from "lucide-react";
 import {
   PageHeader,
   SectionCard,
@@ -9,6 +9,11 @@ import {
   BTN,
   initialsOf,
 } from "../../components/ui";
+import {
+  downloadReportAsDocx,
+  downloadReportAsPdf,
+  normalizeSessionReport,
+} from "../../utils/sessionReport";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -116,12 +121,37 @@ export default function RepReports() {
                       })}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setActiveReport(r)}
-                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                      >
-                        <Eye size={13} /> View
-                      </button>
+                      <div className="inline-flex gap-1">
+                        <button
+                          onClick={() => setActiveReport(r)}
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                          title="View report"
+                        >
+                          <Eye size={13} /> View
+                        </button>
+                        <button
+                          onClick={() =>
+                            downloadReportAsDocx(parsePayload(r.report_payload), {
+                              title: r.title,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                          title="Download as Word document"
+                        >
+                          <Download size={13} /> DOCX
+                        </button>
+                        <button
+                          onClick={() =>
+                            downloadReportAsPdf(parsePayload(r.report_payload), {
+                              title: r.title,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                          title="Download / print as PDF"
+                        >
+                          <FileDown size={13} /> PDF
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -142,25 +172,54 @@ export default function RepReports() {
         }
         size="lg"
         footer={
-          <button className={BTN.secondary} onClick={() => setActiveReport(null)}>
-            Close
-          </button>
+          activeReport && (
+            <div className="flex items-center gap-2">
+              <button
+                className={BTN.secondary}
+                onClick={() =>
+                  downloadReportAsDocx(parsePayload(activeReport.report_payload), {
+                    title: activeReport.title,
+                  })
+                }
+              >
+                <Download size={14} /> DOCX
+              </button>
+              <button
+                className={BTN.secondary}
+                onClick={() =>
+                  downloadReportAsPdf(parsePayload(activeReport.report_payload), {
+                    title: activeReport.title,
+                  })
+                }
+              >
+                <FileDown size={14} /> PDF
+              </button>
+              <button className={BTN.primary} onClick={() => setActiveReport(null)}>
+                Close
+              </button>
+            </div>
+          )
         }
       >
         {activePayload ? (
-          <dl className="divide-y divide-gray-100 text-sm">
-            <Row label="Student" value={activePayload.studentName} />
-            <Row label="College" value={activePayload.studentCollege} />
-            <Row label="Session date" value={activePayload.sessionDate} />
-            <Row label="Counselor" value={activePayload.counselorName} />
-            <Row label="Presenting concern" value={activePayload.presentingConcern} />
-            <Row label="Goals" value={activePayload.goals} />
-            <Row label="Summary" value={activePayload.summary} />
-            <Row label="Plan" value={activePayload.plan} />
-            <Row label="Comments" value={activePayload.comments} />
-            <Row label="Next session" value={activePayload.nextSession} />
-            <Row label="Signed by" value={activePayload.counselorSignature} />
-          </dl>
+          (() => {
+            const r = normalizeSessionReport(activePayload);
+            return (
+              <dl className="divide-y divide-gray-100 text-sm">
+                <Row label="Student" value={r.studentName} />
+                <Row label="College" value={r.studentCollege} />
+                <Row label="Session date" value={(r.sessionDate || "").split?.("T")?.[0] || r.sessionDate} />
+                <Row label="Counselor" value={r.counselorName} />
+                <Row label="Presenting concern" value={r.presentingConcern} />
+                <Row label="Goals" value={r.goals} />
+                <Row label="Summary" value={r.summary} />
+                <Row label="Plan" value={r.plan} />
+                <Row label="Comments" value={r.comments} />
+                <Row label="Next session" value={r.nextSession} />
+                <Row label="Signed by" value={r.counselorSignature} />
+              </dl>
+            );
+          })()
         ) : (
           <p className="text-sm text-gray-500">No payload available.</p>
         )}

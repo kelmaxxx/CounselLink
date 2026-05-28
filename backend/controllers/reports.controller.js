@@ -235,6 +235,42 @@ export const sendReportToRecipient = async (req, res) => {
   return res.status(201).json({ message: "Report sent", id: result.insertId });
 };
 
+export const listSentReports = async (req, res) => {
+  const userId = req.user?.id;
+  const rows = await query(
+    `SELECT r.id, r.title, r.summary, r.report_payload, r.status, r.sent_at, r.acknowledged_at,
+            u.name AS recipientName, u.id AS recipient_id, u.college AS recipientCollege
+     FROM report_recipients r
+     LEFT JOIN users u ON r.recipient_id = u.id
+     WHERE r.sender_id = ?
+     ORDER BY r.sent_at DESC`,
+    [userId]
+  );
+  return res.json(rows);
+};
+
+export const getReport = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id;
+  const rows = await query(
+    `SELECT r.id, r.title, r.summary, r.report_payload, r.status, r.sent_at, r.acknowledged_at,
+            r.sender_id, r.recipient_id,
+            sender.name AS senderName, sender.college AS senderCollege,
+            recipient.name AS recipientName, recipient.college AS recipientCollege
+     FROM report_recipients r
+     LEFT JOIN users sender ON r.sender_id = sender.id
+     LEFT JOIN users recipient ON r.recipient_id = recipient.id
+     WHERE r.id = ?`,
+    [id]
+  );
+  if (!rows.length) return res.status(404).json({ message: "Report not found" });
+  const report = rows[0];
+  if (report.sender_id !== userId && report.recipient_id !== userId && req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  return res.json(report);
+};
+
 export const listReceivedReports = async (req, res) => {
   const userId = req.user?.id;
   const rows = await query(

@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   preferred_slots VARCHAR(255),
   scheduled_date DATE,
   scheduled_time VARCHAR(20),
-  status ENUM('pending','approved','rejected','rescheduled') DEFAULT 'pending',
+  status ENUM('pending','approved','rejected','rescheduled','completed') DEFAULT 'pending',
   reason TEXT,
   phone_number VARCHAR(30),
   is_urgent TINYINT(1) DEFAULT 0,
