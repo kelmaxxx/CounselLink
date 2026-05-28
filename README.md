@@ -1,126 +1,225 @@
+<div align="center">
+
 # CounselLink
 
-A student counseling management system for MSU (Mindanao State University). Capstone project — currently under active development.
+**A student counseling management system for Mindanao State University (MSU)**
+
+[![Status](https://img.shields.io/badge/status-active%20development-blue)](#)
+[![License](https://img.shields.io/badge/license-MIT-green)](#license)
+[![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![Express](https://img.shields.io/badge/Express-4.x-000000?logo=express&logoColor=white)](https://expressjs.com/)
+[![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![Tailwind](https://img.shields.io/badge/Tailwind-3.x-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+
+</div>
+
+---
+
+## Overview
+
+CounselLink is a full-stack web application that streamlines the guidance and counseling workflow at MSU. Students, counselors, college representatives, and administrators each get a dedicated workspace for scheduling appointments, exchanging messages, managing referrals, and producing reports — all backed by a single source of truth.
+
+This repository is the capstone project of a 2 student and is currently under active development.
+
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Repository Layout](#repository-layout)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+- [Running the Application](#running-the-application)
+- [Pulling the Latest Changes](#pulling-the-latest-changes)
+- [Default Login Credentials](#default-login-credentials)
+- [Environment Variables](#environment-variables)
+- [API Reference](#api-reference)
+- [Available Scripts](#available-scripts)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
 ## Features
 
-- Multi-role authentication (Students, Counselors, College Representatives, Admins)
-- Appointment management (request, schedule, accept/reject, urgent flagging)
-- One-on-one messaging between students and counselors
-- Notifications and announcement broadcasts
-- Psychological test requests and results
-- Admin user management (approve student registrations, manage staff)
-- Reports and analytics
-- Responsive UI (desktop, tablet, mobile)
+- **Role-based access** for Students, Counselors, College Representatives, and Administrators
+- **Appointment management** — request, schedule, accept or reject, with urgent-flagging and completion tracking
+- **Direct messaging** between students and counselors
+- **Notifications and announcement broadcasts** across roles
+- **Psychological test requests and results** workflow
+- **Referrals** between college representatives and counselors with a state-machine lifecycle
+- **Counseling session records** and finalization with downloadable reports
+- **Administrative tools** for approving student registrations and managing staff
+- **Analytics and reporting** dashboards
+- **Responsive UI** optimised for desktop, tablet, and mobile
 
 ## Architecture
 
-- **Frontend** — React 19 + Vite (rolldown-vite) + Tailwind CSS, runs on port `5173`
-- **Backend** — Node.js + Express (ESM), runs on port `5000`
-- **Database** — MySQL 8 (database name: `counselink`)
-- **Auth** — JWT bearer tokens, bcrypt password hashing
-- **Email** — Nodemailer over SMTP (Gmail app password)
-
-Frontend talks to backend at `http://localhost:5000/api/*`. The frontend can override this via `VITE_API_BASE` in `frontend/.env`.
-
-The repo is split into two sibling folders:
-
 ```
-counselLink/
-├── frontend/   # React + Vite app  (npm run dev → http://localhost:5173)
-└── backend/    # Express + MySQL API (npm run dev → http://localhost:5000)
+┌──────────────────────────┐        HTTP / JSON         ┌──────────────────────────┐
+│  Frontend (Vite + React) │ ─────────────────────────► │  Backend (Express, ESM)  │
+│      localhost:5173      │ ◄───────────────────────── │      localhost:5000      │
+└──────────────────────────┘    JWT bearer + cookies    └─────────────┬────────────┘
+                                                                       │ mysql2
+                                                                       ▼
+                                                          ┌──────────────────────────┐
+                                                          │   MySQL 8 ("counselink") │
+                                                          └──────────────────────────┘
 ```
 
-Each folder has its own `package.json` and `node_modules`.
+- The frontend calls `http://localhost:5000/api/*` by default.
+- Override the API base URL by setting `VITE_API_BASE` in `frontend/.env`.
+- Authentication uses JWT bearer tokens; passwords are hashed with `bcryptjs`.
+- Outbound email (password reset, notifications) is delivered through SMTP via `nodemailer`.
+
+## Tech Stack
+
+| Layer       | Technology                                                                 |
+| ----------- | -------------------------------------------------------------------------- |
+| Frontend    | React 19, React Router 7, Tailwind CSS 3, Recharts, Lucide icons, rolldown-vite |
+| Backend     | Node.js (ESM), Express 4, JSON Web Tokens, Multer, Nodemailer              |
+| Database    | MySQL 8 with incremental SQL migrations                                    |
+| Tooling     | ESLint, PostCSS, Autoprefixer                                              |
+
+## Repository Layout
+
+```
+CounselLink/
+├── backend/                # Express + MySQL API (port 5000)
+│   ├── config/             # Database connection
+│   ├── controllers/        # Route handlers (auth, admin, appointments, …)
+│   ├── middleware/         # Authentication, error handling, etc.
+│   ├── routes/             # Express routers
+│   ├── services/           # email.service.js and other integrations
+│   ├── uploads/            # Uploaded COR files (gitignored)
+│   ├── migrations/         # Incremental SQL migrations (001 … 012)
+│   ├── schema.sql          # Database schema
+│   ├── seed.sql            # Seeded staff accounts
+│   ├── server.js           # Application entry point
+│   ├── package.json
+│   └── .env.example
+├── frontend/               # React + Vite app (port 5173)
+│   ├── public/             # Static assets
+│   ├── src/
+│   │   ├── components/
+│   │   ├── context/        # AuthContext, AppointmentsContext, …
+│   │   ├── data/
+│   │   ├── pages/
+│   │   │   ├── admin/      # Administrator pages
+│   │   │   ├── counselor/  # Counselor pages
+│   │   │   ├── dashboard/  # Per-role dashboards
+│   │   │   ├── rep/        # College representative pages
+│   │   │   └── student/    # Student pages
+│   │   ├── utils/
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── tailwind.config.js
+└── README.md
+```
+
+The frontend and backend are independent npm packages and maintain their own `package.json` and `node_modules`.
 
 ## Prerequisites
 
-- Node.js v18+
-- MySQL 8
-- npm
+| Requirement | Version    |
+| ----------- | ---------- |
+| Node.js     | 18 or newer |
+| npm         | bundled with Node |
+| MySQL       | 8.x        |
 
-## Setup
+## Getting Started
 
 ```powershell
 # 1. Install dependencies (each folder has its own package.json)
 cd frontend ; npm install ; cd ..
 cd backend  ; npm install ; cd ..
 
-# 2. Configure backend env
+# 2. Configure backend environment variables
 copy backend\.env.example backend\.env
-# Edit backend\.env and fill in DB_PASSWORD, EMAIL_USER, EMAIL_PASS
+# Open backend\.env and fill in DB_PASSWORD, EMAIL_USER, EMAIL_PASS, and JWT_SECRET
 
-# 3. Create the DB and seed staff accounts
+# 3. Create the database and seed staff accounts
 mysql -u root -p < backend\schema.sql
 mysql -u root -p < backend\seed.sql
+
+# 4. Apply migrations (in order)
+# Run every file under backend\migrations\ in numeric order:
+#   001_user_profile_fields.sql  …  012_appointment_completed_status.sql
+mysql -u root -p counselink < backend\migrations\001_user_profile_fields.sql
+# Repeat for each subsequent migration file.
 ```
 
-## Pulling Latest Changes (for collaborators)
-
-After every `git pull`, run this checklist. Skipping any step is the #1 cause of "it doesn't work on my machine" errors.
-
-```powershell
-# 1. Make sure you're on the right branch.
-# Active sprint work lives on 'final-sprint-2026-05', not 'main'.
-# (If the sprint PR has already been merged, switch back to 'main'.)
-git fetch
-git checkout final-sprint-2026-05
-git pull
-
-# 2. Reinstall dependencies — frontend AND backend each have their own package.json
-cd frontend ; npm install ; cd ..
-cd backend  ; npm install ; cd ..
-
-# 3. Apply any new database migrations
-# Check backend\migrations\ for files newer than your last pull and run each one.
-mysql -u root -p counselink < backend\migrations\006_password_resets.sql
-# Repeat for any other new migration files (001-005 if you don't have them yet)
-
-# 4. Update your backend\.env if backend\.env.example added new keys
-# Open both files side by side. Any key in .env.example that's missing from
-# your .env -> add it (especially EMAIL_HOST/PORT/USER/PASS/FROM for password reset).
-
-# 5. Start both servers
-cd backend  ; npm run dev   # terminal 1 (backend on :5000)
-cd frontend ; npm run dev   # terminal 2 (frontend on :5173)
-```
-
-If you still see "module not found" or "Unknown column" errors after these steps, paste the full error to the team chat before assuming the code is broken.
-
-## Running
+## Running the Application
 
 Open two terminals:
 
 ```powershell
-# Terminal 1 — backend
+# Terminal 1 — backend (http://localhost:5000)
 cd backend
-npm run dev          # starts on http://localhost:5000
+npm run dev
 
-# Terminal 2 — frontend
+# Terminal 2 — frontend (http://localhost:5173)
 cd frontend
-npm run dev          # starts on http://localhost:5173
+npm run dev
 ```
 
-Then open `http://localhost:5173` in your browser.
+Then visit `http://localhost:5173` in your browser. A quick health check is available at `http://localhost:5000/api/health` and should return `{"status":"ok"}`.
+
+## Pulling the Latest Changes
+
+After every `git pull`, complete the checklist below. Skipping any step is the most common source of *"it works on my machine"* discrepancies.
+
+```powershell
+# 1. Switch to the branch in use for the current sprint, then pull.
+git fetch
+git checkout <active-branch>   # e.g. main, or the active feature/sprint branch
+git pull
+
+# 2. Reinstall dependencies — frontend and backend each have their own package.json
+cd frontend ; npm install ; cd ..
+cd backend  ; npm install ; cd ..
+
+# 3. Apply any new database migrations
+# Inspect backend\migrations\ for files added since your last pull and run them in order.
+# Example:
+mysql -u root -p counselink < backend\migrations\012_appointment_completed_status.sql
+
+# 4. Sync your backend\.env with backend\.env.example
+# Any key present in .env.example that is missing from your .env should be added,
+# especially EMAIL_HOST / EMAIL_PORT / EMAIL_USER / EMAIL_PASS / EMAIL_FROM.
+
+# 5. Start both servers
+cd backend  ; npm run dev      # terminal 1 — backend  (:5000)
+cd frontend ; npm run dev      # terminal 2 — frontend (:5173)
+```
+
+If "module not found" or "Unknown column" errors persist after these steps, share the full error with the team before assuming a regression.
 
 ## Default Login Credentials
 
-All seeded staff accounts are pre-approved.
+All seeded staff accounts are pre-approved for development use.
 
-| Role             | Email                       | Password       |
-| ---------------- | --------------------------- | -------------- |
-| Admin            | `admin@msu.edu.ph`          | `admin123`     |
-| Counselor (CICS) | `counselor@msu.edu.ph`      | `counselor123` |
-| Counselor (COE)  | `counselor2@msu.edu.ph`     | `counselor123` |
-| Counselor (CBAA) | `counselor3@msu.edu.ph`     | `counselor123` |
-| Counselor (CHS)  | `counselor4@msu.edu.ph`     | `counselor123` |
-| College Rep      | `rep@msu.edu.ph`            | `rep123`       |
-| College Rep      | `rep2@msu.edu.ph`           | `rep123`       |
-| College Rep      | `rep3@msu.edu.ph`           | `rep123`       |
+| Role              | Email                     | Password       |
+| ----------------- | ------------------------- | -------------- |
+| Administrator     | `admin@msu.edu.ph`        | `admin123`     |
+| Counselor (CICS)  | `counselor@msu.edu.ph`    | `counselor123` |
+| Counselor (COE)   | `counselor2@msu.edu.ph`   | `counselor123` |
+| Counselor (CBAA)  | `counselor3@msu.edu.ph`   | `counselor123` |
+| Counselor (CHS)   | `counselor4@msu.edu.ph`   | `counselor123` |
+| College Rep       | `rep@msu.edu.ph`          | `rep123`       |
+| College Rep       | `rep2@msu.edu.ph`         | `rep123`       |
+| College Rep       | `rep3@msu.edu.ph`         | `rep123`       |
 
-Students register through the signup form (with COR upload) and must be approved by the admin before they can log in.
+Students register through the signup form (with COR upload) and must be approved by an administrator before they can log in.
 
-## Backend Environment Variables (`backend/.env`)
+> **Security note:** these credentials are for local development only. Rotate every secret before any non-local deployment.
+
+## Environment Variables
+
+`backend/.env`:
 
 | Variable           | Purpose                                                  |
 | ------------------ | -------------------------------------------------------- |
@@ -136,89 +235,84 @@ Students register through the signup form (with COR upload) and must be approved
 | `EMAIL_PORT`       | SMTP port (default `587`)                                |
 | `EMAIL_SECURE`     | `false` for STARTTLS on port 587                         |
 | `EMAIL_USER`       | Sender address                                           |
-| `EMAIL_PASS`       | Gmail app password (NOT regular Gmail password)          |
+| `EMAIL_PASS`       | Gmail app password (not a regular Gmail password)        |
 | `EMAIL_FROM`       | Display name + address (e.g. `"CounselLink <user@x>"`)   |
 
-## Project Structure
+`frontend/.env` (optional):
 
-```
-counselLink/
-├── backend/                # Express + MySQL API (port 5000)
-│   ├── config/             # DB connection
-│   ├── controllers/        # Route handlers (auth, admin, appointments, …)
-│   ├── middleware/         # Auth middleware, etc.
-│   ├── routes/             # Express routers
-│   ├── services/           # email.service.js
-│   ├── uploads/            # Uploaded COR files (gitignored)
-│   ├── migrations/         # Incremental SQL migrations
-│   ├── schema.sql          # DB schema
-│   ├── seed.sql            # Seeded staff accounts
-│   ├── server.js           # Entry point
-│   ├── package.json
-│   └── .env.example
-├── frontend/               # React + Vite app (port 5173)
-│   ├── public/             # Static assets
-│   ├── src/
-│   │   ├── components/
-│   │   ├── context/        # AuthContext, AppointmentsContext, …
-│   │   ├── data/
-│   │   ├── pages/
-│   │   │   ├── admin/      # Admin pages
-│   │   │   ├── counselor/  # Counselor pages
-│   │   │   ├── dashboard/  # Per-role dashboards
-│   │   │   ├── rep/        # College rep pages
-│   │   │   └── student/    # Student pages
-│   │   ├── utils/
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   └── index.css
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.js
-│   └── tailwind.config.js
-├── README.md
-└── PROGRESS.md
-```
+| Variable        | Purpose                                                    |
+| --------------- | ---------------------------------------------------------- |
+| `VITE_API_BASE` | Override the backend base URL (default `http://localhost:5000/api`) |
+| `VITE_PORT`     | Override the Vite dev-server port                          |
 
-## API Routes
+## API Reference
 
-All under `/api`.
+All routes are prefixed with `/api`.
 
 | Group           | Base path             |
 | --------------- | --------------------- |
 | Health          | `GET /api/health`     |
-| Auth            | `/api/auth`           |
-| Admin           | `/api/admin`          |
+| Authentication  | `/api/auth`           |
+| Administration  | `/api/admin`          |
 | Uploads (COR)   | `/api/uploads`        |
 | Appointments    | `/api/appointments`   |
 | Notifications   | `/api/notifications`  |
 | Tests           | `/api/tests`          |
-| Test results    | `/api/test-results`   |
+| Test Results    | `/api/test-results`   |
 | Messages        | `/api/messages`       |
+| Referrals       | `/api/referrals`      |
 | Reports         | `/api/reports`        |
 
 ## Available Scripts
 
-`frontend/`:
-- `npm run dev` — Start Vite dev server
-- `npm run build` — Production build
-- `npm run preview` — Preview production build
-- `npm run lint` — Run ESLint
+**`frontend/`**
 
-`backend/`:
-- `npm run dev` — Start backend with `node --watch`
-- `npm start` — Start backend without watch
+| Command           | Description                              |
+| ----------------- | ---------------------------------------- |
+| `npm run dev`     | Start the Vite development server        |
+| `npm run build`   | Produce a production build               |
+| `npm run preview` | Preview the production build locally     |
+| `npm run lint`    | Run ESLint over the source tree          |
+
+**`backend/`**
+
+| Command         | Description                              |
+| --------------- | ---------------------------------------- |
+| `npm run dev`   | Start the server with `node --watch`     |
+| `npm start`     | Start the server without watch mode      |
 
 ## Troubleshooting
 
-**Login shows "Unable to connect to server"** — check that the backend is running on port 5000 (`http://localhost:5000/api/health` should return `{"status":"ok"}`). If the backend is up, the message means the response could not be parsed; check the backend console for errors.
+<details>
+<summary><strong>Login shows "Unable to connect to server"</strong></summary>
 
-**Login returns "Invalid credentials"** — verify the seeded users exist (`SELECT email, role FROM users;` in the `counselink` DB). If the seed was run before the latest hash update, re-run `mysql -u root -p < backend\seed.sql` after `TRUNCATE TABLE users;`.
+Confirm the backend is running on port 5000. `GET http://localhost:5000/api/health` should return `{"status":"ok"}`. If the backend is up, the message indicates that the response could not be parsed — inspect the backend console for errors.
+</details>
 
-**Port already in use** — change `PORT` in `backend\.env` for the backend, or set `VITE_PORT` in `frontend\.env` for Vite.
+<details>
+<summary><strong>Login returns "Invalid credentials"</strong></summary>
 
-**MySQL access denied** — confirm `DB_USER` and `DB_PASSWORD` in `backend\.env` match your local MySQL setup.
+Verify the seeded users exist (`SELECT email, role FROM users;` in the `counselink` database). If the seed predates the latest password-hash update, re-run it after clearing the table:
+
+```sql
+TRUNCATE TABLE users;
+```
+
+Then `mysql -u root -p < backend\seed.sql`.
+</details>
+
+<details>
+<summary><strong>Port already in use</strong></summary>
+
+Set `PORT` in `backend\.env` for the backend, or `VITE_PORT` in `frontend\.env` for the Vite dev server.
+</details>
+
+<details>
+<summary><strong>MySQL access denied</strong></summary>
+
+Confirm `DB_USER` and `DB_PASSWORD` in `backend\.env` match your local MySQL configuration.
+</details>
 
 ## License
 
-MIT
+Released under the [MIT License](LICENSE).

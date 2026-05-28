@@ -75,6 +75,45 @@ export const rejectAppointment = async (req, res) => {
   return res.json({ message: "Appointment rejected" });
 };
 
+export const completeAppointment = async (req, res) => {
+  const { id } = req.params;
+  const counselorId = req.user?.id;
+
+  const rows = await query(
+    "SELECT counselor_id, status, student_id FROM appointments WHERE id = ?",
+    [id]
+  );
+  if (!rows.length) return res.status(404).json({ message: "Appointment not found" });
+  const appt = rows[0];
+  if (appt.counselor_id && appt.counselor_id !== counselorId) {
+    return res.status(403).json({ message: "You can only complete your own appointments" });
+  }
+  if (appt.status === "completed") {
+    return res.status(409).json({ message: "Appointment is already completed" });
+  }
+  if (!["approved", "rescheduled"].includes(appt.status)) {
+    return res.status(409).json({
+      message: `Only approved or rescheduled appointments can be marked done (was: ${appt.status})`,
+    });
+  }
+
+  await query(
+    "UPDATE appointments SET status='completed', counselor_id=?, updated_at=NOW() WHERE id=?",
+    [counselorId, id]
+  );
+
+  await logAction(req, "complete_appointment", "appointment", id, {});
+
+  await createNotification({
+    userId: appt.student_id,
+    title: "Counseling session completed",
+    message: "Your counseling session has been marked as completed by the counselor.",
+    link: "/student/appointments",
+  });
+
+  return res.json({ message: "Appointment marked as completed" });
+};
+
 export const rescheduleAppointment = async (req, res) => {
   const { id } = req.params;
   const { date, timeSlot, note } = req.body;

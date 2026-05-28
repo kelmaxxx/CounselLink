@@ -11,6 +11,7 @@ import {
   FileText,
   Hash,
   CalendarClock,
+  CheckCircle2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
@@ -36,8 +37,17 @@ const timeLabel = (slot) => TIME_LABEL[slot] || slot || "—";
 
 export default function CounselorAppointments() {
   const { users, lookupUser } = useAuth();
-  const { getAppointmentsForCurrentUser } = useAppointments();
+  const { getAppointmentsForCurrentUser, completeAppointment } = useAppointments();
   const { getTestsForCurrentUser } = useTests();
+  const [busyId, setBusyId] = useState(null);
+
+  const handleMarkDone = async (id) => {
+    if (!window.confirm("Mark this counseling session as completed? You will be able to open the form and submit the final Session Report afterwards.")) return;
+    setBusyId(id);
+    const res = await completeAppointment({ id });
+    setBusyId(null);
+    if (!res.success) alert(res.message || "Failed to mark as done");
+  };
 
   const myAppointments = useMemo(
     () => getAppointmentsForCurrentUser(),
@@ -75,6 +85,7 @@ export default function CounselorAppointments() {
   const upcomingAppointments = myAppointments.filter(
     (a) => a.status === "approved" || a.status === "rescheduled"
   );
+  const completedAppointments = myAppointments.filter((a) => a.status === "completed");
   const upcomingTests = myTests.filter(
     (t) => t.status === "approved" || t.status === "rescheduled"
   );
@@ -223,6 +234,15 @@ export default function CounselorAppointments() {
                         <FileText size={13} />
                         Open form
                       </a>
+                      <button
+                        onClick={() => handleMarkDone(a.id)}
+                        disabled={busyId === a.id}
+                        className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition disabled:opacity-50"
+                        title="Mark this session as completed"
+                      >
+                        <CheckCircle2 size={13} />
+                        {busyId === a.id ? "Saving…" : "Mark done"}
+                      </button>
                     </div>
                   </div>
                 </li>
@@ -231,6 +251,48 @@ export default function CounselorAppointments() {
           </ul>
         )}
       </SectionCard>
+
+      {completedAppointments.length > 0 && (
+        <SectionCard
+          className="mb-6"
+          title="Recently completed"
+          subtitle={`${completedAppointments.length} session${
+            completedAppointments.length === 1 ? "" : "s"
+          } — finalize the Session Report to deliver it to the referring College Representative.`}
+          noBodyPadding
+        >
+          <ul className="divide-y divide-gray-100">
+            {completedAppointments.slice(0, 10).map((a) => (
+              <li key={a.id} className="px-4 py-3 hover:bg-gray-50/70 transition">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                    {initialsOf(a.studentName)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {a.studentName}
+                      </span>
+                      <span className="text-xs text-gray-500">{a.college || "—"}</span>
+                      <StatusPill status="completed" />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
+                      {a.scheduledDate || a.preferredDate || "—"}
+                      {a.scheduledTimeSlot ? ` · ${timeLabel(a.scheduledTimeSlot)}` : ""}
+                    </p>
+                  </div>
+                  <a
+                    href={`/counselor/appointments/${a.id}/form`}
+                    className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
+                  >
+                    <FileText size={13} /> Submit Report
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      )}
 
       {/* Psychological tests */}
       <SectionCard

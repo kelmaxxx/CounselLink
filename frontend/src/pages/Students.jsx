@@ -5,14 +5,18 @@
 //   Overview        : analytics (existing)
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Search, Plus, Edit, Trash2, Users, FileText, Download, Calendar,
-  TrendingUp, Activity, AlertCircle, ClipboardList, FileSignature, BookOpen, RefreshCw
+  Search, Plus, Edit, Trash2, Users, FileText, Download, FileDown, Eye, Calendar,
+  TrendingUp, Activity, AlertCircle, RefreshCw
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCounselingSessions } from "../context/CounselingSessionsContext";
 import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
 import { Modal, BTN, INPUT, LABEL } from "../components/ui";
+import {
+  downloadReportAsDocx,
+  downloadReportAsPdf,
+} from "../utils/sessionReport";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 
@@ -28,25 +32,6 @@ const blankForm = () => ({
   nextSession: "followup",
   counselorSignature: "",
 });
-
-function downloadCSV(rows, filename = "session-records.csv") {
-  if (!rows || !rows.length) return;
-  const cols = [
-    "id", "sessionDate", "studentName", "studentNumber", "studentCollege",
-    "presentingConcern", "summary", "plan", "nextSession",
-  ];
-  const csv = [
-    cols.join(","),
-    ...rows.map(r => cols.map(c => `"${(r[c] ?? "").toString().replace(/"/g, '""')}"`).join(",")),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
 
 export default function ManageStudents() {
   const { currentUser, fetchUsersByRole } = useAuth();
@@ -66,6 +51,10 @@ export default function ManageStudents() {
 
   // Drawer state
   const [drawerStudent, setDrawerStudent] = useState(null);
+  const [viewSession, setViewSession] = useState(null);
+
+  const reportTitleFor = (s) =>
+    `Session Report — ${s.studentName} (${(s.sessionDate || "").split("T")[0]})`;
   // Per-student records cache: { [studentId]: { inventory, consent, loaded: bool } }
   const [recordsByStudent, setRecordsByStudent] = useState({});
   const [loadingRecords, setLoadingRecords] = useState(false);
@@ -465,12 +454,6 @@ export default function ManageStudents() {
                 </select>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => downloadCSV(filtered)}
-                  className="flex items-center gap-2 px-3 py-2 rounded border hover:bg-gray-50"
-                >
-                  <Download size={16} /> Export CSV
-                </button>
                 {currentUser?.role === "counselor" && (
                   <button
                     onClick={openCreate}
@@ -516,26 +499,47 @@ export default function ManageStudents() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {currentUser?.role === "counselor" && s.counselorId === currentUser.id ? (
-                          <div className="inline-flex items-center gap-1">
-                            <button
-                              onClick={() => openEdit(s)}
-                              className="p-1.5 rounded hover:bg-gray-100"
-                              title="Edit"
-                            >
-                              <Edit size={14} className="text-blue-600" />
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(s)}
-                              className="p-1.5 rounded hover:bg-gray-100"
-                              title="Delete"
-                            >
-                              <Trash2 size={14} className="text-red-600" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
-                        )}
+                        <div className="inline-flex items-center gap-1 flex-wrap justify-end">
+                          <button
+                            onClick={() => setViewSession(s)}
+                            className="p-1.5 rounded hover:bg-gray-100"
+                            title="View report"
+                          >
+                            <Eye size={14} className="text-gray-700" />
+                          </button>
+                          <button
+                            onClick={() => downloadReportAsDocx(s, { title: reportTitleFor(s) })}
+                            className="p-1.5 rounded hover:bg-gray-100"
+                            title="Download as Word (DOCX)"
+                          >
+                            <Download size={14} className="text-gray-700" />
+                          </button>
+                          <button
+                            onClick={() => downloadReportAsPdf(s, { title: reportTitleFor(s) })}
+                            className="p-1.5 rounded hover:bg-gray-100"
+                            title="Download / print as PDF"
+                          >
+                            <FileDown size={14} className="text-gray-700" />
+                          </button>
+                          {currentUser?.role === "counselor" && s.counselorId === currentUser.id && !s.finalizedAt && (
+                            <>
+                              <button
+                                onClick={() => openEdit(s)}
+                                className="p-1.5 rounded hover:bg-gray-100"
+                                title="Edit"
+                              >
+                                <Edit size={14} className="text-blue-600" />
+                              </button>
+                              <button
+                                onClick={() => setConfirmDelete(s)}
+                                className="p-1.5 rounded hover:bg-gray-100"
+                                title="Delete"
+                              >
+                                <Trash2 size={14} className="text-red-600" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -688,6 +692,62 @@ export default function ManageStudents() {
         />
       )}
 
+      {/* View individual session report */}
+      <Modal
+        open={!!viewSession}
+        onClose={() => setViewSession(null)}
+        title={viewSession ? reportTitleFor(viewSession) : "Session report"}
+        subtitle={
+          viewSession
+            ? `${viewSession.studentCollege || ""}${
+                viewSession.finalizedAt
+                  ? ` · Finalized ${new Date(viewSession.finalizedAt).toLocaleString()}`
+                  : viewSession.counselorId === currentUser?.id
+                  ? " · Draft (not finalized)"
+                  : ""
+              }`
+            : ""
+        }
+        size="lg"
+        footer={
+          viewSession && (
+            <div className="flex items-center gap-2">
+              <button
+                className={BTN.secondary}
+                onClick={() => downloadReportAsDocx(viewSession, { title: reportTitleFor(viewSession) })}
+              >
+                <Download size={14} /> DOCX
+              </button>
+              <button
+                className={BTN.secondary}
+                onClick={() => downloadReportAsPdf(viewSession, { title: reportTitleFor(viewSession) })}
+              >
+                <FileDown size={14} /> PDF
+              </button>
+              <button className={BTN.primary} onClick={() => setViewSession(null)}>
+                Close
+              </button>
+            </div>
+          )
+        }
+      >
+        {viewSession && (
+          <dl className="divide-y divide-gray-100 text-sm">
+            <ViewRow label="Student" value={viewSession.studentName} />
+            <ViewRow label="College" value={viewSession.studentCollege} />
+            <ViewRow label="Session date" value={(viewSession.sessionDate || "").split("T")[0]} />
+            <ViewRow label="Counselor" value={viewSession.counselorName} />
+            <ViewRow label="Presenting concern" value={viewSession.presentingConcern} />
+            <ViewRow label="Goals" value={viewSession.goals} />
+            <ViewRow label="Summary" value={viewSession.summary} />
+            <ViewRow label="Plan" value={viewSession.plan} />
+            <ViewRow label="Comments" value={viewSession.comments} />
+            <ViewRow label="Next session" value={NEXT_LABELS[viewSession.nextSession] || viewSession.nextSession} />
+            <ViewRow label="Signed by" value={viewSession.counselorSignature} />
+          </dl>
+        )}
+      </Modal>
+
       {/* Delete confirm */}
       <Modal
         open={Boolean(confirmDelete)}
@@ -719,6 +779,17 @@ export default function ManageStudents() {
           </p>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function ViewRow({ label, value }) {
+  return (
+    <div className="py-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <dt className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</dt>
+      <dd className="sm:col-span-2 text-sm text-gray-900 whitespace-pre-wrap">
+        {value || <span className="text-gray-400">—</span>}
+      </dd>
     </div>
   );
 }

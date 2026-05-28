@@ -55,9 +55,9 @@ export default function ReferralConfirmation() {
               <div>
                 <h2 className="text-2xl font-semibold text-gray-900">Referral Confirmed</h2>
                 <p className="text-sm text-gray-600">
-                  {referral.status === "rescheduled"
-                    ? `You have rescheduled this referral and a pending appointment was created. ${referral.referrerName} has been notified.`
-                    : `You have accepted this referral and a pending appointment was created. ${referral.referrerName} has been notified.`}
+                  You have accepted this referral and a scheduled appointment was created.
+                  {" "}
+                  {referral.referrerName} has been notified.
                 </p>
               </div>
             </div>

@@ -5,12 +5,13 @@
 //   - Consent:   e-sign status, signed-paper scan, revoke
 //   - Sessions:  counseling sessions filtered to this student
 import React, { useEffect, useMemo, useState } from "react";
-import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle } from "lucide-react";
+import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, Download, FileDown } from "lucide-react";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
 import { Modal, BTN } from "../ui";
+import { downloadReportAsDocx, downloadReportAsPdf } from "../../utils/sessionReport";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -208,6 +209,7 @@ function SessionsList({ student, sessions }) {
     () => sessions.filter((s) => s.studentId === student?.id),
     [sessions, student?.id]
   );
+  const [viewing, setViewing] = useState(null);
 
   if (!studentSessions.length) {
     return (
@@ -216,6 +218,9 @@ function SessionsList({ student, sessions }) {
       </div>
     );
   }
+
+  const titleFor = (s) =>
+    `Session Report — ${s.studentName || student?.name} (${(s.sessionDate || "").split("T")[0]})`;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -226,11 +231,12 @@ function SessionsList({ student, sessions }) {
             <th className="px-3 py-2 text-left">Concern</th>
             <th className="px-3 py-2 text-left">Summary</th>
             <th className="px-3 py-2 text-left">Next</th>
+            <th className="px-3 py-2 text-right">Report</th>
           </tr>
         </thead>
         <tbody className="divide-y">
           {studentSessions.map((s) => (
-            <tr key={s.id}>
+            <tr key={s.id} className="hover:bg-gray-50/70">
               <td className="px-3 py-2 whitespace-nowrap text-gray-700">{(s.sessionDate || "").split("T")[0]}</td>
               <td className="px-3 py-2 text-gray-700 max-w-xs truncate" title={s.presentingConcern}>{s.presentingConcern || "—"}</td>
               <td className="px-3 py-2 text-gray-700 max-w-xs truncate" title={s.summary}>{s.summary || "—"}</td>
@@ -239,10 +245,95 @@ function SessionsList({ student, sessions }) {
                   {NEXT_LABELS[s.nextSession] || s.nextSession}
                 </span>
               </td>
+              <td className="px-3 py-2 text-right">
+                <div className="inline-flex items-center gap-1">
+                  <button
+                    onClick={() => setViewing(s)}
+                    className="p-1.5 rounded hover:bg-gray-100"
+                    title="View report"
+                  >
+                    <Eye size={14} />
+                  </button>
+                  <button
+                    onClick={() => downloadReportAsDocx(s, { title: titleFor(s) })}
+                    className="p-1.5 rounded hover:bg-gray-100"
+                    title="Download as Word (DOCX)"
+                  >
+                    <Download size={14} />
+                  </button>
+                  <button
+                    onClick={() => downloadReportAsPdf(s, { title: titleFor(s) })}
+                    className="p-1.5 rounded hover:bg-gray-100"
+                    title="Download / print as PDF"
+                  >
+                    <FileDown size={14} />
+                  </button>
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <Modal
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        title={viewing ? titleFor(viewing) : "Session report"}
+        subtitle={
+          viewing?.finalizedAt
+            ? `Finalized ${new Date(viewing.finalizedAt).toLocaleString()}`
+            : "Draft session record"
+        }
+        size="lg"
+        footer={
+          viewing && (
+            <div className="flex items-center gap-2">
+              <button
+                className={BTN.secondary}
+                onClick={() => downloadReportAsDocx(viewing, { title: titleFor(viewing) })}
+              >
+                <Download size={14} /> DOCX
+              </button>
+              <button
+                className={BTN.secondary}
+                onClick={() => downloadReportAsPdf(viewing, { title: titleFor(viewing) })}
+              >
+                <FileDown size={14} /> PDF
+              </button>
+              <button className={BTN.primary} onClick={() => setViewing(null)}>
+                Close
+              </button>
+            </div>
+          )
+        }
+      >
+        {viewing && (
+          <dl className="divide-y divide-gray-100 text-sm">
+            <SessionViewRow label="Student" value={viewing.studentName || student?.name} />
+            <SessionViewRow label="College" value={viewing.studentCollege || student?.college} />
+            <SessionViewRow label="Session date" value={(viewing.sessionDate || "").split("T")[0]} />
+            <SessionViewRow label="Counselor" value={viewing.counselorName} />
+            <SessionViewRow label="Presenting concern" value={viewing.presentingConcern} />
+            <SessionViewRow label="Goals" value={viewing.goals} />
+            <SessionViewRow label="Summary" value={viewing.summary} />
+            <SessionViewRow label="Plan" value={viewing.plan} />
+            <SessionViewRow label="Comments" value={viewing.comments} />
+            <SessionViewRow label="Next session" value={NEXT_LABELS[viewing.nextSession] || viewing.nextSession} />
+            <SessionViewRow label="Signed by" value={viewing.counselorSignature} />
+          </dl>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function SessionViewRow({ label, value }) {
+  return (
+    <div className="py-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <dt className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</dt>
+      <dd className="sm:col-span-2 text-sm text-gray-900 whitespace-pre-wrap">
+        {value || <span className="text-gray-400">—</span>}
+      </dd>
     </div>
   );
 }

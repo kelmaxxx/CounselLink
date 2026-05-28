@@ -58,16 +58,16 @@ export function ReferralsProvider({ children }) {
   );
 
   const decideReferral = useCallback(
-    async (id, { status, decisionNote }) => {
+    async (id, { status, decisionNote, scheduledDate, scheduledTime }) => {
       const res = await fetch(`${API_BASE}/api/referrals/${id}/decide`, {
         method: "PUT",
         headers: headers(),
-        body: JSON.stringify({ status, decisionNote }),
+        body: JSON.stringify({ status, decisionNote, scheduledDate, scheduledTime }),
       });
       const data = await res.json();
       if (!res.ok) return { success: false, message: data.message || "Failed" };
       await fetchReferrals();
-      return { success: true };
+      return { success: true, ...data };
     },
     [headers, fetchReferrals]
   );
