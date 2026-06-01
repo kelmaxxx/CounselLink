@@ -1,7 +1,19 @@
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+import fs from "fs";
 
 dotenv.config();
+
+// Hosted MySQL (Aiven, Railway, etc.) requires TLS. Enable with DB_SSL=true.
+// If DB_CA_PATH points to the provider's CA cert, the connection is fully
+// verified; otherwise we fall back to an encrypted-but-unverified connection,
+// which is acceptable for a shared test DB. Leave DB_SSL unset for local MySQL.
+const ssl =
+  process.env.DB_SSL === "true"
+    ? process.env.DB_CA_PATH
+      ? { ca: fs.readFileSync(process.env.DB_CA_PATH), rejectUnauthorized: true }
+      : { rejectUnauthorized: false }
+    : undefined;
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -9,6 +21,7 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   port: Number(process.env.DB_PORT || 3306),
+  ...(ssl ? { ssl } : {}),
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

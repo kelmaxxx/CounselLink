@@ -35,3 +35,6 @@ counsellink-data-*.json
 
 
 backend/uploads/cor-*
+
+notes/
+ca.pem
