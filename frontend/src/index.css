@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    --color-maroon: #7a1d1d;
-    --color-maroon-light: #a52a2a;
-    --color-maroon-dark: #5a0a0a;
+    --color-maroon: #0B6623;
+    --color-maroon-light: #2e8544;
+    --color-maroon-dark: #074317;
   }
 }

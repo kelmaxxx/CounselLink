@@ -25,7 +25,7 @@ import ChatModal from "../../components/ChatModal";
 import { PageHeader, StatCard, SectionCard, EmptyState, Modal, BTN, INPUT, LABEL, initialsOf } from "../../components/ui";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-const COLLEGE_COLORS = ["#7a1d1d", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce", "#0e7490", "#9f1239"];
+const COLLEGE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce", "#0e7490", "#9f1239"];
 const STATUS_COLORS = {
   pending: "#f59e0b",
   approved: "#16a34a",
