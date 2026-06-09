@@ -25,7 +25,7 @@ import {
 } from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-const PIE_COLORS = ["#7a1d1d", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce"];
+const PIE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce"];
 
 const splitContent = (content) => {
   const [title, ...rest] = String(content || "").split("\n\n");
