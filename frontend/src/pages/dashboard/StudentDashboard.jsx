@@ -1,5 +1,5 @@
 // src/pages/dashboard/StudentDashboard.jsx
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
