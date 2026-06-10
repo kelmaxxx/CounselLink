@@ -178,7 +178,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
           <img
             src="/counselink-round.png"
             alt="CounseLink Logo"
-            className="w-7 h-7 object-contain rounded-full bg-white p-0.5 flex-shrink-0"
+            className="w-12 h-12 object-contain flex-shrink-0"
           />
           <h1 className="text-sm font-semibold tracking-tight text-white">CounseLink</h1>
         </div>
