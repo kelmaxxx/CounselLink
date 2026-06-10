@@ -1,7 +1,15 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "./AuthContext";
 
 const MessagesContext = createContext();
+
+const normalizeMessage = (msg) => ({
+  ...msg,
+  senderId: msg.sender_id || msg.senderId,
+  recipientId: msg.recipient_id || msg.recipientId,
+  timestamp: msg.created_at || msg.timestamp,
+  read: msg.status === "read" || msg.read,
+});
 
 export function MessagesProvider({ children }) {
   const { currentUser, token } = useAuth();
@@ -10,15 +18,7 @@ export function MessagesProvider({ children }) {
   const [messagesByUser, setMessagesByUser] = useState({});
   const [conversations, setConversations] = useState([]);
 
-  const normalizeMessage = (msg) => ({
-    ...msg,
-    senderId: msg.sender_id || msg.senderId,
-    recipientId: msg.recipient_id || msg.recipientId,
-    timestamp: msg.created_at || msg.timestamp,
-    read: msg.status === "read" || msg.read,
-  });
-
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!token) return [];
     const response = await fetch(`${apiBase}/api/messages/conversations`, {
       headers: {
@@ -33,9 +33,9 @@ export function MessagesProvider({ children }) {
     const normalized = Array.isArray(data) ? data.map(normalizeMessage) : [];
     setConversations(normalized);
     return normalized;
-  };
+  }, [token, apiBase]);
 
-  const fetchConversation = async (userId) => {
+  const fetchConversation = useCallback(async (userId) => {
     if (!token || !userId) return [];
     const response = await fetch(`${apiBase}/api/messages/conversations/${userId}`, {
       headers: {
@@ -50,9 +50,9 @@ export function MessagesProvider({ children }) {
     const normalized = Array.isArray(data) ? data.map(normalizeMessage) : [];
     setMessagesByUser((prev) => ({ ...prev, [userId]: normalized }));
     return normalized;
-  };
+  }, [token, apiBase]);
 
-  const sendMessage = async ({ recipientId, content }) => {
+  const sendMessage = useCallback(async ({ recipientId, content }) => {
     if (!currentUser || !recipientId || !content.trim()) {
       return { success: false, message: "Invalid message data" };
     }
@@ -91,23 +91,23 @@ export function MessagesProvider({ children }) {
     await fetchConversation(recipientId);
     await fetchConversations();
     return { success: true };
-  };
+  }, [currentUser, token, apiBase, fetchConversation, fetchConversations]);
 
-  const getConversation = (userId) => {
+  const getConversation = useCallback((userId) => {
     if (!currentUser || !userId) return [];
     return (messagesByUser[userId] || [])
       .slice()
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  };
+  }, [currentUser, messagesByUser]);
 
-  const getConversationsForCurrentUser = () => {
+  const getConversationsForCurrentUser = useCallback(() => {
     if (!currentUser) return [];
     return conversations
       .filter((m) => m.senderId === currentUser.id || m.recipientId === currentUser.id)
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  };
+  }, [currentUser, conversations]);
 
-  const markAsRead = async (userId) => {
+  const markAsRead = useCallback(async (userId) => {
     if (!currentUser || !userId) return;
     await fetch(`${apiBase}/api/messages/conversations/${userId}/read`, {
       method: "PUT",
@@ -118,19 +118,19 @@ export function MessagesProvider({ children }) {
     });
     await fetchConversation(userId);
     await fetchConversations();
-  };
+  }, [currentUser, token, apiBase, fetchConversation, fetchConversations]);
 
-  const getUnreadCount = (userId) => {
+  const getUnreadCount = useCallback((userId) => {
     if (!currentUser || !userId) return 0;
     return conversations.filter(
       (m) => m.senderId === userId && m.recipientId === currentUser.id && !m.read
     ).length;
-  };
+  }, [currentUser, conversations]);
 
-  const getTotalUnreadCount = () => {
+  const getTotalUnreadCount = useCallback(() => {
     if (!currentUser) return 0;
     return conversations.filter((m) => m.recipientId === currentUser.id && !m.read).length;
-  };
+  }, [currentUser, conversations]);
 
   useEffect(() => {
     fetchConversations().catch(() => undefined);

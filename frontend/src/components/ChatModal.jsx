@@ -15,31 +15,26 @@ export default function ChatModal({ recipientUser, onClose }) {
   const { currentUser } = useAuth();
   const { getConversation, sendMessage, markAsRead, fetchConversation } = useMessages();
   const [message, setMessage] = useState("");
-  const [conversation, setConversation] = useState([]);
   const messagesEndRef = useRef(null);
 
+  const conversation = getConversation(recipientUser?.id);
+
   useEffect(() => {
-    let mounted = true;
+    if (!recipientUser?.id) return;
     const loadConversation = async () => {
-      if (!recipientUser) return;
       try {
         await fetchConversation(recipientUser.id);
-        const conv = getConversation(recipientUser.id);
-        if (mounted) setConversation(conv);
         await markAsRead(recipientUser.id);
       } catch (error) {
         console.error(error);
       }
     };
     loadConversation();
-    return () => {
-      mounted = false;
-    };
-  }, [recipientUser, fetchConversation, getConversation, markAsRead]);
+  }, [recipientUser?.id, fetchConversation, markAsRead]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation]);
+  }, [conversation.length]);
 
   const handleSend = async () => {
     if (!message.trim() || !recipientUser) return;
@@ -48,8 +43,6 @@ export default function ChatModal({ recipientUser, onClose }) {
       content: message,
     });
     if (result.success) {
-      const conv = getConversation(recipientUser.id);
-      setConversation(conv);
       setMessage("");
     } else {
       alert(result.message || "Failed to send message");

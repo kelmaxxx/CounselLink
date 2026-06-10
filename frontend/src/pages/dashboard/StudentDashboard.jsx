@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
+import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
 import {
   PageHeader,
@@ -155,6 +156,8 @@ export default function StudentDashboard() {
   });
 
   return (
+    <>
+      <WelcomeHero userName={firstName} />
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="Overview"
@@ -492,5 +495,6 @@ export default function StudentDashboard() {
         <ChatModal recipientUser={chatRecipient} onClose={() => setChatRecipient(null)} />
       )}
     </div>
+    </>
   );
 }
