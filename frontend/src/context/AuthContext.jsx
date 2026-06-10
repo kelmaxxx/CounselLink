@@ -126,6 +126,7 @@ export function AuthProvider({ children }) {
     setUsers([]);
     localStorage.removeItem("currentUser");
     localStorage.removeItem("token");
+    sessionStorage.removeItem("welcomeShown");
   };
 
   const fetchPendingRegistrations = async () => {

@@ -12,6 +12,7 @@ import {
   ArrowRightLeft,
 } from "lucide-react";
 import { PageHeader, StatCard, SectionCard, BTN } from "../../components/ui";
+import WelcomeHero from "../../components/WelcomeHero";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -36,6 +37,8 @@ export default function RepresentativeDashboard() {
   const firstName = currentUser?.name?.split(" ")[0] || "Representative";
 
   return (
+    <>
+      <WelcomeHero userName={firstName} />
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="College Representative"
@@ -115,5 +118,6 @@ export default function RepresentativeDashboard() {
         </SectionCard>
       </div>
     </div>
+    </>
   );
 }
