@@ -126,6 +126,7 @@ export function AuthProvider({ children }) {
     setUsers([]);
     localStorage.removeItem("currentUser");
     localStorage.removeItem("token");
+    sessionStorage.removeItem("welcomeShown");
   };
 
   const fetchPendingRegistrations = async () => {
@@ -259,12 +260,20 @@ export function AuthProvider({ children }) {
     return { success: true };
   };
 
-  // Auto-fetch users for admins (full directory) and college reps
+  // Auto-fetch users for admins (full directory), counselors, and college reps
   // (students in their own college + counselors, scoped server-side).
   useEffect(() => {
     if (!token) return;
     if (currentUser?.role === "admin") {
       fetchUsers().catch((err) => console.error("Failed to load users:", err));
+    } else if (currentUser?.role === "counselor") {
+      Promise.all([
+        fetchUsersByRole("student"),
+        fetchUsersByRole("counselor"),
+        fetchUsersByRole("college_rep"),
+      ])
+        .then(([students, counselors, reps]) => setUsers([...students, ...counselors, ...reps]))
+        .catch((err) => console.error("Failed to load users:", err));
     } else if (currentUser?.role === "college_rep") {
       Promise.all([
         fetchUsersByRole("student"),

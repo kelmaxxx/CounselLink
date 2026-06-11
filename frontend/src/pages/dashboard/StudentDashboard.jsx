@@ -1,5 +1,5 @@
 // src/pages/dashboard/StudentDashboard.jsx
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
+import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
 import {
   PageHeader,
@@ -155,6 +156,8 @@ export default function StudentDashboard() {
   });
 
   return (
+    <>
+      <WelcomeHero userName={firstName} />
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="Overview"
@@ -492,5 +495,6 @@ export default function StudentDashboard() {
         <ChatModal recipientUser={chatRecipient} onClose={() => setChatRecipient(null)} />
       )}
     </div>
+    </>
   );
 }

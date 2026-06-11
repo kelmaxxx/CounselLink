@@ -1,6 +1,6 @@
 // src/components/Header.jsx
 import React from "react";
-import { Bell, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useLocation, Link, matchPath } from "react-router-dom";
 import { useNotifications } from "../context/NotificationsContext";
 import Avatar from "./Avatar";
@@ -72,12 +72,6 @@ export default function Header({ currentUser }) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Search shell (visual only for now) */}
-          <div className="hidden md:flex items-center gap-2 px-2.5 h-8 rounded-md border border-gray-200 bg-gray-50 text-gray-400 text-xs w-64">
-            <Search className="w-3.5 h-3.5" />
-            <span>Search…</span>
-            <span className="ml-auto text-[10px] text-gray-400 border border-gray-200 rounded px-1 py-px bg-white">⌘K</span>
-          </div>
 
           <Link
             to={notifPath}
