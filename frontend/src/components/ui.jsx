@@ -1,19 +1,14 @@
 // src/components/ui.jsx
-// Shared primitives for the dense / professional design system.
+// Shared primitives for the minimalist / professional design system.
 import React from "react";
 import { Inbox, X } from "lucide-react";
 
 export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }) {
   return (
-    <div className={`flex flex-wrap items-end justify-between gap-3 mb-6 ${className}`}>
+    <div className={`flex flex-wrap items-end justify-between gap-3 mb-8 ${className}`}>
       <div className="min-w-0">
-        {eyebrow && (
-          <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-0.5">
-            {eyebrow}
-          </p>
-        )}
-        <h2 className="text-xl font-semibold text-gray-900 tracking-tight">{title}</h2>
-        {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+        <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">{title}</h2>
+        {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
     </div>
@@ -22,66 +17,64 @@ export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }
 
 export function StatCard({ label, value, hint, icon: Icon, accent = "bg-gray-400" }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-gray-300 transition">
-      <div className="flex items-center justify-between mb-1.5">
+    <div className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-gray-950/5 transition hover:shadow-md">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className={`w-1.5 h-1.5 rounded-full ${accent}`} />
-          <span className="text-[11px] font-medium uppercase tracking-wider text-gray-500">
-            {label}
-          </span>
+          <span className="text-xs font-medium text-gray-500">{label}</span>
         </div>
-        {Icon && <Icon size={14} className="text-gray-400" />}
+        {Icon && <Icon size={16} className="text-gray-400" />}
       </div>
-      <div className="text-2xl font-semibold text-gray-900 tabular-nums leading-tight">
+      <div className="text-3xl font-semibold text-gray-900 tabular-nums leading-tight">
         {value}
       </div>
-      {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-gray-500 mt-1.5">{hint}</p>}
     </div>
   );
 }
 
 export function SectionCard({ title, subtitle, action, children, className = "", bodyClassName = "", noBodyPadding = false }) {
   return (
-    <section className={`bg-white border border-gray-200 rounded-lg ${className}`}>
+    <section className={`bg-white rounded-2xl shadow-sm ring-1 ring-gray-950/5 ${className}`}>
       {(title || action) && (
-        <header className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+        <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
           <div className="min-w-0">
-            {title && <h3 className="text-sm font-semibold text-gray-900">{title}</h3>}
+            {title && <h3 className="text-base font-semibold text-gray-900">{title}</h3>}
             {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
           </div>
           {action && <div className="flex-shrink-0">{action}</div>}
         </header>
       )}
-      <div className={noBodyPadding ? bodyClassName : `px-4 py-3 ${bodyClassName}`}>{children}</div>
+      <div className={noBodyPadding ? bodyClassName : `px-5 py-4 ${bodyClassName}`}>{children}</div>
     </section>
   );
 }
 
 export function EmptyState({ icon: Icon = Inbox, title, hint, action, className = "" }) {
   return (
-    <div className={`px-4 py-10 text-center ${className}`}>
-      <div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-400 mb-2">
-        <Icon size={16} />
+    <div className={`px-4 py-14 text-center ${className}`}>
+      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 text-gray-400 mb-3">
+        <Icon size={20} />
       </div>
-      <p className="text-sm font-medium text-gray-700">{title}</p>
-      {hint && <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">{hint}</p>}
-      {action && <div className="mt-3">{action}</div>}
+      <p className="text-base font-medium text-gray-700">{title}</p>
+      {hint && <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">{hint}</p>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
 const STATUS_PALETTE = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  accepted: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  rescheduled: "bg-sky-50 text-sky-700 border-sky-200",
-  rejected: "bg-red-50 text-red-700 border-red-200",
-  cancelled: "bg-gray-100 text-gray-600 border-gray-200",
-  canceled: "bg-gray-100 text-gray-600 border-gray-200",
-  completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  active: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  inactive: "bg-gray-100 text-gray-600 border-gray-200",
-  confirmed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  pending: "bg-amber-50 text-amber-700",
+  approved: "bg-emerald-50 text-emerald-700",
+  accepted: "bg-emerald-50 text-emerald-700",
+  rescheduled: "bg-sky-50 text-sky-700",
+  rejected: "bg-red-50 text-red-700",
+  cancelled: "bg-gray-100 text-gray-600",
+  canceled: "bg-gray-100 text-gray-600",
+  completed: "bg-emerald-50 text-emerald-700",
+  active: "bg-emerald-50 text-emerald-700",
+  inactive: "bg-gray-100 text-gray-600",
+  confirmed: "bg-emerald-50 text-emerald-700",
 };
 
 // User-facing label overrides for stored enum values. The DB still stores
@@ -93,7 +86,7 @@ const STATUS_LABEL_OVERRIDES = {
 
 export function StatusPill({ status, children, className = "" }) {
   const key = (status || "").toLowerCase();
-  const palette = STATUS_PALETTE[key] || "bg-gray-100 text-gray-700 border-gray-200";
+  const palette = STATUS_PALETTE[key] || "bg-gray-100 text-gray-700";
   const overridden = STATUS_LABEL_OVERRIDES[key];
   const label =
     children ??
@@ -101,7 +94,7 @@ export function StatusPill({ status, children, className = "" }) {
     (status ? status.charAt(0).toUpperCase() + status.slice(1) : "—");
   return (
     <span
-      className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${palette} ${className}`}
+      className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${palette} ${className}`}
     >
       {label}
     </span>
@@ -131,19 +124,19 @@ export function Modal({
   const alignClass = align === "top" ? "items-start" : "items-center";
   return (
     <div
-      className={`fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center p-4 z-50 overflow-y-auto ${alignClass}`}
+      className={`fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center p-4 z-50 overflow-y-auto ${alignClass}`}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-lg border border-gray-200 shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-8`}
+        className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-8`}
       >
-        <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
+        <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className={`text-base font-semibold ${danger ? "text-red-700" : "text-gray-900"}`}>
+            <h3 className={`text-lg font-semibold ${danger ? "text-red-700" : "text-gray-900"}`}>
               {title}
             </h3>
-            {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+            {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
           </div>
           {onClose && (
             <button
@@ -156,9 +149,9 @@ export function Modal({
             </button>
           )}
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="px-6 py-5">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/60 rounded-b-lg">
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
             {footer}
           </div>
         )}
@@ -170,21 +163,21 @@ export function Modal({
 // Common button class strings for consistency
 export const BTN = {
   primary:
-    "inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed",
   secondary:
-    "inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-100 transition disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed",
   danger:
-    "inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed",
   success:
-    "inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed",
   ghost:
-    "inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition",
+    "inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors",
 };
 
 export const INPUT =
-  "w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500 disabled:bg-gray-100 disabled:cursor-not-allowed";
+  "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-maroon-500/25 focus:border-maroon-500 disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-400";
 
-export const LABEL = "block text-xs font-medium text-gray-700 mb-1";
+export const LABEL = "block text-sm font-medium text-gray-700 mb-1.5";
 
 export function initialsOf(name = "") {
   return name

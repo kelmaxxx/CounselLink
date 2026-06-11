@@ -313,7 +313,7 @@ function AnnouncementsPanel({ token }) {
                         <p className="text-sm font-semibold text-gray-900 truncate">
                           {title || "(untitled)"}
                         </p>
-                        <p className="text-[11px] text-gray-500 tabular-nums">
+                        <p className="text-xs text-gray-500 tabular-nums">
                           {item.adminName ? `by ${item.adminName} · ` : ""}
                           {item.date_posted ? new Date(item.date_posted).toLocaleString() : ""}
                         </p>

@@ -220,7 +220,7 @@ export default function StudentProfile() {
           title="Academic information"
           subtitle="Verified by the admin office"
           action={
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
               <Lock size={10} /> Read-only
             </span>
           }
@@ -309,7 +309,7 @@ function Field({ icon: Icon, label, children }) {
 function Readout({ icon: Icon, label, value }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wider text-gray-500 font-medium inline-flex items-center gap-1.5">
+      <dt className="text-xs uppercase tracking-wider text-gray-500 font-medium inline-flex items-center gap-1.5">
         {Icon && <Icon size={11} className="text-gray-400" />}
         {label}
       </dt>

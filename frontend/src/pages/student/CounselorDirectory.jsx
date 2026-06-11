@@ -95,7 +95,7 @@ export default function CounselorDirectory() {
           {filtered.map((c) => (
             <div
               key={c.id}
-              className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition flex flex-col"
+              className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4 hover:border-gray-300 transition flex flex-col"
             >
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-11 h-11 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
@@ -105,7 +105,7 @@ export default function CounselorDirectory() {
                   <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
                   <p className="text-xs text-gray-500 truncate">{c.department || "Counseling"}</p>
                   {c.specialization && (
-                    <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
                       {c.specialization}
                     </p>
                   )}

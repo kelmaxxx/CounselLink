@@ -80,7 +80,7 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
         <div className="flex items-center justify-between mb-3">
           <h4 className="font-semibold text-gray-900">Current consent status</h4>
           <ConsentStatusBadge consent={consent} />
@@ -111,7 +111,7 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
         )}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
         <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <FileSignature size={18} className="text-maroon-600" /> Signed paper consent
         </h4>
@@ -145,7 +145,7 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
       </div>
 
       {!readOnly && consent?.eConsentSignedAt && !consent.revokedAt && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
           <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
             <ShieldOff size={18} className="text-red-600" /> Revoke consent
           </h4>
@@ -213,7 +213,7 @@ function SessionsList({ student, sessions }) {
 
   if (!studentSessions.length) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-sm text-gray-500">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-6 text-center text-sm text-gray-500">
         No counseling sessions recorded for this student yet.
       </div>
     );
@@ -223,7 +223,7 @@ function SessionsList({ student, sessions }) {
     `Session Report — ${s.studentName || student?.name} (${(s.sessionDate || "").split("T")[0]})`;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-xs text-gray-700">
           <tr>

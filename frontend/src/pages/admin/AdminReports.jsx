@@ -534,13 +534,13 @@ export default function AdminReports() {
             <table className="w-full text-sm border border-gray-200 rounded-md overflow-hidden">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                     Student
                   </th>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                     Date
                   </th>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
                     Status
                   </th>
                 </tr>

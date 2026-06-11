@@ -234,7 +234,7 @@ export default function ManageUsers() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
                   <th className="px-4 py-2.5">Name</th>
                   <th className="px-4 py-2.5">Role</th>
                   <th className="px-4 py-2.5">ID / Email</th>
@@ -249,7 +249,7 @@ export default function ManageUsers() {
                   <tr key={u.id} className="hover:bg-gray-50/70 transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-[11px] font-semibold flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
                           {initialsOf(u.name)}
                         </div>
                         <span className="font-medium text-gray-900 text-sm">{u.name}</span>
@@ -257,7 +257,7 @@ export default function ManageUsers() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                        className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${
                           ROLE_PILL[u.role] || "bg-gray-100 text-gray-700 border-gray-200"
                         }`}
                       >

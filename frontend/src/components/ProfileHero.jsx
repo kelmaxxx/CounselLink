@@ -63,7 +63,7 @@ export default function ProfileHero({
   const RoleIcon = t.icon;
 
   return (
-    <div className="relative bg-white border border-gray-200 rounded-lg overflow-hidden mb-6 shadow-sm">
+    <div className="relative bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden mb-6 shadow-sm">
       <div className={`relative h-28 bg-gradient-to-br ${t.banner} overflow-hidden`}>
         <div
           className="absolute inset-0 opacity-[0.12] pointer-events-none"
@@ -72,7 +72,7 @@ export default function ProfileHero({
               "radial-gradient(circle at 15% 20%, white 0, transparent 35%), radial-gradient(circle at 85% 75%, white 0, transparent 35%)",
           }}
         />
-        <div className="absolute top-3 right-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 border border-white/25 text-[11px] font-medium text-white backdrop-blur-sm">
+        <div className="absolute top-3 right-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 border border-white/25 text-xs font-medium text-white backdrop-blur-sm">
           <RoleIcon size={13} />
           {t.label}
         </div>
@@ -123,7 +123,7 @@ export default function ProfileHero({
                 {chips.map((c) => (
                   <span
                     key={c.label}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-medium ${t.badgeBg}`}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${t.badgeBg}`}
                   >
                     {c.icon ? <c.icon size={11} /> : null}
                     {c.label}
