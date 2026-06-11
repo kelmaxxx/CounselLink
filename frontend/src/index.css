@@ -8,6 +8,15 @@
     --color-maroon-light: #2e8544;
     --color-maroon-dark: #074317;
   }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply text-gray-800;
+  }
 }
 
 /* Forest Green highlight for native select dropdowns */

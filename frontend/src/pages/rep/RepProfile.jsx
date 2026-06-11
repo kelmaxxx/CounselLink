@@ -298,7 +298,7 @@ function Field({ icon: Icon, label, children }) {
 function Readout({ icon: Icon, label, value }) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wider text-gray-500 font-medium inline-flex items-center gap-1.5">
+      <dt className="text-xs uppercase tracking-wider text-gray-500 font-medium inline-flex items-center gap-1.5">
         {Icon && <Icon size={11} className="text-gray-400" />}
         {label}
       </dt>

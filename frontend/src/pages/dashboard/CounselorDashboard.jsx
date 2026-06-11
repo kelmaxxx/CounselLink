@@ -301,24 +301,21 @@ export default function CounselorDashboard() {
       <WelcomeHero userName={firstName} />
     <div className="px-6 py-6 max-w-7xl mx-auto">
       {/* Page header */}
-      <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-8">
         <div>
-          <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-0.5">
-            Overview
-          </p>
-          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">
+          <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
             Good morning, {firstName}
           </h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-sm text-gray-500 mt-1">
             {dateLabel} · {pendingQueue.length} pending request{pendingQueue.length === 1 ? "" : "s"}
           </p>
         </div>
         <Link
           to="/counselor/appointments"
-          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition"
+          className="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition-colors"
         >
           View all appointments
-          <ArrowRight size={14} />
+          <ArrowRight size={16} />
         </Link>
       </div>
 
@@ -378,7 +375,7 @@ export default function CounselorDashboard() {
         ) : (
           <div className="divide-y divide-gray-100">
             {/* Column header */}
-            <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60">
+            <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60">
               <div className="col-span-4">Student</div>
               <div className="col-span-2">Type</div>
               <div className="col-span-3">Preferred</div>
@@ -395,7 +392,7 @@ export default function CounselorDashboard() {
                   <div className="md:col-span-4 flex items-center gap-3 min-w-0">
                     <button
                       onClick={() => openProfile(row.studentId, row.studentName)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0 transition ${
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 transition ${
                         isTest
                           ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
                           : "bg-maroon-100 text-maroon-700 hover:bg-maroon-200"
@@ -418,7 +415,7 @@ export default function CounselorDashboard() {
                   {/* Type */}
                   <div className="md:col-span-2">
                     <span
-                      className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${
                         isTest
                           ? "bg-blue-50 text-blue-700 border-blue-200"
                           : "bg-maroon-50 text-maroon-700 border-maroon-200"
@@ -427,7 +424,7 @@ export default function CounselorDashboard() {
                       {isTest ? <ClipboardList size={11} /> : <Calendar size={11} />}
                       {isTest ? "Test" : "Appointment"}
                     </span>
-                    <p className="text-[11px] text-gray-500 mt-1 truncate">{row.detail}</p>
+                    <p className="text-xs text-gray-500 mt-1 truncate">{row.detail}</p>
                   </div>
 
                   {/* Preferred */}
@@ -604,7 +601,7 @@ export default function CounselorDashboard() {
                 className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50/60 transition"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-semibold flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-semibold flex-shrink-0">
                     {initialsOf(a.studentName)}
                   </div>
                   <div className="min-w-0">
@@ -615,7 +612,7 @@ export default function CounselorDashboard() {
                     </p>
                   </div>
                 </div>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 flex-shrink-0">
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 flex-shrink-0">
                   Rejected
                 </span>
               </li>

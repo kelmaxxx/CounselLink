@@ -90,7 +90,7 @@ export default function Messages() {
         />
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow overflow-hidden">
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <MessageCircle className="mx-auto mb-3 text-gray-300" size={48} />

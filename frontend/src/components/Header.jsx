@@ -66,19 +66,19 @@ export default function Header({ currentUser }) {
 
   return (
     <header className="bg-white border-b border-gray-200">
-      <div className="flex items-center justify-between px-6 h-14">
+      <div className="flex items-center justify-between px-8 h-16">
         <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-sm font-semibold text-gray-900 tracking-tight truncate">{title}</h1>
+          <h1 className="text-sm font-medium text-gray-500 truncate">{title}</h1>
         </div>
 
         <div className="flex items-center gap-2">
 
           <Link
             to={notifPath}
-            className="relative flex items-center justify-center w-8 h-8 rounded-md hover:bg-gray-100 text-gray-600 transition"
+            className="relative flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 text-gray-600 transition"
             aria-label="Notifications"
           >
-            <Bell className="w-4 h-4" />
+            <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-semibold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center leading-none">
                 {unreadCount > 99 ? "99+" : unreadCount}
@@ -94,10 +94,10 @@ export default function Header({ currentUser }) {
               theme={ROLE_THEME[currentUser?.role] || "default"}
             />
             <div className="hidden sm:block min-w-0">
-              <div className="text-xs font-medium text-gray-900 truncate max-w-[140px]">
+              <div className="text-sm font-medium text-gray-900 truncate max-w-[160px]">
                 {currentUser?.name}
               </div>
-              <div className="text-[10px] text-gray-500 capitalize truncate">
+              <div className="text-xs text-gray-500 capitalize truncate">
                 {currentUser?.role?.replace("_", " ")}
               </div>
             </div>

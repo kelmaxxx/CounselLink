@@ -257,7 +257,7 @@ export default function ManageStudents() {
               </button>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-xl shadow overflow-x-auto">
+            <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow overflow-x-auto">
               <table className="min-w-full divide-y">
                 <thead className="bg-gray-50">
                   <tr className="text-left text-xs text-gray-700">
@@ -375,28 +375,28 @@ export default function ManageStudents() {
         {activeTab === "overview" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <FileText className="text-blue-600" size={24} />
                 </div>
                 <p className="text-3xl font-bold text-gray-900">{analytics.total}</p>
                 <p className="text-sm text-gray-600">Total session records</p>
               </div>
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <Users className="text-green-600" size={24} />
                 </div>
                 <p className="text-3xl font-bold text-gray-900">{analytics.distinctStudents}</p>
                 <p className="text-sm text-gray-600">Distinct students</p>
               </div>
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <Calendar className="text-purple-600" size={24} />
                 </div>
                 <p className="text-3xl font-bold text-gray-900">{analytics.last30}</p>
                 <p className="text-sm text-gray-600">Sessions in last 30 days</p>
               </div>
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <Activity className="text-orange-600" size={24} />
                 </div>
@@ -405,7 +405,7 @@ export default function ManageStudents() {
               </div>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Sessions by College</h3>
               {Object.keys(analytics.byCollege).length === 0 ? (
                 <p className="text-sm text-gray-500">No session data yet.</p>
@@ -465,7 +465,7 @@ export default function ManageStudents() {
               </div>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-xl shadow overflow-x-auto">
+            <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow overflow-x-auto">
               <table className="min-w-full divide-y">
                 <thead className="bg-gray-50">
                   <tr className="text-left text-xs text-gray-700">

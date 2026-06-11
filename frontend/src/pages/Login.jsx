@@ -1,5 +1,5 @@
 // src/pages/Login.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { COLLEGES } from "../data/mockData";
 import { useNavigate } from "react-router-dom";
@@ -7,8 +7,6 @@ import {
   Upload,
   FileText,
   CheckCircle2,
-  ShieldCheck,
-  Users,
   Eye,
   EyeOff,
   Mail,
@@ -16,7 +14,6 @@ import {
   Hash,
   Phone,
   ArrowLeft,
-  ChevronDown,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL } from "../components/ui";
 
@@ -25,9 +22,13 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const ROLE_OPTIONS = [
   { value: "student", label: "Student" },
   { value: "counselor", label: "Counselor" },
-  { value: "college_rep", label: "College Representative" },
-  { value: "admin", label: "Administrator" },
+  { value: "college_rep", label: "Rep" },
+  { value: "admin", label: "Admin" },
 ];
+
+// Mirrors the backend password policy (backend/utils/password.js)
+const isStrongPassword = (pw) =>
+  typeof pw === "string" && pw.length >= 8 && /[a-zA-Z]/.test(pw) && /\d/.test(pw);
 
 const emptyLoginErrors = { identifier: "", password: "", form: "" };
 const emptySignupErrors = {
@@ -129,8 +130,8 @@ export default function Login() {
     if (!signupForm.email.trim()) nextErrors.email = "Email is required.";
     if (!signupForm.studentId.trim()) nextErrors.studentId = "Student ID is required.";
     if (!signupForm.password) nextErrors.password = "Password is required.";
-    if (signupForm.password && signupForm.password.length < 6) {
-      nextErrors.password = "Password must be at least 6 characters.";
+    if (signupForm.password && !isStrongPassword(signupForm.password)) {
+      nextErrors.password = "Use at least 8 characters with a letter and a number.";
     }
     if (!signupForm.confirmPassword) nextErrors.confirmPassword = "Confirm your password.";
     if (
@@ -205,16 +206,15 @@ export default function Login() {
   if (showSignupSuccess) {
     return (
       <AuthShell>
-        <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-full max-w-md p-8 text-center">
+        <div className="bg-white rounded-2xl shadow-xl ring-1 ring-gray-950/5 w-full max-w-sm p-8 text-center">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mb-4">
             <CheckCircle2 size={26} />
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-1.5 tracking-tight">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-1.5 tracking-tight">
             Registration submitted
           </h1>
           <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-            Your registration is now pending approval. We&apos;ll email you once an administrator
-            approves your account.
+            We&apos;ll email you once an administrator approves your account.
           </p>
           <button
             type="button"
@@ -234,17 +234,12 @@ export default function Login() {
   if (isSignup) {
     return (
       <AuthShell>
-        <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
-          <div className="border-b border-green-100 pb-2 flex flex-col items-center" style={{ background: 'linear-gradient(to bottom, #d4edda 0%, #f0faf2 60%, #ffffff 100%)' }}>
-            <div className="w-4/5 pt-3 pb-1 flex justify-center">
-              <img src="/logo.png" alt="CounselLink Logo" className="w-full h-auto" />
-            </div>
-            <h1 className="text-lg font-semibold text-gray-900 tracking-tight text-center mt-1 mb-1">
-              Create your account
-            </h1>
-          </div>
+        <div className="bg-white rounded-2xl shadow-xl ring-1 ring-gray-950/5 w-full max-w-md p-8">
+          <h1 className="text-2xl font-semibold text-gray-900 tracking-tight mb-6">
+            Create your account
+          </h1>
 
-          <form onSubmit={handleSignupSubmit} className="px-6 py-5 space-y-3">
+          <form onSubmit={handleSignupSubmit} className="space-y-4">
             <FieldRow label="Full name *" error={signupErrors.name}>
               <input
                 name="name"
@@ -316,17 +311,12 @@ export default function Login() {
               </select>
             </FieldRow>
 
-            <div className="rounded-md border border-dashed border-gray-300 bg-gray-50/60 p-3">
-              <div className="flex items-start gap-2 mb-2">
-                <FileText size={14} className="text-maroon-600 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-gray-800">
-                    Certificate of Registration (COR) *
-                  </p>
-                  <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
-                    Upload a clear photo/scan. Reviewed by admin · JPG, PNG, PDF · max 5 MB.
-                  </p>
-                </div>
+            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
+              <div className="flex items-baseline justify-between gap-2 mb-2">
+                <p className="text-sm font-medium text-gray-800">
+                  Certificate of Registration *
+                </p>
+                <p className="text-xs text-gray-400">JPG, PNG or PDF · max 5 MB</p>
               </div>
 
               <input
@@ -394,7 +384,7 @@ export default function Login() {
                     value={signupForm.password}
                     onChange={handleSignupChange}
                     className={`${INPUT} pl-9 pr-9`}
-                    placeholder="At least 6 characters"
+                    placeholder="At least 8 characters"
                     required
                   />
                 </InputWithIcon>
@@ -424,15 +414,11 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setIsSignup(false)}
-                className="text-xs text-maroon-700 hover:text-maroon-800 font-medium inline-flex items-center gap-1"
+                className="text-sm text-maroon-700 hover:text-maroon-800 font-medium inline-flex items-center gap-1"
               >
-                <ArrowLeft size={12} /> Back to login
+                <ArrowLeft size={14} /> Back to login
               </button>
-              <button
-                type="submit"
-                disabled={signupLoading}
-                className={`${BTN.primary} px-6 h-10`}
-              >
+              <button type="submit" disabled={signupLoading} className={BTN.primary}>
                 {signupLoading ? "Creating account…" : "Create account"}
               </button>
             </div>
@@ -444,26 +430,19 @@ export default function Login() {
 
   return (
     <AuthShell>
-      <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
-        <div className="border-b border-green-100 pb-2 flex flex-col items-center" style={{ background: 'linear-gradient(to bottom, #d4edda 0%, #f0faf2 60%, #ffffff 100%)' }}>
-          <div className="w-4/5 pt-3 pb-1 flex justify-center">
-            <img src="/logo.png" alt="CounselLink Logo" className="w-full h-auto" />
-          </div>
-          <h1 className="text-lg font-semibold text-gray-900 tracking-tight text-center mt-1 mb-1">
-            Sign in to your account
-          </h1>
-        </div>
+      <div className="bg-white rounded-2xl shadow-xl ring-1 ring-gray-950/5 w-full max-w-sm p-8">
+        <h1 className="text-2xl font-semibold text-gray-900 tracking-tight mb-6">
+          CounselLink
+        </h1>
 
-        <form onSubmit={handleLoginSubmit} className="px-6 py-5 space-y-3.5">
-          <FieldRow label="I am signing in as">
-            <RoleSelector
-              value={selectedRole}
-              onChange={(value) => {
-                setSelectedRole(value);
-                resetLoginErrors();
-              }}
-            />
-          </FieldRow>
+        <form onSubmit={handleLoginSubmit} className="space-y-4">
+          <RoleSelector
+            value={selectedRole}
+            onChange={(value) => {
+              setSelectedRole(value);
+              resetLoginErrors();
+            }}
+          />
 
           <FieldRow label={identifierLabel} error={loginErrors.identifier}>
             <InputWithIcon icon={selectedRole === "student" ? Hash : Mail}>
@@ -515,8 +494,8 @@ export default function Login() {
           )}
 
           {(selectedRole === "counselor" || selectedRole === "college_rep") && (
-            <p className="text-[11px] text-gray-500 -mt-1 leading-relaxed text-center">
-              Accounts are created by the admin. Contact the DSA office if you need access.
+            <p className="text-xs text-gray-500 -mt-1 text-center">
+              Accounts are created by the DSA admin.
             </p>
           )}
 
@@ -527,7 +506,7 @@ export default function Login() {
                 resetLoginErrors();
                 setForgotOpen(true);
               }}
-              className="text-xs text-maroon-700 hover:text-maroon-800 font-medium"
+              className="text-sm text-maroon-700 hover:text-maroon-800 font-medium"
             >
               Forgot password?
             </button>
@@ -538,7 +517,7 @@ export default function Login() {
                   setIsSignup(true);
                   resetSignupErrors();
                 }}
-                className="text-xs text-gray-600 hover:text-gray-900 font-medium"
+                className="text-sm text-gray-600 hover:text-gray-900 font-medium"
               >
                 Create an account
               </button>
@@ -548,17 +527,11 @@ export default function Login() {
           <button
             type="submit"
             disabled={loginLoading}
-            className={`${BTN.primary} w-full h-10`}
+            className={`${BTN.primary} w-full`}
           >
             {loginLoading ? "Signing in…" : "Sign in"}
           </button>
         </form>
-
-        <div className="px-6 py-3 border-t border-gray-100 bg-gray-50/60 rounded-b-lg">
-          <p className="text-[11px] text-gray-500 text-center">
-            By signing in you agree to MSU-Marawi DSA acceptable-use policy.
-          </p>
-        </div>
       </div>
 
       {forgotOpen && (
@@ -570,30 +543,16 @@ export default function Login() {
 
 function AuthShell({ children }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 relative overflow-hidden bg-gradient-to-br from-maroon-700 via-maroon-800 to-maroon-900">
-      <div
-        className="absolute inset-0 opacity-[0.07] pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 20% 20%, white 0, transparent 40%), radial-gradient(circle at 80% 70%, white 0, transparent 40%)",
-        }}
-      />
-      <div className="relative w-full max-w-md">
-        <div className="text-center mb-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-medium tracking-wide text-white mb-2">
-            <ShieldCheck size={14} /> MSU-Marawi · DSA
-          </div>
-          <div className="flex items-center justify-center gap-0 mb-2">
-            <img src="/msu-logo.png" alt="MSU Logo" className="h-16 w-16 object-contain" />
-            <img src="/counselink-round.png" alt="CounselLink Logo" className="h-28 w-28 object-contain" />
-            <img src="/dsa-logo.png" alt="DSA Logo" className="h-16 w-16 object-contain" />
-          </div>
-          <p className="mt-1 text-sm text-white/75 leading-relaxed">
-            Student counseling and well-being platform
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-maroon-600 via-maroon-700 to-maroon-800 flex items-center justify-center p-6">
+      <div className="w-full max-w-md flex flex-col items-center">
+        <img
+          src="/counselink-round.png"
+          alt="CounselLink"
+          className="h-24 w-24 object-contain mb-3"
+        />
+        <p className="text-sm text-white/80 mb-6">Student counseling at MSU-Marawi</p>
         {children}
-        <p className="mt-5 text-center text-[11px] text-white/60">
+        <p className="mt-6 text-center text-xs text-white/60">
           © {new Date().getFullYear()} MSU-Marawi · Division of Student Affairs
         </p>
       </div>
@@ -602,53 +561,24 @@ function AuthShell({ children }) {
 }
 
 function RoleSelector({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const [hovered, setHovered] = useState(null);
-  const ref = useRef(null);
-  const selected = ROLE_OPTIONS.find((o) => o.value === value);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`${INPUT} pl-9 pr-9 text-left flex items-center w-full cursor-pointer`}
-      >
-        <Users size={14} className="absolute left-3 text-gray-400" />
-        <span className="flex-1 truncate">{selected?.label}</span>
-        <ChevronDown
-          size={14}
-          className={`absolute right-3 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      {open && (
-        <ul className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden">
-          {ROLE_OPTIONS.map((opt) => (
-            <li
-              key={opt.value}
-              onMouseEnter={() => setHovered(opt.value)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
-              className="px-4 py-2 text-sm cursor-pointer transition-colors"
-              style={{
-                backgroundColor: hovered === opt.value ? '#0B6623' : opt.value === value ? '#e8f5e9' : 'white',
-                color: hovered === opt.value ? '#ffffff' : '#111827',
-              }}
-            >
-              {opt.label}
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-xl" role="tablist">
+      {ROLE_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          role="tab"
+          aria-selected={opt.value === value}
+          onClick={() => onChange(opt.value)}
+          className={`py-2 rounded-lg text-xs font-medium transition-colors ${
+            opt.value === value
+              ? "bg-white shadow-sm text-gray-900"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -658,10 +588,10 @@ function FieldRow({ label, hint, error, children }) {
     <div>
       <div className="flex items-baseline justify-between">
         <label className={LABEL}>{label}</label>
-        {hint && <span className="text-[10px] text-gray-400">{hint}</span>}
+        {hint && <span className="text-xs text-gray-400">{hint}</span>}
       </div>
       {children}
-      {error && <p className="text-[11px] text-red-600 mt-1">{error}</p>}
+      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
     </div>
   );
 }
@@ -780,8 +710,8 @@ function ForgotPasswordModal({ onClose }) {
     e.preventDefault();
     setError("");
     setMessage("");
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (!isStrongPassword(password)) {
+      setError("Use at least 8 characters with a letter and a number.");
       return;
     }
     if (password !== confirm) {
@@ -899,9 +829,6 @@ function ForgotPasswordModal({ onClose }) {
             </InputWithIcon>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <p className="text-[11px] text-gray-500">
-            For security, we won't say whether the email exists. If it's registered, you'll receive a code.
-          </p>
         </form>
       )}
 
@@ -914,7 +841,7 @@ function ForgotPasswordModal({ onClose }) {
           )}
           <OtpInput value={otp} onChange={setOtp} />
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <p className="text-[11px] text-gray-500">
+          <p className="text-xs text-gray-500">
             Didn't receive it?{" "}
             <button
               type="button"
@@ -941,7 +868,7 @@ function ForgotPasswordModal({ onClose }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={`${INPUT} pl-9`}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 required
                 autoFocus
               />
@@ -1011,7 +938,7 @@ function OtpInput({ value, onChange }) {
           value={digits[idx].trim()}
           onChange={(e) => handleChange(idx, e.target.value)}
           onKeyDown={(e) => handleKeyDown(idx, e)}
-          className="w-10 h-12 text-center text-lg font-semibold tabular-nums border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500"
+          className="w-10 h-12 text-center text-lg font-semibold tabular-nums border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-maroon-500/25 focus:border-maroon-500"
           aria-label={`Digit ${idx + 1}`}
         />
       ))}

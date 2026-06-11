@@ -77,7 +77,7 @@ export default function CounselorPublicProfile() {
           />
 
           {/* Hero card */}
-          <div className="bg-white border border-gray-200 rounded-lg p-5 mb-4">
+          <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 mb-4">
             <div className="flex items-start gap-4">
               <div className="w-16 h-16 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-lg font-semibold flex-shrink-0">
                 {initialsOf(user.name) || <User size={24} />}

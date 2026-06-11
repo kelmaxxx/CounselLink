@@ -186,7 +186,7 @@ export default function CounselorAppointments() {
                         <span className="text-xs text-gray-500">{a.college || "—"}</span>
                         <StatusPill status={a.status} />
                         {a.controlNo && (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 font-medium">
+                          <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
                             <Hash size={10} />
                             {a.controlNo}
                           </span>
@@ -338,12 +338,12 @@ export default function CounselorAppointments() {
                         </button>
                         <span className="text-xs text-gray-500">{t.college || "—"}</span>
                         <StatusPill status={t.status} />
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
                           <ClipboardList size={11} />
                           {t.testType || "Psychological test"}
                         </span>
                         {t.controlNo && (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 font-medium">
+                          <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
                             <Hash size={10} />
                             {t.controlNo}
                           </span>

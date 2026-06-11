@@ -122,7 +122,7 @@ export default function ChatModal({ recipientUser, onClose }) {
                       </p>
                     </div>
                     <p
-                      className={`text-[11px] text-gray-500 mt-1 tabular-nums ${
+                      className={`text-xs text-gray-500 mt-1 tabular-nums ${
                         isMe ? "text-right" : "text-left"
                       }`}
                     >
@@ -149,13 +149,13 @@ export default function ChatModal({ recipientUser, onClose }) {
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Type your message…"
-              className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500 resize-none"
+              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-maroon-500/25 focus:border-maroon-500 resize-none"
               rows={2}
             />
             <button
               onClick={handleSend}
               disabled={!message.trim()}
-              className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
+              className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
             >
               <Send size={15} /> Send
             </button>

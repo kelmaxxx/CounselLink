@@ -242,7 +242,7 @@ export default function PendingRegistrations() {
           {pendingUsers.map((user) => (
             <div
               key={user.id}
-              className="bg-white border border-gray-200 rounded-lg overflow-hidden"
+              className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden"
             >
               <div className="p-4">
                 <div className="flex items-start justify-between gap-4">
@@ -285,7 +285,7 @@ export default function PendingRegistrations() {
 
                   {/* COR Preview */}
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                    <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                    <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
                       Certificate of Registration
                     </p>
                     {buildCorUrl(user) ? (
@@ -310,7 +310,7 @@ export default function PendingRegistrations() {
                             setSelectedUser(user);
                             setShowCorModal(true);
                           }}
-                          className="text-[11px] text-maroon-600 hover:text-maroon-700 font-medium inline-flex items-center gap-1"
+                          className="text-xs text-maroon-600 hover:text-maroon-700 font-medium inline-flex items-center gap-1"
                         >
                           <Eye size={11} /> View full
                         </button>
@@ -532,7 +532,7 @@ export default function PendingRegistrations() {
                       <strong>MSU Division of Student Affairs</strong>
                     </p>
                   </div>
-                  <div className="bg-gray-50 p-3 text-center text-[11px] text-gray-600 border-t border-gray-200">
+                  <div className="bg-gray-50 p-3 text-center text-xs text-gray-600 border-t border-gray-200">
                     <p>© 2024 Mindanao State University — Division of Student Affairs</p>
                     <p>This is an automated message. Please do not reply.</p>
                   </div>
@@ -571,7 +571,7 @@ export default function PendingRegistrations() {
                       <strong>MSU Division of Student Affairs</strong>
                     </p>
                   </div>
-                  <div className="bg-gray-50 p-3 text-center text-[11px] text-gray-600 border-t border-gray-200">
+                  <div className="bg-gray-50 p-3 text-center text-xs text-gray-600 border-t border-gray-200">
                     <p>© 2024 Mindanao State University — Division of Student Affairs</p>
                     <p>This is an automated message. Please do not reply.</p>
                   </div>
