@@ -12,6 +12,7 @@ import {
   Mail,
   Lock,
   Hash,
+  UserRound,
   Phone,
   ArrowLeft,
 } from "lucide-react";
@@ -445,7 +446,7 @@ export default function Login() {
           />
 
           <FieldRow label={identifierLabel} error={loginErrors.identifier}>
-            <InputWithIcon icon={selectedRole === "student" ? Hash : Mail}>
+            <InputWithIcon icon={selectedRole === "student" ? UserRound : Mail}>
               <input
                 name="identifier"
                 value={loginForm.identifier}

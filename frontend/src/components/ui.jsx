@@ -187,3 +187,38 @@ export function initialsOf(name = "") {
     .join("")
     .toUpperCase();
 }
+
+// ── Date formatting ──────────────────────────────────────────────────
+// Backend DATE columns come back as full ISO strings (e.g.
+// "2026-06-30T00:00:00.000Z"). Rendering those raw looks awful, so these
+// helpers turn them into clean, human labels: "Jun 30, 2026".
+//
+// For plain date-only values we build the Date from the y/m/d parts so the
+// label never shifts a day due to UTC↔local timezone conversion.
+export function formatDate(value, fallback = "—") {
+  if (!value) return fallback;
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const d = m
+    ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    : new Date(s);
+  if (Number.isNaN(d.getTime())) return fallback;
+  return d.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export function formatDateTime(value, fallback = "—") {
+  if (!value) return fallback;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return fallback;
+  return d.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}

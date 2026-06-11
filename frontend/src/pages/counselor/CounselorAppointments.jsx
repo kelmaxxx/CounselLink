@@ -31,6 +31,7 @@ import {
   INPUT,
   LABEL,
   initialsOf,
+  formatDate,
 } from "../../components/ui";
 
 const TIME_LABEL = {
@@ -336,7 +337,7 @@ export default function CounselorAppointments() {
             {upcomingAppointments.map((a) => {
               const studentId = a.student_id || a.studentUserId;
               const original = a.preferredDate
-                ? `${a.preferredDate} · ${timeLabel(
+                ? `${formatDate(a.preferredDate)} · ${timeLabel(
                     a.timeSlot ||
                       (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : "")
                   )}`
@@ -379,7 +380,7 @@ export default function CounselorAppointments() {
                           <div className="flex items-baseline gap-1.5">
                             <dt className="text-gray-500">Scheduled</dt>
                             <dd className="text-gray-900 font-medium tabular-nums">
-                              {a.scheduledDate} · {timeLabel(a.scheduledTimeSlot)}
+                              {formatDate(a.scheduledDate)} · {timeLabel(a.scheduledTimeSlot)}
                             </dd>
                           </div>
                         )}
@@ -454,7 +455,7 @@ export default function CounselorAppointments() {
                       <StatusPill status="completed" />
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
-                      {a.scheduledDate || a.preferredDate || "—"}
+                      {formatDate(a.scheduledDate || a.preferredDate)}
                       {a.scheduledTimeSlot ? ` · ${timeLabel(a.scheduledTimeSlot)}` : ""}
                     </p>
                   </div>
@@ -488,7 +489,7 @@ export default function CounselorAppointments() {
             {upcomingTests.map((t) => {
               const studentId = t.student_id || t.studentUserId;
               const original = t.preferredDate
-                ? `${t.preferredDate} · ${
+                ? `${formatDate(t.preferredDate)} · ${
                     Array.isArray(t.preferredSlots)
                       ? t.preferredSlots.map((s) => timeLabel(s)).join(", ")
                       : "—"
@@ -536,7 +537,7 @@ export default function CounselorAppointments() {
                           <div className="flex items-baseline gap-1.5">
                             <dt className="text-gray-500">Scheduled</dt>
                             <dd className="text-gray-900 font-medium tabular-nums">
-                              {t.scheduledDate} · {timeLabel(t.scheduledTimeSlot)}
+                              {formatDate(t.scheduledDate)} · {timeLabel(t.scheduledTimeSlot)}
                             </dd>
                           </div>
                         )}

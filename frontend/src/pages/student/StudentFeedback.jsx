@@ -11,6 +11,7 @@ import {
   INPUT,
   LABEL,
   initialsOf,
+  formatDate,
 } from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -76,7 +77,7 @@ export default function StudentFeedback() {
                       {a.counselorName || "Counselor"}
                     </p>
                     <p className="text-xs text-gray-500 tabular-nums mt-0.5">
-                      Session on {a.scheduledDate || a.preferredDate || "—"}
+                      Session on {formatDate(a.scheduledDate || a.preferredDate)}
                       {a.scheduledTimeSlot ? ` at ${a.scheduledTimeSlot}` : ""}
                     </p>
                     {a.reason && (

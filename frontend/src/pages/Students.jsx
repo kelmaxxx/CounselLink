@@ -6,19 +6,30 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Search, Plus, Edit, Trash2, Users, FileText, Download, FileDown, Eye, Calendar,
-  TrendingUp, Activity, AlertCircle, RefreshCw
+  TrendingUp, Activity, AlertCircle, RefreshCw, UserRound, ClipboardList, Target,
+  ListChecks, ArrowLeft, ArrowRight, CheckCircle2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCounselingSessions } from "../context/CounselingSessionsContext";
 import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
-import { Modal, BTN, INPUT, LABEL } from "../components/ui";
+import { Modal, BTN, INPUT, LABEL, formatDate } from "../components/ui";
 import {
   downloadReportAsDocx,
   downloadReportAsPdf,
 } from "../utils/sessionReport";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
+
+// Step-by-step flow for the Add / Edit session record modal so the form is
+// broken into digestible parts instead of one long scroll.
+const RECORD_STEPS = [
+  { id: "who", title: "Student & date" },
+  { id: "reason", title: "Presenting concern" },
+  { id: "discussion", title: "Goals & summary" },
+  { id: "plan", title: "Plan & comments" },
+  { id: "closing", title: "Next session & signature" },
+];
 
 const blankForm = () => ({
   studentId: "",
@@ -44,6 +55,7 @@ export default function ManageStudents() {
   const [studentSearch, setStudentSearch] = useState("");
   const [studentFilter, setStudentFilter] = useState("all");
   const [editing, setEditing] = useState(null); // null | {} | session row
+  const [recordStep, setRecordStep] = useState(0);
   const [form, setForm] = useState(blankForm());
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -138,6 +150,7 @@ export default function ManageStudents() {
 
   const openCreate = () => {
     setForm(blankForm());
+    setRecordStep(0);
     setEditing({});
   };
 
@@ -154,11 +167,13 @@ export default function ManageStudents() {
       nextSession: session.nextSession || "followup",
       counselorSignature: session.counselorSignature || "",
     });
+    setRecordStep(0);
     setEditing(session);
   };
 
   const closeModal = () => {
     setEditing(null);
+    setRecordStep(0);
     setForm(blankForm());
   };
 
@@ -167,9 +182,34 @@ export default function ManageStudents() {
     setTimeout(() => setFeedback(null), ms);
   };
 
+  const recordStepValid = (i = recordStep) => {
+    if (RECORD_STEPS[i].id === "who") return Boolean(form.studentId) && Boolean(form.sessionDate);
+    return true;
+  };
+
+  const isLastRecordStep = recordStep === RECORD_STEPS.length - 1;
+
+  const goRecordBack = () => setRecordStep((s) => Math.max(0, s - 1));
+  const goRecordNext = () => {
+    if (!recordStepValid()) {
+      if (RECORD_STEPS[recordStep].id === "who") {
+        showFeedback("error", "Student and session date are required");
+      }
+      return;
+    }
+    setRecordStep((s) => Math.min(s + 1, RECORD_STEPS.length - 1));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Enter key inside an input can fire submit early — only commit on the
+    // final step; otherwise advance the wizard.
+    if (!isLastRecordStep) {
+      goRecordNext();
+      return;
+    }
     if (!form.studentId || !form.sessionDate) {
+      setRecordStep(0);
       showFeedback("error", "Student and session date are required");
       return;
     }
@@ -341,6 +381,7 @@ export default function ManageStudents() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setForm({ ...blankForm(), studentId: String(s.id), sessionDate: new Date().toISOString().split("T")[0] });
+                                  setRecordStep(0);
                                   setEditing({});
                                   setActiveTab("records");
                                 }}
@@ -486,7 +527,7 @@ export default function ManageStudents() {
                     </tr>
                   ) : filtered.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{(s.sessionDate || "").split("T")[0]}</td>
+                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatDate(s.sessionDate)}</td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{s.studentName}</div>
                         <div className="text-xs text-gray-500">{s.studentNumber || "—"} • {s.studentCollege || "N/A"}</div>
@@ -555,130 +596,194 @@ export default function ManageStudents() {
         open={editing !== null}
         onClose={closeModal}
         title={editing?.id ? "Edit session record" : "Add session record"}
-        subtitle="Counseling session details"
+        subtitle={`Step ${recordStep + 1} of ${RECORD_STEPS.length} · ${RECORD_STEPS[recordStep].title}`}
         size="2xl"
         align="top"
         footer={
           <>
-            <button type="button" onClick={closeModal} className={BTN.secondary}>
-              Cancel
-            </button>
             <button
-              type="submit"
-              form="session-record-form"
-              disabled={busy}
-              className={BTN.primary}
+              type="button"
+              onClick={recordStep === 0 ? closeModal : goRecordBack}
+              className={BTN.secondary}
             >
-              {busy ? "Saving…" : editing?.id ? "Save changes" : "Add record"}
+              {recordStep === 0 ? "Cancel" : (<><ArrowLeft size={14} /> Back</>)}
             </button>
+            {isLastRecordStep ? (
+              <button
+                type="submit"
+                form="session-record-form"
+                disabled={busy}
+                className={BTN.primary}
+              >
+                {busy ? "Saving…" : editing?.id ? "Save changes" : "Add record"}
+              </button>
+            ) : (
+              <button type="button" onClick={goRecordNext} className={BTN.primary}>
+                Continue <ArrowRight size={14} />
+              </button>
+            )}
           </>
         }
       >
         {editing !== null && (
-          <form id="session-record-form" onSubmit={handleSubmit} className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL}>Student *</label>
-                <select
-                  required
+          <form id="session-record-form" onSubmit={handleSubmit} className="space-y-4">
+            {/* Step indicator */}
+            <RecordStepper steps={RECORD_STEPS} current={recordStep} onJump={setRecordStep} />
+
+            {RECORD_STEPS[recordStep].id === "who" && (
+              <RecordStepShell
+                icon={UserRound}
+                title="Student & date"
+                subtitle="Who is this counseling record for, and when did the session happen?"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className={LABEL}>Student *</label>
+                    <select
+                      required
+                      className={INPUT}
+                      value={form.studentId}
+                      onChange={(e) => setForm({ ...form, studentId: e.target.value })}
+                      disabled={!!editing.id}
+                    >
+                      <option value="">Select a student…</option>
+                      {students.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.studentId || s.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Session date *</label>
+                    <input
+                      type="date"
+                      required
+                      className={INPUT}
+                      value={form.sessionDate}
+                      onChange={(e) => setForm({ ...form, sessionDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </RecordStepShell>
+            )}
+
+            {RECORD_STEPS[recordStep].id === "reason" && (
+              <RecordStepShell
+                icon={ClipboardList}
+                title="Presenting concern"
+                subtitle="What brought the student to counseling?"
+              >
+                <textarea
+                  rows={6}
                   className={INPUT}
-                  value={form.studentId}
-                  onChange={(e) => setForm({ ...form, studentId: e.target.value })}
-                  disabled={!!editing.id}
-                >
-                  <option value="">Select a student…</option>
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.studentId || s.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={LABEL}>Session date *</label>
-                <input
-                  type="date"
-                  required
-                  className={INPUT}
-                  value={form.sessionDate}
-                  onChange={(e) => setForm({ ...form, sessionDate: e.target.value })}
+                  value={form.presentingConcern}
+                  onChange={(e) => setForm({ ...form, presentingConcern: e.target.value })}
+                  placeholder="Describe the reason for the session…"
                 />
-              </div>
-            </div>
+              </RecordStepShell>
+            )}
 
-            <div>
-              <label className={LABEL}>Presenting concern</label>
-              <textarea
-                rows={2}
-                className={`${INPUT} resize-none`}
-                value={form.presentingConcern}
-                onChange={(e) => setForm({ ...form, presentingConcern: e.target.value })}
-                placeholder="What brought the student to counseling?"
-              />
-            </div>
+            {RECORD_STEPS[recordStep].id === "discussion" && (
+              <RecordStepShell
+                icon={Target}
+                title="Goals & summary"
+                subtitle="The goals set and the key points discussed."
+              >
+                <div className="space-y-4">
+                  <div>
+                    <label className={LABEL}>Goals</label>
+                    <textarea
+                      rows={3}
+                      className={INPUT}
+                      value={form.goals}
+                      onChange={(e) => setForm({ ...form, goals: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Summary / key points of discussion</label>
+                    <textarea
+                      rows={5}
+                      className={INPUT}
+                      value={form.summary}
+                      onChange={(e) => setForm({ ...form, summary: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </RecordStepShell>
+            )}
 
-            <div>
-              <label className={LABEL}>Goals</label>
-              <textarea
-                rows={2}
-                className={`${INPUT} resize-none`}
-                value={form.goals}
-                onChange={(e) => setForm({ ...form, goals: e.target.value })}
-              />
-            </div>
+            {RECORD_STEPS[recordStep].id === "plan" && (
+              <RecordStepShell
+                icon={ListChecks}
+                title="Plan & comments"
+                subtitle="The plan of action and any counselor notes."
+              >
+                <div className="space-y-4">
+                  <div>
+                    <label className={LABEL}>Plan of action</label>
+                    <textarea
+                      rows={3}
+                      className={INPUT}
+                      value={form.plan}
+                      onChange={(e) => setForm({ ...form, plan: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Counselor&apos;s comments</label>
+                    <textarea
+                      rows={3}
+                      className={INPUT}
+                      value={form.comments}
+                      onChange={(e) => setForm({ ...form, comments: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </RecordStepShell>
+            )}
 
-            <div>
-              <label className={LABEL}>Summary / key points of discussion</label>
-              <textarea
-                rows={3}
-                className={`${INPUT} resize-none`}
-                value={form.summary}
-                onChange={(e) => setForm({ ...form, summary: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className={LABEL}>Plan of action</label>
-              <textarea
-                rows={2}
-                className={`${INPUT} resize-none`}
-                value={form.plan}
-                onChange={(e) => setForm({ ...form, plan: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className={LABEL}>Counselor&apos;s comments</label>
-              <textarea
-                rows={2}
-                className={`${INPUT} resize-none`}
-                value={form.comments}
-                onChange={(e) => setForm({ ...form, comments: e.target.value })}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL}>Next session</label>
-                <select
-                  className={INPUT}
-                  value={form.nextSession}
-                  onChange={(e) => setForm({ ...form, nextSession: e.target.value })}
-                >
-                  <option value="followup">Follow-up</option>
-                  <option value="termination">Termination</option>
-                </select>
-              </div>
-              <div>
-                <label className={LABEL}>Counselor signature</label>
-                <input
-                  className={INPUT}
-                  value={form.counselorSignature}
-                  onChange={(e) => setForm({ ...form, counselorSignature: e.target.value })}
-                  placeholder="Type counselor name"
-                />
-              </div>
-            </div>
+            {RECORD_STEPS[recordStep].id === "closing" && (
+              <RecordStepShell
+                icon={CheckCircle2}
+                title="Next session & signature"
+                subtitle="Wrap up the record and sign off."
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className={LABEL}>Next session</label>
+                    <select
+                      className={INPUT}
+                      value={form.nextSession}
+                      onChange={(e) => setForm({ ...form, nextSession: e.target.value })}
+                    >
+                      <option value="followup">Follow-up</option>
+                      <option value="termination">Termination</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Counselor signature</label>
+                    <input
+                      className={INPUT}
+                      value={form.counselorSignature}
+                      onChange={(e) => setForm({ ...form, counselorSignature: e.target.value })}
+                      placeholder="Type counselor name"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 rounded-xl bg-gray-50 border border-gray-100 p-4 text-sm space-y-1.5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Summary</p>
+                  <RecordSummaryLine
+                    label="Student"
+                    value={students.find((s) => String(s.id) === String(form.studentId))?.name}
+                  />
+                  <RecordSummaryLine label="Session date" value={formatDate(form.sessionDate)} />
+                  <RecordSummaryLine
+                    label="Next session"
+                    value={NEXT_LABELS[form.nextSession] || form.nextSession}
+                  />
+                </div>
+              </RecordStepShell>
+            )}
           </form>
         )}
       </Modal>
@@ -735,7 +840,7 @@ export default function ManageStudents() {
           <dl className="divide-y divide-gray-100 text-sm">
             <ViewRow label="Student" value={viewSession.studentName} />
             <ViewRow label="College" value={viewSession.studentCollege} />
-            <ViewRow label="Session date" value={(viewSession.sessionDate || "").split("T")[0]} />
+            <ViewRow label="Session date" value={formatDate(viewSession.sessionDate)} />
             <ViewRow label="Counselor" value={viewSession.counselorName} />
             <ViewRow label="Presenting concern" value={viewSession.presentingConcern} />
             <ViewRow label="Goals" value={viewSession.goals} />
@@ -790,6 +895,68 @@ function ViewRow({ label, value }) {
       <dd className="sm:col-span-2 text-sm text-gray-900 whitespace-pre-wrap">
         {value || <span className="text-gray-400">—</span>}
       </dd>
+    </div>
+  );
+}
+
+// Compact numbered stepper shown atop the Add / Edit session record modal.
+function RecordStepper({ steps, current, onJump }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {steps.map((s, i) => {
+        const state = i === current ? "current" : i < current ? "done" : "todo";
+        return (
+          <React.Fragment key={s.id}>
+            <button
+              type="button"
+              onClick={() => i <= current && onJump(i)}
+              disabled={i > current}
+              className={[
+                "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold transition flex-shrink-0",
+                state === "current"
+                  ? "bg-maroon-600 text-white"
+                  : state === "done"
+                  ? "bg-maroon-100 text-maroon-700 hover:bg-maroon-200"
+                  : "bg-gray-100 text-gray-400",
+              ].join(" ")}
+              title={s.title}
+            >
+              {i + 1}
+            </button>
+            {i < steps.length - 1 && (
+              <span className={`h-0.5 flex-1 rounded-full ${i < current ? "bg-maroon-200" : "bg-gray-100"}`} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function RecordStepShell({ icon: Icon, title, subtitle, children }) {
+  return (
+    <div>
+      <div className="flex items-start gap-3 mb-4">
+        {Icon && (
+          <span className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-maroon-50 text-maroon-600">
+            <Icon size={17} />
+          </span>
+        )}
+        <div className="min-w-0">
+          <h4 className="text-base font-semibold text-gray-900">{title}</h4>
+          {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function RecordSummaryLine({ label, value }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-gray-500">{label}</span>
+      <span className="text-gray-900 font-medium text-right">{value || "—"}</span>
     </div>
   );
 }

@@ -23,7 +23,7 @@ import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
-import { PageHeader, StatCard, SectionCard, EmptyState, Modal, BTN, INPUT, LABEL, initialsOf } from "../../components/ui";
+import { PageHeader, StatCard, SectionCard, EmptyState, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const COLLEGE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce", "#0e7490", "#9f1239"];
@@ -429,7 +429,7 @@ export default function CounselorDashboard() {
 
                   {/* Preferred */}
                   <div className="md:col-span-3 text-xs text-gray-700 tabular-nums">
-                    <div className="font-medium text-gray-900">{row.date || "—"}</div>
+                    <div className="font-medium text-gray-900">{formatDate(row.date)}</div>
                     <div className="text-gray-500">{timeLabel(row.slot)}</div>
                   </div>
 
@@ -607,7 +607,7 @@ export default function CounselorDashboard() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{a.studentName}</p>
                     <p className="text-xs text-gray-500 truncate">
-                      {a.preferredDate || a.scheduledDate || "—"}
+                      {formatDate(a.preferredDate || a.scheduledDate)}
                       {a.counselor_action_note ? ` · ${a.counselor_action_note}` : ""}
                     </p>
                   </div>
