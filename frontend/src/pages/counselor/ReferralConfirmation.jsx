@@ -39,7 +39,7 @@ export default function ReferralConfirmation() {
         <ArrowLeft size={16} /> Back to Referrals
       </Link>
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow p-6">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow p-6">
         {loading ? (
           <p className="text-sm text-gray-500">Loading...</p>
         ) : error ? (

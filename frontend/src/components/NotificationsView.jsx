@@ -151,7 +151,7 @@ export default function NotificationsView({ eyebrow = "Account" }) {
                               {notif.title}
                             </p>
                             {!notif.read && (
-                              <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-maroon-600 text-white tracking-wide">
+                              <span className="inline-flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-full bg-maroon-600 text-white tracking-wide">
                                 NEW
                               </span>
                             )}
@@ -160,14 +160,14 @@ export default function NotificationsView({ eyebrow = "Account" }) {
                             {notif.message}
                           </p>
                           <div className="flex items-center gap-3 mt-1.5">
-                            <span className="text-[11px] text-gray-500 tabular-nums">
+                            <span className="text-xs text-gray-500 tabular-nums">
                               {formatRelative(notif.createdAt)}
                             </span>
                             {notif.link && (
                               <Link
                                 to={notif.link}
                                 onClick={(e) => e.stopPropagation()}
-                                className="text-[11px] font-medium text-maroon-600 hover:underline"
+                                className="text-xs font-medium text-maroon-600 hover:underline"
                               >
                                 View details →
                               </Link>

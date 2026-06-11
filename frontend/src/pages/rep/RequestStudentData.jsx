@@ -234,7 +234,7 @@ export default function RequestStudentData() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
                   <th className="px-4 py-2.5">Student</th>
                   <th className="px-4 py-2.5">Counselor</th>
                   <th className="px-4 py-2.5">Reason</th>

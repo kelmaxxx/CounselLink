@@ -32,7 +32,7 @@ function StatusBadge({ status }) {
 
 function StatCard({ icon: Icon, label, count, color }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow p-6 flex items-center gap-4">
+    <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow p-6 flex items-center gap-4">
       <div className={`p-3 rounded-lg ${color}`}>
         <Icon className="w-6 h-6 text-white" />
       </div>
@@ -108,7 +108,7 @@ export default function Appointments() {
       </div>
 
       {/* Appointments Section */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow p-6 mb-8">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold text-gray-900">Appointments</h2>
           {currentUser?.role === "student" && (
@@ -171,7 +171,7 @@ export default function Appointments() {
       </div>
 
       {/* Psychology Tests Section */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow p-6">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold text-gray-900">Psychology Test Requests</h2>
           {currentUser?.role === "student" && (

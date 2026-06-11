@@ -216,7 +216,7 @@ export default function AuditLogs() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/40 border-b border-gray-100">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/40 border-b border-gray-100">
                   <th className="px-4 py-2.5">When</th>
                   <th className="px-4 py-2.5">Actor</th>
                   <th className="px-4 py-2.5">Action</th>
@@ -241,7 +241,7 @@ export default function AuditLogs() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                        <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
                           {ACTION_LABELS[log.action] || log.action}
                         </span>
                       </td>
@@ -267,7 +267,7 @@ export default function AuditLogs() {
                     {expandedId === log.id && log.details && (
                       <tr className="bg-gray-50/60">
                         <td colSpan={6} className="px-4 py-3">
-                          <pre className="text-[11px] text-gray-700 whitespace-pre-wrap break-all font-mono">
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all font-mono">
                             {JSON.stringify(log.details, null, 2)}
                           </pre>
                         </td>

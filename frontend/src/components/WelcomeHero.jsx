@@ -85,7 +85,7 @@ export default function WelcomeHero({ userName }) {
         className="absolute bottom-8 z-10 flex flex-col items-center gap-1 text-white/60 hover:text-white transition cursor-pointer group"
         aria-label="Dismiss welcome screen"
       >
-        <span className="text-[11px] font-medium tracking-wider uppercase">
+        <span className="text-xs font-medium tracking-wider uppercase">
           Enter dashboard
         </span>
         <ChevronDown

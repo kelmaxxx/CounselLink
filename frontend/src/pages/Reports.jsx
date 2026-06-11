@@ -5,7 +5,7 @@ import { BarChart2, Users, Calendar, FileText, TrendingUp, Download } from "luci
 
 function StatCard({ icon: Icon, label, count, color }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow p-6 flex items-center gap-4">
+    <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow p-6 flex items-center gap-4">
       <div className={`p-3 rounded-lg ${color}`}>
         <Icon className="w-6 h-6 text-white" />
       </div>
@@ -156,7 +156,7 @@ export default function Reports() {
 
       {/* College Distribution (for non-students) */}
       {currentUser?.role !== "student" && reportData?.collegeDistribution && Object.keys(reportData.collegeDistribution).length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl shadow p-6 mb-8">
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow p-6 mb-8">
           <div className="flex items-center gap-2 mb-6">
             <Users className="w-5 h-5 text-maroon-500" />
             <h2 className="text-2xl font-semibold text-gray-900">Student Distribution by College</h2>
@@ -176,7 +176,7 @@ export default function Reports() {
 
       {/* Recent Activity */}
       {(reportData?.recentActivity || []).length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl shadow p-6">
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow p-6">
           <div className="flex items-center gap-2 mb-6">
             <Calendar className="w-5 h-5 text-maroon-500" />
             <h2 className="text-2xl font-semibold text-gray-900">Recent Activity</h2>
@@ -200,7 +200,7 @@ export default function Reports() {
 
       {/* Empty State */}
       {(reportData?.recentActivity || []).length === 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl shadow p-12 text-center">
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow p-12 text-center">
           <BarChart2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-600 text-lg mb-2">No data available</p>
           <p className="text-gray-500 text-sm">Reports and analytics will appear here once you have appointments and tests.</p>
