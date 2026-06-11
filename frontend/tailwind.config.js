@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      spacing: {
+        '25': '6.25rem', // 100px
+      },
       colors: {
         maroon: {
           50: '#f0f7f1',

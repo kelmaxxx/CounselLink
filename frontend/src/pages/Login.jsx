@@ -1,5 +1,5 @@
 // src/pages/Login.jsx
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { COLLEGES } from "../data/mockData";
 import { useNavigate } from "react-router-dom";
@@ -234,22 +234,14 @@ export default function Login() {
   if (isSignup) {
     return (
       <AuthShell>
-        <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-full max-w-md">
-          <div className="px-6 py-5 border-b border-gray-100">
-            <button
-              type="button"
-              onClick={() => setIsSignup(false)}
-              className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 mb-2"
-            >
-              <ArrowLeft size={12} /> Back to login
-            </button>
-            <p className="text-[11px] uppercase tracking-wider text-maroon-700 font-medium mb-0.5">
-              Student registration
-            </p>
-            <h1 className="text-lg font-semibold text-gray-900 tracking-tight">Create your account</h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              MSU-Marawi · Division of Student Affairs
-            </p>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+          <div className="border-b border-green-100 pb-2 flex flex-col items-center" style={{ background: 'linear-gradient(to bottom, #d4edda 0%, #f0faf2 60%, #ffffff 100%)' }}>
+            <div className="w-4/5 pt-3 pb-1 flex justify-center">
+              <img src="/logo.png" alt="CounselLink Logo" className="w-full h-auto" />
+            </div>
+            <h1 className="text-lg font-semibold text-gray-900 tracking-tight text-center mt-1 mb-1">
+              Create your account
+            </h1>
           </div>
 
           <form onSubmit={handleSignupSubmit} className="px-6 py-5 space-y-3">
@@ -428,13 +420,22 @@ export default function Login() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={signupLoading}
-              className={`${BTN.primary} w-full h-10`}
-            >
-              {signupLoading ? "Creating account…" : "Create account"}
-            </button>
+            <div className="flex items-center justify-between gap-4 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsSignup(false)}
+                className="text-xs text-maroon-700 hover:text-maroon-800 font-medium inline-flex items-center gap-1"
+              >
+                <ArrowLeft size={12} /> Back to login
+              </button>
+              <button
+                type="submit"
+                disabled={signupLoading}
+                className={`${BTN.primary} px-6 h-10`}
+              >
+                {signupLoading ? "Creating account…" : "Create account"}
+              </button>
+            </div>
           </form>
         </div>
       </AuthShell>
@@ -443,15 +444,14 @@ export default function Login() {
 
   return (
     <AuthShell>
-      <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-full max-w-md">
-        <div className="px-6 py-5 border-b border-gray-100">
-          <p className="text-[11px] uppercase tracking-wider text-maroon-700 font-medium mb-0.5">
-            CounseLink
-          </p>
-          <h1 className="text-lg font-semibold text-gray-900 tracking-tight">Sign in to your account</h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            MSU-Marawi · Division of Student Affairs
-          </p>
+      <div className="bg-white border border-gray-200 rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+        <div className="border-b border-green-100 pb-2 flex flex-col items-center" style={{ background: 'linear-gradient(to bottom, #d4edda 0%, #f0faf2 60%, #ffffff 100%)' }}>
+          <div className="w-4/5 pt-3 pb-1 flex justify-center">
+            <img src="/logo.png" alt="CounselLink Logo" className="w-full h-auto" />
+          </div>
+          <h1 className="text-lg font-semibold text-gray-900 tracking-tight text-center mt-1 mb-1">
+            Sign in to your account
+          </h1>
         </div>
 
         <form onSubmit={handleLoginSubmit} className="px-6 py-5 space-y-3.5">
@@ -514,9 +514,9 @@ export default function Login() {
             </div>
           )}
 
-          {selectedRole !== "student" && (
-            <p className="text-[11px] text-gray-500 -mt-1 leading-relaxed">
-              Staff accounts are created by the admin. Contact the DSA office if you need access.
+          {(selectedRole === "counselor" || selectedRole === "college_rep") && (
+            <p className="text-[11px] text-gray-500 -mt-1 leading-relaxed text-center">
+              Accounts are created by the admin. Contact the DSA office if you need access.
             </p>
           )}
 
@@ -579,13 +579,15 @@ function AuthShell({ children }) {
         }}
       />
       <div className="relative w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-medium tracking-wide text-white">
+        <div className="text-center mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-medium tracking-wide text-white mb-2">
             <ShieldCheck size={14} /> MSU-Marawi · DSA
           </div>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white">
-            CounseLink
-          </h2>
+          <div className="flex items-center justify-center gap-0 mb-2">
+            <img src="/msu-logo.png" alt="MSU Logo" className="h-16 w-16 object-contain" />
+            <img src="/counselink-round.png" alt="CounselLink Logo" className="h-28 w-28 object-contain" />
+            <img src="/dsa-logo.png" alt="DSA Logo" className="h-16 w-16 object-contain" />
+          </div>
           <p className="mt-1 text-sm text-white/75 leading-relaxed">
             Student counseling and well-being platform
           </p>
@@ -600,27 +602,53 @@ function AuthShell({ children }) {
 }
 
 function RoleSelector({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState(null);
+  const ref = useRef(null);
+  const selected = ROLE_OPTIONS.find((o) => o.value === value);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   return (
-    <div className="relative">
-      <Users
-        size={14}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-      />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`${INPUT} pl-9 pr-9 appearance-none bg-white cursor-pointer`}
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`${INPUT} pl-9 pr-9 text-left flex items-center w-full cursor-pointer`}
       >
-        {ROLE_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={14}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-      />
+        <Users size={14} className="absolute left-3 text-gray-400" />
+        <span className="flex-1 truncate">{selected?.label}</span>
+        <ChevronDown
+          size={14}
+          className={`absolute right-3 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <ul className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden">
+          {ROLE_OPTIONS.map((opt) => (
+            <li
+              key={opt.value}
+              onMouseEnter={() => setHovered(opt.value)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className="px-4 py-2 text-sm cursor-pointer transition-colors"
+              style={{
+                backgroundColor: hovered === opt.value ? '#0B6623' : opt.value === value ? '#e8f5e9' : 'white',
+                color: hovered === opt.value ? '#ffffff' : '#111827',
+              }}
+            >
+              {opt.label}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

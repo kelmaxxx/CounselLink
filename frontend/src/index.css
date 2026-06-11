@@ -9,3 +9,14 @@
     --color-maroon-dark: #074317;
   }
 }
+
+/* Forest Green highlight for native select dropdowns */
+select option:checked,
+select option:hover {
+  background-color: #0B6623 !important;
+  color: #ffffff !important;
+}
+
+select {
+  accent-color: #0B6623;
+}
