@@ -23,6 +23,7 @@ import {
   BTN,
   INPUT,
   LABEL,
+  formatDate,
 } from "../../components/ui";
 
 const STATUS_LABELS = [
@@ -453,7 +454,7 @@ export default function AdminReports() {
                           {apt.studentName || "Student"}
                         </p>
                         <p className="text-xs text-gray-500 tabular-nums">
-                          {apt.preferredDate || apt.scheduledDate || "No date"}
+                          {formatDate(apt.preferredDate || apt.scheduledDate, "No date")}
                         </p>
                       </div>
                       <StatusPill status={apt.status} />
@@ -550,7 +551,7 @@ export default function AdminReports() {
                   <tr key={apt.id}>
                     <td className="px-3 py-2">{apt.studentName || "Student"}</td>
                     <td className="px-3 py-2 tabular-nums">
-                      {apt.preferredDate || apt.scheduledDate || "—"}
+                      {formatDate(apt.preferredDate || apt.scheduledDate)}
                     </td>
                     <td className="px-3 py-2 capitalize">{apt.status}</td>
                   </tr>

@@ -10,7 +10,7 @@ import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
-import { Modal, BTN } from "../ui";
+import { Modal, BTN, formatDate } from "../ui";
 import { downloadReportAsDocx, downloadReportAsPdf } from "../../utils/sessionReport";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
@@ -237,7 +237,7 @@ function SessionsList({ student, sessions }) {
         <tbody className="divide-y">
           {studentSessions.map((s) => (
             <tr key={s.id} className="hover:bg-gray-50/70">
-              <td className="px-3 py-2 whitespace-nowrap text-gray-700">{(s.sessionDate || "").split("T")[0]}</td>
+              <td className="px-3 py-2 whitespace-nowrap text-gray-700">{formatDate(s.sessionDate)}</td>
               <td className="px-3 py-2 text-gray-700 max-w-xs truncate" title={s.presentingConcern}>{s.presentingConcern || "—"}</td>
               <td className="px-3 py-2 text-gray-700 max-w-xs truncate" title={s.summary}>{s.summary || "—"}</td>
               <td className="px-3 py-2">
@@ -311,7 +311,7 @@ function SessionsList({ student, sessions }) {
           <dl className="divide-y divide-gray-100 text-sm">
             <SessionViewRow label="Student" value={viewing.studentName || student?.name} />
             <SessionViewRow label="College" value={viewing.studentCollege || student?.college} />
-            <SessionViewRow label="Session date" value={(viewing.sessionDate || "").split("T")[0]} />
+            <SessionViewRow label="Session date" value={formatDate(viewing.sessionDate)} />
             <SessionViewRow label="Counselor" value={viewing.counselorName} />
             <SessionViewRow label="Presenting concern" value={viewing.presentingConcern} />
             <SessionViewRow label="Goals" value={viewing.goals} />
