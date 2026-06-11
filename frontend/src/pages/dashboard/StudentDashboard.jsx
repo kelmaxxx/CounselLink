@@ -29,6 +29,7 @@ import {
   StatusPill,
   BTN,
   initialsOf,
+  formatDate,
 } from "../../components/ui";
 
 export default function StudentDashboard() {
@@ -130,12 +131,13 @@ export default function StudentDashboard() {
         counselor:
           next.type === "test" ? "Counseling Office" : counselorName || "Assigned counselor",
         counselorId: next.counselor_id,
-        date:
+        date: formatDate(
           next.scheduledDate ||
-          next.scheduled_date ||
-          next.preferredDate ||
-          next.preferred_date ||
-          "TBD",
+            next.scheduled_date ||
+            next.preferredDate ||
+            next.preferred_date,
+          "TBD"
+        ),
         time:
           next.scheduledTimeSlot ||
           next.scheduled_time ||
@@ -323,7 +325,7 @@ export default function StudentDashboard() {
                     return (
                       <tr key={appt.id} className="hover:bg-gray-50/70 transition">
                         <td className="px-4 py-2.5 text-gray-900 tabular-nums">
-                          {appt.scheduledDate || appt.preferredDate || "—"}
+                          {formatDate(appt.scheduledDate || appt.preferredDate)}
                         </td>
                         <td className="px-4 py-2.5 text-gray-700 tabular-nums">
                           {appt.scheduledTimeSlot || appt.preferredSlots?.[0] || "—"}
@@ -391,7 +393,7 @@ export default function StudentDashboard() {
                           <StatusPill status={test.status} />
                         </div>
                         <p className="text-xs text-gray-500 tabular-nums mt-0.5">
-                          {test.scheduledDate || test.preferredDate || "TBD"}
+                          {formatDate(test.scheduledDate || test.preferredDate, "TBD")}
                           {cName ? ` · with ${cName}` : ""}
                         </p>
                       </div>
