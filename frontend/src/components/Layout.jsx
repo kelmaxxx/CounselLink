@@ -8,7 +8,8 @@ export default function Layout({ children }) {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState("dashboard");
-  
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
@@ -21,10 +22,12 @@ export default function Layout({ children }) {
         activeView={activeView}
         setActiveView={setActiveView}
         handleLogout={handleLogout}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <Header currentUser={currentUser} />
+        <Header currentUser={currentUser} onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 overflow-auto bg-gray-50">
           {children}
