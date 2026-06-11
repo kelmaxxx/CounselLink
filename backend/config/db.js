@@ -10,10 +10,19 @@ dotenv.config();
 // which is acceptable for a shared test DB. Leave DB_SSL unset for local MySQL.
 const ssl =
   process.env.DB_SSL === "true"
-    ? process.env.DB_CA_PATH
+    ? process.env.DB_CA_PATH && fs.existsSync(process.env.DB_CA_PATH)
       ? { ca: fs.readFileSync(process.env.DB_CA_PATH), rejectUnauthorized: true }
       : { rejectUnauthorized: false }
     : undefined;
+
+// A stray DB_CA_PATH pointing at a missing file would otherwise silently drop
+// to unverified TLS; warn so it isn't mistaken for a fully verified connection.
+if (process.env.DB_SSL === "true" && process.env.DB_CA_PATH && !fs.existsSync(process.env.DB_CA_PATH)) {
+  console.warn(
+    `DB_CA_PATH is set to "${process.env.DB_CA_PATH}" but no file exists there; ` +
+      "falling back to encrypted-but-unverified TLS."
+  );
+}
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
