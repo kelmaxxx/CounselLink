@@ -40,6 +40,7 @@ const emptySignupErrors = {
   password: "",
   confirmPassword: "",
   cor: "",
+  avatar: "",
   form: "",
 };
 
@@ -67,6 +68,8 @@ export default function Login() {
     phone: "",
     corImage: null,
     corFile: null,
+    avatarImage: null,
+    avatarFile: null,
   });
 
   const [loginErrors, setLoginErrors] = useState(emptyLoginErrors);
@@ -110,6 +113,28 @@ export default function Login() {
     reader.onloadend = () => {
       setSignupForm((p) => ({ ...p, corImage: reader.result, corFile: file }));
       setCorPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAvatarUpload = (e) => {
+    resetSignupErrors();
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/jpg", "image/png"];
+    if (!validTypes.includes(file.type)) {
+      setSignupErrors((prev) => ({ ...prev, avatar: "Upload a JPG or PNG file." }));
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setSignupErrors((prev) => ({ ...prev, avatar: "File size must be under 2MB." }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSignupForm((p) => ({ ...p, avatarImage: reader.result, avatarFile: file }));
     };
     reader.readAsDataURL(file);
   };
@@ -194,6 +219,7 @@ export default function Login() {
       phone: signupForm.phone,
       corImage: signupForm.corImage,
       corFile: signupForm.corFile,
+      avatarFile: signupForm.avatarFile,
     });
     if (!res.success) {
       setSignupErrors((prev) => ({ ...prev, form: res.message || "Signup failed." }));
@@ -366,6 +392,52 @@ export default function Login() {
               )}
             </div>
 
+            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
+              <div className="flex items-baseline justify-between gap-2 mb-2">
+                <p className="text-sm font-medium text-gray-800">
+                  1x1 ID Picture (Optional)
+                </p>
+                <p className="text-xs text-gray-400">JPG or PNG · max 2 MB</p>
+              </div>
+
+              <input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png"
+                onChange={handleAvatarUpload}
+                className="hidden"
+                id="avatar-upload"
+              />
+
+              {!signupForm.avatarImage ? (
+                <label
+                  htmlFor="avatar-upload"
+                  className={`${BTN.secondary} w-full cursor-pointer`}
+                >
+                  <Upload size={14} /> Choose 1x1 picture
+                </label>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-medium">
+                    <CheckCircle2 size={14} /> Picture uploaded
+                  </div>
+                  <img
+                    src={signupForm.avatarImage}
+                    alt="1x1 preview"
+                    className="w-24 h-24 object-cover border border-gray-200 rounded-md bg-white mx-auto"
+                  />
+                  <label
+                    htmlFor="avatar-upload"
+                    className="block text-center text-xs text-maroon-700 hover:text-maroon-800 cursor-pointer font-medium"
+                  >
+                    Change picture
+                  </label>
+                </div>
+              )}
+              {signupErrors.avatar && (
+                <p className="text-xs text-red-600 mt-2">{signupErrors.avatar}</p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FieldRow label="Password *" error={signupErrors.password}>
                 <InputWithIcon icon={Lock} trailing={
@@ -432,9 +504,13 @@ export default function Login() {
   return (
     <AuthShell>
       <div className="bg-white rounded-2xl shadow-xl ring-1 ring-gray-950/5 w-full max-w-sm p-8">
-        <h1 className="text-2xl font-semibold text-gray-900 tracking-tight mb-6">
-          CounselLink
-        </h1>
+        <div className="flex justify-center mb-6">
+          <img
+            src="/counselink-logo.png"
+            alt="CounseLink"
+            className="h-24 object-contain"
+          />
+        </div>
 
         <form onSubmit={handleLoginSubmit} className="space-y-4">
           <RoleSelector
@@ -543,15 +619,54 @@ export default function Login() {
 }
 
 function AuthShell({ children }) {
+  const handleLogoLoad = (e) => {
+    const img = e.currentTarget;
+    if (img.dataset.processed) return;
+    img.dataset.processed = "true";
+    try {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        // Calculate perceived luminance
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        // Check if the pixel is "white-ish" (low saturation + high luminance)
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const saturation = max === 0 ? 0 : (max - min) / max;
+        if (lum > 180 && saturation < 0.15) {
+          // Fully transparent for very bright near-white pixels
+          data[i + 3] = 0;
+        } else if (lum > 160 && saturation < 0.20) {
+          // Smooth fade for borderline pixels to avoid harsh edges
+          const fade = Math.max(0, (lum - 160) / 20);
+          data[i + 3] = Math.round(a * (1 - fade));
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+      img.src = canvas.toDataURL();
+    } catch (err) {
+      console.error("Error processing logo background:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-maroon-600 via-maroon-700 to-maroon-800 flex items-center justify-center p-6">
-      <div className="w-full max-w-md flex flex-col items-center">
+      <div className="w-full max-w-xl flex flex-col items-center">
         <img
-          src="/counselink-round.png"
-          alt="CounselLink"
-          className="h-24 w-24 object-contain mb-3"
+          src="/three-logos.png"
+          alt="Guidance and Counseling Section"
+          className="w-full max-h-36 object-contain mb-3"
+          onLoad={handleLogoLoad}
         />
-        <p className="text-sm text-white/80 mb-6">Student counseling at MSU-Marawi</p>
         {children}
         <p className="mt-6 text-center text-xs text-white/60">
           © {new Date().getFullYear()} MSU-Marawi · Division of Student Affairs
