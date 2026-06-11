@@ -19,7 +19,7 @@ router.post("/cor", corUpload.single("cor"), async (req, res) => {
   });
 });
 
-router.post("/avatar", auth, avatarUpload.single("avatar"), async (req, res) => {
+router.post("/avatar", avatarUpload.single("avatar"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }

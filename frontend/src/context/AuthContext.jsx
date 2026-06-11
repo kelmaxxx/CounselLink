@@ -69,7 +69,7 @@ export function AuthProvider({ children }) {
   };
 
   // signup (adds to in-memory users, returns user) - FOR STUDENT: pending approval
-  const signup = async ({ name, email, password, role = "student", college = null, studentId = null, phone = "", corFile }) => {
+  const signup = async ({ name, email, password, role = "student", college = null, studentId = null, phone = "", corFile, avatarFile }) => {
     setLoading(true);
     setError(null);
     try {
@@ -97,12 +97,36 @@ export function AuthProvider({ children }) {
         };
       }
 
+      let avatarMeta = {};
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append("avatar", avatarFile);
+        let uploadResponse;
+        try {
+          uploadResponse = await fetch(`${apiBase}/api/uploads/avatar`, { method: "POST", body: formData });
+        } catch (err) {
+          setError("Unable to connect to server");
+          return { success: false, message: "Unable to connect to server" };
+        }
+        const uploadData = await parseResponseJson(uploadResponse);
+        if (!uploadResponse.ok) {
+          const message = uploadData.message || `Avatar upload failed (HTTP ${uploadResponse.status})`;
+          setError(message);
+          return { success: false, message };
+        }
+        avatarMeta = {
+          avatarUrl: uploadData.avatarUrl,
+          avatarFileName: uploadData.avatarFileName,
+          avatarFileType: uploadData.avatarFileType,
+        };
+      }
+
       let response;
       try {
         response = await fetch(`${apiBase}/api/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password, college, studentId, phone, role, ...corMeta }),
+          body: JSON.stringify({ name, email, password, college, studentId, phone, role, ...corMeta, ...avatarMeta }),
         });
       } catch (err) {
         setError("Unable to connect to server");
