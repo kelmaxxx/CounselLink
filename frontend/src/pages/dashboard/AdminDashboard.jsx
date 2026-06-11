@@ -15,6 +15,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import WelcomeHero from "../../components/WelcomeHero";
 import {
   PageHeader,
   StatCard,
@@ -33,7 +34,7 @@ const splitContent = (content) => {
 };
 
 export default function AdminDashboard() {
-  const { users, token } = useAuth();
+  const { currentUser, users, token } = useAuth();
   const students = users?.filter((u) => u.role === "student") || [];
   const counselors = users?.filter((u) => u.role === "counselor") || [];
   const reps = users?.filter((u) => u.role === "college_rep") || [];
@@ -52,7 +53,11 @@ export default function AdminDashboard() {
     [students.length, counselors.length, reps.length, admins.length]
   );
 
+  const firstName = currentUser?.name?.split(" ")[0] || "Admin";
+
   return (
+    <>
+      <WelcomeHero userName={firstName} />
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="Administrator"
@@ -152,6 +157,7 @@ export default function AdminDashboard() {
         <AnnouncementsPanel token={token} />
       </div>
     </div>
+    </>
   );
 }
 

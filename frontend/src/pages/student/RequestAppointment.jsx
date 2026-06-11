@@ -3,13 +3,14 @@ import React, { useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useReactToPrint } from "react-to-print";
-import { Printer, AlertTriangle, Info, ShieldCheck } from "lucide-react";
+import { Printer, AlertTriangle, Info, ShieldCheck, CheckCircle2 } from "lucide-react";
 import {
   PageHeader,
   SectionCard,
   BTN,
   INPUT,
   LABEL,
+  Modal,
 } from "../../components/ui";
 
 const TIME_SLOTS_MORNING = [
@@ -37,6 +38,7 @@ export default function RequestAppointment() {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [successModal, setSuccessModal] = useState({ open: false, data: null });
   const { createAppointment } = useAppointments?.() || {};
   const printRef = useRef(null);
   const handlePrint = useReactToPrint({
@@ -71,7 +73,17 @@ export default function RequestAppointment() {
     setSubmitted(true);
     const res = await createAppointment({ student: myRecord, form });
     if (res?.success) {
-      alert("Appointment request submitted successfully.");
+      setSuccessModal({
+        open: true,
+        data: {
+          date: form.date,
+          isUrgent: form.isUrgent,
+          preferredSlots: form.preferredSlots.map(v => {
+            const allSlots = [...TIME_SLOTS_MORNING, ...TIME_SLOTS_AFTERNOON];
+            return allSlots.find(s => s.value === v)?.label || v;
+          })
+        }
+      });
       setForm({
         date: "",
         timeSlot: "",
@@ -311,6 +323,56 @@ export default function RequestAppointment() {
           </div>
         </div>
       </form>
+
+      <Modal
+        open={successModal.open}
+        onClose={() => setSuccessModal({ open: false, data: null })}
+        title="Appointment Request Submitted"
+        size="md"
+        footer={
+          <button
+            onClick={() => setSuccessModal({ open: false, data: null })}
+            className={`${BTN.primary} w-full sm:w-auto`}
+          >
+            Close
+          </button>
+        }
+      >
+        <div className="flex flex-col items-center text-center p-2">
+          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 border border-emerald-100 shadow-sm">
+            <CheckCircle2 size={36} />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2 animate-fade-in-up">
+            Appointment Request Submitted Successfully!
+          </h3>
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed max-w-sm">
+            Your request has been recorded. The Guidance and Counseling team will review it and notify you of the status.
+          </p>
+          
+          <div className="w-full bg-gray-50 border border-gray-100 rounded-lg p-4 text-left space-y-2.5">
+            <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
+              <span className="text-gray-500 font-medium">Student Name:</span>
+              <span className="text-gray-900 font-semibold">{currentUser?.name}</span>
+            </div>
+            <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
+              <span className="text-gray-500 font-medium">Preferred Date:</span>
+              <span className="text-gray-900 font-semibold tabular-nums">{successModal.data?.date}</span>
+            </div>
+            <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
+              <span className="text-gray-500 font-medium">Priority:</span>
+              <span className={`font-semibold ${successModal.data?.isUrgent ? "text-red-600 font-bold" : "text-emerald-600"}`}>
+                {successModal.data?.isUrgent ? "Urgent" : "Normal"}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500 font-medium">Preferred Times:</span>
+              <span className="text-gray-900 font-semibold truncate max-w-[200px]" title={successModal.data?.preferredSlots?.join(", ")}>
+                {successModal.data?.preferredSlots?.join(", ")}
+              </span>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

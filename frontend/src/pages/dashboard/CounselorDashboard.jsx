@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
+import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
 import { PageHeader, StatCard, SectionCard, EmptyState, Modal, BTN, INPUT, LABEL, initialsOf } from "../../components/ui";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -296,6 +297,8 @@ export default function CounselorDashboard() {
   });
 
   return (
+    <>
+      <WelcomeHero userName={firstName} />
     <div className="px-6 py-6 max-w-7xl mx-auto">
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
@@ -785,5 +788,6 @@ export default function CounselorDashboard() {
         <ChatModal recipientUser={chatRecipient} onClose={() => setChatRecipient(null)} />
       )}
     </div>
+    </>
   );
 }

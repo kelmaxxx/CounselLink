@@ -175,9 +175,11 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       {/* Brand */}
       <div className="px-5 py-4 border-b border-maroon-800/60">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-maroon-50 text-maroon-700 flex items-center justify-center font-bold text-sm">
-            C
-          </div>
+          <img
+            src="/counselink-round.png"
+            alt="CounseLink Logo"
+            className="w-12 h-12 object-contain flex-shrink-0"
+          />
           <h1 className="text-sm font-semibold tracking-tight text-white">CounseLink</h1>
         </div>
       </div>

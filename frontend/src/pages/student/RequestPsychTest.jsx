@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useTests } from "../../context/TestsContext";
+import { CheckCircle2 } from "lucide-react";
 import {
   PageHeader,
   SectionCard,
   BTN,
   INPUT,
   LABEL,
+  Modal,
 } from "../../components/ui";
 
 const TIME_SLOTS = [
@@ -31,6 +33,7 @@ export default function RequestPsychTest() {
     reason: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [successModal, setSuccessModal] = useState({ open: false, data: null });
 
   const toggleSlot = (val, checked) => {
     setForm((f) => {
@@ -51,7 +54,16 @@ export default function RequestPsychTest() {
     const res = await createTestRequest({ student: myRecord, form });
     setSubmitting(false);
     if (res.success) {
-      alert("Psychological test request submitted.");
+      setSuccessModal({
+        open: true,
+        data: {
+          testType: form.testType,
+          date: form.date,
+          preferredSlots: form.preferredSlots.map(v => {
+            return TIME_SLOTS.find(s => s.value === v)?.label || v;
+          })
+        }
+      });
       setForm({
         testType: "Psychological Test",
         date: "",
@@ -157,6 +169,54 @@ export default function RequestPsychTest() {
           </div>
         </SectionCard>
       </form>
+
+      <Modal
+        open={successModal.open}
+        onClose={() => setSuccessModal({ open: false, data: null })}
+        title="Psychological Test Request Submitted"
+        size="md"
+        footer={
+          <button
+            onClick={() => setSuccessModal({ open: false, data: null })}
+            className={`${BTN.primary} w-full sm:w-auto`}
+          >
+            Close
+          </button>
+        }
+      >
+        <div className="flex flex-col items-center text-center p-2">
+          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 border border-emerald-100 shadow-sm">
+            <CheckCircle2 size={36} />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2 animate-fade-in-up">
+            Test Request Submitted Successfully!
+          </h3>
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed max-w-sm">
+            Your request has been recorded. The Guidance and Counseling team will review it and notify you of the status.
+          </p>
+          
+          <div className="w-full bg-gray-50 border border-gray-100 rounded-lg p-4 text-left space-y-2.5">
+            <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
+              <span className="text-gray-500 font-medium">Student Name:</span>
+              <span className="text-gray-900 font-semibold">{currentUser?.name}</span>
+            </div>
+            <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
+              <span className="text-gray-500 font-medium">Test Type:</span>
+              <span className="text-gray-900 font-semibold">{successModal.data?.testType}</span>
+            </div>
+            <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
+              <span className="text-gray-500 font-medium">Preferred Date:</span>
+              <span className="text-gray-900 font-semibold tabular-nums">{successModal.data?.date}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500 font-medium">Preferred Times:</span>
+              <span className="text-gray-900 font-semibold truncate max-w-[200px]" title={successModal.data?.preferredSlots?.join(", ")}>
+                {successModal.data?.preferredSlots?.join(", ")}
+              </span>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
