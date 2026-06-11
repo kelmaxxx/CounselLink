@@ -12,6 +12,10 @@ import {
   Hash,
   CalendarClock,
   CheckCircle2,
+  Check,
+  X,
+  Clock3,
+  AlertTriangle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
@@ -22,6 +26,10 @@ import {
   SectionCard,
   EmptyState,
   StatusPill,
+  Modal,
+  BTN,
+  INPUT,
+  LABEL,
   initialsOf,
 } from "../../components/ui";
 
@@ -37,9 +45,25 @@ const timeLabel = (slot) => TIME_LABEL[slot] || slot || "—";
 
 export default function CounselorAppointments() {
   const { users, lookupUser } = useAuth();
-  const { getAppointmentsForCurrentUser, completeAppointment } = useAppointments();
+  const {
+    getAppointmentsForCurrentUser,
+    completeAppointment,
+    acceptAppointment,
+    rejectAppointment,
+    rescheduleAppointment,
+  } = useAppointments();
   const { getTestsForCurrentUser } = useTests();
   const [busyId, setBusyId] = useState(null);
+
+  // Pending-request action modals
+  const [rescheduleModal, setRescheduleModal] = useState({
+    open: false,
+    apptId: null,
+    date: "",
+    timeSlot: "",
+    note: "",
+  });
+  const [rejectModal, setRejectModal] = useState({ open: false, id: null, note: "" });
 
   const handleMarkDone = async (id) => {
     if (!window.confirm("Mark this counseling session as completed? You will be able to open the form and submit the final Session Report afterwards.")) return;
@@ -47,6 +71,47 @@ export default function CounselorAppointments() {
     const res = await completeAppointment({ id });
     setBusyId(null);
     if (!res.success) alert(res.message || "Failed to mark as done");
+  };
+
+  const handleAccept = async (a) => {
+    const slot = Array.isArray(a.preferredSlots)
+      ? a.preferredSlots[0]
+      : a.timeSlot || (a.preferred_slots ? a.preferred_slots.split(",")[0] : null);
+    setBusyId(a.id);
+    const res = await acceptAppointment({
+      id: a.id,
+      date: a.preferredDate || a.preferred_date,
+      timeSlot: slot,
+      note: null,
+    });
+    setBusyId(null);
+    if (!res.success) alert(res.message || "Failed to accept request");
+  };
+
+  const submitReject = async () => {
+    const note = rejectModal.note.trim() || null;
+    setBusyId(rejectModal.id);
+    const res = await rejectAppointment({ id: rejectModal.id, note });
+    setBusyId(null);
+    if (res.success) setRejectModal({ open: false, id: null, note: "" });
+    else alert(res.message || "Failed to reject request");
+  };
+
+  const submitReschedule = async () => {
+    if (!rescheduleModal.date || !rescheduleModal.timeSlot) {
+      alert("Select a date and time slot");
+      return;
+    }
+    setBusyId(rescheduleModal.apptId);
+    const res = await rescheduleAppointment({
+      id: rescheduleModal.apptId,
+      date: rescheduleModal.date,
+      timeSlot: rescheduleModal.timeSlot,
+      note: rescheduleModal.note || null,
+    });
+    setBusyId(null);
+    if (res.success) setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" });
+    else alert(res.message || "Failed to reschedule request");
   };
 
   const myAppointments = useMemo(
@@ -82,6 +147,7 @@ export default function CounselorAppointments() {
     else if (fallbackName) setChatRecipient({ id, name: fallbackName });
   };
 
+  const pendingAppointments = myAppointments.filter((a) => a.status === "pending");
   const upcomingAppointments = myAppointments.filter(
     (a) => a.status === "approved" || a.status === "rescheduled"
   );
@@ -101,11 +167,11 @@ export default function CounselorAppointments() {
       {/* Quick stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard
-          label="Counseling"
-          value={upcomingAppointments.length}
-          hint="Confirmed sessions"
-          icon={Calendar}
-          accent="bg-emerald-500"
+          label="Pending requests"
+          value={pendingAppointments.length}
+          hint="Awaiting your response"
+          icon={Clock3}
+          accent="bg-amber-500"
         />
         <StatCard
           label="Psych tests"
@@ -132,6 +198,117 @@ export default function CounselorAppointments() {
           accent="bg-gray-400"
         />
       </div>
+
+      {/* Pending requests — student-submitted, awaiting accept/reschedule/reject */}
+      <SectionCard
+        className="mb-6"
+        title="Pending requests"
+        subtitle={`${pendingAppointments.length} awaiting your response`}
+        noBodyPadding
+      >
+        {pendingAppointments.length === 0 ? (
+          <EmptyState
+            icon={Clock3}
+            title="No pending requests"
+            hint="New counseling requests from students will appear here for you to accept, reschedule, or decline."
+          />
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {pendingAppointments.map((a) => {
+              const studentId = a.student_id || a.studentUserId;
+              const requested = a.preferredDate
+                ? `${a.preferredDate} · ${timeLabel(
+                    a.timeSlot ||
+                      (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : "")
+                  )}`
+                : "—";
+              return (
+                <li key={a.id} className="px-4 py-3 hover:bg-gray-50/70 transition">
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => openProfile(studentId, a.studentName)}
+                      className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center justify-center text-xs font-semibold flex-shrink-0 transition"
+                      title="View profile"
+                    >
+                      {initialsOf(a.studentName)}
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => openProfile(studentId, a.studentName)}
+                          className="text-sm font-semibold text-gray-900 hover:underline"
+                        >
+                          {a.studentName}
+                        </button>
+                        <span className="text-xs text-gray-500">{a.college || "—"}</span>
+                        <StatusPill status={a.status} />
+                        {(a.is_urgent || a.isUrgent) && (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                            <AlertTriangle size={11} /> Urgent
+                          </span>
+                        )}
+                        {a.controlNo && (
+                          <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
+                            <Hash size={10} />
+                            {a.controlNo}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-1.5 flex items-baseline gap-1.5 text-xs">
+                        <span className="text-gray-500">Requested</span>
+                        <span className="text-gray-700 tabular-nums">{requested}</span>
+                      </div>
+                      {a.reason && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          <span className="font-medium text-gray-600">Reason:</span> {a.reason}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => openChat(studentId, a.studentName)}
+                        className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
+                        title="Message"
+                      >
+                        <MessageCircle size={15} />
+                      </button>
+                      <button
+                        onClick={() => handleAccept(a)}
+                        disabled={busyId === a.id}
+                        className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition disabled:opacity-50"
+                        title="Accept"
+                      >
+                        <Check size={13} /> Accept
+                      </button>
+                      <button
+                        onClick={() =>
+                          setRescheduleModal({ open: true, apptId: a.id, date: "", timeSlot: "", note: "" })
+                        }
+                        disabled={busyId === a.id}
+                        className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-100 transition disabled:opacity-50"
+                        title="Reschedule"
+                      >
+                        <CalendarClock size={13} /> Reschedule
+                      </button>
+                      <button
+                        onClick={() => setRejectModal({ open: true, id: a.id, note: "" })}
+                        disabled={busyId === a.id}
+                        className="w-8 h-8 inline-flex items-center justify-center rounded-md text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+                        title="Reject"
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SectionCard>
 
       {/* Counseling sessions */}
       <SectionCard
@@ -401,6 +578,100 @@ export default function CounselorAppointments() {
           </ul>
         )}
       </SectionCard>
+
+      {/* Reschedule pending request */}
+      <Modal
+        open={rescheduleModal.open}
+        onClose={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}
+        title="Reschedule appointment"
+        subtitle="Propose a new date and time. The student will be notified."
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN.secondary}
+              onClick={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}
+            >
+              Cancel
+            </button>
+            <button type="button" className={BTN.primary} onClick={submitReschedule}>
+              Confirm reschedule
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className={LABEL}>New date</label>
+            <input
+              type="date"
+              className={INPUT}
+              value={rescheduleModal.date}
+              onChange={(e) => setRescheduleModal((s) => ({ ...s, date: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className={LABEL}>New time slot</label>
+            <select
+              className={INPUT}
+              value={rescheduleModal.timeSlot}
+              onChange={(e) => setRescheduleModal((s) => ({ ...s, timeSlot: e.target.value }))}
+            >
+              <option value="">Select a slot</option>
+              {Object.entries(TIME_LABEL).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>Note (optional)</label>
+            <textarea
+              rows={3}
+              className={`${INPUT} resize-none`}
+              value={rescheduleModal.note}
+              onChange={(e) => setRescheduleModal((s) => ({ ...s, note: e.target.value }))}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reject pending request */}
+      <Modal
+        open={rejectModal.open}
+        onClose={() => setRejectModal({ open: false, id: null, note: "" })}
+        title="Reject appointment"
+        subtitle="The student will be notified. Please add a short note explaining why."
+        danger
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN.secondary}
+              onClick={() => setRejectModal({ open: false, id: null, note: "" })}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={BTN.danger}
+              onClick={submitReject}
+              disabled={!rejectModal.note.trim()}
+            >
+              Confirm reject
+            </button>
+          </>
+        }
+      >
+        <textarea
+          rows={4}
+          className={`${INPUT} resize-none`}
+          placeholder="e.g. Schedule conflict — please request another slot."
+          value={rejectModal.note}
+          onChange={(e) => setRejectModal((s) => ({ ...s, note: e.target.value }))}
+        />
+      </Modal>
 
       {selectedProfile && (
         <ProfileViewModal
