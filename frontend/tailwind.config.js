@@ -6,6 +6,20 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Figtree', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+      },
+      fontSize: {
+        // One-notch bump for a roomier, Gemini-like scale (base stays 16px)
+        xs: ['0.8125rem', { lineHeight: '1.25rem' }],  // 13px
+        sm: ['0.9375rem', { lineHeight: '1.45rem' }],  // 15px
+      },
+      borderRadius: {
+        md: '0.5rem',
+        lg: '0.875rem',
+        xl: '1rem',
+        '2xl': '1.25rem',
+      },
       spacing: {
         '25': '6.25rem', // 100px
       },

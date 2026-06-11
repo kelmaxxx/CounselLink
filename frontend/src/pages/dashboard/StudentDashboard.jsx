@@ -310,7 +310,7 @@ export default function StudentDashboard() {
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
                     <th className="px-4 py-2.5">Date</th>
                     <th className="px-4 py-2.5">Time</th>
                     <th className="px-4 py-2.5">Status</th>
@@ -459,14 +459,14 @@ export default function StudentDashboard() {
                   {open && (
                     <div className="mt-3 pt-3 border-t border-gray-100 space-y-2 text-sm">
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1">
+                        <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-1">
                           Summary
                         </p>
                         <p className="text-gray-700 leading-relaxed">{r.summary}</p>
                       </div>
                       {r.recommendations && (
                         <div>
-                          <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1">
+                          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-1">
                             Recommendations
                           </p>
                           <p className="text-gray-700 leading-relaxed">{r.recommendations}</p>

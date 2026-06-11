@@ -99,7 +99,7 @@ export default function StudentAppointments() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Type</th>
                   <th className="px-4 py-2.5">Counselor</th>
@@ -184,7 +184,7 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
       <div ref={printRef} className="space-y-4">
         <div className="text-center pb-3 border-b border-gray-200">
           <h2 className="text-base font-bold text-gray-900">CounselLink · MSU Marawi</h2>
-          <p className="text-[11px] text-gray-600">
+          <p className="text-xs text-gray-600">
             Division of Student Affairs · Appointment Slip
           </p>
         </div>
@@ -225,11 +225,11 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
         <div className="pt-6 mt-2 border-t border-gray-300 grid grid-cols-2 gap-8 text-sm">
           <div>
             <div className="border-b border-gray-400 h-12" />
-            <p className="text-[11px] text-gray-600 mt-1">Student signature</p>
+            <p className="text-xs text-gray-600 mt-1">Student signature</p>
           </div>
           <div>
             <div className="border-b border-gray-400 h-12" />
-            <p className="text-[11px] text-gray-600 mt-1">Counselor signature</p>
+            <p className="text-xs text-gray-600 mt-1">Counselor signature</p>
           </div>
         </div>
       </div>

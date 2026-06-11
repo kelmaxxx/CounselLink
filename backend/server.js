@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import dotenv from "dotenv";
 import { testConnection } from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -25,9 +26,30 @@ import { fileURLToPath } from "url";
 
 dotenv.config();
 
+// Refuse to boot in production with a missing/placeholder JWT secret —
+// every session token would be forgeable otherwise.
+if (
+  process.env.NODE_ENV === "production" &&
+  (!process.env.JWT_SECRET || process.env.JWT_SECRET === "replace_with_a_long_random_string")
+) {
+  console.error("FATAL: JWT_SECRET is not set to a real secret. Refusing to start.");
+  process.exit(1);
+}
+
 const app = express();
 
-app.use(cors({ origin: ["http://localhost:5173", "http://localhost:5174"], credentials: true }));
+// Needed on Render/other proxies so rate limiting sees real client IPs.
+app.set("trust proxy", 1);
+
+// crossOriginResourcePolicy is relaxed so /uploads images can be displayed
+// by the frontend on a different origin (Vercel).
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:5174")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 const __filename = fileURLToPath(import.meta.url);

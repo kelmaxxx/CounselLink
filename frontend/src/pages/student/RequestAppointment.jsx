@@ -233,7 +233,7 @@ export default function RequestAppointment() {
             <div>
               <label className={LABEL}>Preferred time slots * (one or more)</label>
               <div className="mt-2">
-                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-1.5">
                   Morning
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
@@ -246,7 +246,7 @@ export default function RequestAppointment() {
                     />
                   ))}
                 </div>
-                <p className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-1.5">
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-1.5">
                   Afternoon
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -281,20 +281,20 @@ export default function RequestAppointment() {
               <div>
                 <p className="text-xs font-medium text-gray-700 mb-3">Student signature</p>
                 <div className="border-t-2 border-gray-400 pt-1.5 text-center">
-                  <p className="text-[11px] text-gray-600">Sign above the line</p>
+                  <p className="text-xs text-gray-600">Sign above the line</p>
                 </div>
-                <p className="text-[11px] text-gray-600 mt-2">{currentUser?.name}</p>
-                <p className="text-[11px] text-gray-600 tabular-nums">
+                <p className="text-xs text-gray-600 mt-2">{currentUser?.name}</p>
+                <p className="text-xs text-gray-600 tabular-nums">
                   {new Date().toLocaleDateString()}
                 </p>
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-700 mb-3">Authorized personnel</p>
                 <div className="border-t-2 border-gray-400 pt-1.5 text-center">
-                  <p className="text-[11px] text-gray-600">Sign above the line</p>
+                  <p className="text-xs text-gray-600">Sign above the line</p>
                 </div>
-                <p className="text-[11px] text-gray-600 mt-2">(DSA personnel)</p>
-                <p className="text-[11px] text-gray-600">(To be filled by DSA)</p>
+                <p className="text-xs text-gray-600 mt-2">(DSA personnel)</p>
+                <p className="text-xs text-gray-600">(To be filled by DSA)</p>
               </div>
             </div>
           </SectionCard>

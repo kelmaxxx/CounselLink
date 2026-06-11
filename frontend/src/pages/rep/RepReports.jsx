@@ -86,7 +86,7 @@ export default function RepReports() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
                   <th className="px-4 py-2.5">From</th>
                   <th className="px-4 py-2.5">Title</th>
                   <th className="px-4 py-2.5">Summary</th>
@@ -99,7 +99,7 @@ export default function RepReports() {
                   <tr key={r.id} className="hover:bg-gray-50/70 transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-[11px] font-semibold flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
                           {initialsOf(r.senderName)}
                         </div>
                         <div className="font-medium text-gray-900 text-sm truncate">

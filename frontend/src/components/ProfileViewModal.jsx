@@ -133,7 +133,7 @@ export default function ProfileViewModal({ user, onClose, onOpenChat }) {
 
       {user.bio && (
         <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-1.5">
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-1.5">
             About
           </p>
           <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{user.bio}</p>
@@ -146,7 +146,7 @@ export default function ProfileViewModal({ user, onClose, onOpenChat }) {
 function Section({ title, children }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wider text-gray-500 font-medium mb-2">
+      <p className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2">
         {title}
       </p>
       <dl className="space-y-2">{children}</dl>
@@ -160,7 +160,7 @@ function Row({ icon: Icon, label, value }) {
     <div className="flex items-start gap-2.5">
       {Icon && <Icon size={14} className="text-maroon-600 mt-0.5 flex-shrink-0" />}
       <div className="min-w-0">
-        <dt className="text-[11px] text-gray-500">{label}</dt>
+        <dt className="text-xs text-gray-500">{label}</dt>
         <dd className="text-sm font-medium text-gray-900 truncate">{value}</dd>
       </div>
     </div>

@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { query } from "../config/db.js";
 import { sendEmail } from "../services/email.service.js";
+import { validatePassword } from "../utils/password.js";
 
 const RESET_TTL_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
@@ -76,6 +77,11 @@ export const registerStudent = async (req, res) => {
   const { name, email, password, studentId, college, phone, corUrl, corFileName, corFileType } = req.body;
   if (!name || !email || !password || !studentId || !college) {
     return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  const policy = validatePassword(password);
+  if (!policy.ok) {
+    return res.status(400).json({ message: policy.message });
   }
 
   const emailLower = email.toLowerCase();
@@ -275,8 +281,9 @@ export const resetPassword = async (req, res) => {
   if (!token || !password) {
     return res.status(400).json({ message: "Token and new password are required" });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ message: "Password must be at least 6 characters" });
+  const policy = validatePassword(password);
+  if (!policy.ok) {
+    return res.status(400).json({ message: policy.message });
   }
 
   const tokenHash = hashResetToken(token);

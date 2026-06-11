@@ -300,7 +300,7 @@ export default function CounselingData() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
                   <th className="px-4 py-2.5">Name</th>
                   <th className="px-4 py-2.5">Student ID</th>
                   <th className="px-4 py-2.5">Program</th>
