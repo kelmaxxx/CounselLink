@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Search, Plus, Edit, Trash2, Users, FileText, Download, FileDown, Eye, Calendar,
   TrendingUp, Activity, AlertCircle, RefreshCw, UserRound, ClipboardList, Target,
-  ListChecks, ArrowLeft, ArrowRight, CheckCircle2
+  ListChecks, ArrowLeft, ArrowRight, CheckCircle2, Folder
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCounselingSessions } from "../context/CounselingSessionsContext";
@@ -64,6 +64,7 @@ export default function ManageStudents() {
   // Drawer state
   const [drawerStudent, setDrawerStudent] = useState(null);
   const [viewSession, setViewSession] = useState(null);
+  const [selectedFolder, setSelectedFolder] = useState(null);
 
   const reportTitleFor = (s) =>
     `Session Report — ${s.studentName} (${(s.sessionDate || "").split("T")[0]})`;
@@ -297,119 +298,169 @@ export default function ManageStudents() {
               </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow overflow-x-auto">
-              <table className="min-w-full divide-y">
-                <thead className="bg-gray-50">
-                  <tr className="text-left text-xs text-gray-700">
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">College / ID</th>
-                    <th className="px-4 py-3 font-medium">Inventory</th>
-                    <th className="px-4 py-3 font-medium">Consent</th>
-                    <th className="px-4 py-3 font-medium">Sessions</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y text-sm">
-                  {(() => {
-                    const q = studentSearch.trim().toLowerCase();
-                    const list = students.filter((s) => {
-                      if (!q) return true;
-                      return (
-                        (s.name || "").toLowerCase().includes(q) ||
-                        (s.studentId || "").toLowerCase().includes(q) ||
-                        (s.college || "").toLowerCase().includes(q) ||
-                        (s.email || "").toLowerCase().includes(q)
-                      );
-                    });
+            {(() => {
+              const q = studentSearch.trim().toLowerCase();
+              const list = students.filter((s) => {
+                if (!q) return true;
+                return (
+                  (s.name || "").toLowerCase().includes(q) ||
+                  (s.studentId || "").toLowerCase().includes(q) ||
+                  (s.college || "").toLowerCase().includes(q) ||
+                  (s.email || "").toLowerCase().includes(q)
+                );
+              });
 
-                    if (list.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                            {students.length === 0 ? "No students yet." : "No students match your search."}
-                          </td>
+              const byCollege = {};
+              list.forEach((s) => {
+                const col = s.college || "Unassigned";
+                if (!byCollege[col]) byCollege[col] = [];
+                byCollege[col].push(s);
+              });
+
+              const renderStudent = (s) => {
+                const rec = recordsByStudent[s.id];
+                const inv = rec?.inventory;
+                const con = rec?.consent;
+                const sessionCount = sessions.filter((x) => x.studentId === s.id).length;
+                const invBadge = !rec?.loaded
+                  ? <span className="text-xs text-gray-400">—</span>
+                  : inv
+                    ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">On file{inv.scanUrl ? " + scan" : ""}</span>
+                    : <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Missing</span>;
+                let conBadge;
+                if (!rec?.loaded) {
+                  conBadge = <span className="text-xs text-gray-400">—</span>;
+                } else if (!con) {
+                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
+                } else if (con.revokedAt) {
+                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Revoked</span>;
+                } else if (con.eConsentSignedAt) {
+                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">E-signed</span>;
+                } else if (con.scanUrl) {
+                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Paper</span>;
+                } else {
+                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
+                }
+                return (
+                  <tr key={s.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setDrawerStudent(s)}>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900">{s.name}</div>
+                      <div className="text-xs text-gray-500">{s.email}</div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <div>{s.college || "—"}</div>
+                      <div className="text-xs text-gray-500">{s.studentId || "—"}</div>
+                    </td>
+                    <td className="px-4 py-3">{invBadge}</td>
+                    <td className="px-4 py-3">{conBadge}</td>
+                    <td className="px-4 py-3 text-gray-700">{sessionCount}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDrawerStudent(s); }}
+                          className="px-2.5 py-1 rounded border text-xs hover:bg-gray-50"
+                          title="View / Manage records"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setForm({ ...blankForm(), studentId: String(s.id), sessionDate: new Date().toISOString().split("T")[0] });
+                            setRecordStep(0);
+                            setEditing({});
+                            setActiveTab("records");
+                          }}
+                          className="px-2.5 py-1 rounded bg-maroon-600 text-white text-xs hover:bg-maroon-700"
+                          title="Add new session record for this student"
+                        >
+                          + Add
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStudentSearch(s.name || s.studentId || "");
+                            setActiveTab("records");
+                          }}
+                          className="px-2.5 py-1 rounded border text-xs hover:bg-gray-50"
+                          title="Manage this student's session records"
+                        >
+                          Manage
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              };
+
+              if (!selectedFolder) {
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {Object.keys(byCollege).sort().map(college => (
+                      <div 
+                        key={college} 
+                        onClick={() => setSelectedFolder(college)} 
+                        className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                      >
+                        <Folder size={48} className="text-maroon-600 fill-maroon-100" />
+                        <div className="font-semibold text-gray-800 text-sm">{college}</div>
+                        <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                          {byCollege[college].length} student{byCollege[college].length !== 1 && "s"}
+                        </div>
+                      </div>
+                    ))}
+                    {Object.keys(byCollege).length === 0 && (
+                      <div className="col-span-full py-8 text-center text-gray-500">
+                        {students.length === 0 ? "No students yet." : "No students match your search."}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              const folderStudents = byCollege[selectedFolder] || [];
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setSelectedFolder(null)} 
+                      className="text-sm font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
+                    >
+                      <ArrowLeft size={16} /> Back to Folders
+                    </button>
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <Folder size={20} className="text-maroon-600 fill-maroon-100" />
+                      {selectedFolder}
+                    </h3>
+                  </div>
+                  <div className="bg-white rounded-xl border border-gray-200 shadow overflow-x-auto">
+                    <table className="min-w-full divide-y">
+                      <thead className="bg-gray-50">
+                        <tr className="text-left text-xs text-gray-700">
+                          <th className="px-4 py-3 font-medium">Student</th>
+                          <th className="px-4 py-3 font-medium">College / ID</th>
+                          <th className="px-4 py-3 font-medium">Inventory</th>
+                          <th className="px-4 py-3 font-medium">Consent</th>
+                          <th className="px-4 py-3 font-medium">Sessions</th>
+                          <th className="px-4 py-3 font-medium text-right">Actions</th>
                         </tr>
-                      );
-                    }
-                    return list.map((s) => {
-                      const rec = recordsByStudent[s.id];
-                      const inv = rec?.inventory;
-                      const con = rec?.consent;
-                      const sessionCount = sessions.filter((x) => x.studentId === s.id).length;
-                      const invBadge = !rec?.loaded
-                        ? <span className="text-xs text-gray-400">—</span>
-                        : inv
-                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">On file{inv.scanUrl ? " + scan" : ""}</span>
-                          : <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Missing</span>;
-                      let conBadge;
-                      if (!rec?.loaded) {
-                        conBadge = <span className="text-xs text-gray-400">—</span>;
-                      } else if (!con) {
-                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
-                      } else if (con.revokedAt) {
-                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Revoked</span>;
-                      } else if (con.eConsentSignedAt) {
-                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">E-signed</span>;
-                      } else if (con.scanUrl) {
-                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Paper</span>;
-                      } else {
-                        conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
-                      }
-                      return (
-                        <tr key={s.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setDrawerStudent(s)}>
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-gray-900">{s.name}</div>
-                            <div className="text-xs text-gray-500">{s.email}</div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">
-                            <div>{s.college || "—"}</div>
-                            <div className="text-xs text-gray-500">{s.studentId || "—"}</div>
-                          </td>
-                          <td className="px-4 py-3">{invBadge}</td>
-                          <td className="px-4 py-3">{conBadge}</td>
-                          <td className="px-4 py-3 text-gray-700">{sessionCount}</td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setDrawerStudent(s); }}
-                                className="px-2.5 py-1 rounded border text-xs hover:bg-gray-50"
-                                title="View / Manage records"
-                              >
-                                View
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setForm({ ...blankForm(), studentId: String(s.id), sessionDate: new Date().toISOString().split("T")[0] });
-                                  setRecordStep(0);
-                                  setEditing({});
-                                  setActiveTab("records");
-                                }}
-                                className="px-2.5 py-1 rounded bg-maroon-600 text-white text-xs hover:bg-maroon-700"
-                                title="Add new session record for this student"
-                              >
-                                + Add
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setStudentSearch(s.name || s.studentId || "");
-                                  setActiveTab("records");
-                                }}
-                                className="px-2.5 py-1 rounded border text-xs hover:bg-gray-50"
-                                title="Manage this student's session records"
-                              >
-                                Manage
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    });
-                  })()}
-                </tbody>
-              </table>
-            </div>
+                      </thead>
+                      <tbody className="divide-y text-sm">
+                        {folderStudents.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                              No students found.
+                            </td>
+                          </tr>
+                        ) : (
+                          folderStudents.map(renderStudent)
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
 
