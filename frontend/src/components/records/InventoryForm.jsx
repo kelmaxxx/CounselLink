@@ -6,8 +6,9 @@
 // stored as a JSON blob in student_inventories.form_data — the shape below is
 // the contract; do not rename keys without a data migration.
 import React, { useEffect, useMemo, useState } from "react";
-import { Save, FileUp, Trash2, ExternalLink } from "lucide-react";
+import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown } from "lucide-react";
 import { Modal, BTN } from "../ui";
+import { downloadInventoryAsPdf } from "../../utils/inventoryReport";
 
 const EDUC_LEVELS = ["Elementary", "Junior High School", "Vocational", "Senior High School", "College"];
 
@@ -191,6 +192,7 @@ export default function InventoryForm({
   inventory,
   studentName,
   studentId,
+  studentProfile = {},
   apiBase,
   onSave,
   onUploadScan,
@@ -578,13 +580,19 @@ export default function InventoryForm({
       <p className="text-xs text-gray-500 italic">Student's signature is captured separately on the uploaded scan or via the Informed Consent e-sign page.</p>
 
       {/* Save bar */}
-      {!readOnly && (
-        <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-white border-t border-gray-200 mt-4 flex items-center justify-end gap-2">
+      <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-white border-t border-gray-200 mt-4 flex items-center justify-end gap-2">
+        <button type="button" onClick={() => downloadInventoryAsPdf(data, studentProfile)} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700">
+          <Printer size={16} /> Print Form
+        </button>
+        <button type="button" onClick={() => downloadInventoryAsPdf(data, studentProfile)} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700">
+          <FileDown size={16} /> Save as PDF
+        </button>
+        {!readOnly && (
           <button type="button" onClick={handleSave} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700 disabled:opacity-50">
             <Save size={16} /> {busy ? "Saving..." : "Save inventory"}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Scan section */}
       <SectionHeader>Signed Inventory Scan (Optional)</SectionHeader>
