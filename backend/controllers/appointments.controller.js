@@ -1,25 +1,37 @@
 import { query } from "../config/db.js";
 
 export const createAppointment = async (req, res) => {
-  const { preferredDate, preferredSlots, isUrgent, phoneNumber, reason } = req.body;
-  const studentId = req.user?.id;
+  const { preferredDate, preferredSlots, isUrgent, phoneNumber, reason, studentId: bodyStudentId } = req.body;
+  
+  let studentId = req.user?.id;
+  const isCounselor = req.user?.role === "counselor";
 
-  if (!preferredDate || !preferredSlots?.length || !phoneNumber || !reason) {
+  if (isCounselor && bodyStudentId) {
+    studentId = bodyStudentId;
+  }
+
+  // If created by counselor, phoneNumber defaults to "—", and reason defaults to "Follow-up Session"
+  const finalPhoneNumber = phoneNumber || (isCounselor ? "—" : null);
+  const finalReason = reason || (isCounselor ? "Follow-up Session" : null);
+
+  if (!preferredDate || !preferredSlots?.length || !finalPhoneNumber || !finalReason) {
     return res.status(400).json({ message: "Missing required appointment fields" });
   }
 
   const slots = Array.isArray(preferredSlots) ? preferredSlots.join(",") : preferredSlots;
+  const status = isCounselor ? "approved" : "pending";
+  const counselorId = isCounselor ? req.user?.id : null;
 
   const result = await query(
     `INSERT INTO appointments
       (student_id, counselor_id, appointment_type, preferred_date, preferred_time, status, reason, phone_number, is_urgent, preferred_slots)
      VALUES
-      (?, NULL, 'counseling', ?, NULL, 'pending', ?, ?, ?, ?)` ,
-    [studentId, preferredDate, reason, phoneNumber, isUrgent ? 1 : 0, slots]
+      (?, ?, 'counseling', ?, NULL, ?, ?, ?, ?, ?)` ,
+    [studentId, counselorId, preferredDate, status, finalReason, finalPhoneNumber, isUrgent ? 1 : 0, slots]
   );
 
   return res.status(201).json({
-    message: "Appointment request submitted",
+    message: isCounselor ? "Follow-up appointment scheduled" : "Appointment request submitted",
     id: result.insertId,
   });
 };

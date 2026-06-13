@@ -14,13 +14,12 @@ const router = Router();
 router.use(auth);
 
 router.get("/:studentId", getInventory);
-router.put("/:studentId", requireRole("counselor"), upsertInventory);
+router.put("/:studentId", upsertInventory);
 router.post(
   "/:studentId/scan",
-  requireRole("counselor"),
   recordScanUpload.single("scan"),
   uploadInventoryScan
 );
-router.delete("/:studentId/scan", requireRole("counselor"), deleteInventoryScan);
+router.delete("/:studentId/scan", deleteInventoryScan);
 
 export default router;
