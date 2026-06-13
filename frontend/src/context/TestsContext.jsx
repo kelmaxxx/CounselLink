@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
+import { useRealtime } from "./RealtimeContext";
 
 const TestsContext = createContext();
 
 export function TestsProvider({ children }) {
   const { currentUser, token } = useAuth();
+  const { subscribe } = useRealtime();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
   const [tests, setTests] = useState([]);
 
@@ -125,7 +127,17 @@ export function TestsProvider({ children }) {
 
   useEffect(() => {
     fetchTests().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Live updates: re-fetch whenever the server signals a test-request change.
+  useEffect(() => {
+    if (!token) return undefined;
+    return subscribe("tests", () => {
+      fetchTests().catch(() => undefined);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, subscribe]);
 
   return (
     <TestsContext.Provider value={{

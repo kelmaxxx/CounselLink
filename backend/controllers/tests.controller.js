@@ -1,12 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
-
-const createNotification = async ({ userId, title, message, link }) => {
-  await query(
-    "INSERT INTO notifications (user_id, title, message, link) VALUES (?, ?, ?, ?)",
-    [userId, title, message, link]
-  );
-};
+import { createNotification } from "../utils/notify.js";
+import { notifyUser, notifyRole } from "../events.js";
 
 const normalizeDate = (value) => {
   if (!value) return null;
@@ -37,6 +32,9 @@ export const createTestRequest = async (req, res) => {
       (?, NULL, 'psychological_test', ?, NULL, 'pending', ?, ?, 0, ?)` ,
     [studentId, normalizedDate, reason, phoneNumber, slots]
   );
+
+  // New pending test request shows in every counselor's queue.
+  notifyRole("counselor", { type: "tests" });
 
   return res.status(201).json({
     message: "Psychological test request submitted",
@@ -128,6 +126,7 @@ export const acceptTest = async (req, res) => {
       message: `Your test request is approved for ${normalizedDate} at ${timeSlot}.`,
       link: "/student/tests",
     });
+    notifyUser(rows[0].student_id, { type: "tests" });
   }
 
   return res.json({ message: "Test request approved" });
@@ -153,6 +152,7 @@ export const rejectTest = async (req, res) => {
       message: note ? `Your test request was rejected. Reason: ${note}` : "Your test request was rejected.",
       link: "/student/tests",
     });
+    notifyUser(rows[0].student_id, { type: "tests" });
   }
 
   return res.json({ message: "Test request rejected" });
@@ -184,6 +184,7 @@ export const rescheduleTest = async (req, res) => {
       message: `Your test request was rescheduled to ${normalizedDate} at ${timeSlot}.`,
       link: "/student/tests",
     });
+    notifyUser(rows[0].student_id, { type: "tests" });
   }
 
   return res.json({ message: "Test request rescheduled" });
