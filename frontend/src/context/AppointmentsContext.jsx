@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { useRealtime } from "./RealtimeContext";
 
@@ -10,6 +10,23 @@ let notificationCallback = null;
 export function setNotificationCallback(callback) {
   notificationCallback = callback;
 }
+
+// Pure shape-normalizer — defined at module scope so it isn't recreated each
+// render (keeps the memoized fetchAppointments below stable).
+const normalizeAppointment = (apt) => ({
+  ...apt,
+  preferredDate: apt.preferred_date || apt.preferredDate || null,
+  preferredSlots:
+    apt.preferred_slots?.split(",").filter(Boolean) ||
+    apt.preferredSlots ||
+    [],
+  scheduledDate: apt.scheduled_date || apt.scheduledDate || null,
+  scheduledTimeSlot: apt.scheduled_time || apt.scheduledTimeSlot || null,
+  counselorName: apt.counselorName || apt.counselor_name || null,
+  studentName: apt.studentName || apt.student_name || null,
+  controlNo: apt.controlNo || `APT-${String(apt.id).padStart(6, "0")}`,
+  note: apt.counselor_action_note || apt.note || null,
+});
 
 export function AppointmentsProvider({ children }) {
   const { users = [], currentUser, token } = useAuth();
@@ -53,26 +70,13 @@ export function AppointmentsProvider({ children }) {
     return { success: true, appointment: data };
   };
 
-  const normalizeAppointment = (apt) => ({
-    ...apt,
-    preferredDate: apt.preferred_date || apt.preferredDate || null,
-    preferredSlots:
-      apt.preferred_slots?.split(",").filter(Boolean) ||
-      apt.preferredSlots ||
-      [],
-    scheduledDate: apt.scheduled_date || apt.scheduledDate || null,
-    scheduledTimeSlot: apt.scheduled_time || apt.scheduledTimeSlot || null,
-    counselorName: apt.counselorName || apt.counselor_name || null,
-    studentName: apt.studentName || apt.student_name || null,
-    controlNo: apt.controlNo || `APT-${String(apt.id).padStart(6, "0")}`,
-    note: apt.counselor_action_note || apt.note || null,
-  });
-
   const updateAppointment = (id, updater) => {
     setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...updater } : a));
   };
 
-  const fetchAppointments = async () => {
+  // Stable identity (only changes when auth changes) so components can safely
+  // use it as a useEffect dependency without triggering a refetch loop.
+  const fetchAppointments = useCallback(async () => {
     const response = await fetch(`${apiBase}/api/appointments`, {
       headers: {
         "Content-Type": "application/json",
@@ -86,7 +90,7 @@ export function AppointmentsProvider({ children }) {
     const normalized = Array.isArray(data) ? data.map(normalizeAppointment) : [];
     setAppointments(normalized);
     return normalized;
-  };
+  }, [apiBase, token]);
 
   const acceptAppointment = async ({ id, date = null, timeSlot = null, note = null }) => {
     const response = await fetch(`${apiBase}/api/appointments/${id}/accept`, {
