@@ -2,7 +2,9 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
 import { testConnection } from "./config/db.js";
+import { addClient } from "./events.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import uploadsRoutes from "./routes/uploads.routes.js";
@@ -58,6 +60,37 @@ const __dirname = path.dirname(__filename);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+
+// Real-time stream (Server-Sent Events). The browser's EventSource can't send
+// an Authorization header, so the JWT comes in as a query param. We hold the
+// connection open and push typed "something changed" signals via events.js.
+app.get("/api/events", (req, res) => {
+  let user;
+  try {
+    user = jwt.verify(req.query.token, process.env.JWT_SECRET);
+  } catch {
+    return res.status(401).end();
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no", // disable proxy buffering (nginx/Render)
+  });
+  res.write("retry: 5000\n\n"); // tell the client how long to wait before reconnecting
+  res.write(": connected\n\n"); // open the stream immediately
+
+  const remove = addClient(user, res);
+
+  // Heartbeat so idle proxies/load balancers don't drop the connection.
+  const heartbeat = setInterval(() => res.write(": ping\n\n"), 25000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    remove();
+  });
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
