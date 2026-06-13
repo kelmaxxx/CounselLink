@@ -747,16 +747,68 @@ function InputWithIcon({ icon: Icon, trailing, children }) {
   );
 }
 
+
+const RESET_STORAGE_KEY = "cl_pwreset_pending";
+const RESET_TTL_MS = 10 * 60 * 1000;
+
+const loadPendingReset = () => {
+  try {
+    const data = JSON.parse(sessionStorage.getItem(RESET_STORAGE_KEY) || "null");
+    if (!data?.email || !data?.sentAt) return null;
+    if (Date.now() - data.sentAt > RESET_TTL_MS) {
+      sessionStorage.removeItem(RESET_STORAGE_KEY);
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const savePendingReset = (email) => {
+  try {
+    sessionStorage.setItem(
+      RESET_STORAGE_KEY,
+      JSON.stringify({ email, sentAt: Date.now() })
+    );
+  } catch {
+    /* sessionStorage unavailable — resume just won't persist */
+  }
+};
+
+const clearPendingReset = () => {
+  try {
+    sessionStorage.removeItem(RESET_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+};
+
 function ForgotPasswordModal({ onClose }) {
-  const [step, setStep] = useState("request");
-  const [email, setEmail] = useState("");
+  const pending = useMemo(() => loadPendingReset(), []);
+  const [step, setStep] = useState(pending ? "otp" : "request");
+  const [email, setEmail] = useState(pending?.email || "");
   const [otp, setOtp] = useState("");
   const [token, setToken] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(
+    pending
+      ? `We already sent a code to ${pending.email}. Enter it below, or resend.`
+      : ""
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Drop back to the start and forget the in-progress code entirely.
+  const startOver = () => {
+    clearPendingReset();
+    setStep("request");
+    setOtp("");
+    setToken("");
+    setError("");
+    setMessage("");
+  };
 
   const submitRequest = async (e) => {
     e.preventDefault();
@@ -777,6 +829,7 @@ function ForgotPasswordModal({ onClose }) {
       if (!res.ok) {
         setError(data.message || "Unable to request reset.");
       } else {
+        savePendingReset(email.trim());
         setMessage(data.message || "Check your email for a 6-digit code.");
         setStep("otp");
       }
@@ -831,6 +884,7 @@ function ForgotPasswordModal({ onClose }) {
       if (!res.ok) {
         setError(data.message || "Unable to resend code.");
       } else {
+        savePendingReset(email.trim());
         setMessage("A new code has been sent.");
       }
     } catch (err) {
@@ -863,6 +917,7 @@ function ForgotPasswordModal({ onClose }) {
       if (!res.ok) {
         setError(data.message || "Unable to reset password.");
       } else {
+        clearPendingReset();
         setMessage(data.message || "Password updated.");
         setStep("done");
       }
@@ -910,15 +965,10 @@ function ForgotPasswordModal({ onClose }) {
           <>
             <button
               type="button"
-              onClick={() => {
-                setStep("request");
-                setOtp("");
-                setError("");
-                setMessage("");
-              }}
+              onClick={startOver}
               className={BTN.secondary}
             >
-              Back
+              Use another email
             </button>
             <button
               type="submit"
