@@ -6,7 +6,7 @@
 // stored as a JSON blob in student_inventories.form_data — the shape below is
 // the contract; do not rename keys without a data migration.
 import React, { useEffect, useMemo, useState } from "react";
-import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown } from "lucide-react";
+import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown, CheckCircle2 } from "lucide-react";
 import { Modal, BTN } from "../ui";
 import { downloadInventoryAsPdf } from "../../utils/inventoryReport";
 
@@ -204,6 +204,7 @@ export default function InventoryForm({
   const [feedback, setFeedback] = useState(null);
   const [scanInputKey, setScanInputKey] = useState(0); // forces file input remount after upload
   const [confirmRemoveScan, setConfirmRemoveScan] = useState(false);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
   useEffect(() => {
     setData(mergeInventory(inventory?.formData));
@@ -245,6 +246,11 @@ export default function InventoryForm({
     setBusy(true);
     const res = await onSave(data);
     setBusy(false);
+    if (res.success) {
+      setShowSaveSuccess(true);
+    } else {
+      alert(res.message || "Failed to save");
+    }
     showFeedback(res.success ? "success" : "error", res.success ? "Inventory saved" : (res.message || "Failed to save"));
   };
 
@@ -644,6 +650,27 @@ export default function InventoryForm({
         <p className="text-sm text-gray-700 leading-relaxed">
           The digital form data will not be affected. Only the uploaded scan file will be detached.
         </p>
+      </Modal>
+
+      <Modal
+        open={showSaveSuccess}
+        onClose={() => setShowSaveSuccess(false)}
+        title="Inventory Saved"
+        size="sm"
+        footer={
+          <button onClick={() => setShowSaveSuccess(false)} className={BTN.primary}>
+            Continue
+          </button>
+        }
+      >
+        <div className="flex flex-col items-center justify-center text-center p-4">
+          <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-3">
+            <CheckCircle2 size={24} />
+          </div>
+          <p className="text-sm text-gray-700 font-medium leading-relaxed">
+            Your individual inventory record has been successfully saved and synchronized.
+          </p>
+        </div>
       </Modal>
     </div>
   );

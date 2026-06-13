@@ -56,7 +56,7 @@ export default function CounselorAppointments() {
     rescheduleAppointment,
   } = useAppointments();
   const { getTestsForCurrentUser } = useTests();
-  const { fetchSessionByAppointment, deleteSession } = useCounselingSessions();
+  const { fetchSessionByAppointment, deleteSession, sessions } = useCounselingSessions();
   const [busyId, setBusyId] = useState(null);
 
   // Pending-request action modals
@@ -210,7 +210,15 @@ export default function CounselorAppointments() {
   const upcomingAppointments = myAppointments.filter(
     (a) => a.status === "approved" || a.status === "rescheduled"
   );
-  const completedAppointments = myAppointments.filter((a) => a.status === "completed");
+  // Only show in "Recently completed" if session was finalized with termination (not follow-up)
+  const completedAppointments = myAppointments.filter((a) => {
+    if (a.status !== "completed") return false;
+    const s = sessions?.find((s) => s.appointmentId === a.id || s.appointment_id === a.id);
+    // If there's a session record, only show when it's a termination (not a follow-up that spawned a new appt)
+    if (s) return s.nextSession === "termination";
+    // No session record yet — still show so counselor can open the form and submit the report
+    return true;
+  });
   const upcomingTests = myTests.filter(
     (t) => t.status === "approved" || t.status === "rescheduled"
   );
@@ -470,15 +478,22 @@ export default function CounselorAppointments() {
                         <FileText size={13} />
                         Open form
                       </a>
-                      <button
-                        onClick={() => handleMarkDone(a.id)}
-                        disabled={busyId === a.id}
-                        className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition disabled:opacity-50"
-                        title="Mark this session as completed"
-                      >
-                        <CheckCircle2 size={13} />
-                        {busyId === a.id ? "Saving…" : "Mark done"}
-                      </button>
+                      {/* Only show Mark done button when the saved session report is set to Termination */}
+                      {(() => {
+                        const sess = sessions?.find((s) => s.appointmentId === a.id || s.appointment_id === a.id);
+                        const canMarkDone = sess && sess.nextSession === "termination";
+                        return canMarkDone ? (
+                          <button
+                            onClick={() => handleMarkDone(a.id)}
+                            disabled={busyId === a.id}
+                            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition disabled:opacity-50"
+                            title="Mark this session as completed (Termination)"
+                          >
+                            <CheckCircle2 size={13} />
+                            {busyId === a.id ? "Saving…" : "Mark done"}
+                          </button>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 </li>

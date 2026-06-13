@@ -57,6 +57,7 @@ export function AppointmentsProvider({ children }) {
         isUrgent: form.isUrgent,
         phoneNumber: form.phoneNumber,
         reason: form.reason,
+        studentId: form.studentId || student?.id || null,
       }),
     });
 
@@ -65,6 +66,7 @@ export function AppointmentsProvider({ children }) {
       return { success: false, message: data.message || "Failed to submit appointment" };
     }
 
+    await fetchAppointments();
     return { success: true, appointment: data };
   };
 

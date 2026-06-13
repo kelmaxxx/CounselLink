@@ -5,9 +5,10 @@
 //   - Consent:   e-sign status, signed-paper scan, revoke
 //   - Sessions:  counseling sessions filtered to this student
 import React, { useEffect, useMemo, useState } from "react";
-import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, Download, FileDown } from "lucide-react";
+import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, Download, FileDown, Edit, Trash2 } from "lucide-react";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
+import { useAuth } from "../../context/AuthContext";
 import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
 import { Modal, BTN, formatDate } from "../ui";
@@ -204,7 +205,8 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
   );
 }
 
-function SessionsList({ student, sessions }) {
+function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
+  const { currentUser } = useAuth();
   const studentSessions = useMemo(
     () => sessions.filter((s) => s.studentId === student?.id),
     [sessions, student?.id]
@@ -231,7 +233,7 @@ function SessionsList({ student, sessions }) {
             <th className="px-3 py-2 text-left">Concern</th>
             <th className="px-3 py-2 text-left">Summary</th>
             <th className="px-3 py-2 text-left">Next</th>
-            <th className="px-3 py-2 text-right">Report</th>
+            <th className="px-3 py-2 text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -268,6 +270,24 @@ function SessionsList({ student, sessions }) {
                   >
                     <FileDown size={14} />
                   </button>
+                  {currentUser?.role === "counselor" && Number(s.counselorId) === Number(currentUser.id) && (
+                    <>
+                      <button
+                        onClick={() => onEditSession?.(s)}
+                        className="p-1.5 rounded hover:bg-gray-100"
+                        title="Edit"
+                      >
+                        <Edit size={14} className="text-blue-600" />
+                      </button>
+                      <button
+                        onClick={() => onDeleteSession?.(s)}
+                        className="p-1.5 rounded hover:bg-gray-100"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} className="text-red-600" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </td>
             </tr>
@@ -338,7 +358,7 @@ function SessionViewRow({ label, value }) {
   );
 }
 
-export default function StudentRecordsDrawer({ student, onClose, onRecordsChanged, readOnly = false }) {
+export default function StudentRecordsDrawer({ student, onClose, onRecordsChanged, onEditSession, onDeleteSession, readOnly = false }) {
   const {
     getRecords,
     upsertInventory, uploadInventoryScan, deleteInventoryScan,
@@ -481,7 +501,12 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
               readOnly={readOnly}
             />
           ) : (
-            <SessionsList student={student} sessions={sessions} />
+            <SessionsList
+              student={student}
+              sessions={sessions}
+              onEditSession={onEditSession}
+              onDeleteSession={onDeleteSession}
+            />
           )}
         </div>
       </aside>

@@ -1,6 +1,6 @@
 // src/components/Sidebar.jsx
 import React from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   Calendar, Users, FileText, Bell, LogOut, User,
@@ -74,17 +74,17 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
             items: [
               { id: "dashboard", label: "Dashboard", icon: BarChart3 },
               { id: "request-appointment", label: "Request Appointment", icon: Calendar },
-              { id: "my-appointments", label: "My Appointments", icon: Calendar },
               { id: "request-psych-test", label: "Request Psych Test", icon: ClipboardList },
-              { id: "counselor-directory", label: "Counselors", icon: Users },
+              { id: "my-appointments", label: "My Appointments", icon: Calendar },
               { id: "consent", label: "Test Results", icon: FileSignature },
             ],
           },
           {
             label: "Account",
             items: [
-              { id: "messages", label: "Messages", icon: MessageCircle },
+              { id: "counselor-directory", label: "Counselors", icon: Users },
               { id: "profile", label: "My Profile", icon: User },
+              { id: "messages", label: "Messages", icon: MessageCircle },
               { id: "notifications", label: "Notifications", icon: Bell },
             ],
           },
@@ -184,7 +184,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       </div>
 
       {/* User block */}
-      <div className="px-5 py-3 border-b border-maroon-800/60">
+      <Link to={`${roleBase}/profile`} className="px-5 py-3 border-b border-maroon-800/60 block hover:bg-maroon-800/40 transition cursor-pointer">
         <div className="flex items-center gap-3 min-w-0">
           <Avatar
             name={currentUser.name}
@@ -200,7 +200,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
             </div>
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
