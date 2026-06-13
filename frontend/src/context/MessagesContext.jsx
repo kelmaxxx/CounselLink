@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useAuth } from "./AuthContext";
+import { useRealtime } from "./RealtimeContext";
 
 const MessagesContext = createContext();
 
@@ -13,10 +14,18 @@ const normalizeMessage = (msg) => ({
 
 export function MessagesProvider({ children }) {
   const { currentUser, token } = useAuth();
+  const { subscribe } = useRealtime();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
   const [messagesByUser, setMessagesByUser] = useState({});
   const [conversations, setConversations] = useState([]);
+
+  // Mirror of messagesByUser so the realtime handler can check which threads are
+  // open without re-subscribing on every message.
+  const messagesByUserRef = useRef(messagesByUser);
+  useEffect(() => {
+    messagesByUserRef.current = messagesByUser;
+  }, [messagesByUser]);
 
   const fetchConversations = useCallback(async () => {
     if (!token) return [];
@@ -138,6 +147,18 @@ export function MessagesProvider({ children }) {
     setMessagesByUser({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Live updates: a new incoming message refreshes the conversation list and,
+  // if that thread is currently open, the messages within it.
+  useEffect(() => {
+    if (!token) return undefined;
+    return subscribe("messages", (event) => {
+      fetchConversations().catch(() => undefined);
+      if (event.from && messagesByUserRef.current[event.from]) {
+        fetchConversation(event.from).catch(() => undefined);
+      }
+    });
+  }, [token, subscribe, fetchConversations, fetchConversation]);
 
   return (
     <MessagesContext.Provider
