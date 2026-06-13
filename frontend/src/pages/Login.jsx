@@ -631,26 +631,44 @@ function AuthShell({ children }) {
       ctx.drawImage(img, 0, 0);
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // --- Pass 1: Remove white / near-white background ---
       for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-        // Calculate perceived luminance
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
         const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-        // Check if the pixel is "white-ish" (low saturation + high luminance)
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const saturation = max === 0 ? 0 : (max - min) / max;
-        if (lum > 180 && saturation < 0.15) {
-          // Fully transparent for very bright near-white pixels
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        const sat = mx === 0 ? 0 : (mx - mn) / mx;
+        if (lum > 170 && sat < 0.18) {
           data[i + 3] = 0;
-        } else if (lum > 160 && saturation < 0.20) {
-          // Smooth fade for borderline pixels to avoid harsh edges
-          const fade = Math.max(0, (lum - 160) / 20);
+        } else if (lum > 150 && sat < 0.22) {
+          const fade = Math.max(0, (lum - 150) / 20);
           data[i + 3] = Math.round(a * (1 - fade));
         }
       }
+
+      // --- Pass 2: Recolor "DIVISION OF STUDENT AFFAIRS" text to yellow ---
+      // This text sits roughly between 60-78% of the image height
+      const yStart = Math.floor(h * 0.60);
+      const yEnd = Math.floor(h * 0.78);
+      for (let y = yStart; y < yEnd; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+          if (a < 50) continue; // skip transparent
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+          const sat = mx === 0 ? 0 : (mx - mn) / mx;
+          // Target dark, low-saturation pixels (the dark text)
+          if (lum < 80 && sat < 0.35) {
+            data[i] = 255;     // R
+            data[i + 1] = 215; // G
+            data[i + 2] = 0;   // B → yellow
+          }
+        }
+      }
+
       ctx.putImageData(imgData, 0, 0);
       img.src = canvas.toDataURL();
     } catch (err) {
@@ -662,9 +680,9 @@ function AuthShell({ children }) {
     <div className="min-h-screen bg-gradient-to-br from-maroon-600 via-maroon-700 to-maroon-800 flex items-center justify-center p-6">
       <div className="w-full max-w-xl flex flex-col items-center">
         <img
-          src="/three-logos.png"
+          src="/login-header.png"
           alt="Guidance and Counseling Section"
-          className="w-full max-h-36 object-contain mb-3"
+          className="w-full max-h-48 object-contain mb-3"
           onLoad={handleLogoLoad}
         />
         {children}

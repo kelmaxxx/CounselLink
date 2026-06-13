@@ -20,45 +20,6 @@ export default function WelcomeHero({ userName }) {
     setTimeout(() => setHidden(true), 700);
   }, []);
 
-  /** Remove white background from the logo image via canvas */
-  const handleLogoLoad = useCallback((e) => {
-    const img = e.currentTarget;
-    if (img.dataset.processed) return;
-    img.dataset.processed = "true";
-    try {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      ctx.drawImage(img, 0, 0);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imgData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-        // Perceived luminance
-        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-        // Saturation check (low saturation = grayish / white-ish)
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const saturation = max === 0 ? 0 : (max - min) / max;
-        if (lum > 180 && saturation < 0.15) {
-          data[i + 3] = 0; // fully transparent
-        } else if (lum > 160 && saturation < 0.20) {
-          // smooth fade for borderline pixels
-          const fade = Math.max(0, (lum - 160) / 20);
-          data[i + 3] = Math.round(a * (1 - fade));
-        }
-      }
-      ctx.putImageData(imgData, 0, 0);
-      img.src = canvas.toDataURL();
-    } catch (err) {
-      console.error("Error removing logo background:", err);
-    }
-  }, []);
-
   if (hidden) return null;
 
   return (
@@ -98,15 +59,19 @@ export default function WelcomeHero({ userName }) {
         }}
       />
 
-      {/* Content */}
+      {/* CounseLink header — small, pinned to top */}
+      <img
+        src="/welcome-header.png"
+        alt="CounseLink - Student Counseling and Well-Being Platform"
+        className="absolute top-6 z-10 drop-shadow-lg"
+        style={{
+          width: "clamp(160px, 22vw, 260px)",
+          objectFit: "contain",
+        }}
+      />
+
+      {/* Content — centered in the middle */}
       <div className="relative z-10 px-6 max-w-3xl flex flex-col items-center animate-fade-in-up">
-        <img
-          src="/picture2.png"
-          alt="CounseLink Logo"
-          className="h-36 sm:h-48 object-contain mb-6 drop-shadow-lg"
-          crossOrigin="anonymous"
-          onLoad={handleLogoLoad}
-        />
         {/* Line 1 — big welcome */}
         <h1
           className="font-extrabold tracking-tight text-white drop-shadow-lg"
