@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
+import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import {
   User2,
   MessageCircle,
@@ -16,6 +17,7 @@ import {
   X,
   Clock3,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
@@ -54,6 +56,7 @@ export default function CounselorAppointments() {
     rescheduleAppointment,
   } = useAppointments();
   const { getTestsForCurrentUser } = useTests();
+  const { fetchSessionByAppointment, deleteSession } = useCounselingSessions();
   const [busyId, setBusyId] = useState(null);
 
   // Pending-request action modals
@@ -66,12 +69,67 @@ export default function CounselorAppointments() {
   });
   const [rejectModal, setRejectModal] = useState({ open: false, id: null, note: "" });
 
-  const handleMarkDone = async (id) => {
-    if (!window.confirm("Mark this counseling session as completed? You will be able to open the form and submit the final Session Report afterwards.")) return;
+  const [completeConfirmModal, setCompleteConfirmModal] = useState({
+    open: false,
+    id: null,
+    type: "counseling", // "counseling" or "test"
+  });
+
+  const [discardConfirmModal, setDiscardConfirmModal] = useState({
+    open: false,
+    appt: null,
+  });
+
+  const handleMarkDone = (id, type = "counseling") => {
+    setCompleteConfirmModal({ open: true, id, type });
+  };
+
+  const submitComplete = async () => {
+    const { id } = completeConfirmModal;
+    setCompleteConfirmModal({ open: false, id: null, type: "counseling" });
     setBusyId(id);
     const res = await completeAppointment({ id });
     setBusyId(null);
     if (!res.success) alert(res.message || "Failed to mark as done");
+  };
+
+  const handleDiscardSession = (appt) => {
+    setDiscardConfirmModal({ open: true, appt });
+  };
+
+  const submitDiscard = async () => {
+    const { appt } = discardConfirmModal;
+    setDiscardConfirmModal({ open: false, appt: null });
+    if (!appt) return;
+    setBusyId(appt.id);
+    try {
+      // 1. Fetch draft session if it exists
+      const session = await fetchSessionByAppointment(appt.id);
+      if (session) {
+        if (session.finalizedAt) {
+          alert("Cannot delete a finalized session report.");
+          return;
+        }
+        await deleteSession(session.id);
+      }
+      
+      // 2. Reset appointment status back to 'approved'
+      const slot = appt.scheduledTimeSlot || appt.timeSlot || (appt.preferred_slots ? appt.preferred_slots.split(",")[0] : null);
+      const res = await acceptAppointment({
+        id: appt.id,
+        date: appt.scheduledDate || appt.preferredDate,
+        timeSlot: slot,
+        note: appt.note || null,
+      });
+      if (!res.success) {
+        alert(res.message || "Failed to update appointment status");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to discard session");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const handleAccept = async (a) => {
@@ -459,12 +517,22 @@ export default function CounselorAppointments() {
                       {a.scheduledTimeSlot ? ` · ${timeLabel(a.scheduledTimeSlot)}` : ""}
                     </p>
                   </div>
-                  <a
-                    href={`/counselor/appointments/${a.id}/form`}
-                    className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
-                  >
-                    <FileText size={13} /> Submit Report
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`/counselor/appointments/${a.id}/form`}
+                      className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
+                    >
+                      <FileText size={13} /> Submit Report
+                    </a>
+                    <button
+                      onClick={() => handleDiscardSession(a)}
+                      disabled={busyId === a.id}
+                      className="w-8 h-8 inline-flex items-center justify-center rounded-md border border-gray-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition"
+                      title="Discard completed session and delete draft"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}
@@ -571,6 +639,22 @@ export default function CounselorAppointments() {
                       >
                         <MessageCircle size={15} />
                       </button>
+                      <a
+                        href={`/counselor/tests/${t.id}/form`}
+                        className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
+                      >
+                        <FileText size={13} />
+                        Open form
+                      </a>
+                      <button
+                        onClick={() => handleMarkDone(t.id, "test")}
+                        disabled={busyId === t.id}
+                        className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition disabled:opacity-50"
+                        title="Mark this test as completed"
+                      >
+                        <CheckCircle2 size={13} />
+                        {busyId === t.id ? "Saving…" : "Mark done"}
+                      </button>
                     </div>
                   </div>
                 </li>
@@ -672,6 +756,59 @@ export default function CounselorAppointments() {
           value={rejectModal.note}
           onChange={(e) => setRejectModal((s) => ({ ...s, note: e.target.value }))}
         />
+      </Modal>
+
+      <Modal
+        open={completeConfirmModal.open}
+        onClose={() => setCompleteConfirmModal({ open: false, id: null, type: "counseling" })}
+        title="Mark as completed"
+        subtitle="Confirm session completion"
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN.secondary}
+              onClick={() => setCompleteConfirmModal({ open: false, id: null, type: "counseling" })}
+            >
+              Cancel
+            </button>
+            <button type="button" className={BTN.primary} onClick={submitComplete}>
+              Confirm Complete
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          {completeConfirmModal.type === "test"
+            ? "Mark this psychological test request as completed? You will be able to fill up the test results and release them to the student afterwards."
+            : "Mark this counseling session as completed? You will be able to open the form and submit the final Session Report afterwards."}
+        </p>
+      </Modal>
+
+      <Modal
+        open={discardConfirmModal.open}
+        onClose={() => setDiscardConfirmModal({ open: false, appt: null })}
+        title="Discard completed session"
+        subtitle="This action cannot be undone"
+        danger
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN.secondary}
+              onClick={() => setDiscardConfirmModal({ open: false, appt: null })}
+            >
+              Cancel
+            </button>
+            <button type="button" className={BTN.danger} onClick={submitDiscard}>
+              Confirm Discard
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          Are you sure you want to discard this completed session and delete the draft report? The appointment will be reset back to approved status and returned to your active upcoming list.
+        </p>
       </Modal>
 
       {selectedProfile && (

@@ -22,6 +22,7 @@ import StudentConsent from "./pages/student/StudentConsent";
 import Students from "./pages/Students";
 import CounselorAppointments from "./pages/counselor/CounselorAppointments";
 import StudentCounselingForm from "./pages/counselor/StudentCounselingForm";
+import StudentTestForm from "./pages/counselor/StudentTestForm";
 import CounselorReports from "./pages/counselor/CounselorReports";
 import CounselorProfile from "./pages/counselor/CounselorProfile";
 import CounselorNotifications from "./pages/counselor/CounselorNotifications";
@@ -227,6 +228,16 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <StudentCounselingForm />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/counselor/tests/:id/form"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <StudentTestForm />
               </Layout>
             </ProtectedRoute>
           }

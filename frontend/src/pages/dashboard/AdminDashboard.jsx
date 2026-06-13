@@ -120,7 +120,7 @@ export default function AdminDashboard() {
             <EmptyState icon={Users} title="No users yet" />
           ) : (
             <div style={{ width: "100%", height: 280 }}>
-              <ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={pieData}
