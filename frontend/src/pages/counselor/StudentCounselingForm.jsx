@@ -18,7 +18,7 @@ import {
   Lock,
   Info,
 } from "lucide-react";
-import { BTN, INPUT, LABEL, initialsOf, formatDate, formatDateTime } from "../../components/ui";
+import { Modal, BTN, INPUT, LABEL, initialsOf, formatDate, formatDateTime } from "../../components/ui";
 
 const blankReason = () => ({
   routine: false,
@@ -67,6 +67,7 @@ export default function StudentCounselingForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
 
   const printRef = useRef(null);
   const handlePrint = useReactToPrint({
@@ -156,16 +157,19 @@ export default function StudentCounselingForm() {
   };
 
   const handleSubmitReport = async () => {
-    // Ensure there is a saved record to finalize. handleSave returns the id so
-    // we don't depend on the (async) existingSessionId state within this call.
     let sessionId = existingSessionId;
     if (!sessionId) {
       sessionId = await handleSave();
       if (!sessionId) return;
     }
-    if (!window.confirm(
-      "Submit this session as the final Session Report? Once submitted the record becomes read-only and, if the appointment came from a referral, the report will be delivered to the referring College Representative."
-    )) return;
+    setSubmitConfirmOpen(true);
+  };
+
+  const executeSubmitReport = async () => {
+    setSubmitConfirmOpen(false);
+    let sessionId = existingSessionId;
+    if (!sessionId) return;
+
     setSubmittingReport(true);
     setFeedback(null);
     const res = await finalizeSession(sessionId);
@@ -340,6 +344,37 @@ export default function StudentCounselingForm() {
           <SessionSummary appt={appt} form={form} isFinalized={isFinalized} />
         </div>
       </div>
+
+      {submitConfirmOpen && (
+        <Modal
+          open
+          onClose={() => setSubmitConfirmOpen(false)}
+          title="Submit Session Report"
+          subtitle="Confirm finalize report"
+          footer={
+            <>
+              <button
+                type="button"
+                className={BTN.secondary}
+                onClick={() => setSubmitConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={BTN.primary}
+                onClick={executeSubmitReport}
+              >
+                Confirm Submit
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-700 leading-relaxed">
+            Submit this session as the final Session Report? Once submitted the record becomes read-only and, if the appointment came from a referral, the report will be delivered to the referring College Representative.
+          </p>
+        </Modal>
+      )}
     </div>
   );
 }
