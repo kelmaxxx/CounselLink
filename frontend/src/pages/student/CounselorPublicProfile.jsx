@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, MessageCircle, Mail, Briefcase, Award, User } from "lucide-react";
+import { ArrowLeft, MessageCircle, Mail, Briefcase, Award, User, Star } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useAppointments } from "../../context/AppointmentsContext";
 import ChatModal from "../../components/ChatModal";
+import { FeedbackModal } from "./StudentFeedback";
 import { PageHeader, SectionCard, BTN, initialsOf } from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -10,10 +12,26 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 export default function CounselorPublicProfile() {
   const { id } = useParams();
   const { token, lookupUser } = useAuth();
+  const { appointments, fetchAppointments } = useAppointments();
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  useEffect(() => {
+    fetchAppointments?.().catch(() => undefined);
+  }, [fetchAppointments]);
+
+  const latestCompletedApptId = React.useMemo(() => {
+    if (!appointments || !user) return null;
+    const match = appointments.find(
+      (a) =>
+        a.status === "completed" &&
+        (a.counselor_id === user.id || a.counselorId === user.id)
+    );
+    return match ? match.id : null;
+  }, [appointments, user]);
 
   useEffect(() => {
     if (!id || !token) return;
@@ -70,9 +88,14 @@ export default function CounselorPublicProfile() {
             title={user.name}
             subtitle={`${user.department || "Counselor"}${user.specialization ? ` · ${user.specialization}` : ""}`}
             actions={
-              <button onClick={() => setChatOpen(true)} className={BTN.primary}>
-                <MessageCircle size={15} /> Send message
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => setFeedbackOpen(true)} className={BTN.secondary}>
+                  <Star size={15} className="mr-1.5 inline-block text-amber-500 fill-amber-500" /> Feedback
+                </button>
+                <button onClick={() => setChatOpen(true)} className={BTN.primary}>
+                  <MessageCircle size={15} /> Send message
+                </button>
+              </div>
             }
           />
 
@@ -109,6 +132,17 @@ export default function CounselorPublicProfile() {
       )}
 
       {chatOpen && user && <ChatModal recipientUser={user} onClose={() => setChatOpen(false)} />}
+      {feedbackOpen && user && (
+        <FeedbackModal
+          token={token}
+          context={{
+            counselorId: user.id,
+            counselorName: user.name,
+            appointmentId: latestCompletedApptId,
+          }}
+          onClose={() => setFeedbackOpen(false)}
+        />
+      )}
     </div>
   );
 }
