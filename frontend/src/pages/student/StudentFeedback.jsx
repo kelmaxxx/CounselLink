@@ -112,7 +112,7 @@ export default function StudentFeedback() {
   );
 }
 
-function FeedbackModal({ token, context, onClose }) {
+export function FeedbackModal({ token, context, onClose }) {
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState("");

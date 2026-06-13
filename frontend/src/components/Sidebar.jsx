@@ -77,7 +77,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
               { id: "my-appointments", label: "My Appointments", icon: Calendar },
               { id: "request-psych-test", label: "Request Psych Test", icon: ClipboardList },
               { id: "counselor-directory", label: "Counselors", icon: Users },
-              { id: "student-feedback", label: "Leave Feedback", icon: MessageCircle },
               { id: "consent", label: "Test Results", icon: FileSignature },
             ],
           },
