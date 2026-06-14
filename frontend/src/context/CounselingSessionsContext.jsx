@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
+import { useRealtime } from "./RealtimeContext";
 
 const CounselingSessionsContext = createContext();
 
 export function CounselingSessionsProvider({ children }) {
   const { token, currentUser } = useAuth();
+  const { subscribe } = useRealtime();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
   const [sessions, setSessions] = useState([]);
@@ -93,6 +95,15 @@ export function CounselingSessionsProvider({ children }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, currentUser?.role]);
+
+  // Live updates: re-fetch whenever the server signals a session change.
+  useEffect(() => {
+    if (!token) return undefined;
+    return subscribe("sessions", () => {
+      fetchSessions().catch(() => undefined);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, subscribe]);
 
   return (
     <CounselingSessionsContext.Provider

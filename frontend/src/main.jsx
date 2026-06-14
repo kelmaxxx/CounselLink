@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext'
+import { RealtimeProvider } from './context/RealtimeContext'
 import { AppointmentsProvider } from './context/AppointmentsContext'
 import { TestsProvider } from './context/TestsContext'
 import { NotificationsProvider } from './context/NotificationsContext'
@@ -15,7 +16,8 @@ import { ReferralsProvider } from './context/ReferralsContext'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <AppointmentsProvider>
+      <RealtimeProvider>
+        <AppointmentsProvider>
         <TestsProvider>
           <NotificationsProvider>
             <TestResultsProvider>
@@ -31,7 +33,8 @@ createRoot(document.getElementById('root')).render(
             </TestResultsProvider>
           </NotificationsProvider>
         </TestsProvider>
-      </AppointmentsProvider>
+        </AppointmentsProvider>
+      </RealtimeProvider>
     </AuthProvider>
   </StrictMode>,
 )

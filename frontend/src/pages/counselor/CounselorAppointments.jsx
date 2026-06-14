@@ -276,7 +276,7 @@ export default function CounselorAppointments() {
             {pendingAppointments.map((a) => {
               const studentId = a.student_id || a.studentUserId;
               const requested = a.preferredDate
-                ? `${a.preferredDate} · ${timeLabel(
+                ? `${formatDate(a.preferredDate)} · ${timeLabel(
                     a.timeSlot ||
                       (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : "")
                   )}`
