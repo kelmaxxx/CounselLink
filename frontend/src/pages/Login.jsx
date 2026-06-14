@@ -267,7 +267,7 @@ export default function Login() {
           </h1>
 
           <form onSubmit={handleSignupSubmit} className="space-y-4">
-            <FieldRow label="Full name *" error={signupErrors.name}>
+            <FieldRow label="Full name" error={signupErrors.name}>
               <input
                 name="name"
                 value={signupForm.name}
@@ -279,8 +279,8 @@ export default function Login() {
             </FieldRow>
 
             <FieldRow
-              label="Institutional email *"
-              hint="@s.msumain.edu.ph"
+              label="Institutional email"
+
               error={signupErrors.email}
             >
               <InputWithIcon icon={Mail}>
@@ -297,7 +297,7 @@ export default function Login() {
             </FieldRow>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FieldRow label="Student ID *" error={signupErrors.studentId}>
+              <FieldRow label="Student ID" error={signupErrors.studentId}>
                 <InputWithIcon icon={Hash}>
                   <input
                     name="studentId"
@@ -309,7 +309,7 @@ export default function Login() {
                   />
                 </InputWithIcon>
               </FieldRow>
-              <FieldRow label="Phone (optional)">
+              <FieldRow label="Phone Number">
                 <InputWithIcon icon={Phone}>
                   <input
                     name="phone"
@@ -323,7 +323,7 @@ export default function Login() {
               </FieldRow>
             </div>
 
-            <FieldRow label="College *">
+            <FieldRow label="College">
               <select
                 name="college"
                 value={signupForm.college}
@@ -341,7 +341,7 @@ export default function Login() {
             <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
               <div className="flex items-baseline justify-between gap-2 mb-2">
                 <p className="text-sm font-medium text-gray-800">
-                  Certificate of Registration *
+                  Certificate of Registration
                 </p>
                 <p className="text-xs text-gray-400">JPG, PNG or PDF · max 5 MB</p>
               </div>
@@ -395,7 +395,7 @@ export default function Login() {
             <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
               <div className="flex items-baseline justify-between gap-2 mb-2">
                 <p className="text-sm font-medium text-gray-800">
-                  1x1 ID Picture (Optional)
+                  1x1 Picture
                 </p>
                 <p className="text-xs text-gray-400">JPG or PNG · max 2 MB</p>
               </div>
@@ -439,7 +439,7 @@ export default function Login() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FieldRow label="Password *" error={signupErrors.password}>
+              <FieldRow label="Password" error={signupErrors.password}>
                 <InputWithIcon icon={Lock} trailing={
                   <button
                     type="button"
@@ -462,7 +462,7 @@ export default function Login() {
                   />
                 </InputWithIcon>
               </FieldRow>
-              <FieldRow label="Confirm password *" error={signupErrors.confirmPassword}>
+              <FieldRow label="Confirm password" error={signupErrors.confirmPassword}>
                 <InputWithIcon icon={Lock}>
                   <input
                     name="confirmPassword"
@@ -704,11 +704,10 @@ function RoleSelector({ value, onChange }) {
           role="tab"
           aria-selected={opt.value === value}
           onClick={() => onChange(opt.value)}
-          className={`py-2 rounded-lg text-xs font-medium transition-colors ${
-            opt.value === value
-              ? "bg-white shadow-sm text-gray-900"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
+          className={`py-2 rounded-lg text-xs font-medium transition-colors ${opt.value === value
+            ? "bg-white shadow-sm text-gray-900"
+            : "text-gray-500 hover:text-gray-700"
+            }`}
         >
           {opt.label}
         </button>

@@ -397,24 +397,26 @@ function TestResultCard({ result, studentName }) {
         </div>
       </div>
 
-      <div ref={printRef} className="mt-3 hidden print:block">
-        <div className="text-center mb-3">
-          <h4 className="text-base font-bold">CounselLink · MSU Marawi</h4>
-          <p className="text-xs text-gray-600">Psychological Test Result</p>
+      <div style={{ display: "none" }}>
+        <div ref={printRef}>
+          <div className="text-center mb-3">
+            <h4 className="text-base font-bold">CounselLink · MSU Marawi</h4>
+            <p className="text-xs text-gray-600">Psychological Test Result</p>
+          </div>
+          <dl className="divide-y divide-gray-100 text-sm">
+            <Row label="Student" value={studentName || "—"} />
+            <Row label="Test" value={result.testName || "—"} />
+            <Row
+              label="Completed"
+              value={result.completedDate ? new Date(result.completedDate).toLocaleDateString() : "—"}
+            />
+            {result.counselorName && <Row label="Counselor" value={result.counselorName} />}
+            {result.summary && <Row label="Summary" value={result.summary} multiline />}
+            {result.recommendations && (
+              <Row label="Recommendations" value={result.recommendations} multiline />
+            )}
+          </dl>
         </div>
-        <dl className="divide-y divide-gray-100 text-sm">
-          <Row label="Student" value={studentName || "—"} />
-          <Row label="Test" value={result.testName || "—"} />
-          <Row
-            label="Completed"
-            value={result.completedDate ? new Date(result.completedDate).toLocaleDateString() : "—"}
-          />
-          {result.counselorName && <Row label="Counselor" value={result.counselorName} />}
-          {result.summary && <Row label="Summary" value={result.summary} multiline />}
-          {result.recommendations && (
-            <Row label="Recommendations" value={result.recommendations} multiline />
-          )}
-        </dl>
       </div>
     </li>
   );
