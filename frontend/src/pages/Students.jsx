@@ -613,7 +613,7 @@ export default function ManageStudents() {
                           >
                             <FileDown size={14} className="text-gray-700" />
                           </button>
-                          {currentUser?.role === "counselor" && s.counselorId === currentUser.id && !s.finalizedAt && (
+                          {currentUser?.role === "counselor" && Number(s.counselorId) === Number(currentUser.id) && (
                             <>
                               <button
                                 onClick={() => openEdit(s)}
@@ -845,6 +845,14 @@ export default function ManageStudents() {
           onClose={() => setDrawerStudent(null)}
           onRecordsChanged={handleRecordsChanged}
           readOnly={currentUser?.role !== "counselor"}
+          onEditSession={(s) => {
+            openEdit(s);
+            setDrawerStudent(null);
+          }}
+          onDeleteSession={(s) => {
+            setConfirmDelete(s);
+            setDrawerStudent(null);
+          }}
         />
       )}
 

@@ -148,11 +148,6 @@ export const updateSession = async (req, res) => {
   );
   if (!existing.length) return res.status(404).json({ message: "Session not found" });
   if (existing[0].counselor_id !== counselorId) return res.status(403).json({ message: "You can only edit your own sessions" });
-  if (existing[0].finalized_at) {
-    return res.status(409).json({
-      message: "This session has been submitted as a Session Report and is now read-only.",
-    });
-  }
 
   const updates = [];
   const params = [];
@@ -193,11 +188,6 @@ export const deleteSession = async (req, res) => {
   );
   if (!existing.length) return res.status(404).json({ message: "Session not found" });
   if (existing[0].counselor_id !== counselorId) return res.status(403).json({ message: "You can only delete your own sessions" });
-  if (existing[0].finalized_at) {
-    return res.status(409).json({
-      message: "Finalized Session Reports are part of the immutable Student Record and cannot be deleted.",
-    });
-  }
 
   await logAction(req, "delete_session", "counseling_session", id, {
     studentId: existing[0].student_id,

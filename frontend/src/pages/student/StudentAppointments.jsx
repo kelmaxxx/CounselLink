@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
+import { useTests } from "../../context/TestsContext";
+import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useReactToPrint } from "react-to-print";
 import { Calendar, Clock, FileText, Printer, X } from "lucide-react";
 import {
@@ -32,23 +34,48 @@ const formatDate = (value) => {
 export default function StudentAppointments() {
   const { currentUser } = useAuth();
   const { appointments, fetchAppointments } = useAppointments();
+  const { tests, fetchTests } = useTests();
+  const { sessions, fetchSessions } = useCounselingSessions?.() || {};
   const [activeTab, setActiveTab] = useState("all");
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
     fetchAppointments?.().catch(() => undefined);
-  }, [fetchAppointments]);
+    fetchTests?.().catch(() => undefined);
+    fetchSessions?.().catch(() => undefined);
+  }, [fetchAppointments, fetchTests, fetchSessions]);
 
-  const mine = useMemo(
-    () =>
-      (appointments || []).filter(
-        (a) => a.student_id === currentUser?.id || a.studentId === currentUser?.id
-      ),
-    [appointments, currentUser?.id]
-  );
+  const mine = useMemo(() => {
+    const myAppts = (appointments || [])
+      .filter((a) => a.student_id === currentUser?.id || a.studentId === currentUser?.id)
+      .map((a) => ({ ...a, isTest: false }));
+
+    const myTestsList = (tests || [])
+      .filter((t) => t.student_id === currentUser?.id || t.studentUserId === currentUser?.id)
+      .map((t) => ({ ...t, isTest: true }));
+
+    const getSessionForAppt = (apptId) =>
+      sessions?.find((s) => s.appointmentId === apptId || s.appointment_id === apptId);
+
+    return [...myAppts, ...myTestsList]
+      .filter((item) => {
+        if (item.isTest) {
+          return item.status !== "completed";
+        }
+        if (item.status === "completed") {
+          const s = getSessionForAppt(item.id);
+          return s && s.nextSession === "followup";
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0));
+  }, [appointments, tests, sessions, currentUser?.id]);
 
   const visible = useMemo(() => {
     if (activeTab === "all") return mine;
+    if (activeTab === "approved") {
+      return mine.filter((a) => a.status === "approved" || a.status === "accepted");
+    }
     return mine.filter((a) => a.status === activeTab);
   }, [mine, activeTab]);
 
@@ -62,7 +89,12 @@ export default function StudentAppointments() {
 
       <div className="flex items-center gap-1 border-b border-gray-200 mb-4 overflow-x-auto">
         {TABS.map((t) => {
-          const count = t.id === "all" ? mine.length : mine.filter((a) => a.status === t.id).length;
+          const count =
+            t.id === "all"
+              ? mine.length
+              : t.id === "approved"
+              ? mine.filter((a) => a.status === "approved" || a.status === "accepted").length
+              : mine.filter((a) => a.status === t.id).length;
           return (
             <button
               key={t.id}
@@ -104,12 +136,12 @@ export default function StudentAppointments() {
                   <th className="px-4 py-2.5">Type</th>
                   <th className="px-4 py-2.5">Counselor</th>
                   <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5 text-right">Actions</th>
+                  <th className="px-4 py-2.5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {visible.map((a) => (
-                  <tr key={a.id} className="hover:bg-gray-50/70 transition">
+                  <tr key={a.isTest ? `test-${a.id}` : `apt-${a.id}`} className="hover:bg-gray-50/70 transition">
                     <td className="px-4 py-3">
                       <div className="text-sm font-medium text-gray-900 tabular-nums">
                         {formatDate(a.scheduledDate || a.preferredDate)}
@@ -121,12 +153,18 @@ export default function StudentAppointments() {
                           "—"}
                       </div>
                     </td>
-                    <td className="px-4 py-3 capitalize text-gray-700">
-                      {(a.appointment_type || "counseling").replace("_", " ")}
+                    <td className="px-4 py-3 text-gray-700">
+                      {a.isTest ? "Psychological" : "counseling"}
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{a.counselorName || "Unassigned"}</td>
+                    <td className="px-4 py-3 text-gray-700">{a.counselorName || "TBD"}</td>
                     <td className="px-4 py-3">
-                      <StatusPill status={a.status} />
+                      {a.status === "completed" ? (
+                        <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap">
+                          Follow-up needed
+                        </span>
+                      ) : (
+                        <StatusPill status={a.status} />
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
@@ -192,7 +230,7 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
           <DetailRow label="Student" value={studentName || "—"} />
           <DetailRow
             label="Type"
-            value={(appointment.appointment_type || "counseling").replace("_", " ")}
+            value={appointment.isTest ? `Psychological (${appointment.testType})` : "counseling"}
           />
           <DetailRow label="Status" value={appointment.status} />
           <DetailRow label="Preferred date" value={formatDate(appointment.preferredDate)} />
@@ -210,7 +248,7 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
               value={`${formatDate(appointment.scheduledDate)} ${appointment.scheduledTimeSlot || ""}`}
             />
           )}
-          <DetailRow label="Counselor" value={appointment.counselorName || "Unassigned"} />
+          <DetailRow label="Counselor" value={appointment.counselorName || "TBD"} />
           {appointment.reason && <DetailRow label="Reason" value={appointment.reason} />}
           {appointment.counselor_action_note && (
             <DetailRow label="Counselor note" value={appointment.counselor_action_note} />

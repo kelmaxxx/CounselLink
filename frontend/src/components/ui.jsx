@@ -107,6 +107,8 @@ const MODAL_SIZES = {
   lg: "max-w-lg",
   xl: "max-w-xl",
   "2xl": "max-w-2xl",
+  "5xl": "max-w-5xl",
+  "7xl": "max-w-7xl",
 };
 
 export function Modal({
