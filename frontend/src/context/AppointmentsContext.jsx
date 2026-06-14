@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
+import { useRealtime } from "./RealtimeContext";
 
 const AppointmentsContext = createContext();
 
@@ -27,6 +28,7 @@ const normalizeAppointment = (apt) => ({
 
 export function AppointmentsProvider({ children }) {
   const { users = [], currentUser, token } = useAuth();
+  const { subscribe } = useRealtime();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
   const [appointments, setAppointments] = useState([]);
 
@@ -65,6 +67,8 @@ export function AppointmentsProvider({ children }) {
       return { success: false, message: data.message || "Failed to submit appointment" };
     }
 
+    // Refresh so the student immediately sees their newly submitted request.
+    await fetchAppointments().catch(() => {});
     return { success: true, appointment: data };
   };
 
@@ -166,6 +170,15 @@ export function AppointmentsProvider({ children }) {
     fetchAppointments().catch((err) => console.error("Failed to load appointments:", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Live updates: re-fetch whenever the server signals an appointment change.
+  useEffect(() => {
+    if (!token) return undefined;
+    return subscribe("appointments", () => {
+      fetchAppointments().catch(() => {});
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, subscribe]);
 
   return (
     <AppointmentsContext.Provider value={{

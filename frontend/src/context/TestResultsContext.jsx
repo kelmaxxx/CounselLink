@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
+import { useRealtime } from "./RealtimeContext";
 
 const TestResultsContext = createContext();
 
@@ -15,6 +16,7 @@ const normalizeResult = (result) => ({
 
 export function TestResultsProvider({ children }) {
   const { currentUser, token } = useAuth();
+  const { subscribe } = useRealtime();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
   const [testResults, setTestResults] = useState([]);
 
@@ -62,7 +64,17 @@ export function TestResultsProvider({ children }) {
 
   useEffect(() => {
     fetchTestResults().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Live updates: re-fetch when the server signals a released test result.
+  useEffect(() => {
+    if (!token) return undefined;
+    return subscribe("test-results", () => {
+      fetchTestResults().catch(() => undefined);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, subscribe]);
 
   return (
     <TestResultsContext.Provider value={{

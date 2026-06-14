@@ -1,5 +1,7 @@
 import { query, withTransaction } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
+import { createNotification } from "../utils/notify.js";
+import { notifyUser } from "../events.js";
 
 const baseSelect = `
   SELECT r.id, r.student_id, r.referrer_id, r.receiving_counselor_id,
@@ -49,16 +51,13 @@ export const createReferral = async (req, res) => {
     [studentId, referrerId, receivingCounselorId, reason.trim(), notes || null]
   );
 
-  await query(
-    `INSERT INTO notifications (user_id, title, message, status, link)
-     VALUES (?, ?, ?, 'unread', ?)`,
-    [
-      receivingCounselorId,
-      "New referral received",
-      `${req.user?.name || "A College Representative"} referred ${student.name} to you.`,
-      `/counselor/referrals`,
-    ]
-  );
+  await createNotification({
+    userId: receivingCounselorId,
+    title: "New referral received",
+    message: `${req.user?.name || "A College Representative"} referred ${student.name} to you.`,
+    link: `/counselor/referrals`,
+  });
+  notifyUser(receivingCounselorId, { type: "referrals" });
 
   await logAction(req, "create_referral", "referral", result.insertId, {
     studentId,
@@ -195,23 +194,24 @@ export const decideReferral = async (req, res) => {
       ? `Your referral was rejected. Reason: ${decisionNote.trim().slice(0, 120)}`
       : "Your referral was rejected.";
 
-  await query(
-    `INSERT INTO notifications (user_id, title, message, status, link)
-     VALUES (?, ?, ?, 'unread', ?)`,
-    [referral.referrer_id, `Referral ${status}`, repMessage, `/rep/referrals`]
-  );
+  await createNotification({
+    userId: referral.referrer_id,
+    title: `Referral ${status}`,
+    message: repMessage,
+    link: `/rep/referrals`,
+  });
+  // Update the referring rep's referrals list live.
+  notifyUser(referral.referrer_id, { type: "referrals" });
 
   if (appointmentId) {
-    await query(
-      `INSERT INTO notifications (user_id, title, message, status, link)
-       VALUES (?, ?, ?, 'unread', ?)`,
-      [
-        referral.student_id,
-        "Counseling session scheduled",
-        `A counselor has scheduled a counseling session for you on ${normalizedDate} at ${trimmedTime}.`,
-        `/student/appointments`,
-      ]
-    );
+    await createNotification({
+      userId: referral.student_id,
+      title: "Counseling session scheduled",
+      message: `A counselor has scheduled a counseling session for you on ${normalizedDate} at ${trimmedTime}.`,
+      link: `/student/appointments`,
+    });
+    // The accept created an appointment for the student — refresh their list.
+    notifyUser(referral.student_id, { type: "appointments" });
   }
 
   await logAction(req, `referral_${status}`, "referral", id, {
@@ -235,7 +235,7 @@ export const cancelReferral = async (req, res) => {
   const userId = req.user?.id;
 
   const [referral] = await query(
-    "SELECT id, referrer_id, status FROM referrals WHERE id = ?",
+    "SELECT id, referrer_id, receiving_counselor_id, status FROM referrals WHERE id = ?",
     [id]
   );
   if (!referral) return res.status(404).json({ message: "Referral not found" });
@@ -247,6 +247,8 @@ export const cancelReferral = async (req, res) => {
   }
 
   await query("UPDATE referrals SET status = 'cancelled' WHERE id = ?", [id]);
+  // The cancelled referral leaves the receiving counselor's pending list.
+  notifyUser(referral.receiving_counselor_id, { type: "referrals" });
   await logAction(req, "referral_cancelled", "referral", id, {});
   return res.json({ message: "Referral cancelled", id: Number(id) });
 };
