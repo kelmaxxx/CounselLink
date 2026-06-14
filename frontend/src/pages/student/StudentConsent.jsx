@@ -13,6 +13,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useTestResults } from "../../context/TestResultsContext";
+import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useReactToPrint } from "react-to-print";
 import {
   PageHeader,
@@ -306,6 +307,7 @@ export default function StudentConsent() {
         </SectionCard>
       )}
 
+      <CounselingResultsSection studentName={currentUser?.name} />
       <TestResultsSection studentName={currentUser?.name} />
     </div>
   );
@@ -432,5 +434,103 @@ function Row({ label, value, multiline }) {
         {value}
       </dd>
     </div>
+  );
+}
+
+function CounselingResultsSection({ studentName }) {
+  const { sessions } = useCounselingSessions?.() || {};
+  
+  // A counseling session is finalized when `finalizedAt` is not null
+  const completedSessions = sessions?.filter(s => !!s.finalizedAt) || [];
+
+  return (
+    <SectionCard
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          <FileSignature size={14} className="text-maroon-600" /> My counseling results
+        </span>
+      }
+      subtitle="Finalized by your counselor"
+      noBodyPadding
+      className="mb-6"
+    >
+      {completedSessions.length === 0 ? (
+        <EmptyState
+          icon={FileSignature}
+          title="No counseling records yet"
+          hint="After a counseling session is completed, the report will appear here."
+        />
+      ) : (
+        <ul className="divide-y divide-gray-100">
+          {completedSessions.map((s) => (
+            <CounselingResultCard key={s.id} session={s} studentName={studentName} />
+          ))}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+function CounselingResultCard({ session, studentName }) {
+  const printRef = useRef(null);
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `counseling-result-${session.id}`,
+  });
+
+  return (
+    <li className="px-4 py-3 hover:bg-gray-50/60 transition">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">
+            Counseling Session
+          </p>
+          <p className="text-xs text-gray-500 tabular-nums mt-0.5">
+            Completed{" "}
+            {session.finalizedAt
+              ? new Date(session.finalizedAt).toLocaleDateString()
+              : "—"}
+            {session.counselorName ? ` · by ${session.counselorName}` : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+            title="Use the print dialog's 'Save as PDF'"
+          >
+            <Download size={12} /> Save
+          </button>
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition"
+          >
+            <Printer size={12} /> Print
+          </button>
+        </div>
+      </div>
+
+      <div className="hidden">
+        <div ref={printRef}>
+          <div className="text-center mb-3">
+            <h4 className="text-base font-bold">CounselLink · MSU Marawi</h4>
+            <p className="text-xs text-gray-600">Counseling Session Report</p>
+          </div>
+          <dl className="divide-y divide-gray-100 text-sm">
+            <Row label="Student" value={studentName || "—"} />
+            <Row
+              label="Date of Session"
+              value={session.sessionDate ? new Date(session.sessionDate).toLocaleDateString() : "—"}
+            />
+            {session.counselorName && <Row label="Counselor" value={session.counselorName} />}
+            {session.presentingConcern && <Row label="Reason for counseling" value={session.presentingConcern} multiline />}
+            {session.goals && <Row label="Goals" value={session.goals} multiline />}
+            {session.summary && <Row label="Summary of discussion" value={session.summary} multiline />}
+            {session.plan && <Row label="Plan of action" value={session.plan} multiline />}
+            {session.comments && <Row label="Comments" value={session.comments} multiline />}
+          </dl>
+        </div>
+      </div>
+    </li>
   );
 }

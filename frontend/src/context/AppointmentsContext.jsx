@@ -59,6 +59,7 @@ export function AppointmentsProvider({ children }) {
         isUrgent: form.isUrgent,
         phoneNumber: form.phoneNumber,
         reason: form.reason,
+        studentId: form.studentId || student?.id || null,
       }),
     });
 
@@ -67,8 +68,7 @@ export function AppointmentsProvider({ children }) {
       return { success: false, message: data.message || "Failed to submit appointment" };
     }
 
-    // Refresh so the student immediately sees their newly submitted request.
-    await fetchAppointments().catch(() => {});
+    await fetchAppointments();
     return { success: true, appointment: data };
   };
 

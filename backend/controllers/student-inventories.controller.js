@@ -45,7 +45,9 @@ export const getInventory = async (req, res) => {
 
 export const upsertInventory = async (req, res) => {
   const { studentId } = req.params;
-  const counselorId = req.user?.id;
+  if (!canAccess(req, studentId)) return res.status(403).json({ message: "Forbidden" });
+
+  const counselorId = req.user?.role === "counselor" ? req.user?.id : null;
   const { formData } = req.body;
 
   const studentCheck = await query("SELECT id FROM users WHERE id = ? AND role = 'student'", [studentId]);
@@ -54,10 +56,17 @@ export const upsertInventory = async (req, res) => {
   const existing = await query("SELECT id FROM student_inventories WHERE student_id = ?", [studentId]);
 
   if (existing.length) {
-    await query(
-      "UPDATE student_inventories SET counselor_id = ?, form_data = ?, updated_at = NOW() WHERE student_id = ?",
-      [counselorId, formData ? JSON.stringify(formData) : null, studentId]
-    );
+    if (req.user?.role === "counselor") {
+      await query(
+        "UPDATE student_inventories SET counselor_id = ?, form_data = ?, updated_at = NOW() WHERE student_id = ?",
+        [counselorId, formData ? JSON.stringify(formData) : null, studentId]
+      );
+    } else {
+      await query(
+        "UPDATE student_inventories SET form_data = ?, updated_at = NOW() WHERE student_id = ?",
+        [formData ? JSON.stringify(formData) : null, studentId]
+      );
+    }
     await logAction(req, "upsert_inventory", "student_inventory", existing[0].id, { studentId: Number(studentId) });
   } else {
     const result = await query(
@@ -73,17 +82,26 @@ export const upsertInventory = async (req, res) => {
 
 export const uploadInventoryScan = async (req, res) => {
   const { studentId } = req.params;
-  const counselorId = req.user?.id;
+  if (!canAccess(req, studentId)) return res.status(403).json({ message: "Forbidden" });
+
+  const counselorId = req.user?.role === "counselor" ? req.user?.id : null;
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
   const fileUrl = `/uploads/${req.file.filename}`;
 
   const existing = await query("SELECT id FROM student_inventories WHERE student_id = ?", [studentId]);
   if (existing.length) {
-    await query(
-      "UPDATE student_inventories SET counselor_id = ?, scan_url = ?, scan_filename = ?, scan_filetype = ?, updated_at = NOW() WHERE student_id = ?",
-      [counselorId, fileUrl, req.file.originalname, req.file.mimetype, studentId]
-    );
+    if (req.user?.role === "counselor") {
+      await query(
+        "UPDATE student_inventories SET counselor_id = ?, scan_url = ?, scan_filename = ?, scan_filetype = ?, updated_at = NOW() WHERE student_id = ?",
+        [counselorId, fileUrl, req.file.originalname, req.file.mimetype, studentId]
+      );
+    } else {
+      await query(
+        "UPDATE student_inventories SET scan_url = ?, scan_filename = ?, scan_filetype = ?, updated_at = NOW() WHERE student_id = ?",
+        [fileUrl, req.file.originalname, req.file.mimetype, studentId]
+      );
+    }
   } else {
     await query(
       "INSERT INTO student_inventories (student_id, counselor_id, scan_url, scan_filename, scan_filetype) VALUES (?, ?, ?, ?, ?)",
@@ -102,6 +120,8 @@ export const uploadInventoryScan = async (req, res) => {
 
 export const deleteInventoryScan = async (req, res) => {
   const { studentId } = req.params;
+  if (!canAccess(req, studentId)) return res.status(403).json({ message: "Forbidden" });
+
   await query(
     "UPDATE student_inventories SET scan_url = NULL, scan_filename = NULL, scan_filetype = NULL, updated_at = NOW() WHERE student_id = ?",
     [studentId]

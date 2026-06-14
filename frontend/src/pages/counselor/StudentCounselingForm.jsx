@@ -28,6 +28,15 @@ const blankReason = () => ({
 });
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
+const TIME_SLOTS = {
+  "9:00-10:00": "9:00 – 10:00 AM",
+  "10:00-11:00": "10:00 – 11:00 AM",
+  "11:00-12:00": "11:00 – 12:00 PM",
+  "1:00-2:00": "1:00 – 2:00 PM",
+  "2:00-3:00": "2:00 – 3:00 PM",
+  "3:00-4:00": "3:00 – 4:00 PM",
+};
+const slotLabel = (val) => TIME_SLOTS[val] || val;
 
 const STEPS = [
   { id: "details", title: "Session details" },
@@ -41,8 +50,8 @@ export default function StudentCounselingForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { appointments } = useAppointments();
-  const { fetchSessionByAppointment, createSession, updateSession, finalizeSession } = useCounselingSessions();
+  const { appointments, createAppointment, completeAppointment } = useAppointments();
+  const { fetchSessionByAppointment, createSession, updateSession, finalizeSession, sessions, fetchSessions } = useCounselingSessions();
 
   const apptId = Number(id);
   const appt = useMemo(() => appointments.find((a) => a.id === apptId), [appointments, apptId]);
@@ -63,11 +72,19 @@ export default function StudentCounselingForm() {
     comments: "",
     nextSession: "followup",
     counselorSignature: currentUser?.name || "",
+    followupDate: "",
+    followupTimeSlot: "",
   }));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+
+  const studentId = appt?.student_id || appt?.studentId;
+  const previousSessionsCount = useMemo(() => {
+    if (!studentId || !sessions) return 0;
+    return sessions.filter((s) => (s.studentId === studentId || s.student_id === studentId) && s.finalizedAt).length;
+  }, [studentId, sessions]);
 
   const printRef = useRef(null);
   const handlePrint = useReactToPrint({
@@ -78,6 +95,8 @@ export default function StudentCounselingForm() {
   useEffect(() => {
     if (!appt) return;
     setForm((f) => ({ ...f, studentName: appt.studentName || "" }));
+
+    fetchSessions?.().catch(() => undefined);
 
     fetchSessionByAppointment(apptId)
       .then((session) => {
@@ -95,6 +114,8 @@ export default function StudentCounselingForm() {
             comments: session.comments || "",
             nextSession: session.nextSession || "followup",
             counselorSignature: session.counselorSignature || currentUser?.name || "",
+            followupDate: session.formData?.followupDate || "",
+            followupTimeSlot: session.formData?.followupTimeSlot || "",
           });
           if (session.formData?.reason) setReason({ ...blankReason(), ...session.formData.reason });
         }
@@ -103,6 +124,22 @@ export default function StudentCounselingForm() {
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apptId, appt?.id]);
+
+  useEffect(() => {
+    if (loading || existingSessionId) return;
+    const count = previousSessionsCount;
+    const getOrdinal = (n) => {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+    const nthLabel = getOrdinal(count + 1);
+    setReason((r) => ({
+      ...r,
+      routine: true,
+      routineNth: nthLabel,
+    }));
+  }, [loading, existingSessionId, previousSessionsCount]);
 
   if (!appt) {
     return (
@@ -138,7 +175,12 @@ export default function StudentCounselingForm() {
       comments: form.comments,
       nextSession: form.nextSession,
       counselorSignature: form.counselorSignature,
-      formData: { reason, counselorName: form.counselorName },
+      formData: {
+        reason,
+        counselorName: form.counselorName,
+        followupDate: form.followupDate,
+        followupTimeSlot: form.followupTimeSlot,
+      },
     };
 
     const res = existingSessionId
@@ -176,6 +218,29 @@ export default function StudentCounselingForm() {
     setSubmittingReport(false);
     if (res.success) {
       setFinalizedAt(res.session?.finalizedAt || new Date().toISOString());
+
+      // 1. Mark the current appointment as completed
+      await completeAppointment({ id: apptId });
+
+      // 2. If follow-up, create a new scheduled approved appointment
+      if (form.nextSession === "followup" && form.followupDate && form.followupTimeSlot) {
+        try {
+          await createAppointment({
+            student: { id: appt.student_id || appt.studentId },
+            form: {
+              date: form.followupDate,
+              preferredSlots: [form.followupTimeSlot],
+              phoneNumber: appt.phone_number || appt.phoneNumber || "—",
+              reason: "Follow-up Session",
+              isUrgent: false,
+              studentId: appt.student_id || appt.studentId,
+            },
+          });
+        } catch (err) {
+          console.error("Failed to schedule follow-up:", err);
+        }
+      }
+
       showFeedback(
         "success",
         res.fannedOutToRep
@@ -193,6 +258,9 @@ export default function StudentCounselingForm() {
 
   const stepValid = () => {
     if (current.id === "details") return Boolean(form.sessionDate);
+    if (current.id === "plan" && form.nextSession === "followup") {
+      return Boolean(form.followupDate) && Boolean(form.followupTimeSlot);
+    }
     return true;
   };
 
@@ -553,12 +621,51 @@ function PlanStep({ form, setField, disabled }) {
             />
             <NextOption
               active={form.nextSession === "termination"}
-              onClick={() => !disabled && setField({ nextSession: "termination" })}
+              onClick={() => !disabled && setField({ nextSession: "termination", followupDate: "", followupTimeSlot: "" })}
               title="Termination"
               desc="No further sessions are required at this time."
             />
           </div>
         </div>
+
+        {/* Follow-up scheduling fields */}
+        {form.nextSession === "followup" && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">
+              Schedule the follow-up session
+            </p>
+            <p className="text-xs text-amber-700 leading-relaxed">
+              Submitting this report will automatically create an approved follow-up appointment for the student on the date and time you select below.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>Follow-up date *</label>
+                <input
+                  type="date"
+                  className={INPUT}
+                  value={form.followupDate}
+                  onChange={(e) => setField({ followupDate: e.target.value })}
+                  disabled={disabled}
+                  min={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Follow-up time slot *</label>
+                <select
+                  className={INPUT}
+                  value={form.followupTimeSlot}
+                  onChange={(e) => setField({ followupTimeSlot: e.target.value })}
+                  disabled={disabled}
+                >
+                  <option value="">Select a time slot</option>
+                  {Object.entries(TIME_SLOTS).map(([val, lbl]) => (
+                    <option key={val} value={val}>{lbl}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </StepCard>
   );
@@ -620,6 +727,12 @@ function ReviewStep({ printRef, form, setField, reason, onJump, isFinalized }) {
           <ReviewLabeledParagraph label="Plan of action" value={form.plan} />
           <ReviewLabeledParagraph label="Comments" value={form.comments} />
           <ReviewLine label="Next session" value={NEXT_LABELS[form.nextSession] || form.nextSession} />
+          {form.nextSession === "followup" && (
+            <>
+              <ReviewLine label="Follow-up date" value={formatDate(form.followupDate) || "—"} />
+              <ReviewLine label="Follow-up time" value={form.followupTimeSlot ? (TIME_SLOTS[form.followupTimeSlot] || form.followupTimeSlot) : "—"} />
+            </>
+          )}
         </ReviewBlock>
 
         {/* Signature */}

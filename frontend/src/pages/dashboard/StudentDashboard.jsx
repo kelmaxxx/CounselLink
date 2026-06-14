@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
 import { useTestResults } from "../../context/TestResultsContext";
+import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import {
   CalendarDays,
   CheckCircle2,
@@ -37,6 +38,7 @@ export default function StudentDashboard() {
   const { fetchAppointments } = useAppointments?.() || {};
   const { getTestsForCurrentUser } = useTests?.() || {};
   const { getTestResultsForCurrentUser } = useTestResults?.() || {};
+  const { sessions } = useCounselingSessions?.() || {};
 
   const [myAppointments, setMyAppointments] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState(null);
@@ -92,11 +94,23 @@ export default function StudentDashboard() {
   const pendingTests = myTests.filter((t) => t.status === "pending");
 
   const upcomingCount = upcoming.length + upcomingTests.length;
-  const completedCount = myAppointments.filter(
-    (a) => a.status === "completed" || a.status === "approved"
-  ).length;
+  
+  const getSessionForAppt = (apptId) =>
+    sessions?.find((s) => s.appointmentId === apptId || s.appointment_id === apptId);
+
+  const completedSessions = myAppointments.filter((a) => {
+    if (a.status !== "completed") return false;
+    const s = getSessionForAppt(a.id);
+    return s && s.nextSession === "termination";
+  });
+  const completedCount = completedSessions.length;
+
   const pendingCount = pending.length + pendingTests.length;
   const testResultsCount = myTestResults.length;
+
+  const unfinishedTests = myTests.filter(
+    (t) => t.status !== "completed" && t.status !== "rejected"
+  );
 
   const sortByDateTime = (a, b) => {
     const da = new Date(
@@ -321,7 +335,25 @@ export default function StudentDashboard() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {myAppointments.slice(0, 5).map((appt) => {
+                    const session = getSessionForAppt(appt.id);
+                    const isDone = appt.status === "completed";
                     const counselor = users?.find((u) => u.id === appt.counselor_id);
+                    const counselorDisplay = isDone ? counselor?.name || session?.counselorName || "TBD" : "TBD";
+
+                    let statusDisplay = <StatusPill status={appt.status} />;
+                    if (isDone && session) {
+                      const isFollowUp = session.nextSession === "followup";
+                      statusDisplay = (
+                        <span
+                          className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md ${
+                            isFollowUp ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
+                          {isFollowUp ? "Follow-up needed" : "Completed"}
+                        </span>
+                      );
+                    }
+
                     return (
                       <tr key={appt.id} className="hover:bg-gray-50/70 transition">
                         <td className="px-4 py-2.5 text-gray-900 tabular-nums">
@@ -331,9 +363,9 @@ export default function StudentDashboard() {
                           {appt.scheduledTimeSlot || appt.preferredSlots?.[0] || "—"}
                         </td>
                         <td className="px-4 py-2.5">
-                          <StatusPill status={appt.status} />
+                          {statusDisplay}
                         </td>
-                        <td className="px-4 py-2.5 text-gray-700">{counselor?.name || "TBD"}</td>
+                        <td className="px-4 py-2.5 text-gray-700">{counselorDisplay}</td>
                       </tr>
                     );
                   })}
@@ -356,70 +388,55 @@ export default function StudentDashboard() {
             </Link>
           }
         >
-          {myTests.length === 0 ? (
+          {unfinishedTests.length === 0 ? (
             <EmptyState
               icon={ClipboardList}
               title="No tests yet"
               hint="Request a psychological assessment when you're ready."
             />
           ) : (
-            <ul className="divide-y divide-gray-100">
-              {myTests.slice(0, 4).map((test) => {
-                const counselorId = test.counselor_id || test.counselorId;
-                const cName =
-                  test.counselorName || users?.find((u) => u.id === counselorId)?.name;
-                const isAccepted = test.status === "approved" || test.status === "rescheduled";
-                return (
-                  <li key={test.id} className="px-4 py-3 hover:bg-gray-50/70 transition">
-                    <div className="flex items-start gap-3">
-                      {counselorId ? (
-                        <button
-                          onClick={() => openProfile(counselorId, cName)}
-                          className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center justify-center text-xs font-semibold flex-shrink-0 transition"
-                          title="View counselor"
-                        >
-                          {initialsOf(cName) || "?"}
-                        </button>
-                      ) : (
-                        <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                          ?
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {test.testType}
-                          </p>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                    <th className="px-4 py-2.5">Date</th>
+                    <th className="px-4 py-2.5">Time</th>
+                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5">Counselor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {unfinishedTests.slice(0, 5).map((test) => {
+                    const counselorId = test.counselor_id || test.counselorId;
+                    const cName =
+                      test.counselorName ||
+                      users?.find((u) => u.id === counselorId)?.name;
+                    const dateVal = test.scheduledDate || test.scheduled_date || test.preferredDate || test.preferred_date;
+                    const timeVal =
+                      test.scheduledTimeSlot ||
+                      test.scheduled_time ||
+                      (Array.isArray(test.preferredSlots) ? test.preferredSlots[0] : null) ||
+                      (test.preferred_slots ? test.preferred_slots.split(",")[0] : null);
+                    return (
+                      <tr key={test.id} className="hover:bg-gray-50/70 transition">
+                        <td className="px-4 py-2.5 text-gray-900 tabular-nums">
+                          {formatDate(dateVal, "TBD")}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-700 tabular-nums">
+                          {timeVal || "—"}
+                        </td>
+                        <td className="px-4 py-2.5">
                           <StatusPill status={test.status} />
-                        </div>
-                        <p className="text-xs text-gray-500 tabular-nums mt-0.5">
-                          {formatDate(test.scheduledDate || test.preferredDate, "TBD")}
-                          {cName ? ` · with ${cName}` : ""}
-                        </p>
-                      </div>
-                      {counselorId && isAccepted && (
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
-                            onClick={() => openProfile(counselorId, cName)}
-                            className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
-                            title="View profile"
-                          >
-                            <User2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => openChat(counselorId, cName)}
-                            className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
-                            title="Message"
-                          >
-                            <MessageCircle size={14} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-700">
+                          {cName || "TBD"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </SectionCard>
       </div>

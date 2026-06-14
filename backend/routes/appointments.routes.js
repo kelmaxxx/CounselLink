@@ -8,7 +8,7 @@ const router = Router();
 
 router.use(auth);
 
-router.post("/", requireRole("student"), createAppointment);
+router.post("/", requireRole("student", "counselor"), createAppointment);
 router.get("/", listAppointmentsForUser);
 router.put("/:id/accept", requireRole("counselor"), acceptAppointment);
 router.put("/:id/reject", requireRole("counselor"), rejectAppointment);

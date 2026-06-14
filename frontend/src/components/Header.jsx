@@ -93,23 +93,6 @@ export default function Header({ currentUser, onMenuClick }) {
               </span>
             )}
           </Link>
-
-          <div className="flex items-center gap-2 pl-2 ml-1 border-l border-gray-200">
-            <Avatar
-              name={currentUser?.name}
-              url={currentUser?.avatarUrl}
-              size="xs"
-              theme={ROLE_THEME[currentUser?.role] || "default"}
-            />
-            <div className="hidden sm:block min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate max-w-[160px]">
-                {currentUser?.name}
-              </div>
-              <div className="text-xs text-gray-500 capitalize truncate">
-                {currentUser?.role?.replace("_", " ")}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </header>

@@ -13,6 +13,7 @@ import {
   Hash,
   Info,
   Lock,
+  ClipboardList,
 } from "lucide-react";
 import {
   PageHeader,
@@ -21,8 +22,11 @@ import {
   INPUT,
   LABEL,
   formatDate,
+  Modal,
 } from "../../components/ui";
 import { useAppointments } from "../../context/AppointmentsContext";
+import { useStudentRecords } from "../../context/StudentRecordsContext";
+import InventoryForm from "../../components/records/InventoryForm";
 import ProfileHero from "../../components/ProfileHero";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -30,6 +34,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 export default function StudentProfile() {
   const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
   const { appointments, fetchAppointments } = useAppointments();
+  const { getInventory, upsertInventory, uploadInventoryScan, deleteInventoryScan } = useStudentRecords();
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -42,6 +47,35 @@ export default function StudentProfile() {
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const [inventory, setInventory] = useState(null);
+  const [loadingInventory, setLoadingInventory] = useState(true);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+
+  const handleSaveInventory = async (formData) => {
+    const res = await upsertInventory(currentUser?.id, formData);
+    if (res.success) {
+      setInventory(res.inventory);
+    }
+    return res;
+  };
+
+  const handleUploadInventoryScan = async (file) => {
+    const res = await uploadInventoryScan(currentUser?.id, file);
+    if (res.success) {
+      setInventory(res.inventory);
+    }
+    return res;
+  };
+
+  const handleDeleteInventoryScan = async () => {
+    const res = await deleteInventoryScan(currentUser?.id);
+    if (res.success) {
+      const fresh = await getInventory(currentUser?.id).catch(() => null);
+      setInventory(fresh);
+    }
+    return res;
+  };
 
   const handleChangePhoto = async (file) => {
     if (!file || !token) return;
@@ -82,6 +116,13 @@ export default function StudentProfile() {
       }));
     });
     fetchAppointments?.().catch(() => undefined);
+
+    if (currentUser?.id) {
+      getInventory(currentUser.id)
+        .then((inv) => setInventory(inv))
+        .catch((err) => console.error("Failed to load inventory:", err))
+        .finally(() => setLoadingInventory(false));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -126,9 +167,14 @@ export default function StudentProfile() {
         subtitle="Manage your personal information and bio."
         actions={
           !isEditing ? (
-            <button onClick={() => setIsEditing(true)} className={BTN.primary}>
-              <Edit2 size={15} /> Edit profile
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowInventoryModal(true)} className={BTN.success}>
+                <ClipboardList size={15} /> My Inventory
+              </button>
+              <button onClick={() => setIsEditing(true)} className={BTN.primary}>
+                <Edit2 size={15} /> Edit profile
+              </button>
+            </div>
           ) : (
             <>
               <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
@@ -302,6 +348,35 @@ export default function StudentProfile() {
           );
         })()}
       </SectionCard>
+
+      {showInventoryModal && (
+        <Modal
+          open
+          onClose={() => setShowInventoryModal(false)}
+          title="Student Individual Inventory Record"
+          subtitle="MSU DSA Inventory Individual Form No. 1.1"
+          size="5xl"
+          align="top"
+        >
+          <div className="max-h-[75vh] overflow-y-auto pr-2">
+            {loadingInventory ? (
+              <div className="text-sm text-gray-500 py-8 text-center">Loading inventory form...</div>
+            ) : (
+              <InventoryForm
+                inventory={inventory}
+                studentName={currentUser?.name}
+                studentId={currentUser?.id}
+                studentProfile={currentUser}
+                apiBase={API_BASE}
+                onSave={handleSaveInventory}
+                onUploadScan={handleUploadInventoryScan}
+                onDeleteScan={handleDeleteInventoryScan}
+                readOnly={false}
+              />
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
