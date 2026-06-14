@@ -1,8 +1,18 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { useRealtime } from "./RealtimeContext";
 
 const TestResultsContext = createContext();
+
+const normalizeResult = (result) => ({
+  ...result,
+  completedDate: result.completed_date || result.completedDate || null,
+  counselorName: result.counselorName || result.counselor_name || null,
+  studentName: result.studentName || result.student_name || null,
+  testName: result.test_name || result.testName || null,
+  summary: result.summary || "",
+  recommendations: result.recommendations || "",
+});
 
 export function TestResultsProvider({ children }) {
   const { currentUser, token } = useAuth();
@@ -10,17 +20,7 @@ export function TestResultsProvider({ children }) {
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
   const [testResults, setTestResults] = useState([]);
 
-  const normalizeResult = (result) => ({
-    ...result,
-    completedDate: result.completed_date || result.completedDate || null,
-    counselorName: result.counselorName || result.counselor_name || null,
-    studentName: result.studentName || result.student_name || null,
-    testName: result.test_name || result.testName || null,
-    summary: result.summary || "",
-    recommendations: result.recommendations || "",
-  });
-
-  const fetchTestResults = async () => {
+  const fetchTestResults = useCallback(async () => {
     if (!token) return [];
     const response = await fetch(`${apiBase}/api/test-results`, {
       headers: {
@@ -35,7 +35,7 @@ export function TestResultsProvider({ children }) {
     const normalized = Array.isArray(data) ? data.map(normalizeResult) : [];
     setTestResults(normalized);
     return normalized;
-  };
+  }, [apiBase, token]);
 
   const createTestResult = async ({ appointmentId, studentId, testName, completedDate, summary, recommendations }) => {
     const response = await fetch(`${apiBase}/api/test-results`, {

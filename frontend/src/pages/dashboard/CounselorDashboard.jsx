@@ -487,7 +487,7 @@ export default function CounselorDashboard() {
               <EmptyState icon={Users} title="No students yet" />
             ) : (
               <div style={{ width: "100%", height: 260 }}>
-                <ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={topColleges
@@ -544,7 +544,7 @@ export default function CounselorDashboard() {
               <EmptyState icon={Calendar} title="No appointments yet" />
             ) : (
               <div style={{ width: "100%", height: 260 }}>
-                <ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={appointmentStatusBreakdown}

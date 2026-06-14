@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { useRealtime } from "./RealtimeContext";
 
@@ -11,8 +11,6 @@ export function setNotificationCallback(callback) {
   notificationCallback = callback;
 }
 
-// Pure shape-normalizer — defined at module scope so it isn't recreated each
-// render (keeps the memoized fetchAppointments below stable).
 const normalizeAppointment = (apt) => ({
   ...apt,
   preferredDate: apt.preferred_date || apt.preferredDate || null,
@@ -33,6 +31,10 @@ export function AppointmentsProvider({ children }) {
   const { subscribe } = useRealtime();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
   const [appointments, setAppointments] = useState([]);
+
+  const updateAppointment = (id, updater) => {
+    setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...updater } : a));
+  };
 
   const counselors = useMemo(() => (users || []).filter(u => u.role === "counselor"), [users]);
 
@@ -70,12 +72,6 @@ export function AppointmentsProvider({ children }) {
     return { success: true, appointment: data };
   };
 
-  const updateAppointment = (id, updater) => {
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...updater } : a));
-  };
-
-  // Stable identity (only changes when auth changes) so components can safely
-  // use it as a useEffect dependency without triggering a refetch loop.
   const fetchAppointments = useCallback(async () => {
     const response = await fetch(`${apiBase}/api/appointments`, {
       headers: {

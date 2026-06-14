@@ -38,7 +38,7 @@ export const listAppointmentsForUser = async (req, res) => {
       `SELECT a.*, u.name AS counselorName
        FROM appointments a
        LEFT JOIN users u ON a.counselor_id = u.id
-       WHERE a.student_id = ?
+       WHERE a.student_id = ? AND a.appointment_type = 'counseling'
        ORDER BY a.created_at DESC`,
       [userId]
     );
@@ -51,7 +51,7 @@ export const listAppointmentsForUser = async (req, res) => {
        FROM appointments a
        LEFT JOIN users s ON a.student_id = s.id
        LEFT JOIN users c ON a.counselor_id = c.id
-       WHERE a.counselor_id = ? OR a.counselor_id IS NULL
+       WHERE (a.counselor_id = ? OR a.counselor_id IS NULL) AND a.appointment_type = 'counseling'
        ORDER BY a.created_at DESC`,
       [userId]
     );
@@ -68,7 +68,7 @@ export const listAppointmentsForUser = async (req, res) => {
        FROM appointments a
        JOIN users s ON a.student_id = s.id
        LEFT JOIN users c ON a.counselor_id = c.id
-       WHERE s.college = ?
+       WHERE s.college = ? AND a.appointment_type = 'counseling'
        ORDER BY a.created_at DESC`,
       [repCollege]
     );
@@ -80,6 +80,7 @@ export const listAppointmentsForUser = async (req, res) => {
      FROM appointments a
      LEFT JOIN users s ON a.student_id = s.id
      LEFT JOIN users c ON a.counselor_id = c.id
+     WHERE a.appointment_type = 'counseling'
      ORDER BY a.created_at DESC`
   );
   return res.json(rows);
