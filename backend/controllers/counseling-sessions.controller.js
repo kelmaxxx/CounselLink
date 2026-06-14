@@ -1,5 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
+import { createNotification } from "../utils/notify.js";
+import { notifyUser } from "../events.js";
 
 const SELECT_FIELDS = `
   cs.id, cs.student_id AS studentId, cs.counselor_id AS counselorId,
@@ -117,6 +119,9 @@ export const createSession = async (req, res) => {
   await logAction(req, "create_session", "counseling_session", result.insertId, {
     studentId, sessionDate, appointmentId: appointmentId || null,
   });
+
+  // Refresh the student's session list live.
+  notifyUser(studentId, { type: "sessions" });
 
   const rows = await query(`SELECT ${SELECT_FIELDS} ${FROM_JOIN} WHERE cs.id = ?`, [result.insertId]);
   return res.status(201).json(parseFormData(rows[0]));
@@ -273,17 +278,17 @@ export const finalizeSession = async (req, res) => {
     );
     reportRecipientId = insertResult.insertId;
 
-    await query(
-      `INSERT INTO notifications (user_id, title, message, status, link)
-       VALUES (?, ?, ?, 'unread', ?)`,
-      [
-        referrerId,
-        "Counseling report received",
-        `Session report for ${session.studentName} (${session.session_date}) is now available.`,
-        `/rep/reports`,
-      ]
-    );
+    await createNotification({
+      userId: referrerId,
+      title: "Counseling report received",
+      message: `Session report for ${session.studentName} (${session.session_date}) is now available.`,
+      link: `/rep/reports`,
+    });
+    notifyUser(referrerId, { type: "sessions" });
   }
+
+  // The finalized report becomes part of the student's record.
+  notifyUser(session.student_id, { type: "sessions" });
 
   await logAction(req, "finalize_session", "counseling_session", id, {
     studentId: session.student_id,

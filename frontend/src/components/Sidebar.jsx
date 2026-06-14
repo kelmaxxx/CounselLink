@@ -4,12 +4,12 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   Calendar, Users, FileText, Bell, LogOut, User,
-  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft
+  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft, X
 } from "lucide-react";
 import { useMessages } from "../context/MessagesContext";
 import Avatar from "./Avatar";
 
-function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogout }) {
+function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogout, open = false, onClose }) {
   const { currentUser: ctxUser, users } = useAuth();
   const messagesCtx = useMessages?.();
   const unreadMessages = messagesCtx?.getTotalUnreadCount?.() || 0;
@@ -169,8 +169,24 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
 
   const navGroups = getNavGroups();
 
+  // On phones the sidebar is an off-canvas drawer (fixed + translate); from
+  // the `lg` breakpoint up it becomes a normal static column that's always
+  // visible. `open` only drives the mobile drawer state.
+  const drawerClasses = `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 lg:static lg:translate-x-0 lg:z-auto ${
+    open ? "translate-x-0" : "-translate-x-full"
+  }`;
+
   return (
-    <aside className="w-64 bg-maroon-700 text-maroon-50 flex flex-col border-r border-maroon-800/60">
+    <>
+      {/* Mobile backdrop */}
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 z-40 bg-black/40 lg:hidden transition-opacity ${
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        aria-hidden="true"
+      />
+    <aside className={`${drawerClasses} bg-maroon-700 text-maroon-50 flex flex-col border-r border-maroon-800/60`}>
       {/* Brand */}
       <div className="px-5 py-4 border-b border-maroon-800/60">
         <div className="flex items-center gap-2">
@@ -180,6 +196,14 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
             className="w-12 h-12 object-contain flex-shrink-0"
           />
           <h1 className="text-sm font-semibold tracking-tight text-white">CounseLink</h1>
+          <button
+            type="button"
+            onClick={onClose}
+            className="lg:hidden ml-auto -mr-1 flex items-center justify-center w-8 h-8 rounded-lg text-maroon-100 hover:bg-maroon-600/60 hover:text-white transition"
+            aria-label="Close menu"
+          >
+            <X size={18} />
+          </button>
         </div>
       </div>
 
@@ -224,6 +248,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
                     onClick={() => {
                       if (setActiveView) setActiveView(item.id);
                       navigate(itemPath);
+                      onClose?.();
                     }}
                     className={`group w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition relative ${
                       isActive
@@ -259,6 +284,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
         </button>
       </div>
     </aside>
+    </>
   );
 }
 

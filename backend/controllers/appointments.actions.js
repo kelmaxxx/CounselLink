@@ -1,12 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
-
-const createNotification = async ({ userId, title, message, link }) => {
-  await query(
-    "INSERT INTO notifications (user_id, title, message, link) VALUES (?, ?, ?, ?)",
-    [userId, title, message, link]
-  );
-};
+import { createNotification } from "../utils/notify.js";
+import { notifyUser } from "../events.js";
 
 const normalizeDate = (value) => {
   if (!value) return null;
@@ -45,6 +40,7 @@ export const acceptAppointment = async (req, res) => {
       message: `Your appointment is approved for ${normalizedDate} at ${timeSlot}.`,
       link: "/student/appointments",
     });
+    notifyUser(rows[0].student_id, { type: "appointments" });
   }
 
   return res.json({ message: "Appointment approved" });
@@ -70,6 +66,7 @@ export const rejectAppointment = async (req, res) => {
       message: note ? `Your appointment was rejected. Reason: ${note}` : "Your appointment was rejected.",
       link: "/student/appointments",
     });
+    notifyUser(rows[0].student_id, { type: "appointments" });
   }
 
   return res.json({ message: "Appointment rejected" });
@@ -110,6 +107,7 @@ export const completeAppointment = async (req, res) => {
     message: "Your counseling session has been marked as completed by the counselor.",
     link: "/student/appointments",
   });
+  notifyUser(appt.student_id, { type: "appointments" });
 
   return res.json({ message: "Appointment marked as completed" });
 };
@@ -140,6 +138,7 @@ export const rescheduleAppointment = async (req, res) => {
       message: `Your appointment was rescheduled to ${normalizedDate} at ${timeSlot}.`,
       link: "/student/appointments",
     });
+    notifyUser(rows[0].student_id, { type: "appointments" });
   }
 
   return res.json({ message: "Appointment rescheduled" });

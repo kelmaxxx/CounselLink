@@ -1,4 +1,6 @@
 import { query } from "../config/db.js";
+import { createNotification } from "../utils/notify.js";
+import { notifyUser } from "../events.js";
 
 export const listConversations = async (req, res) => {
   const userId = req.user?.id;
@@ -59,10 +61,16 @@ export const sendMessage = async (req, res) => {
   const senderName = senderRows[0]?.name || "Someone";
   const preview = trimmed.length > 80 ? `${trimmed.slice(0, 80)}...` : trimmed;
 
-  await query(
-    "INSERT INTO notifications (user_id, title, message, status, link) VALUES (?, ?, ?, 'unread', ?)",
-    [recipientId, `New message from ${senderName}`, preview, "/messages"]
-  );
+  await createNotification({
+    userId: recipientId,
+    title: `New message from ${senderName}`,
+    message: preview,
+    link: "/messages",
+  });
+
+  // Push a message signal so the recipient's chat + conversation list update
+  // live. `from` lets the client refresh the specific open thread.
+  notifyUser(recipientId, { type: "messages", from: senderId });
 
   return res.status(201).json({
     message: "Message sent",
