@@ -20,13 +20,16 @@ import {
   BTN,
   INPUT,
   LABEL,
+  formatDate,
 } from "../../components/ui";
+import { useAppointments } from "../../context/AppointmentsContext";
 import ProfileHero from "../../components/ProfileHero";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 export default function StudentProfile() {
   const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
+  const { appointments, fetchAppointments } = useAppointments();
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -78,6 +81,7 @@ export default function StudentProfile() {
         bio: fresh.bio || "",
       }));
     });
+    fetchAppointments?.().catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -273,22 +277,30 @@ export default function StudentProfile() {
         )}
       </SectionCard>
 
-      {/* Counseling history (placeholder; keep style aligned) */}
+      {/* Counseling history */}
       <SectionCard title="Counseling history" subtitle="Your recent sessions" noBodyPadding>
-        <ul className="divide-y divide-gray-100">
-          <li className="px-4 py-3 hover:bg-gray-50/60 transition">
-            <p className="text-sm font-medium text-gray-900">Academic guidance session</p>
-            <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
-              November 15, 2025 · with Dr. Maria Santos
-            </p>
-          </li>
-          <li className="px-4 py-3 hover:bg-gray-50/60 transition">
-            <p className="text-sm font-medium text-gray-900">Career planning consultation</p>
-            <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
-              October 8, 2025 · with Dr. Maria Santos
-            </p>
-          </li>
-        </ul>
+        {(() => {
+          const completed = (appointments || []).filter((a) => a.status === "completed");
+          if (completed.length === 0) {
+            return (
+              <div className="px-4 py-6 text-center text-sm text-gray-500 italic">
+                No completed counseling sessions recorded yet.
+              </div>
+            );
+          }
+          return (
+            <ul className="divide-y divide-gray-100">
+              {completed.map((a) => (
+                <li key={a.id} className="px-4 py-3 hover:bg-gray-50/60 transition">
+                  <p className="text-sm font-medium text-gray-900">{a.reason || "Counseling Session"}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
+                    {formatDate(a.scheduledDate || a.preferredDate)} · with {a.counselorName || "Counselor"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          );
+        })()}
       </SectionCard>
     </div>
   );
