@@ -1,8 +1,21 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { useRealtime } from "./RealtimeContext";
 
 const TestsContext = createContext();
+
+const normalizeTest = (test) => ({
+  ...test,
+  preferredDate: test.preferred_date || test.preferredDate || null,
+  preferredSlots:
+    test.preferred_slots?.split(",").filter(Boolean) || test.preferredSlots || [],
+  scheduledDate: test.scheduled_date || test.scheduledDate || null,
+  scheduledTimeSlot: test.scheduled_time || test.scheduledTimeSlot || null,
+  counselorName: test.counselorName || test.counselor_name || null,
+  studentName: test.studentName || test.student_name || null,
+  controlNo: test.controlNo || `PT-${String(test.id).padStart(6, "0")}`,
+  note: test.counselor_action_note || test.note || null,
+});
 
 export function TestsProvider({ children }) {
   const { currentUser, token } = useAuth();
@@ -10,20 +23,7 @@ export function TestsProvider({ children }) {
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
   const [tests, setTests] = useState([]);
 
-  const normalizeTest = (test) => ({
-    ...test,
-    preferredDate: test.preferred_date || test.preferredDate || null,
-    preferredSlots:
-      test.preferred_slots?.split(",").filter(Boolean) || test.preferredSlots || [],
-    scheduledDate: test.scheduled_date || test.scheduledDate || null,
-    scheduledTimeSlot: test.scheduled_time || test.scheduledTimeSlot || null,
-    counselorName: test.counselorName || test.counselor_name || null,
-    studentName: test.studentName || test.student_name || null,
-    controlNo: test.controlNo || `PT-${String(test.id).padStart(6, "0")}`,
-    note: test.counselor_action_note || test.note || null,
-  });
-
-  const fetchTests = async () => {
+  const fetchTests = useCallback(async () => {
     if (!token) return [];
     const response = await fetch(`${apiBase}/api/tests`, {
       headers: {
@@ -38,7 +38,7 @@ export function TestsProvider({ children }) {
     const normalized = Array.isArray(data) ? data.map(normalizeTest) : [];
     setTests(normalized);
     return normalized;
-  };
+  }, [apiBase, token]);
 
   const createTestRequest = async ({ student, form }) => {
     const response = await fetch(`${apiBase}/api/tests`, {
