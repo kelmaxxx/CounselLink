@@ -1,4 +1,5 @@
 import { query } from "../config/db.js";
+import { notifyRole } from "../events.js";
 
 export const createAppointment = async (req, res) => {
   const { preferredDate, preferredSlots, isUrgent, phoneNumber, reason, studentId: bodyStudentId } = req.body;
@@ -29,6 +30,10 @@ export const createAppointment = async (req, res) => {
       (?, ?, 'counseling', ?, NULL, ?, ?, ?, ?, ?)` ,
     [studentId, counselorId, preferredDate, status, finalReason, finalPhoneNumber, isUrgent ? 1 : 0, slots]
   );
+
+  // A new pending request (counselor_id is NULL) shows in every counselor's
+  // queue, so signal them all to refresh.
+  notifyRole("counselor", { type: "appointments" });
 
   return res.status(201).json({
     message: isCounselor ? "Follow-up appointment scheduled" : "Appointment request submitted",

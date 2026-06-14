@@ -1,11 +1,13 @@
-import React, { createContext, useCallback, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
+import { useRealtime } from "./RealtimeContext";
 
 const ReferralsContext = createContext();
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 export function ReferralsProvider({ children }) {
   const { token } = useAuth();
+  const { subscribe } = useRealtime();
   const [referrals, setReferrals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -85,6 +87,14 @@ export function ReferralsProvider({ children }) {
     },
     [headers, fetchReferrals]
   );
+
+  // Live updates: re-fetch whenever the server signals a referral change.
+  useEffect(() => {
+    if (!token) return undefined;
+    return subscribe("referrals", () => {
+      fetchReferrals();
+    });
+  }, [token, subscribe, fetchReferrals]);
 
   return (
     <ReferralsContext.Provider

@@ -1,5 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
+import { createNotification } from "../utils/notify.js";
+import { notifyUser } from "../events.js";
 
 export const createTestResult = async (req, res) => {
   const { appointmentId, studentId, testName, completedDate, summary, recommendations } = req.body;
@@ -22,16 +24,14 @@ export const createTestResult = async (req, res) => {
     appointmentId: appointmentId || null,
   });
 
-  await query(
-    `INSERT INTO notifications (user_id, title, message, status, link)
-     VALUES (?, ?, ?, 'unread', ?)`,
-    [
-      studentId,
-      "Psychological test result released",
-      `Your counselor released a result for "${testName}". View and save it from your records.`,
-      "/student/consent",
-    ]
-  );
+  await createNotification({
+    userId: studentId,
+    title: "Psychological test result released",
+    message: `Your counselor released a result for "${testName}". View and save it from your records.`,
+    link: "/student/consent",
+  });
+  // Refresh the student's test-results list live.
+  notifyUser(studentId, { type: "test-results" });
 
   return res.status(201).json({ message: "Test result saved", id: result.insertId });
 };
