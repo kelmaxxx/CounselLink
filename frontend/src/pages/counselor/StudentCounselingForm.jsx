@@ -118,6 +118,8 @@ export default function StudentCounselingForm() {
             followupTimeSlot: session.formData?.followupTimeSlot || "",
           });
           if (session.formData?.reason) setReason({ ...blankReason(), ...session.formData.reason });
+        } else if (appt.is_urgent || appt.isUrgent) {
+          setForm((f) => ({ ...f, presentingConcern: appt.reason || "" }));
         }
       })
       .catch((err) => console.error(err))

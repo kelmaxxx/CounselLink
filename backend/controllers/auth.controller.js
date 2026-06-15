@@ -96,8 +96,8 @@ export const registerStudent = async (req, res) => {
   ]);
 
   if (existing.length) {
-    const nonRejected = existing.find((user) => user.status !== "rejected");
-    if (nonRejected) {
+    const blocking = existing.find((user) => user.status !== "rejected" && !user.is_placeholder);
+    if (blocking) {
       return res.status(409).json({ message: "Email or student ID already in use" });
     }
 
@@ -127,7 +127,8 @@ export const registerStudent = async (req, res) => {
            avatar_url = ?,
            avatar_file_name = ?,
            avatar_file_type = ?,
-           rejection_reason = NULL
+           rejection_reason = NULL,
+           is_placeholder = 0
        WHERE id = ?`,
       [
         name,
