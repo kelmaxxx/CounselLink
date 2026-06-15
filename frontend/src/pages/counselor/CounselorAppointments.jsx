@@ -342,6 +342,15 @@ export default function CounselorAppointments() {
                       >
                         <MessageCircle size={15} />
                       </button>
+                      {(a.is_urgent || a.isUrgent) && (
+                        <a
+                          href={`/counselor/appointments/${a.id}/form`}
+                          className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
+                        >
+                          <FileText size={13} />
+                          Open form
+                        </a>
+                      )}
                       <button
                         onClick={() => handleAccept(a)}
                         disabled={busyId === a.id}

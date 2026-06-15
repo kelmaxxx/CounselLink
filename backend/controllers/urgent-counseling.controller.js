@@ -1,3 +1,5 @@
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import { query } from "../config/db.js";
 import { notifyUsers } from "../utils/notify.js";
 import { notifyRole } from "../events.js";
@@ -55,28 +57,56 @@ export const createUrgentCounselingRequest = async (req, res) => {
     return res.status(400).json({ message: "Please complete all required fields." });
   }
 
-  const existing = await query(
-    "SELECT id FROM urgent_counseling_requests WHERE student_id_number = ? AND status = 'pending' LIMIT 1",
+  // Match against an existing student record (registered or a previous
+  // walk-in placeholder) by Student ID so we don't create duplicates.
+  const existingStudents = await query(
+    "SELECT id FROM users WHERE student_id = ? AND role = 'student' LIMIT 1",
     [trimmed.studentIdNumber]
   );
 
-  if (existing.length > 0) {
-    return res.status(200).json({ alreadyPending: true, message: ALREADY_PENDING_MESSAGE });
+  let studentUserId;
+  let placeholderCreated = false;
+
+  if (existingStudents.length > 0) {
+    studentUserId = existingStudents[0].id;
+
+    const existingPending = await query(
+      "SELECT id FROM appointments WHERE student_id = ? AND is_urgent = 1 AND status = 'pending' LIMIT 1",
+      [studentUserId]
+    );
+    if (existingPending.length > 0) {
+      return res.status(200).json({ alreadyPending: true, message: ALREADY_PENDING_MESSAGE });
+    }
+  } else {
+    // No account for this Student ID yet — create a placeholder student
+    // record so the request can be linked to a student_id FK and the
+    // student shows up in Student Records. It can't be logged into (random
+    // password, synthetic email) and gets claimed/updated automatically if
+    // this student later registers with the same Student ID.
+    const placeholderEmail = `walkin-${trimmed.studentIdNumber.replace(/[^a-zA-Z0-9]/g, "")}-${Date.now()}@placeholder.counselink.local`;
+    const randomPassword = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10);
+
+    const userResult = await query(
+      `INSERT INTO users (name, email, password, role, status, college, student_id, phone, is_placeholder)
+       VALUES (?, ?, ?, 'student', 'approved', ?, ?, ?, 1)`,
+      [trimmed.fullName, placeholderEmail, randomPassword, trimmed.college, trimmed.studentIdNumber, trimmed.contactNumber]
+    );
+    studentUserId = userResult.insertId;
+    placeholderCreated = true;
   }
 
+  const concernLabel =
+    trimmed.natureOfConcern === "Other"
+      ? `Other - ${trimmed.natureOfConcernOther}`
+      : trimmed.natureOfConcern;
+
+  const reason = `Urgent counseling request — ${concernLabel}\n\n${trimmed.description}`;
+
   const result = await query(
-    `INSERT INTO urgent_counseling_requests
-      (full_name, student_id_number, college, contact_number, nature_of_concern, nature_of_concern_other, description, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-    [
-      trimmed.fullName,
-      trimmed.studentIdNumber,
-      trimmed.college,
-      trimmed.contactNumber,
-      trimmed.natureOfConcern,
-      trimmed.natureOfConcern === "Other" ? trimmed.natureOfConcernOther : null,
-      trimmed.description,
-    ]
+    `INSERT INTO appointments
+      (student_id, counselor_id, appointment_type, status, reason, phone_number, is_urgent)
+     VALUES (?, NULL, 'counseling', 'pending', ?, ?, 1)`,
+    [studentUserId, reason, trimmed.contactNumber]
   );
 
   const counselors = await query(
@@ -87,10 +117,6 @@ export const createUrgentCounselingRequest = async (req, res) => {
     dateStyle: "medium",
     timeStyle: "short",
   });
-  const concernLabel =
-    trimmed.natureOfConcern === "Other"
-      ? `Other - ${trimmed.natureOfConcernOther}`
-      : trimmed.natureOfConcern;
 
   const title = "Urgent Counseling Request";
   const message = `An urgent counseling request was submitted from the login page on ${timestamp}.`;
@@ -108,11 +134,11 @@ export const createUrgentCounselingRequest = async (req, res) => {
     {
       title,
       message: `${message} ${detailLines.join(" | ")}`,
-      link: "/counselor/urgent-requests",
+      link: "/counselor/appointments",
       type: "urgent_counseling",
     }
   );
-  notifyRole("counselor", { type: "urgent-requests" });
+  notifyRole("counselor", { type: "appointments" });
   notifyRole("counselor", { type: "notification" });
 
   for (const counselor of counselors) {
@@ -121,70 +147,23 @@ export const createUrgentCounselingRequest = async (req, res) => {
       await sendEmail({
         to: counselor.email,
         subject: "URGENT: Counseling Request Submitted",
-        text: `${message}\n\n${detailLines.join("\n")}\n\nPlease check the Urgent Requests page as soon as possible.`,
+        text: `${message}\n\n${detailLines.join("\n")}\n\nPlease check your Pending requests as soon as possible.`,
         html: `<p>${message}</p><ul>${detailLines
           .map((line) => `<li>${line}</li>`)
-          .join("")}</ul><p>Please check the Urgent Requests page as soon as possible.</p>`,
+          .join("")}</ul><p>Please check your Pending requests as soon as possible.</p>`,
       });
     } catch (err) {
       console.warn(`[urgent-counseling] Failed to email ${counselor.email}:`, err.message);
     }
   }
 
-  await logAction(req, "urgent_counseling_request", "urgent_counseling_request", result.insertId, {
+  await logAction(req, "urgent_counseling_request", "appointment", result.insertId, {
     studentIdNumber: trimmed.studentIdNumber,
     natureOfConcern: trimmed.natureOfConcern,
+    studentUserId,
+    placeholderCreated,
     counselorsNotified: counselors.length,
   });
 
   return res.status(201).json({ message: "Urgent counseling request submitted." });
-};
-
-// Counselor-only: list all urgent counseling requests, newest first.
-export const listUrgentCounselingRequests = async (req, res) => {
-  const rows = await query(
-    `SELECT ucr.*, u.name AS resolved_by_name
-     FROM urgent_counseling_requests ucr
-     LEFT JOIN users u ON ucr.resolved_by = u.id
-     ORDER BY ucr.created_at DESC`
-  );
-
-  const requests = rows.map((r) => ({
-    id: r.id,
-    fullName: r.full_name,
-    studentIdNumber: r.student_id_number,
-    college: r.college,
-    contactNumber: r.contact_number,
-    natureOfConcern: r.nature_of_concern,
-    natureOfConcernOther: r.nature_of_concern_other,
-    description: r.description,
-    status: r.status,
-    resolvedBy: r.resolved_by,
-    resolvedByName: r.resolved_by_name,
-    resolvedAt: r.resolved_at,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-  }));
-
-  return res.json(requests);
-};
-
-// Counselor-only: mark a pending request as resolved, re-opening that
-// student ID for future urgent requests.
-export const resolveUrgentCounselingRequest = async (req, res) => {
-  const { id } = req.params;
-
-  const result = await query(
-    "UPDATE urgent_counseling_requests SET status = 'resolved', resolved_by = ?, resolved_at = NOW() WHERE id = ? AND status = 'pending'",
-    [req.user.id, id]
-  );
-
-  if (result.affectedRows === 0) {
-    return res.status(404).json({ message: "Request not found or already resolved." });
-  }
-
-  await logAction(req, "resolve_urgent_counseling_request", "urgent_counseling_request", Number(id), {});
-  notifyRole("counselor", { type: "urgent-requests" });
-
-  return res.json({ message: "Marked as resolved." });
 };
