@@ -75,6 +75,7 @@ const STATUS_PALETTE = {
   active: "bg-emerald-50 text-emerald-700",
   inactive: "bg-gray-100 text-gray-600",
   confirmed: "bg-emerald-50 text-emerald-700",
+  resolved: "bg-emerald-50 text-emerald-700",
 };
 
 // User-facing label overrides for stored enum values. The DB still stores

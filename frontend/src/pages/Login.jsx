@@ -15,6 +15,7 @@ import {
   UserRound,
   Phone,
   ArrowLeft,
+  AlertTriangle,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL } from "../components/ui";
 
@@ -618,7 +619,90 @@ export default function Login() {
   );
 }
 
+const NATURE_OF_CONCERN_OPTIONS = [
+  "Mental Health Crisis",
+  "Academic Distress",
+  "Family Problem",
+  "Harassment or Bullying",
+  "Personal Emergency",
+  "Other",
+];
+
+const EMPTY_URGENT_FORM = {
+  fullName: "",
+  studentIdNumber: "",
+  college: "",
+  contactNumber: "",
+  natureOfConcern: "",
+  natureOfConcernOther: "",
+  description: "",
+};
+
 function AuthShell({ children }) {
+  const [urgentModal, setUrgentModal] = useState(null); // null | "notice" | "form" | "confirm" | "success" | "duplicate"
+  const [urgentForm, setUrgentForm] = useState(EMPTY_URGENT_FORM);
+  const [urgentFormErrors, setUrgentFormErrors] = useState({});
+  const [urgentLoading, setUrgentLoading] = useState(false);
+  const [urgentError, setUrgentError] = useState("");
+
+  const openUrgentFlow = () => {
+    setUrgentForm(EMPTY_URGENT_FORM);
+    setUrgentFormErrors({});
+    setUrgentError("");
+    setUrgentModal("notice");
+  };
+
+  const updateUrgentForm = (field, value) => {
+    setUrgentForm((f) => ({ ...f, [field]: value }));
+    setUrgentFormErrors((errs) => ({ ...errs, [field]: undefined }));
+  };
+
+  const validateUrgentForm = () => {
+    const errors = {};
+    if (!urgentForm.fullName.trim()) errors.fullName = "Required";
+    if (!urgentForm.studentIdNumber.trim()) errors.studentIdNumber = "Required";
+    if (!urgentForm.college.trim()) errors.college = "Required";
+    if (!urgentForm.contactNumber.trim()) errors.contactNumber = "Required";
+    if (!urgentForm.natureOfConcern.trim()) errors.natureOfConcern = "Required";
+    if (urgentForm.natureOfConcern === "Other" && !urgentForm.natureOfConcernOther.trim()) {
+      errors.natureOfConcernOther = "Please specify";
+    }
+    if (!urgentForm.description.trim()) errors.description = "Required";
+    return errors;
+  };
+
+  const goToUrgentForm = () => {
+    const errors = validateUrgentForm();
+    if (Object.keys(errors).length > 0) {
+      setUrgentFormErrors(errors);
+      return;
+    }
+    setUrgentFormErrors({});
+    setUrgentModal("confirm");
+  };
+
+  const submitUrgentRequest = async () => {
+    setUrgentLoading(true);
+    setUrgentError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/urgent-counseling-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(urgentForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setUrgentError(data.message || "Unable to submit request. Please try again.");
+        return;
+      }
+      setUrgentModal(data.alreadyPending ? "duplicate" : "success");
+    } catch {
+      setUrgentError("Network error. Please try again or visit the office directly.");
+    } finally {
+      setUrgentLoading(false);
+    }
+  };
+
   const handleLogoLoad = (e) => {
     const img = e.currentTarget;
     if (img.dataset.processed) return;
@@ -678,6 +762,14 @@ function AuthShell({ children }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-maroon-600 via-maroon-700 to-maroon-800 flex items-center justify-center p-6">
+      <button
+        type="button"
+        onClick={openUrgentFlow}
+        className="fixed top-4 right-4 z-40 inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-lg transition-colors"
+      >
+        <AlertTriangle size={16} />
+      </button>
+
       <div className="w-full max-w-xl flex flex-col items-center">
         <img
           src="/login-header.png"
@@ -690,7 +782,212 @@ function AuthShell({ children }) {
           © {new Date().getFullYear()} MSU-Marawi · Division of Student Affairs
         </p>
       </div>
+
+      {urgentModal && (
+        <UrgentCounselingModal
+          step={urgentModal}
+          onClose={() => setUrgentModal(null)}
+          onProceedNotice={() => setUrgentModal("form")}
+          form={urgentForm}
+          formErrors={urgentFormErrors}
+          onFormChange={updateUrgentForm}
+          goToStep={setUrgentModal}
+          onNext={goToUrgentForm}
+          onConfirm={submitUrgentRequest}
+          loading={urgentLoading}
+          error={urgentError}
+        />
+      )}
     </div>
+  );
+}
+
+function UrgentCounselingModal({
+  step,
+  onClose,
+  onProceedNotice,
+  form,
+  formErrors,
+  onFormChange,
+  goToStep,
+  onNext,
+  onConfirm,
+  loading,
+  error,
+}) {
+  if (step === "notice") {
+    return (
+      <Modal open onClose={onClose} title="URGENT COUNSELING NOTICE" danger size="md">
+        <p className="text-sm text-gray-700 leading-relaxed">
+          This feature is intended only for students experiencing an emergency or
+          urgent concern that requires immediate counseling assistance.
+        </p>
+        <p className="text-sm text-gray-700 leading-relaxed mt-3">
+          Regular counseling concerns should be scheduled through the appointment system.
+        </p>
+        <p className="text-sm text-gray-700 leading-relaxed mt-3">
+          Counseling services are available only from Monday to Friday. No counseling
+          appointments are conducted during Saturdays and Sundays.
+        </p>
+        <p className="text-sm text-gray-700 leading-relaxed mt-3">
+          Click "Proceed" if you require immediate counseling assistance.
+        </p>
+        <div className="flex justify-end gap-2 mt-5">
+          <button type="button" onClick={onClose} className={BTN.secondary}>Cancel</button>
+          <button type="button" onClick={onProceedNotice} className={BTN.danger}>Proceed</button>
+        </div>
+      </Modal>
+    );
+  }
+
+  if (step === "form") {
+    return (
+      <Modal
+        open
+        onClose={onClose}
+        title="Urgent Counseling Request"
+        subtitle="Please provide the following information."
+        size="lg"
+      >
+        <div className="space-y-4">
+          <FieldRow label="Full Name" error={formErrors.fullName}>
+            <InputWithIcon icon={UserRound}>
+              <input
+                className={`${INPUT} pl-9`}
+                value={form.fullName}
+                onChange={(e) => onFormChange("fullName", e.target.value)}
+              />
+            </InputWithIcon>
+          </FieldRow>
+
+          <FieldRow label="Student ID Number" error={formErrors.studentIdNumber}>
+            <InputWithIcon icon={Hash}>
+              <input
+                className={`${INPUT} pl-9`}
+                value={form.studentIdNumber}
+                onChange={(e) => onFormChange("studentIdNumber", e.target.value)}
+              />
+            </InputWithIcon>
+          </FieldRow>
+
+          <FieldRow label="College/Department" error={formErrors.college}>
+            <select
+              className={INPUT}
+              value={form.college}
+              onChange={(e) => onFormChange("college", e.target.value)}
+            >
+              <option value="">Select college/department</option>
+              {COLLEGES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </FieldRow>
+
+          <FieldRow label="Contact Number" error={formErrors.contactNumber}>
+            <InputWithIcon icon={Phone}>
+              <input
+                className={`${INPUT} pl-9`}
+                value={form.contactNumber}
+                onChange={(e) => onFormChange("contactNumber", e.target.value)}
+              />
+            </InputWithIcon>
+          </FieldRow>
+
+          <FieldRow label="Nature of Concern" error={formErrors.natureOfConcern}>
+            <select
+              className={INPUT}
+              value={form.natureOfConcern}
+              onChange={(e) => onFormChange("natureOfConcern", e.target.value)}
+            >
+              <option value="">Select nature of concern</option>
+              {NATURE_OF_CONCERN_OPTIONS.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </FieldRow>
+
+          {form.natureOfConcern === "Other" && (
+            <FieldRow label="Please specify" error={formErrors.natureOfConcernOther}>
+              <input
+                className={INPUT}
+                value={form.natureOfConcernOther}
+                onChange={(e) => onFormChange("natureOfConcernOther", e.target.value)}
+              />
+            </FieldRow>
+          )}
+
+          <FieldRow label="Brief Description of Emergency" error={formErrors.description}>
+            <textarea
+              rows={3}
+              className={INPUT}
+              value={form.description}
+              onChange={(e) => onFormChange("description", e.target.value)}
+            />
+          </FieldRow>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-5">
+          <button type="button" onClick={() => goToStep("notice")} className={BTN.secondary}>Back</button>
+          <button type="button" onClick={onClose} className={BTN.secondary}>Cancel</button>
+          <button type="button" onClick={onNext} className={BTN.danger}>Next</button>
+        </div>
+      </Modal>
+    );
+  }
+
+  if (step === "confirm") {
+    return (
+      <Modal open onClose={onClose} title="CONFIRMATION" danger size="md">
+        <p className="text-sm text-gray-700 leading-relaxed">
+          By submitting this request, you confirm that your concern requires
+          immediate attention.
+        </p>
+        <p className="text-sm text-gray-700 leading-relaxed mt-3">
+          Please proceed directly to the Division of Student Affairs Office – Guidance
+          and Counseling Unit for immediate assistance.
+        </p>
+        <p className="text-sm text-gray-700 leading-relaxed mt-3">
+          False or misleading submissions may be subject to disciplinary action under
+          university policies.
+        </p>
+        {error && <p className="text-xs text-red-600 mt-3">{error}</p>}
+        <div className="flex justify-end gap-2 mt-5">
+          <button type="button" onClick={() => goToStep("form")} className={BTN.secondary} disabled={loading}>Back</button>
+          <button type="button" onClick={onClose} className={BTN.secondary} disabled={loading}>Cancel</button>
+          <button type="button" onClick={onConfirm} className={BTN.danger} disabled={loading}>
+            {loading ? "Submitting…" : "Submit Urgent Request"}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  if (step === "duplicate") {
+    return (
+      <Modal open onClose={onClose} title="Request Already Pending" size="md">
+        <p className="text-sm text-gray-700 leading-relaxed">
+          Your urgent counseling request has already been submitted and is awaiting
+          counselor assistance. Please proceed to the Division of Student Affairs Office.
+        </p>
+        <div className="flex justify-end mt-5">
+          <button type="button" onClick={onClose} className={BTN.primary}>Close</button>
+        </div>
+      </Modal>
+    );
+  }
+
+  // step === "success"
+  return (
+    <Modal open onClose={onClose} title="Request Submitted" size="md">
+      <p className="text-sm text-gray-700 leading-relaxed">
+        Your urgent counseling request has been recorded and all available counselors
+        have been notified. Please proceed to the Division of Student Affairs Office –
+        Guidance and Counseling Unit now.
+      </p>
+      <div className="flex justify-end mt-5">
+        <button type="button" onClick={onClose} className={BTN.primary}>Close</button>
+      </div>
+    </Modal>
   );
 }
 
