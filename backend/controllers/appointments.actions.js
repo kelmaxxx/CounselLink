@@ -77,7 +77,7 @@ export const completeAppointment = async (req, res) => {
   const counselorId = req.user?.id;
 
   const rows = await query(
-    "SELECT counselor_id, status, student_id FROM appointments WHERE id = ?",
+    "SELECT counselor_id, status, student_id, is_urgent FROM appointments WHERE id = ?",
     [id]
   );
   if (!rows.length) return res.status(404).json({ message: "Appointment not found" });
@@ -88,7 +88,8 @@ export const completeAppointment = async (req, res) => {
   if (appt.status === "completed") {
     return res.status(409).json({ message: "Appointment is already completed" });
   }
-  if (!["approved", "rescheduled"].includes(appt.status)) {
+  const allowedFromPending = appt.status === "pending" && appt.is_urgent;
+  if (!["approved", "rescheduled"].includes(appt.status) && !allowedFromPending) {
     return res.status(409).json({
       message: `Only approved or rescheduled appointments can be marked done (was: ${appt.status})`,
     });

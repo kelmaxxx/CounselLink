@@ -4,7 +4,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   Calendar, Users, FileText, Bell, LogOut, User,
-  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, AlertTriangle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft, X
+  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft, X
 } from "lucide-react";
 import { useMessages } from "../context/MessagesContext";
 import Avatar from "./Avatar";
@@ -45,7 +45,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     "manage-students": "/students",
     appointments: "/counselor/appointments",
     referrals: "/counselor/referrals",
-    "urgent-requests": "/counselor/urgent-requests",
     "generate-reports": "/counselor/reports",
 
     // College Rep
@@ -99,7 +98,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
               { id: "manage-students", label: "Student Records", icon: Users },
               { id: "appointments", label: "Appointments", icon: Calendar },
               { id: "referrals", label: "Referrals", icon: ArrowRightLeft },
-              { id: "urgent-requests", label: "Urgent Requests", icon: AlertTriangle },
               { id: "generate-reports", label: "Reports", icon: FileText },
             ],
           },
