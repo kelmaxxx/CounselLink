@@ -2,7 +2,8 @@ import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 
 const baseSelect = `
-  SELECT rr.id, rr.requester_id, rr.counselor_id, rr.student_name, rr.student_identifier,
+  SELECT rr.id, rr.requester_id, rr.counselor_id, rr.request_type,
+         rr.student_name, rr.student_identifier,
          rr.reason, rr.status, rr.response_note, rr.responded_at,
          rr.created_at, rr.updated_at,
          req.name AS requesterName, req.college AS requesterCollege,
@@ -14,12 +15,20 @@ const baseSelect = `
 
 export const createReportRequest = async (req, res) => {
   const requesterId = req.user?.id;
-  const { counselorId, studentName, studentIdentifier, reason } = req.body || {};
+  const { counselorId, requestType, studentName, studentIdentifier, reason } =
+    req.body || {};
 
-  if (!counselorId || !studentName?.trim() || !reason?.trim()) {
+  const type = requestType === "college" ? "college" : "individual";
+
+  if (!counselorId || !reason?.trim()) {
     return res
       .status(400)
-      .json({ message: "counselorId, studentName, and reason are required" });
+      .json({ message: "counselorId and reason are required" });
+  }
+  if (type === "individual" && !studentName?.trim()) {
+    return res
+      .status(400)
+      .json({ message: "studentName is required for an individual student request" });
   }
 
   const [counselor] = await query(
@@ -28,18 +37,31 @@ export const createReportRequest = async (req, res) => {
   );
   if (!counselor) return res.status(404).json({ message: "Counselor not found" });
 
+  // College-wide requests carry no individual student fields.
+  const studentNameValue = type === "individual" ? studentName.trim() : null;
+  const studentIdentifierValue =
+    type === "individual" ? studentIdentifier?.trim() || null : null;
+
   const result = await query(
     `INSERT INTO report_requests
-       (requester_id, counselor_id, student_name, student_identifier, reason, status)
-     VALUES (?, ?, ?, ?, ?, 'pending')`,
+       (requester_id, counselor_id, request_type, student_name, student_identifier, reason, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
     [
       requesterId,
       counselorId,
-      studentName.trim(),
-      studentIdentifier?.trim() || null,
+      type,
+      studentNameValue,
+      studentIdentifierValue,
       reason.trim(),
     ]
   );
+
+  const requesterName = req.user?.name || "A College Representative";
+  const collegeLabel = req.user?.college ? ` for ${req.user.college}` : "";
+  const notificationMessage =
+    type === "college"
+      ? `${requesterName} requested a college-wide summary report${collegeLabel}.`
+      : `${requesterName} requested a report on ${studentNameValue}.`;
 
   await query(
     `INSERT INTO notifications (user_id, title, message, status, link)
@@ -47,14 +69,15 @@ export const createReportRequest = async (req, res) => {
     [
       counselorId,
       "Report request received",
-      `${req.user?.name || "A College Representative"} requested a report on ${studentName.trim()}.`,
+      notificationMessage,
       `/counselor/reports`,
     ]
   );
 
   await logAction(req, "create_report_request", "report_request", result.insertId, {
     counselorId,
-    studentName: studentName.trim(),
+    requestType: type,
+    studentName: studentNameValue,
   });
 
   return res.status(201).json({ message: "Report request submitted", id: result.insertId });
