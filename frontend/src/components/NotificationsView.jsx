@@ -18,6 +18,7 @@ const TYPE_META = {
   warning: { icon: AlertTriangle, iconClass: "text-amber-600 bg-amber-50" },
   error: { icon: AlertCircle, iconClass: "text-red-600 bg-red-50" },
   info: { icon: Info, iconClass: "text-blue-600 bg-blue-50" },
+  urgent_counseling: { icon: AlertTriangle, iconClass: "text-red-600 bg-red-50" },
 };
 
 function formatRelative(dateString) {

@@ -30,6 +30,7 @@ const ACTION_LABELS = {
   accept_test: "Accepted test request",
   reject_test: "Rejected test request",
   reschedule_test: "Rescheduled test request",
+  urgent_counseling_request: "Urgent counseling request",
 };
 
 const ROLE_LABELS = {
@@ -234,7 +235,7 @@ export default function AuditLogs() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-sm font-medium text-gray-900">
-                          {log.actorName || "(deleted user)"}
+                          {log.actorId == null ? "Public (unauthenticated)" : log.actorName || "(deleted user)"}
                         </div>
                         <div className="text-xs text-gray-500">
                           {ROLE_LABELS[log.actorRole] || log.actorRole || "—"}

@@ -36,3 +36,11 @@ export const otpLimiter = limiter(
   10,
   "Too many verification attempts. Try again in 15 minutes."
 );
+
+// This endpoint is public and triggers emails to every counselor, so keep
+// the per-IP limit tight.
+export const urgentCounselingLimiter = limiter(
+  15 * 60 * 1000,
+  3,
+  "Too many urgent requests submitted. If this is an emergency, please go directly to the Guidance and Counseling Office."
+);
