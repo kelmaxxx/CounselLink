@@ -13,6 +13,10 @@ import {
   GraduationCap,
   ArrowRightLeft,
   ClipboardList,
+  FileText,
+  Eye,
+  Inbox,
+  FileDown,
 } from "lucide-react";
 import {
   PageHeader,
@@ -20,10 +24,23 @@ import {
   SectionCard,
   EmptyState,
   StatusPill,
+  Modal,
   BTN,
   INPUT,
   LABEL,
+  initialsOf,
 } from "../../components/ui";
+import {
+  downloadReportAsDocx,
+  downloadReportAsPdf,
+  normalizeSessionReport,
+} from "../../utils/sessionReport";
+
+const parsePayload = (raw) => {
+  if (!raw) return null;
+  if (typeof raw === "object") return raw;
+  try { return JSON.parse(raw); } catch { return null; }
+};
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
@@ -49,6 +66,9 @@ export default function CounselingData() {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [receivedReports, setReceivedReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [activeReport, setActiveReport] = useState(null);
   const [filters, setFilters] = useState({
     status: "all",
     dateFrom: "",
@@ -78,9 +98,31 @@ export default function CounselingData() {
     }
   };
 
+  const fetchReceivedReports = async () => {
+    if (!token) return;
+    setLoadingReports(true);
+    try {
+      const response = await fetch(`${apiBase}/api/reports/received`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok) setReceivedReports(Array.isArray(data) ? data : []);
+    } catch {
+      // Surfaced via the page-level error banner from fetchReport; ignore here.
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+
   useEffect(() => {
     fetchReport();
+    fetchReceivedReports();
   }, [token]);
+
+  const activePayload = useMemo(
+    () => (activeReport ? parsePayload(activeReport.report_payload) : null),
+    [activeReport]
+  );
 
   const updateFilter = (field) => (event) => {
     setFilters((prev) => ({ ...prev, [field]: event.target.value }));
@@ -355,6 +397,178 @@ export default function CounselingData() {
           </div>
         )}
       </SectionCard>
+
+      <SectionCard
+        className="mt-6"
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            <FileText size={14} className="text-maroon-600" /> Reports received from counselors
+          </span>
+        }
+        subtitle={`${receivedReports.length} total — session reports submitted to you`}
+        noBodyPadding
+      >
+        {loadingReports ? (
+          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
+        ) : receivedReports.length === 0 ? (
+          <EmptyState
+            icon={Inbox}
+            title="No reports yet"
+            hint="Counselors who finalize a session from one of your referrals or requests will deliver the report here."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                  <th className="px-4 py-2.5">From</th>
+                  <th className="px-4 py-2.5">Title</th>
+                  <th className="px-4 py-2.5">Summary</th>
+                  <th className="px-4 py-2.5">Received</th>
+                  <th className="px-4 py-2.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {receivedReports.map((r) => (
+                  <tr key={r.id} className="hover:bg-gray-50/70 transition">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          {initialsOf(r.senderName)}
+                        </div>
+                        <div className="font-medium text-gray-900 text-sm truncate">
+                          {r.senderName}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-900">{r.title}</td>
+                    <td className="px-4 py-3 max-w-md text-gray-700 line-clamp-2">
+                      {r.summary || <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                      {new Date(r.sent_at).toLocaleString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex gap-1">
+                        <button
+                          onClick={() => setActiveReport(r)}
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                          title="View report"
+                        >
+                          <Eye size={13} /> View
+                        </button>
+                        <button
+                          onClick={() =>
+                            downloadReportAsDocx(parsePayload(r.report_payload), {
+                              title: r.title,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                          title="Download as Word document"
+                        >
+                          <Download size={13} /> DOCX
+                        </button>
+                        <button
+                          onClick={() =>
+                            downloadReportAsPdf(parsePayload(r.report_payload), {
+                              title: r.title,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                          title="Download / print as PDF"
+                        >
+                          <FileDown size={13} /> PDF
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      <Modal
+        open={!!activeReport}
+        onClose={() => setActiveReport(null)}
+        title={activeReport?.title || "Session Report"}
+        subtitle={
+          activeReport
+            ? `From ${activeReport.senderName} · ${new Date(activeReport.sent_at).toLocaleString()}`
+            : ""
+        }
+        size="lg"
+        footer={
+          activeReport && (
+            <div className="flex items-center gap-2">
+              <button
+                className={BTN.secondary}
+                onClick={() =>
+                  downloadReportAsDocx(parsePayload(activeReport.report_payload), {
+                    title: activeReport.title,
+                  })
+                }
+              >
+                <Download size={14} /> DOCX
+              </button>
+              <button
+                className={BTN.secondary}
+                onClick={() =>
+                  downloadReportAsPdf(parsePayload(activeReport.report_payload), {
+                    title: activeReport.title,
+                  })
+                }
+              >
+                <FileDown size={14} /> PDF
+              </button>
+              <button className={BTN.primary} onClick={() => setActiveReport(null)}>
+                Close
+              </button>
+            </div>
+          )
+        }
+      >
+        {activePayload ? (
+          (() => {
+            const r = normalizeSessionReport(activePayload);
+            return (
+              <dl className="divide-y divide-gray-100 text-sm">
+                <ReportRow label="Student" value={r.studentName} />
+                <ReportRow label="College" value={r.studentCollege} />
+                <ReportRow label="Session date" value={(r.sessionDate || "").split?.("T")?.[0] || r.sessionDate} />
+                <ReportRow label="Counselor" value={r.counselorName} />
+                <ReportRow label="Presenting concern" value={r.presentingConcern} />
+                <ReportRow label="Goals" value={r.goals} />
+                <ReportRow label="Summary" value={r.summary} />
+                <ReportRow label="Plan" value={r.plan} />
+                <ReportRow label="Comments" value={r.comments} />
+                <ReportRow label="Next session" value={r.nextSession} />
+                <ReportRow label="Signed by" value={r.counselorSignature} />
+              </dl>
+            );
+          })()
+        ) : (
+          <p className="text-sm text-gray-500">No payload available.</p>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function ReportRow({ label, value }) {
+  return (
+    <div className="py-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <dt className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</dt>
+      <dd className="sm:col-span-2 text-sm text-gray-900 whitespace-pre-wrap">
+        {value || <span className="text-gray-400">—</span>}
+      </dd>
     </div>
   );
 }

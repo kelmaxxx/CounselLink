@@ -223,7 +223,7 @@ export const sendReportToRecipient = async (req, res) => {
       recipientId,
       "Counseling report received",
       `${title.trim()}${summary ? ` — ${summary.slice(0, 100)}` : ""}`,
-      `/rep/reports`,
+      `/rep/counseling-data`,
     ]
   );
 

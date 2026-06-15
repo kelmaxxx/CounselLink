@@ -292,7 +292,7 @@ export const finalizeSession = async (req, res) => {
       userId: referrerId,
       title: "Counseling report received",
       message: `Session report for ${session.studentName} (${session.session_date}) is now available.`,
-      link: `/rep/reports`,
+      link: `/rep/counseling-data`,
     });
     notifyUser(referrerId, { type: "sessions" });
   }

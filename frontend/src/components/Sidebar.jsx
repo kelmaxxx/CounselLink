@@ -51,7 +51,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     "counseling-data": "/rep/counseling-data",
     "rep-referrals": "/rep/referrals",
     "request-report": "/rep/request-report",
-    "rep-reports": "/rep/reports",
 
     // Admin
     "pending-registrations": "/admin/pending-registrations",
@@ -120,7 +119,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
               { id: "counseling-data", label: "Counseling Data", icon: BookOpen },
               { id: "rep-referrals", label: "Referrals", icon: ArrowRightLeft },
               { id: "request-report", label: "Request Report", icon: ClipboardList },
-              { id: "rep-reports", label: "Reports", icon: FileText },
             ],
           },
           {
