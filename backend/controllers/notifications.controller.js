@@ -3,7 +3,7 @@ import { query } from "../config/db.js";
 export const listNotifications = async (req, res) => {
   const userId = req.user?.id;
   const rows = await query(
-    "SELECT id, title, message, status, link, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
+    "SELECT id, title, message, status, link, type, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
     [userId]
   );
   return res.json(rows);

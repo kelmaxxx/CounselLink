@@ -12,6 +12,7 @@ import { MessagesProvider } from './context/MessagesContext'
 import { CounselingSessionsProvider } from './context/CounselingSessionsContext'
 import { StudentRecordsProvider } from './context/StudentRecordsContext'
 import { ReferralsProvider } from './context/ReferralsContext'
+import { UrgentRequestsProvider } from './context/UrgentRequestsContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -25,7 +26,9 @@ createRoot(document.getElementById('root')).render(
                 <CounselingSessionsProvider>
                   <StudentRecordsProvider>
                     <ReferralsProvider>
-                      <App />
+                      <UrgentRequestsProvider>
+                        <App />
+                      </UrgentRequestsProvider>
                     </ReferralsProvider>
                   </StudentRecordsProvider>
                 </CounselingSessionsProvider>

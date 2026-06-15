@@ -29,6 +29,7 @@ export function NotificationsProvider({ children }) {
           title: n.title,
           message: n.message,
           link: n.link,
+          type: n.type || "info",
           read: n.status === "read",
           createdAt: n.created_at,
         }))

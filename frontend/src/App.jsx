@@ -27,6 +27,7 @@ import CounselorReports from "./pages/counselor/CounselorReports";
 import CounselorProfile from "./pages/counselor/CounselorProfile";
 import CounselorNotifications from "./pages/counselor/CounselorNotifications";
 import CounselorReferrals from "./pages/counselor/CounselorReferrals";
+import CounselorUrgentRequests from "./pages/counselor/CounselorUrgentRequests";
 import ReferralConfirmation from "./pages/counselor/ReferralConfirmation";
 import StudentAppointments from "./pages/student/StudentAppointments";
 import CounselorDirectory from "./pages/student/CounselorDirectory";
@@ -268,6 +269,16 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <CounselorReferrals />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/counselor/urgent-requests"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <CounselorUrgentRequests />
               </Layout>
             </ProtectedRoute>
           }
