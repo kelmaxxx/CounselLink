@@ -5,6 +5,8 @@ import {
   getOverviewReport,
   getAdminReport,
   getCollegeReport,
+  getCollegeTotals,
+  createCollegeSummary,
   sendReportToRecipient,
   listReceivedReports,
   listSentReports,
@@ -18,6 +20,8 @@ router.use(auth);
 router.get("/overview", getOverviewReport);
 router.get("/admin", requireRole("admin"), getAdminReport);
 router.get("/college", requireRole("college_rep"), getCollegeReport);
+router.get("/college-totals", requireRole("counselor", "admin"), getCollegeTotals);
+router.post("/college-summary", requireRole("counselor"), createCollegeSummary);
 router.post("/send", requireRole("counselor"), sendReportToRecipient);
 router.get("/sent", requireRole("counselor"), listSentReports);
 router.get("/received", requireRole("college_rep"), listReceivedReports);

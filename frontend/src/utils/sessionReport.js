@@ -44,7 +44,59 @@ export function normalizeSessionReport(input = {}) {
   };
 }
 
-export function buildReportHTML(report, { title = "Student Counseling Session Report" } = {}) {
+// A college-wide summary payload (type: "college_summary") has a different
+// shape than a per-student session report, so it renders its own document.
+function buildCollegeSummaryHTML(report, { title = "College Counseling Summary" } = {}) {
+  const t = report.totals || {};
+  const generated = report.generatedAt
+    ? new Date(report.generatedAt).toLocaleString()
+    : "—";
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body { font-family: 'Times New Roman', Georgia, serif; color: #111; line-height: 1.45; padding: 24px; }
+    h1 { font-size: 18pt; text-align: center; margin: 0 0 4px; }
+    .subtitle { text-align: center; color: #555; font-size: 10pt; margin-bottom: 18px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 11pt; }
+    .section-heading { font-size: 12pt; font-weight: 700; margin: 18px 0 6px; border-bottom: 1px solid #999; padding-bottom: 2px; }
+    .signature { margin-top: 32px; font-size: 11pt; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <div class="subtitle">CounselLink &middot; Generated ${escapeHtml(generated)}</div>
+
+  <div class="section-heading">College</div>
+  <table>
+    ${row("College", report.college)}
+    ${row("Students enrolled", report.studentCount)}
+    ${row("Prepared by", report.counselorName)}
+  </table>
+
+  <div class="section-heading">Counseling activity</div>
+  <table>
+    ${row("Total sessions", t.totalSessions)}
+    ${row("Active cases", t.activeCases)}
+    ${row("Completed", t.completed)}
+  </table>
+
+  <div class="section-heading">Counselor's summary</div>
+  <p>${formatLine(report.narrative)}</p>
+
+  <div class="signature">
+    <strong>Prepared by:</strong> ${formatLine(report.counselorName)}
+  </div>
+</body>
+</html>`;
+}
+
+export function buildReportHTML(report, opts = {}) {
+  if (report?.type === "college_summary") return buildCollegeSummaryHTML(report, opts);
+  const { title = "Student Counseling Session Report" } = opts;
   const r = normalizeSessionReport(report);
   const date =
     r.sessionDate && typeof r.sessionDate === "string"
@@ -108,6 +160,11 @@ export function buildReportHTML(report, { title = "Student Counseling Session Re
 }
 
 function safeFileBase(report) {
+  if (report?.type === "college_summary") {
+    const college = (report.college || "college").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "");
+    const date = (report.generatedAt || new Date().toISOString()).split("T")[0];
+    return `college-summary_${college}_${date}`.toLowerCase();
+  }
   const r = normalizeSessionReport(report);
   const name = (r.studentName || "session").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "");
   const date =

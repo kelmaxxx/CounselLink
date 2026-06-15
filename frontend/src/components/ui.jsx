@@ -1,7 +1,7 @@
 // src/components/ui.jsx
 // Shared primitives for the minimalist / professional design system.
 import React from "react";
-import { Inbox, X } from "lucide-react";
+import { Inbox, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }) {
   return (
@@ -71,6 +71,8 @@ const STATUS_PALETTE = {
   rejected: "bg-red-50 text-red-700",
   cancelled: "bg-gray-100 text-gray-600",
   canceled: "bg-gray-100 text-gray-600",
+  fulfilled: "bg-emerald-50 text-emerald-700",
+  declined: "bg-red-50 text-red-700",
   completed: "bg-emerald-50 text-emerald-700",
   active: "bg-emerald-50 text-emerald-700",
   inactive: "bg-gray-100 text-gray-600",
@@ -221,4 +223,66 @@ export function formatDateTime(value, fallback = "—") {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+// ── Pagination ───────────────────────────────────────────────────────
+// Client-side pager for tables/lists: numbered pages plus prev/next. When
+// there are many pages it shows a window around the current page with "…"
+// gaps so the control never overflows. Renders nothing for a single page.
+export function Pagination({ page, totalPages, onPageChange, className = "" }) {
+  if (!totalPages || totalPages <= 1) return null;
+
+  const go = (p) => onPageChange(Math.min(totalPages, Math.max(1, p)));
+
+  // Build a compact list of page numbers with ellipsis gaps.
+  const pages = [];
+  const window = 1; // pages shown on each side of the current page
+  for (let p = 1; p <= totalPages; p += 1) {
+    const inWindow = p === 1 || p === totalPages || Math.abs(p - page) <= window;
+    if (inWindow) {
+      pages.push(p);
+    } else if (pages[pages.length - 1] !== "…") {
+      pages.push("…");
+    }
+  }
+
+  const navBtn =
+    "inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed";
+
+  return (
+    <div
+      className={`px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 flex items-center justify-center gap-1 ${className}`}
+    >
+      <button onClick={() => go(page - 1)} disabled={page === 1} className={navBtn}>
+        <ChevronLeft size={13} /> Prev
+      </button>
+      {pages.map((p, i) =>
+        p === "…" ? (
+          <span key={`gap-${i}`} className="px-1.5 text-xs text-gray-400 select-none">
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => go(p)}
+            aria-current={p === page ? "page" : undefined}
+            className={`h-7 min-w-[28px] px-2 rounded-md border text-xs font-medium tabular-nums transition ${
+              p === page
+                ? "border-maroon-600 bg-maroon-600 text-white"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            {p}
+          </button>
+        )
+      )}
+      <button
+        onClick={() => go(page + 1)}
+        disabled={page === totalPages}
+        className={navBtn}
+      >
+        Next <ChevronRight size={13} />
+      </button>
+    </div>
+  );
 }
