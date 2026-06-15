@@ -134,6 +134,121 @@ export const getAdminReport = async (_req, res) => {
   });
 };
 
+// Aggregate counseling activity for one college, matching the figures the rep
+// dashboard used to compute client-side: every appointment for students in the
+// college, split by status.
+const computeCollegeTotals = async (college) => {
+  const rows = await query(
+    `SELECT a.status, COUNT(*) AS count
+     FROM appointments a
+     JOIN users u ON a.student_id = u.id
+     WHERE u.college = ?
+     GROUP BY a.status`,
+    [college]
+  );
+  const sumWhere = (statuses) =>
+    rows
+      .filter((r) => statuses.includes(r.status))
+      .reduce((sum, r) => sum + Number(r.count), 0);
+  return {
+    totalSessions: rows.reduce((sum, r) => sum + Number(r.count), 0),
+    activeCases: sumWhere(["pending", "accepted", "approved"]),
+    completed: sumWhere(["completed"]),
+  };
+};
+
+const getCollegeStudentCount = async (college) => {
+  const [row] = await query(
+    "SELECT COUNT(*) AS count FROM users WHERE role = 'student' AND college = ?",
+    [college]
+  );
+  return Number(row?.count || 0);
+};
+
+// Counselor-facing: the auto-computed totals for a college, used to prefill the
+// "generate college summary" form before the counselor adds their notes.
+export const getCollegeTotals = async (req, res) => {
+  const { college } = req.query;
+  if (!college) return res.status(400).json({ message: "college is required" });
+  const totals = await computeCollegeTotals(college);
+  const studentCount = await getCollegeStudentCount(college);
+  return res.json({ college, totals, studentCount });
+};
+
+// Counselor fulfills a college-wide summary request: the system computes the
+// totals, the counselor supplies the narrative, and the result is delivered to
+// the requesting rep as a report (and the request is marked fulfilled).
+export const createCollegeSummary = async (req, res) => {
+  const counselorId = req.user?.id;
+  const { requestId, narrative, responseNote } = req.body || {};
+
+  if (!requestId) return res.status(400).json({ message: "requestId is required" });
+  if (!narrative?.trim()) {
+    return res.status(400).json({ message: "A written summary is required" });
+  }
+
+  const [request] = await query(
+    "SELECT id, requester_id, counselor_id, request_type, status FROM report_requests WHERE id = ?",
+    [requestId]
+  );
+  if (!request) return res.status(404).json({ message: "Report request not found" });
+  if (request.counselor_id !== counselorId) {
+    return res.status(403).json({ message: "Only the assigned counselor can respond" });
+  }
+  if (request.request_type !== "college") {
+    return res.status(400).json({ message: "This request is not a college-wide summary request" });
+  }
+  if (request.status !== "pending") {
+    return res.status(409).json({ message: `Request is already ${request.status}` });
+  }
+
+  const [rep] = await query("SELECT id, name, college FROM users WHERE id = ?", [
+    request.requester_id,
+  ]);
+  if (!rep) return res.status(404).json({ message: "Requesting representative not found" });
+  if (!rep.college) {
+    return res.status(400).json({ message: "The representative has no college assigned" });
+  }
+
+  const totals = await computeCollegeTotals(rep.college);
+  const studentCount = await getCollegeStudentCount(rep.college);
+
+  const payload = {
+    type: "college_summary",
+    college: rep.college,
+    totals,
+    studentCount,
+    narrative: narrative.trim(),
+    counselorName: req.user?.name || null,
+    generatedAt: new Date().toISOString(),
+  };
+  const title = `College Summary — ${rep.college}`;
+
+  const result = await query(
+    `INSERT INTO report_recipients (sender_id, recipient_id, title, summary, report_payload)
+     VALUES (?, ?, ?, ?, ?)`,
+    [counselorId, rep.id, title, narrative.trim().slice(0, 160), JSON.stringify(payload)]
+  );
+
+  await query(
+    "UPDATE report_requests SET status = 'fulfilled', response_note = ?, responded_at = NOW() WHERE id = ?",
+    [responseNote?.trim() || null, requestId]
+  );
+
+  await query(
+    `INSERT INTO notifications (user_id, title, message, status, link)
+     VALUES (?, ?, ?, 'unread', ?)`,
+    [rep.id, "College summary received", `${title} is now available.`, `/rep/counseling-data`]
+  );
+
+  await logAction(req, "create_college_summary", "report_recipient", result.insertId, {
+    requestId,
+    college: rep.college,
+  });
+
+  return res.status(201).json({ message: "College summary sent", id: result.insertId });
+};
+
 export const getCollegeReport = async (req, res) => {
   const userId = req.user?.id;
   const userRows = await query("SELECT college FROM users WHERE id = ?", [userId]);

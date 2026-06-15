@@ -11,6 +11,11 @@ import {
   CheckCircle2,
   Clock3,
   Mail,
+  ClipboardList,
+  Building2,
+  User,
+  Check,
+  X,
 } from "lucide-react";
 import {
   PageHeader,
@@ -18,7 +23,11 @@ import {
   SectionCard,
   EmptyState,
   Modal,
+  StatusPill,
+  Pagination,
   BTN,
+  INPUT,
+  LABEL,
   initialsOf,
 } from "../../components/ui";
 import {
@@ -35,6 +44,8 @@ const parsePayload = (raw) => {
   try { return JSON.parse(raw); } catch { return null; }
 };
 
+const REQUESTS_PER_PAGE = 5;
+
 export default function CounselorReports() {
   const { token, currentUser } = useAuth();
   const { sessions, fetchSessions } = useCounselingSessions();
@@ -43,6 +54,25 @@ export default function CounselorReports() {
   const [loadingReports, setLoadingReports] = useState(false);
   const [error, setError] = useState("");
   const [activeReport, setActiveReport] = useState(null);
+
+  // Incoming report requests from College Representatives.
+  const [requests, setRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [requestsPage, setRequestsPage] = useState(1);
+  const [respondTarget, setRespondTarget] = useState(null); // the request being responded to
+  const [respondAction, setRespondAction] = useState(null); // "fulfilled" | "declined"
+  const [respondNote, setRespondNote] = useState("");
+  const [respondError, setRespondError] = useState("");
+  const [responding, setResponding] = useState(false);
+
+  // College-wide summary generation (fulfilling a college request).
+  const [genTarget, setGenTarget] = useState(null); // the college request being fulfilled
+  const [genTotals, setGenTotals] = useState(null); // auto-computed totals { college, totals, studentCount }
+  const [genLoading, setGenLoading] = useState(false);
+  const [genNarrative, setGenNarrative] = useState("");
+  const [genNote, setGenNote] = useState("");
+  const [genError, setGenError] = useState("");
+  const [generating, setGenerating] = useState(false);
 
   const reloadSentReports = async () => {
     if (!token) return;
@@ -62,11 +92,144 @@ export default function CounselorReports() {
     }
   };
 
+  const reloadRequests = async () => {
+    if (!token) return;
+    setLoadingRequests(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/report-requests`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await res.json();
+      if (res.ok) setRequests(Array.isArray(body) ? body : []);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
   useEffect(() => {
     reloadSentReports();
+    reloadRequests();
     fetchSessions().catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  const openRespond = (request, action) => {
+    setRespondTarget(request);
+    setRespondAction(action);
+    setRespondNote("");
+    setRespondError("");
+  };
+
+  const closeRespond = () => {
+    setRespondTarget(null);
+    setRespondAction(null);
+    setRespondNote("");
+    setRespondError("");
+  };
+
+  const openGenerate = async (request) => {
+    setGenTarget(request);
+    setGenNarrative("");
+    setGenNote("");
+    setGenError("");
+    setGenTotals(null);
+    setGenLoading(true);
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/reports/college-totals?college=${encodeURIComponent(
+          request.requesterCollege || ""
+        )}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const body = await res.json();
+      if (res.ok) setGenTotals(body);
+      else setGenError(body.message || "Unable to load college totals");
+    } catch (err) {
+      setGenError(err.message);
+    } finally {
+      setGenLoading(false);
+    }
+  };
+
+  const closeGenerate = () => {
+    setGenTarget(null);
+    setGenTotals(null);
+    setGenNarrative("");
+    setGenNote("");
+    setGenError("");
+  };
+
+  const submitGenerate = async () => {
+    if (!genTarget) return;
+    if (!genNarrative.trim()) {
+      setGenError("A written summary is required.");
+      return;
+    }
+    setGenerating(true);
+    setGenError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/college-summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          requestId: genTarget.id,
+          narrative: genNarrative.trim(),
+          responseNote: genNote.trim() || null,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setGenError(body.message || "Failed to generate summary");
+        return;
+      }
+      closeGenerate();
+      await Promise.all([reloadRequests(), reloadSentReports()]);
+    } catch (err) {
+      setGenError(err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const submitRespond = async () => {
+    if (!respondTarget || !respondAction) return;
+    if (respondAction === "declined" && !respondNote.trim()) {
+      setRespondError("A note is required when declining a request.");
+      return;
+    }
+    setResponding(true);
+    setRespondError("");
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/report-requests/${respondTarget.id}/respond`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: respondAction,
+            responseNote: respondNote.trim() || null,
+          }),
+        }
+      );
+      const body = await res.json();
+      if (!res.ok) {
+        setRespondError(body.message || "Failed to respond");
+        return;
+      }
+      closeRespond();
+      await reloadRequests();
+    } catch (err) {
+      setRespondError(err.message);
+    } finally {
+      setResponding(false);
+    }
+  };
 
   // Counselor sessions that are finalized (=> a per-student report exists).
   const finalizedSessions = useMemo(
@@ -97,6 +260,23 @@ export default function CounselorReports() {
     [activeReport]
   );
 
+  const pendingRequests = useMemo(
+    () => requests.filter((r) => r.status === "pending").length,
+    [requests]
+  );
+
+  const requestsTotalPages = Math.max(1, Math.ceil(requests.length / REQUESTS_PER_PAGE));
+
+  // Keep the current page valid as the list shrinks (e.g. after responding).
+  useEffect(() => {
+    if (requestsPage > requestsTotalPages) setRequestsPage(requestsTotalPages);
+  }, [requestsPage, requestsTotalPages]);
+
+  const pagedRequests = useMemo(() => {
+    const start = (requestsPage - 1) * REQUESTS_PER_PAGE;
+    return requests.slice(start, start + REQUESTS_PER_PAGE);
+  }, [requests, requestsPage]);
+
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
@@ -105,7 +285,14 @@ export default function CounselorReports() {
         subtitle="Individual student counseling reports — sent to the College Representative who referred each student."
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <StatCard
+          label="Pending requests"
+          value={pendingRequests}
+          hint="From College Representatives"
+          icon={ClipboardList}
+          accent="bg-maroon-500"
+        />
         <StatCard
           label="Reports sent"
           value={stats.sent}
@@ -139,10 +326,138 @@ export default function CounselorReports() {
         className="mb-6"
         title={
           <span className="inline-flex items-center gap-1.5">
+            <ClipboardList size={14} className="text-maroon-600" /> Report requests from College Representatives
+          </span>
+        }
+        subtitle="Reps requesting an individual student report or a college-wide summary. Fulfill or decline each one."
+        noBodyPadding
+      >
+        {loadingRequests ? (
+          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
+        ) : requests.length === 0 ? (
+          <EmptyState
+            icon={Inbox}
+            title="No report requests"
+            hint="When a College Representative requests a report, it appears here for you to fulfill or decline."
+          />
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                    <th className="px-4 py-2.5">Subject</th>
+                    <th className="px-4 py-2.5">From</th>
+                    <th className="px-4 py-2.5">Reason</th>
+                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5">Submitted</th>
+                    <th className="px-4 py-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {pagedRequests.map((r) => (
+                    <tr key={r.id} className="hover:bg-gray-50/70 transition align-top">
+                      <td className="px-4 py-3">
+                        {r.request_type === "college" ? (
+                          <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
+                            <Building2 size={13} className="text-maroon-600" />
+                            College-wide summary
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-start gap-1.5">
+                            <User size={13} className="text-gray-400 mt-0.5" />
+                            <span>
+                              <span className="block font-medium text-gray-900">
+                                {r.student_name}
+                              </span>
+                              {r.student_identifier && (
+                                <span className="block text-xs text-gray-500 tabular-nums">
+                                  {r.student_identifier}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">
+                        <div>{r.requesterName || "—"}</div>
+                        {r.requesterCollege && (
+                          <div className="text-xs text-gray-500">{r.requesterCollege}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 max-w-sm">
+                        <p className="text-gray-700 line-clamp-2">{r.reason}</p>
+                        {r.response_note && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            <span className="font-medium">Your note:</span> {r.response_note}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusPill status={r.status} />
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                        {new Date(r.created_at).toLocaleString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {r.status === "pending" ? (
+                          <div className="inline-flex gap-1">
+                            <button
+                              onClick={() =>
+                                r.request_type === "college"
+                                  ? openGenerate(r)
+                                  : openRespond(r, "fulfilled")
+                              }
+                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
+                              title={
+                                r.request_type === "college"
+                                  ? "Generate & send college summary"
+                                  : "Mark as fulfilled"
+                              }
+                            >
+                              <Check size={13} />{" "}
+                              {r.request_type === "college" ? "Generate" : "Fulfill"}
+                            </button>
+                            <button
+                              onClick={() => openRespond(r, "declined")}
+                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                              title="Decline request"
+                            >
+                              <X size={13} /> Decline
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">No action</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={requestsPage}
+              totalPages={requestsTotalPages}
+              onPageChange={setRequestsPage}
+            />
+          </>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        className="mb-6"
+        title={
+          <span className="inline-flex items-center gap-1.5">
             <Mail size={14} className="text-maroon-600" /> Reports sent to College Representatives
           </span>
         }
-        subtitle="Each row is an individual student report delivered to the referring rep."
+        subtitle="Individual student reports and college-wide summaries delivered to reps."
         noBodyPadding
       >
         {loadingReports ? (
@@ -168,23 +483,40 @@ export default function CounselorReports() {
               <tbody className="divide-y divide-gray-100">
                 {sentReports.map((r) => {
                   const payload = parsePayload(r.report_payload);
+                  const isCollege = payload?.type === "college_summary";
                   const student = payload?.studentName || "—";
                   return (
                     <tr key={r.id} className="hover:bg-gray-50/70 transition">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                            {initialsOf(student)}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-medium text-gray-900 text-sm truncate">
-                              {student}
+                        {isCollege ? (
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center flex-shrink-0">
+                              <Building2 size={14} />
                             </div>
-                            <div className="text-xs text-gray-500 truncate">
-                              {payload?.studentCollege || "—"}
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900 text-sm truncate">
+                                College summary
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {payload?.college || "—"}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                              {initialsOf(student)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900 text-sm truncate">
+                                {student}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {payload?.studentCollege || "—"}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-700">
                         <div>{r.recipientName || "—"}</div>
@@ -320,11 +652,175 @@ export default function CounselorReports() {
         }
       >
         {activePayload ? (
-          <ReportView payload={activePayload} />
+          activePayload.type === "college_summary" ? (
+            <CollegeSummaryView payload={activePayload} />
+          ) : (
+            <ReportView payload={activePayload} />
+          )
         ) : (
           <p className="text-sm text-gray-500">No report payload available.</p>
         )}
       </Modal>
+
+      <Modal
+        open={!!respondTarget}
+        onClose={responding ? undefined : closeRespond}
+        danger={respondAction === "declined"}
+        title={respondAction === "declined" ? "Decline report request" : "Fulfill report request"}
+        subtitle={
+          respondTarget
+            ? respondTarget.request_type === "college"
+              ? `College-wide summary · requested by ${respondTarget.requesterName || "—"}`
+              : `${respondTarget.student_name} · requested by ${respondTarget.requesterName || "—"}`
+            : ""
+        }
+        footer={
+          respondTarget && (
+            <div className="flex items-center gap-2">
+              <button className={BTN.secondary} onClick={closeRespond} disabled={responding}>
+                Cancel
+              </button>
+              <button
+                className={respondAction === "declined" ? BTN.danger : BTN.primary}
+                onClick={submitRespond}
+                disabled={responding}
+              >
+                {responding
+                  ? "Saving…"
+                  : respondAction === "declined"
+                  ? "Decline request"
+                  : "Mark as fulfilled"}
+              </button>
+            </div>
+          )
+        }
+      >
+        {respondTarget && (
+          <div className="space-y-3 text-sm">
+            <div className="rounded-md border border-gray-200 bg-gray-50/60 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500 mb-1">
+                Reason given
+              </p>
+              <p className="text-gray-700 whitespace-pre-wrap">{respondTarget.reason}</p>
+            </div>
+            <div>
+              <label className={LABEL}>
+                Note to the representative
+                {respondAction === "declined" ? " *" : " (optional)"}
+              </label>
+              <textarea
+                rows={4}
+                className={INPUT}
+                value={respondNote}
+                onChange={(e) => setRespondNote(e.target.value)}
+                placeholder={
+                  respondAction === "declined"
+                    ? "Explain why you can't fulfill this request…"
+                    : "Add any context for the representative…"
+                }
+              />
+            </div>
+            {respondError && <p className="text-sm text-red-600">{respondError}</p>}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!genTarget}
+        onClose={generating ? undefined : closeGenerate}
+        title="Generate college summary"
+        subtitle={
+          genTarget
+            ? `For ${genTarget.requesterCollege || "—"} · requested by ${
+                genTarget.requesterName || "—"
+              }`
+            : ""
+        }
+        size="lg"
+        footer={
+          genTarget && (
+            <div className="flex items-center gap-2">
+              <button className={BTN.secondary} onClick={closeGenerate} disabled={generating}>
+                Cancel
+              </button>
+              <button
+                className={BTN.primary}
+                onClick={submitGenerate}
+                disabled={generating || genLoading}
+              >
+                {generating ? "Sending…" : "Generate & send"}
+              </button>
+            </div>
+          )
+        }
+      >
+        {genTarget && (
+          <div className="space-y-4 text-sm">
+            <div className="rounded-md border border-gray-200 bg-gray-50/60 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500 mb-1">
+                Reason given
+              </p>
+              <p className="text-gray-700 whitespace-pre-wrap">{genTarget.reason}</p>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500 mb-1.5">
+                Auto-computed totals
+              </p>
+              {genLoading ? (
+                <div className="text-sm text-gray-500">Loading totals…</div>
+              ) : genTotals ? (
+                <div className="grid grid-cols-3 gap-3">
+                  <GenStat label="Total sessions" value={genTotals.totals?.totalSessions ?? "—"} />
+                  <GenStat label="Active cases" value={genTotals.totals?.activeCases ?? "—"} />
+                  <GenStat label="Completed" value={genTotals.totals?.completed ?? "—"} />
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">Totals unavailable.</div>
+              )}
+              {genTotals && (
+                <p className="text-xs text-gray-500 mt-1.5">
+                  {genTotals.studentCount} student{genTotals.studentCount === 1 ? "" : "s"} enrolled
+                  in {genTotals.college}. These figures are recomputed and attached when you send.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className={LABEL}>Written summary *</label>
+              <textarea
+                rows={5}
+                className={INPUT}
+                value={genNarrative}
+                onChange={(e) => setGenNarrative(e.target.value)}
+                placeholder="Summarize the college's counseling activity, trends, and recommendations…"
+              />
+            </div>
+
+            <div>
+              <label className={LABEL}>Note to the representative (optional)</label>
+              <textarea
+                rows={2}
+                className={INPUT}
+                value={genNote}
+                onChange={(e) => setGenNote(e.target.value)}
+                placeholder="Any extra context for the representative…"
+              />
+            </div>
+
+            {genError && <p className="text-sm text-red-600">{genError}</p>}
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function GenStat({ label, value }) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-center">
+      <div className="text-2xl font-semibold text-gray-900 tabular-nums">{value}</div>
+      <div className="text-xs text-gray-500 mt-0.5">{label}</div>
     </div>
   );
 }
@@ -406,6 +902,29 @@ function ReportView({ payload }) {
       <Row label="Next session" value={r.nextSession} />
       <Row label="Signed by" value={r.counselorSignature} />
     </dl>
+  );
+}
+
+function CollegeSummaryView({ payload }) {
+  const t = payload.totals || {};
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="grid grid-cols-3 gap-3">
+        <GenStat label="Total sessions" value={t.totalSessions ?? "—"} />
+        <GenStat label="Active cases" value={t.activeCases ?? "—"} />
+        <GenStat label="Completed" value={t.completed ?? "—"} />
+      </div>
+      <dl className="divide-y divide-gray-100">
+        <Row label="College" value={payload.college} />
+        <Row label="Students enrolled" value={String(payload.studentCount ?? "—")} />
+        <Row label="Prepared by" value={payload.counselorName} />
+        <Row
+          label="Generated"
+          value={payload.generatedAt ? new Date(payload.generatedAt).toLocaleString() : ""}
+        />
+        <Row label="Counselor's summary" value={payload.narrative} />
+      </dl>
+    </div>
   );
 }
 
