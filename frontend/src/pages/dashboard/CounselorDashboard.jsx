@@ -18,11 +18,13 @@ import {
   MessageCircle,
   Inbox,
   ClipboardList,
+  AlertTriangle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
+import { useNotifications } from "../../context/NotificationsContext";
 import { PageHeader, StatCard, SectionCard, EmptyState, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
@@ -54,6 +56,11 @@ export default function CounselorDashboard() {
     rejectAppointment,
   } = useAppointments?.() || {};
   const { getTestsForCurrentUser, acceptTest, rescheduleTest, rejectTest } = useTests?.() || {};
+  const { getNotificationsForCurrentUser } = useNotifications?.() || {};
+
+  const urgentNotifications = (getNotificationsForCurrentUser?.() || []).filter(
+    (n) => n.type === "urgent_counseling" && !n.read
+  );
 
   const openProfile = async (id, fallbackName) => {
     if (!id) return;
@@ -300,6 +307,22 @@ export default function CounselorDashboard() {
     <>
       <WelcomeHero userName={firstName} />
     <div className="px-6 py-6 max-w-7xl mx-auto">
+      {urgentNotifications.length > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-red-800">
+            <AlertTriangle size={18} />
+            <p className="text-sm font-medium">
+              {urgentNotifications.length} urgent counseling request{urgentNotifications.length === 1 ? "" : "s"} need attention.
+            </p>
+          </div>
+          <Link
+            to="/counselor/notifications"
+            className="text-sm font-semibold text-red-700 hover:underline whitespace-nowrap"
+          >
+            View →
+          </Link>
+        </div>
+      )}
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-3 mb-8">
         <div>
