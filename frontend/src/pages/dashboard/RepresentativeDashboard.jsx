@@ -66,7 +66,7 @@ export default function RepresentativeDashboard() {
           icon={Users}
           accent="bg-emerald-500"
         />
-        <Link to="/rep/reports" className="block">
+        <Link to="/rep/counseling-data" className="block">
           <StatCard
             label="Received reports"
             value={receivedReportsCount}
