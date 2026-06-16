@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ClipboardList, Info, Send, History } from "lucide-react";
+import { ClipboardList, Info, Send, History, User, Building2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import {
   PageHeader,
@@ -22,11 +22,13 @@ export default function RequestStudentData() {
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [form, setForm] = useState({
+    requestType: "individual",
     counselorId: "",
     studentName: searchParams.get("studentName") || "",
     studentIdentifier: searchParams.get("studentIdentifier") || "",
     reason: "",
   });
+  const isCollege = form.requestType === "college";
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -82,8 +84,12 @@ export default function RequestStudentData() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!form.counselorId || !form.studentName.trim() || !form.reason.trim()) {
-      setError("Counselor, student name, and reason are required.");
+    if (!form.counselorId || !form.reason.trim()) {
+      setError("Counselor and reason are required.");
+      return;
+    }
+    if (!isCollege && !form.studentName.trim()) {
+      setError("Student name is required for an individual student request.");
       return;
     }
     setSubmitting(true);
@@ -96,8 +102,9 @@ export default function RequestStudentData() {
         },
         body: JSON.stringify({
           counselorId: Number(form.counselorId),
-          studentName: form.studentName.trim(),
-          studentIdentifier: form.studentIdentifier.trim() || null,
+          requestType: form.requestType,
+          studentName: isCollege ? null : form.studentName.trim(),
+          studentIdentifier: isCollege ? null : form.studentIdentifier.trim() || null,
           reason: form.reason.trim(),
         }),
       });
@@ -106,7 +113,13 @@ export default function RequestStudentData() {
         setError(body.message || "Failed");
       } else {
         setSubmitted(true);
-        setForm({ counselorId: "", studentName: "", studentIdentifier: "", reason: "" });
+        setForm({
+          requestType: form.requestType,
+          counselorId: "",
+          studentName: "",
+          studentIdentifier: "",
+          reason: "",
+        });
         setTimeout(() => setSubmitted(false), 3000);
         await loadRequests();
       }
@@ -122,7 +135,7 @@ export default function RequestStudentData() {
       <PageHeader
         eyebrow="College Representative"
         title="Request a report from a counselor"
-        subtitle="Submit a formal report request. The counselor reviews and responds."
+        subtitle="Request an individual student session report, or a college-wide summary. The counselor reviews, generates, and responds."
         actions={
           <button type="submit" form="request-report-form" className={BTN.primary}>
             <Send size={14} /> Submit request
@@ -147,6 +160,25 @@ export default function RequestStudentData() {
       >
         <form id="request-report-form" onSubmit={handleSubmit} className="space-y-3">
           <div>
+            <label className={LABEL}>Request type *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <RequestTypeOption
+                active={!isCollege}
+                onClick={() => setForm({ ...form, requestType: "individual" })}
+                icon={User}
+                title="Individual student"
+                description="A session report for one specific student."
+              />
+              <RequestTypeOption
+                active={isCollege}
+                onClick={() => setForm({ ...form, requestType: "college" })}
+                icon={Building2}
+                title="Whole college"
+                description="A college-wide summary only — no individual records."
+              />
+            </div>
+          </div>
+          <div>
             <label className={LABEL}>Counselor *</label>
             <select
               required
@@ -165,26 +197,30 @@ export default function RequestStudentData() {
               ))}
             </select>
           </div>
-          <div>
-            <label className={LABEL}>Student name *</label>
-            <input
-              type="text"
-              required
-              className={INPUT}
-              value={form.studentName}
-              onChange={(e) => setForm({ ...form, studentName: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className={LABEL}>Student ID</label>
-            <input
-              type="text"
-              className={INPUT}
-              value={form.studentIdentifier}
-              onChange={(e) => setForm({ ...form, studentIdentifier: e.target.value })}
-              placeholder="Optional — helps the counselor identify the student"
-            />
-          </div>
+          {!isCollege && (
+            <>
+              <div>
+                <label className={LABEL}>Student name *</label>
+                <input
+                  type="text"
+                  required={!isCollege}
+                  className={INPUT}
+                  value={form.studentName}
+                  onChange={(e) => setForm({ ...form, studentName: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Student ID</label>
+                <input
+                  type="text"
+                  className={INPUT}
+                  value={form.studentIdentifier}
+                  onChange={(e) => setForm({ ...form, studentIdentifier: e.target.value })}
+                  placeholder="Optional — helps the counselor identify the student"
+                />
+              </div>
+            </>
+          )}
           <div>
             <label className={LABEL}>Reason for request *</label>
             <textarea
@@ -193,7 +229,11 @@ export default function RequestStudentData() {
               className={INPUT}
               value={form.reason}
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              placeholder="Explain why you need this report…"
+              placeholder={
+                isCollege
+                  ? "Explain what college-wide summary you need…"
+                  : "Explain why you need this report…"
+              }
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -235,7 +275,7 @@ export default function RequestStudentData() {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
-                  <th className="px-4 py-2.5">Student</th>
+                  <th className="px-4 py-2.5">Subject</th>
                   <th className="px-4 py-2.5">Counselor</th>
                   <th className="px-4 py-2.5">Reason</th>
                   <th className="px-4 py-2.5">Status</th>
@@ -246,11 +286,20 @@ export default function RequestStudentData() {
                 {myRequests.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50/70 transition">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{r.student_name}</div>
-                      {r.student_identifier && (
-                        <div className="text-xs text-gray-500 tabular-nums">
-                          {r.student_identifier}
+                      {r.request_type === "college" ? (
+                        <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
+                          <Building2 size={13} className="text-maroon-600" />
+                          College-wide summary
                         </div>
+                      ) : (
+                        <>
+                          <div className="font-medium text-gray-900">{r.student_name}</div>
+                          {r.student_identifier && (
+                            <div className="text-xs text-gray-500 tabular-nums">
+                              {r.student_identifier}
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="px-4 py-3 text-gray-700">{r.counselorName}</td>
@@ -282,5 +331,29 @@ export default function RequestStudentData() {
         )}
       </SectionCard>
     </div>
+  );
+}
+
+function RequestTypeOption({ active, onClick, icon: Icon, title, description }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex items-start gap-2.5 text-left rounded-lg border px-3 py-2.5 transition ${
+        active
+          ? "border-maroon-500 bg-maroon-50 ring-1 ring-maroon-500"
+          : "border-gray-200 bg-white hover:bg-gray-50"
+      }`}
+    >
+      <Icon
+        size={16}
+        className={`mt-0.5 flex-shrink-0 ${active ? "text-maroon-600" : "text-gray-400"}`}
+      />
+      <span>
+        <span className="block text-sm font-medium text-gray-900">{title}</span>
+        <span className="block text-xs text-gray-500 leading-snug">{description}</span>
+      </span>
+    </button>
   );
 }
