@@ -12,7 +12,7 @@ const ROLE_MAP = {
 };
 
 export const createAnnouncement = async (req, res) => {
-  const { title, message, sendTo } = req.body;
+  const { title, message, sendTo, imageUrl } = req.body;
   const adminId = req.user?.id;
 
   if (!title?.trim() || !message?.trim()) {
@@ -20,10 +20,11 @@ export const createAnnouncement = async (req, res) => {
   }
 
   const targetRole = ROLE_MAP[sendTo ?? "all"];
+  const pubmatUrl = imageUrl || null;
 
   const result = await query(
-    "INSERT INTO announcements (admin_id, content) VALUES (?, ?)",
-    [adminId, `${title}\n\n${message}`]
+    "INSERT INTO announcements (admin_id, content, image_url) VALUES (?, ?, ?)",
+    [adminId, `${title}\n\n${message}`, pubmatUrl]
   );
 
   const recipients = targetRole
@@ -31,10 +32,10 @@ export const createAnnouncement = async (req, res) => {
     : await query("SELECT id FROM users WHERE status = 'approved' AND id <> ?", [adminId]);
 
   if (recipients.length) {
-    const values = recipients.map(() => "(?, ?, ?, 'unread', ?)").join(", ");
-    const params = recipients.flatMap((r) => [r.id, title, message, "/notifications"]);
+    const values = recipients.map(() => "(?, ?, ?, 'unread', ?, ?)").join(", ");
+    const params = recipients.flatMap((r) => [r.id, title, message, "/notifications", pubmatUrl]);
     await query(
-      `INSERT INTO notifications (user_id, title, message, status, link) VALUES ${values}`,
+      `INSERT INTO notifications (user_id, title, message, status, link, image_url) VALUES ${values}`,
       params
     );
   }
@@ -54,7 +55,7 @@ export const createAnnouncement = async (req, res) => {
 
 export const listAnnouncements = async (_req, res) => {
   const rows = await query(
-    `SELECT a.id, a.content, a.date_posted, u.name AS adminName
+    `SELECT a.id, a.content, a.image_url AS imageUrl, a.date_posted, u.name AS adminName
      FROM announcements a
      LEFT JOIN users u ON a.admin_id = u.id
      ORDER BY a.date_posted DESC`
@@ -64,19 +65,22 @@ export const listAnnouncements = async (_req, res) => {
 
 export const updateAnnouncement = async (req, res) => {
   const { id } = req.params;
-  const { title, message } = req.body;
+  const { title, message, imageUrl } = req.body;
 
   if (!title?.trim() || !message?.trim()) {
     return res.status(400).json({ message: "Title and message are required" });
   }
 
-  const existing = await query("SELECT id FROM announcements WHERE id = ?", [id]);
+  const existing = await query("SELECT id, image_url AS imageUrl FROM announcements WHERE id = ?", [id]);
   if (!existing.length) {
     return res.status(404).json({ message: "Announcement not found" });
   }
 
-  await query("UPDATE announcements SET content = ? WHERE id = ?", [
+  const pubmatUrl = imageUrl !== undefined ? (imageUrl || null) : existing[0].imageUrl;
+
+  await query("UPDATE announcements SET content = ?, image_url = ? WHERE id = ?", [
     `${title}\n\n${message}`,
+    pubmatUrl,
     id,
   ]);
 

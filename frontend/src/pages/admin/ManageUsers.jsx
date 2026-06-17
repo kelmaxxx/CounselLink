@@ -30,16 +30,123 @@ const DEPARTMENTS = [
   "Career Development",
 ];
 
-const ROLE_PILL = {
-  student: "bg-blue-50 text-blue-700 border-blue-200",
-  counselor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  admin: "bg-purple-50 text-purple-700 border-purple-200",
-  college_rep: "bg-amber-50 text-amber-700 border-amber-200",
+const POSITIONS = [
+  "Section Chief",
+  "Guidance Service Specialist I",
+  "Guidance Service Specialist II",
+  "Guidance Service Specialist III",
+  "Guidance Service Specialist IV",
+  "Guidance Service Specialist V",
+];
+
+const statusInfo = (u) => {
+  if (u.status === "pending_approval") return { status: "pending", label: "Pending" };
+  if (u.status && u.status !== "approved") return { status: "rejected", label: "Rejected" };
+  return { status: "active", label: "Active" };
 };
+
+const studentIdEmailCell = (u) => (
+  <div>
+    <p className="text-sm font-medium text-gray-900 tabular-nums">{u.studentId || "—"}</p>
+    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+  </div>
+);
+
+const counselorIdEmailCell = (u) => (
+  <div>
+    <p className="text-sm font-medium text-gray-900 tabular-nums">{u.employeeId || "—"}</p>
+    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+  </div>
+);
+
+const emailCell = (u) => <p className="text-sm text-gray-600">{u.email}</p>;
+
+const STUDENT_COLUMNS = [
+  { header: "ID / Email", render: studentIdEmailCell },
+  { header: "College", render: (u) => u.college || "—" },
+  { header: "Department", render: (u) => u.program || "—" },
+];
+
+const COUNSELOR_COLUMNS = [
+  { header: "ID / Email", render: counselorIdEmailCell },
+  { header: "Position", render: (u) => u.position || "—" },
+];
+
+const REP_COLUMNS = [
+  { header: "ID / Email", render: emailCell },
+  { header: "College", render: (u) => u.college || "—" },
+  { header: "Department", render: (u) => u.department || "—" },
+];
+
+const ADMIN_COLUMNS = [{ header: "Email", render: emailCell }];
+
+function UserTable({ rows, columns, onEdit, onDelete, emptyText }) {
+  if (!rows.length) {
+    return <EmptyState title={emptyText} />;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+            <th className="px-4 py-2.5">Name</th>
+            {columns.map((col) => (
+              <th key={col.header} className="px-4 py-2.5">
+                {col.header}
+              </th>
+            ))}
+            <th className="px-4 py-2.5">Status</th>
+            <th className="px-4 py-2.5 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {rows.map((u) => {
+            const { status, label } = statusInfo(u);
+            return (
+              <tr key={u.id} className="hover:bg-gray-50/70 transition">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                      {initialsOf(u.name)}
+                    </div>
+                    <span className="font-medium text-gray-900 text-sm">{u.name}</span>
+                  </div>
+                </td>
+                {columns.map((col) => (
+                  <td key={col.header} className="px-4 py-3 text-gray-700 text-sm">
+                    {col.render(u)}
+                  </td>
+                ))}
+                <td className="px-4 py-3">
+                  <StatusPill status={status}>{label}</StatusPill>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <div className="inline-flex gap-1">
+                    <button
+                      onClick={() => onEdit(u)}
+                      className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                    >
+                      <Edit2 size={12} /> Edit
+                    </button>
+                    <button
+                      onClick={() => onDelete(u.id)}
+                      className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-red-600 hover:bg-red-50 transition"
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function ManageUsers() {
   const { users, createUser, updateUser, deleteUser } = useAuth();
-  const [selectedRole, setSelectedRole] = useState("All");
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState(null);
   const [_busy, setBusy] = useState(false);
@@ -62,23 +169,27 @@ export default function ManageUsers() {
     college: "",
     department: "",
     specialization: "",
+    position: "",
     employeeId: "",
   });
 
-  const allUsers = users || [];
-
   const filtered = useMemo(() => {
-    return allUsers.filter((u) => {
-      const matchesRole = selectedRole === "All" || u.role === selectedRole;
-      const q = query.trim().toLowerCase();
-      const matchesQuery =
-        !q ||
+    const allUsers = users || [];
+    const q = query.trim().toLowerCase();
+    if (!q) return allUsers;
+    return allUsers.filter(
+      (u) =>
         u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
-        u.studentId?.toLowerCase().includes(q);
-      return matchesRole && matchesQuery;
-    });
-  }, [allUsers, selectedRole, query]);
+        u.studentId?.toLowerCase().includes(q) ||
+        u.employeeId?.toLowerCase().includes(q)
+    );
+  }, [users, query]);
+
+  const students = useMemo(() => filtered.filter((u) => u.role === "student"), [filtered]);
+  const counselors = useMemo(() => filtered.filter((u) => u.role === "counselor"), [filtered]);
+  const reps = useMemo(() => filtered.filter((u) => u.role === "college_rep"), [filtered]);
+  const admins = useMemo(() => filtered.filter((u) => u.role === "admin"), [filtered]);
 
   const openCreateModal = (role) => {
     setCreateForm({ name: "", email: "", password: "password123", college: COLLEGES[0] });
@@ -113,6 +224,7 @@ export default function ManageUsers() {
       college: user.college || "",
       department: user.department || "",
       specialization: user.specialization || "",
+      position: user.position || "",
       employeeId: user.employeeId || "",
     });
     setEditModal({ open: true, user });
@@ -128,8 +240,11 @@ export default function ManageUsers() {
     if (editModal.user.role === "counselor") {
       updates.department = editForm.department;
       updates.specialization = editForm.specialization;
+      updates.position = editForm.position;
+      updates.employeeId = editForm.employeeId;
     } else if (editModal.user.role === "college_rep") {
       updates.college = editForm.college;
+      updates.department = editForm.department;
     }
     setBusy(true);
     const res = await updateUser(editModal.user.id, updates);
@@ -190,140 +305,80 @@ export default function ManageUsers() {
       )}
 
       <SectionCard className="mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <label className={LABEL}>Role</label>
-            <select
-              className={INPUT}
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-            >
-              <option value="All">All roles</option>
-              <option value="student">Students</option>
-              <option value="counselor">Counselors</option>
-              <option value="college_rep">College representatives</option>
-              <option value="admin">Administrators</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className={LABEL}>Search</label>
-            <div className="relative">
-              <Search
-                size={13}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                className={`${INPUT} pl-8`}
-                placeholder="Name, email, or student ID…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
+        <div>
+          <label className={LABEL}>Search</label>
+          <div className="relative max-w-md">
+            <Search
+              size={13}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              className={`${INPUT} pl-8`}
+              placeholder="Name, email, or ID…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard
-        title="Users"
-        subtitle={`${filtered.length} match${filtered.length === 1 ? "" : "es"}`}
-        noBodyPadding
-      >
-        {filtered.length === 0 ? (
-          <EmptyState title="No users match your filters" />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
-                  <th className="px-4 py-2.5">Name</th>
-                  <th className="px-4 py-2.5">Role</th>
-                  <th className="px-4 py-2.5">ID / Email</th>
-                  <th className="px-4 py-2.5">College</th>
-                  <th className="px-4 py-2.5">Program / Dept</th>
-                  <th className="px-4 py-2.5">Status</th>
-                  <th className="px-4 py-2.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((u) => (
-                  <tr key={u.id} className="hover:bg-gray-50/70 transition">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                          {initialsOf(u.name)}
-                        </div>
-                        <span className="font-medium text-gray-900 text-sm">{u.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${
-                          ROLE_PILL[u.role] || "bg-gray-100 text-gray-700 border-gray-200"
-                        }`}
-                      >
-                        {u.role.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {u.role === "student" ? (
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 tabular-nums">
-                            {u.studentId}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">{u.email}</p>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-600">{u.email}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700 text-sm">{u.college || "—"}</td>
-                    <td className="px-4 py-3 text-gray-700 text-sm">
-                      {u.role === "student"
-                        ? u.program || "—"
-                        : u.role === "counselor"
-                        ? u.department || "—"
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusPill
-                        status={
-                          u.status === "pending_approval"
-                            ? "pending"
-                            : u.status && u.status !== "approved"
-                            ? "rejected"
-                            : "active"
-                        }
-                      >
-                        {u.status === "pending_approval"
-                          ? "Pending"
-                          : u.status && u.status !== "approved"
-                          ? "Rejected"
-                          : "Active"}
-                      </StatusPill>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex gap-1">
-                        <button
-                          onClick={() => openEditModal(u)}
-                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                        >
-                          <Edit2 size={12} /> Edit
-                        </button>
-                        <button
-                          onClick={() => openDeleteConfirm(u.id)}
-                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-red-600 hover:bg-red-50 transition"
-                        >
-                          <Trash2 size={12} /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
+      <div className="space-y-4">
+        <SectionCard
+          title="Students"
+          subtitle={`${students.length} account${students.length === 1 ? "" : "s"}`}
+          noBodyPadding
+        >
+          <UserTable
+            rows={students}
+            columns={STUDENT_COLUMNS}
+            onEdit={openEditModal}
+            onDelete={openDeleteConfirm}
+            emptyText="No students match your search"
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="Counselors"
+          subtitle={`${counselors.length} account${counselors.length === 1 ? "" : "s"}`}
+          noBodyPadding
+        >
+          <UserTable
+            rows={counselors}
+            columns={COUNSELOR_COLUMNS}
+            onEdit={openEditModal}
+            onDelete={openDeleteConfirm}
+            emptyText="No counselors match your search"
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="College Representatives"
+          subtitle={`${reps.length} account${reps.length === 1 ? "" : "s"}`}
+          noBodyPadding
+        >
+          <UserTable
+            rows={reps}
+            columns={REP_COLUMNS}
+            onEdit={openEditModal}
+            onDelete={openDeleteConfirm}
+            emptyText="No college representatives match your search"
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="Administrators"
+          subtitle={`${admins.length} account${admins.length === 1 ? "" : "s"}`}
+          noBodyPadding
+        >
+          <UserTable
+            rows={admins}
+            columns={ADMIN_COLUMNS}
+            onEdit={openEditModal}
+            onDelete={openDeleteConfirm}
+            emptyText="No administrators match your search"
+          />
+        </SectionCard>
+      </div>
 
       {/* Create modal */}
       <Modal
@@ -471,6 +526,31 @@ export default function ManageUsers() {
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
+                  <label className={LABEL}>ID / Employee number</label>
+                  <input
+                    type="text"
+                    className={INPUT}
+                    value={editForm.employeeId}
+                    onChange={(e) => setEditForm({ ...editForm, employeeId: e.target.value })}
+                    placeholder="e.g. EMP-00123"
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Position</label>
+                  <select
+                    className={INPUT}
+                    value={editForm.position}
+                    onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
+                  >
+                    <option value="">Select position</option>
+                    {POSITIONS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className={LABEL}>Department</label>
                   <select
                     className={INPUT}
@@ -506,20 +586,32 @@ export default function ManageUsers() {
               <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
                 Representative information
               </h4>
-              <div>
-                <label className={LABEL}>College *</label>
-                <select
-                  className={INPUT}
-                  value={editForm.college}
-                  onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
-                >
-                  <option value="">Select college</option>
-                  {COLLEGES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>College *</label>
+                  <select
+                    className={INPUT}
+                    value={editForm.college}
+                    onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
+                  >
+                    <option value="">Select college</option>
+                    {COLLEGES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Department</label>
+                  <input
+                    type="text"
+                    className={INPUT}
+                    value={editForm.department}
+                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                    placeholder="e.g. Department of Computer Science"
+                  />
+                </div>
               </div>
             </div>
           )}

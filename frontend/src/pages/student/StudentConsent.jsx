@@ -1,100 +1,62 @@
 // src/pages/student/StudentConsent.jsx
-// Student-facing informed-consent page + test result viewer.
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  CheckCircle2,
-  AlertTriangle,
-  ShieldCheck,
-  FileSignature,
-  ClipboardList,
-  Printer,
-  Download,
-} from "lucide-react";
+// Student-facing test result and counseling result viewer.
+import React, { useEffect, useState } from "react";
+import { FileSignature, ClipboardList, Download } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useTestResults } from "../../context/TestResultsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
-import { useReactToPrint } from "react-to-print";
-import {
-  PageHeader,
-  SectionCard,
-  EmptyState,
-  BTN,
-  INPUT,
-  LABEL,
-} from "../../components/ui";
+import { PageHeader, SectionCard, EmptyState } from "../../components/ui";
 
-const CONSENT_SCOPE_DEFAULT =
-  "Counseling services + records handling under MSU DSA Guidance and Counseling Section, RA 10173 (Data Privacy Act of 2012)";
+// Builds a small standalone HTML document from a set of label/value rows and
+// triggers a direct file download (no print dialog).
+function downloadResultAsHtml({ filename, subtitle, rows }) {
+  const escapeHtml = (str) =>
+    String(str ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[c]));
 
-function formatDateTime(value) {
-  if (!value) return "";
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
-  }
+  const rowsHtml = rows
+    .map(
+      ([label, value]) => `
+        <div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid #e5e7eb;">
+          <div style="flex:0 0 140px;font-weight:600;color:#4b5563;font-size:12px;">${escapeHtml(label)}</div>
+          <div style="flex:1;font-size:14px;color:#111827;white-space:pre-wrap;">${escapeHtml(value)}</div>
+        </div>`
+    )
+    .join("");
+
+  const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(subtitle)}</title>
+  </head>
+  <body style="font-family: sans-serif; max-width: 640px; margin: 24px auto;">
+    <div style="text-align:center;margin-bottom:16px;">
+      <h2 style="margin:0;">CounselLink · MSU Marawi</h2>
+      <p style="margin:4px 0 0;color:#6b7280;font-size:13px;">${escapeHtml(subtitle)}</p>
+    </div>
+    ${rowsHtml}
+  </body>
+</html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export default function StudentConsent() {
   const { currentUser } = useAuth();
-  const { getConsent, eSignConsent } = useStudentRecords();
-
-  const [consent, setConsent] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [agreed, setAgreed] = useState(false);
-  const [typedName, setTypedName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState(null);
-
-  const studentId = currentUser?.id;
-
-  useEffect(() => {
-    if (!studentId) return;
-    setLoading(true);
-    getConsent(studentId)
-      .then((data) => setConsent(data))
-      .catch((err) => setFeedback({ type: "error", text: err.message || "Failed to load consent" }))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentId]);
-
-  useEffect(() => {
-    setTypedName(currentUser?.name || "");
-  }, [currentUser?.name]);
-
-  const status = useMemo(() => {
-    if (!consent) return "unsigned";
-    if (consent.revokedAt) return "revoked";
-    if (consent.eConsentSignedAt) return "signed";
-    if (consent.scanUrl) return "paper-on-file";
-    return "unsigned";
-  }, [consent]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!agreed) {
-      setFeedback({ type: "error", text: "Please tick the agreement box to continue." });
-      return;
-    }
-    if (!typedName.trim()) {
-      setFeedback({ type: "error", text: "Please type your full name as your signature." });
-      return;
-    }
-    setBusy(true);
-    const res = await eSignConsent(studentId, {
-      typedName: typedName.trim(),
-      scope: CONSENT_SCOPE_DEFAULT,
-    });
-    setBusy(false);
-    if (res.success) {
-      setConsent(res.consent);
-      setFeedback({ type: "success", text: "Consent recorded. Thank you." });
-      setAgreed(false);
-    } else {
-      setFeedback({ type: "error", text: res.message });
-    }
-  };
 
   if (currentUser?.role !== "student") {
     return (
@@ -106,206 +68,13 @@ export default function StudentConsent() {
     );
   }
 
-  const banner = (() => {
-    if (loading)
-      return {
-        tone: "gray",
-        Icon: ClipboardList,
-        title: "Loading your consent record…",
-        msg: null,
-      };
-    if (status === "signed")
-      return {
-        tone: "emerald",
-        Icon: CheckCircle2,
-        title: "Consent on file (e-signed)",
-        msg: (
-          <>
-            Signed by <span className="font-medium">{consent.eConsentTypedName}</span> on{" "}
-            {formatDateTime(consent.eConsentSignedAt)}.
-          </>
-        ),
-      };
-    if (status === "paper-on-file")
-      return {
-        tone: "blue",
-        Icon: FileSignature,
-        title: "Signed paper consent on file",
-        msg: (
-          <>
-            Your counselor has uploaded a scanned signed copy ({consent.scanFilename}). You can
-            also e-sign below if you prefer.
-          </>
-        ),
-      };
-    if (status === "revoked")
-      return {
-        tone: "amber",
-        Icon: AlertTriangle,
-        title: "Previous consent revoked",
-        msg: (
-          <>Your prior consent was revoked on {formatDateTime(consent.revokedAt)}. Sign below to consent again.</>
-        ),
-      };
-    return {
-      tone: "amber",
-      Icon: AlertTriangle,
-      title: "No consent on file yet",
-      msg: "Please review and sign below before your first counseling session.",
-    };
-  })();
-
-  const toneClasses = {
-    emerald: "bg-emerald-50 border-emerald-200 text-emerald-800",
-    blue: "bg-blue-50 border-blue-200 text-blue-800",
-    amber: "bg-amber-50 border-amber-200 text-amber-800",
-    gray: "bg-gray-50 border-gray-200 text-gray-700",
-  }[banner.tone];
-
   return (
     <div className="px-6 py-6 max-w-4xl mx-auto">
       <PageHeader
         eyebrow="Student"
-        title="View test results & sign consent"
-        subtitle="Read and sign the informed consent below, then view any psychological test results released by your counselor."
+        title="View test results"
+        subtitle="View any psychological test results and counseling reports released by your counselor."
       />
-
-      {feedback && (
-        <div
-          className={`mb-4 px-3 py-2 rounded-md border text-sm ${
-            feedback.type === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-              : "bg-red-50 border-red-200 text-red-700"
-          }`}
-        >
-          {feedback.text}
-        </div>
-      )}
-
-      {/* Status banner */}
-      <div className={`mb-4 px-4 py-3 rounded-md border flex items-start gap-3 ${toneClasses}`}>
-        <banner.Icon size={18} className="mt-0.5 flex-shrink-0" />
-        <div className="text-sm">
-          <p className="font-medium">{banner.title}</p>
-          {banner.msg && <p className="mt-0.5">{banner.msg}</p>}
-        </div>
-      </div>
-
-      {/* Consent text */}
-      <SectionCard
-        title={
-          <span className="inline-flex items-center gap-1.5">
-            <ShieldCheck size={14} className="text-maroon-600" /> Informed consent
-          </span>
-        }
-        subtitle="MSU DSA Guidance & Counseling Section"
-        className="mb-4"
-      >
-        <div className="space-y-4 text-sm text-gray-700 leading-relaxed">
-          <p>
-            Counseling is a confidential process designed to help you address your concerns, come
-            to a greater understanding of yourself, and learn effective personal and interpersonal
-            coping strategies. It involves a relationship between you and a trained counselor who
-            has the desire and willingness to help you accomplish your individual goals. Counseling
-            involves sharing sensitive, personal, and private information that may at times be
-            distressing. During the course of counseling, there may be periods of increased anxiety
-            or confusion. The outcome of counseling is often positive; however, the level of
-            satisfaction for any individual is not predictable. Your counselor is available to
-            support you throughout the counseling process.
-          </p>
-          <div>
-            <p className="font-semibold text-gray-900 mb-1">Confidentiality</p>
-            <p>
-              All interactions with Counseling Services, including scheduling of or attendance at
-              appointments, consent of your sessions, progress in counseling, and your records are
-              confidential. No record of counseling is contained in any academic, educational, or
-              job placement file. You may request in writing to release specific information about
-              your counseling to persons you designate.
-            </p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900 mb-1">Exceptions to confidentiality</p>
-            <ul className="list-disc pl-5 space-y-1.5">
-              <li>
-                The counseling staff works as a team. Your counselor may consult with other
-                counseling staff to provide the best possible care. These consultations are for
-                professional and training purposes.
-              </li>
-              <li>
-                If there is evidence of clear and imminent danger of harm to self and/or others, a
-                counselor is legally required to report this information to the authorities
-                responsible for ensuring safety.
-              </li>
-              <li>
-                Philippine law requires that staff of Counseling Services who learn of, or strongly
-                suspect, physical or sexual abuse or neglect of any person under 18 years of age
-                must report this information to county child protection services.
-              </li>
-              <li>
-                A court order, issued by a judge, may require the Counseling Services staff to
-                release information contained in records and / or require a counselor to testify in
-                a court hearing.
-              </li>
-            </ul>
-            <p className="mt-2">
-              There is no fee for counseling services. If you are referred off campus to health,
-              mental health, or substance abuse professionals, you are responsible for their
-              charges.
-            </p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900 mb-1">Acknowledgment</p>
-            <p>
-              I acknowledge having been informed of my rights and responsibilities as a student
-              receiving counseling services at Division of Student Affairs, Guidance and Counseling
-              Section, Mindanao State University, Marawi City. I understand the risks and benefits
-              of guidance and counseling services, the nature, and the limits of confidentiality. By
-              signing below, I agree to the terms and conditions of counseling.
-            </p>
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* E-sign form */}
-      {status !== "signed" && (
-        <SectionCard
-          title="E-sign your consent"
-          subtitle="Your typed name, the timestamp, and your IP address will be recorded as proof of consent."
-          className="mb-6"
-        >
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <label className="flex items-start gap-3 text-sm text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                className="mt-1 w-4 h-4 text-maroon-600 rounded"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-              />
-              <span>
-                I have read and understood the Informed Consent above. I voluntarily agree to the
-                terms and conditions of counseling at MSU DSA Guidance and Counseling Section.
-              </span>
-            </label>
-
-            <div>
-              <label className={LABEL}>Type your full name as your signature</label>
-              <input
-                type="text"
-                className={INPUT}
-                value={typedName}
-                onChange={(e) => setTypedName(e.target.value)}
-                placeholder="Full legal name"
-              />
-            </div>
-
-            <div className="flex justify-end pt-1">
-              <button type="submit" disabled={busy || !agreed} className={BTN.primary}>
-                {busy ? "Recording…" : "I agree — record my consent"}
-              </button>
-            </div>
-          </form>
-        </SectionCard>
-      )}
 
       <CounselingResultsSection studentName={currentUser?.name} />
       <TestResultsSection studentName={currentUser?.name} />
@@ -361,11 +130,23 @@ function TestResultsSection({ studentName }) {
 }
 
 function TestResultCard({ result, studentName }) {
-  const printRef = useRef(null);
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `test-result-${result.testName || result.id}`,
-  });
+  const handleSave = () => {
+    downloadResultAsHtml({
+      filename: `test-result-${result.testName || result.id}.html`,
+      subtitle: "Psychological Test Result",
+      rows: [
+        ["Student", studentName || "—"],
+        ["Test", result.testName || "—"],
+        [
+          "Completed",
+          result.completedDate ? new Date(result.completedDate).toLocaleDateString() : "—",
+        ],
+        ...(result.counselorName ? [["Counselor", result.counselorName]] : []),
+        ...(result.summary ? [["Summary", result.summary]] : []),
+        ...(result.recommendations ? [["Recommendations", result.recommendations]] : []),
+      ],
+    });
+  };
 
   return (
     <li className="px-4 py-3 hover:bg-gray-50/60 transition">
@@ -384,56 +165,14 @@ function TestResultCard({ result, studentName }) {
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-            title="Use the print dialog's 'Save as PDF'"
+            onClick={handleSave}
+            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition"
           >
             <Download size={12} /> Save
           </button>
-          <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition"
-          >
-            <Printer size={12} /> Print
-          </button>
-        </div>
-      </div>
-
-      <div style={{ display: "none" }}>
-        <div ref={printRef}>
-          <div className="text-center mb-3">
-            <h4 className="text-base font-bold">CounselLink · MSU Marawi</h4>
-            <p className="text-xs text-gray-600">Psychological Test Result</p>
-          </div>
-          <dl className="divide-y divide-gray-100 text-sm">
-            <Row label="Student" value={studentName || "—"} />
-            <Row label="Test" value={result.testName || "—"} />
-            <Row
-              label="Completed"
-              value={result.completedDate ? new Date(result.completedDate).toLocaleDateString() : "—"}
-            />
-            {result.counselorName && <Row label="Counselor" value={result.counselorName} />}
-            {result.summary && <Row label="Summary" value={result.summary} multiline />}
-            {result.recommendations && (
-              <Row label="Recommendations" value={result.recommendations} multiline />
-            )}
-          </dl>
         </div>
       </div>
     </li>
-  );
-}
-
-function Row({ label, value, multiline }) {
-  return (
-    <div className={`py-2 grid grid-cols-1 sm:grid-cols-3 gap-2 ${multiline ? "items-start" : ""}`}>
-      <dt className="text-xs font-medium text-gray-600">{label}</dt>
-      <dd
-        className={`sm:col-span-2 text-sm text-gray-900 ${multiline ? "whitespace-pre-wrap" : ""}`}
-      >
-        {value}
-      </dd>
-    </div>
   );
 }
 
@@ -472,11 +211,25 @@ function CounselingResultsSection({ studentName }) {
 }
 
 function CounselingResultCard({ session, studentName }) {
-  const printRef = useRef(null);
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `counseling-result-${session.id}`,
-  });
+  const handleSave = () => {
+    downloadResultAsHtml({
+      filename: `counseling-result-${session.id}.html`,
+      subtitle: "Counseling Session Report",
+      rows: [
+        ["Student", studentName || "—"],
+        [
+          "Date of Session",
+          session.sessionDate ? new Date(session.sessionDate).toLocaleDateString() : "—",
+        ],
+        ...(session.counselorName ? [["Counselor", session.counselorName]] : []),
+        ...(session.presentingConcern ? [["Reason for counseling", session.presentingConcern]] : []),
+        ...(session.goals ? [["Goals", session.goals]] : []),
+        ...(session.summary ? [["Summary of discussion", session.summary]] : []),
+        ...(session.plan ? [["Plan of action", session.plan]] : []),
+        ...(session.comments ? [["Comments", session.comments]] : []),
+      ],
+    });
+  };
 
   return (
     <li className="px-4 py-3 hover:bg-gray-50/60 transition">
@@ -495,40 +248,11 @@ function CounselingResultCard({ session, studentName }) {
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-            title="Use the print dialog's 'Save as PDF'"
+            onClick={handleSave}
+            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition"
           >
             <Download size={12} /> Save
           </button>
-          <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition"
-          >
-            <Printer size={12} /> Print
-          </button>
-        </div>
-      </div>
-
-      <div className="hidden">
-        <div ref={printRef}>
-          <div className="text-center mb-3">
-            <h4 className="text-base font-bold">CounselLink · MSU Marawi</h4>
-            <p className="text-xs text-gray-600">Counseling Session Report</p>
-          </div>
-          <dl className="divide-y divide-gray-100 text-sm">
-            <Row label="Student" value={studentName || "—"} />
-            <Row
-              label="Date of Session"
-              value={session.sessionDate ? new Date(session.sessionDate).toLocaleDateString() : "—"}
-            />
-            {session.counselorName && <Row label="Counselor" value={session.counselorName} />}
-            {session.presentingConcern && <Row label="Reason for counseling" value={session.presentingConcern} multiline />}
-            {session.goals && <Row label="Goals" value={session.goals} multiline />}
-            {session.summary && <Row label="Summary of discussion" value={session.summary} multiline />}
-            {session.plan && <Row label="Plan of action" value={session.plan} multiline />}
-            {session.comments && <Row label="Comments" value={session.comments} multiline />}
-          </dl>
         </div>
       </div>
     </li>
