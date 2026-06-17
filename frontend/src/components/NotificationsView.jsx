@@ -13,6 +13,13 @@ import {
 } from "lucide-react";
 import { PageHeader, SectionCard, EmptyState, BTN } from "./ui";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
+const resolveImageUrl = (url) => {
+  if (!url) return null;
+  return url.startsWith("/") ? `${API_BASE}${url}` : url;
+};
+
 const TYPE_META = {
   success: { icon: CheckCircle2, iconClass: "text-emerald-600 bg-emerald-50" },
   warning: { icon: AlertTriangle, iconClass: "text-amber-600 bg-amber-50" },
@@ -131,6 +138,15 @@ export default function NotificationsView({ eyebrow = "Account" }) {
                 >
                   {!notif.read && (
                     <span className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r bg-maroon-600" />
+                  )}
+                  {notif.imageUrl && (
+                    <div className="mb-3 rounded-lg overflow-hidden border border-gray-100">
+                      <img
+                        src={resolveImageUrl(notif.imageUrl)}
+                        alt={notif.title}
+                        className="w-full max-h-72 object-cover"
+                      />
+                    </div>
                   )}
                   <div className="flex items-start gap-3">
                     <div

@@ -30,6 +30,7 @@ export function NotificationsProvider({ children }) {
           message: n.message,
           link: n.link,
           type: n.type || "info",
+          imageUrl: n.imageUrl,
           read: n.status === "read",
           createdAt: n.created_at,
         }))
@@ -73,14 +74,14 @@ export function NotificationsProvider({ children }) {
     });
   };
 
-  const addNotification = async ({ title, message, sendTo = "all" }) => {
+  const addNotification = async ({ title, message, sendTo = "all", imageUrl }) => {
     const response = await fetch(`${apiBase}/api/announcements`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ title, message, sendTo }),
+      body: JSON.stringify({ title, message, sendTo, imageUrl }),
     });
     const data = await response.json();
     if (!response.ok) {

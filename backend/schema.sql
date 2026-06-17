@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   bio TEXT,
   department VARCHAR(120),
   specialization VARCHAR(200),
+  position VARCHAR(60),
   employee_id VARCHAR(30),
   rejection_reason TEXT,
   is_placeholder TINYINT(1) NOT NULL DEFAULT 0,
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   status ENUM('read','unread') DEFAULT 'unread',
   link VARCHAR(255),
   type VARCHAR(30) DEFAULT 'info',
+  image_url VARCHAR(512),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
@@ -68,6 +70,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   id INT PRIMARY KEY AUTO_INCREMENT,
   admin_id INT NOT NULL,
   content TEXT NOT NULL,
+  image_url VARCHAR(512),
   date_posted TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (admin_id) REFERENCES users(id)
 );
