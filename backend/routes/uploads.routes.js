@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { corUpload, avatarUpload } from "../middleware/upload.js";
+import { corUpload, avatarUpload, pubmatUpload } from "../middleware/upload.js";
 import { auth } from "../middleware/auth.js";
+import { requireRole } from "../middleware/rbac.js";
 
 const router = Router();
 
@@ -33,5 +34,26 @@ router.post("/avatar", avatarUpload.single("avatar"), async (req, res) => {
     avatarFileType: req.file.mimetype,
   });
 });
+
+router.post(
+  "/pubmat",
+  auth,
+  requireRole("admin"),
+  pubmatUpload.single("pubmat"),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const fileUrl = `/uploads/pubmats/${req.file.filename}`;
+
+    return res.status(201).json({
+      message: "Upload successful",
+      pubmatUrl: fileUrl,
+      pubmatFileName: req.file.originalname,
+      pubmatFileType: req.file.mimetype,
+    });
+  }
+);
 
 export default router;

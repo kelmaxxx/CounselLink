@@ -33,6 +33,11 @@ const splitContent = (content) => {
   return { title: title || "", message: rest.join("\n\n") };
 };
 
+const resolveImageUrl = (url) => {
+  if (!url) return null;
+  return url.startsWith("/") ? `${API_BASE}${url}` : url;
+};
+
 export default function AdminDashboard() {
   const { currentUser, users, token } = useAuth();
   const students = users?.filter((u) => u.role === "student") || [];
@@ -308,6 +313,15 @@ function AnnouncementsPanel({ token }) {
                   </div>
                 ) : (
                   <>
+                    {item.imageUrl && (
+                      <div className="mb-2 rounded-lg overflow-hidden border border-gray-100">
+                        <img
+                          src={resolveImageUrl(item.imageUrl)}
+                          alt={title}
+                          className="w-full max-h-48 object-cover"
+                        />
+                      </div>
+                    )}
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-gray-900 truncate">

@@ -168,7 +168,7 @@ export default function StudentProfile() {
         actions={
           !isEditing ? (
             <div className="flex items-center gap-2">
-              <button onClick={() => setShowInventoryModal(true)} className={BTN.success}>
+              <button onClick={() => setShowInventoryModal(true)} className={BTN.secondary}>
                 <ClipboardList size={15} /> My Inventory
               </button>
               <button onClick={() => setIsEditing(true)} className={BTN.primary}>

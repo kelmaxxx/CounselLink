@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
+import { useTests } from "../../context/TestsContext";
 import { useReactToPrint } from "react-to-print";
 import {
   Printer,
@@ -19,8 +20,11 @@ import {
   MapPin,
   UserRound,
   Zap,
+  Brain,
+  MessageCircle,
 } from "lucide-react";
 import { BTN, INPUT, LABEL, Modal, initialsOf } from "../../components/ui";
+import InformedConsentSection from "../../components/InformedConsent";
 
 const TIME_SLOTS_MORNING = [
   { label: "9:00 – 10:00 AM", value: "9:00-10:00" },
@@ -43,6 +47,19 @@ const STEPS = [
   { id: "consent", title: "Informed consent" },
   { id: "review", title: "Review & submit" },
 ];
+const stepIndexOf = (id) => STEPS.findIndex((s) => s.id === id);
+
+const initialForm = {
+  requestType: "counseling",
+  date: "",
+  timeSlot: "",
+  preferredSlots: [],
+  isUrgent: false,
+  phoneNumber: "",
+  reason: "",
+  testType: "Psychological Test",
+  acknowledged: false,
+};
 
 // ── Date helpers (local, timezone-safe) ──────────────────────────────
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -76,17 +93,10 @@ export default function RequestAppointment() {
   const { currentUser, users } = useAuth();
   const myRecord = users?.find((u) => u.email === currentUser?.email) || currentUser;
   const { createAppointment } = useAppointments?.() || {};
+  const { createTestRequest } = useTests?.() || {};
 
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState({
-    date: "",
-    timeSlot: "",
-    preferredSlots: [],
-    isUrgent: false,
-    phoneNumber: "",
-    reason: "",
-    acknowledged: false,
-  });
+  const [form, setForm] = useState(initialForm);
 
   const [submitted, setSubmitted] = useState(false);
   const [successModal, setSuccessModal] = useState({ open: false, data: null });
@@ -125,7 +135,7 @@ export default function RequestAppointment() {
       case "schedule":
         return Boolean(form.date) && form.preferredSlots.length === 1;
       case "reason":
-        return form.reason.trim().length > 0;
+        return form.requestType === "psychological" ? true : form.reason.trim().length > 0;
       case "consent":
         return form.acknowledged;
       default:
@@ -133,13 +143,57 @@ export default function RequestAppointment() {
     }
   };
 
-  const goBack = () => (step === 0 ? navigate(-1) : setStep((s) => s - 1));
+  const isPsychological = form.requestType === "psychological";
+
+  // Psychological requests skip the "Priority" step: details → schedule directly.
+  const goBack = () => {
+    if (step === 0) return navigate(-1);
+    if (isPsychological && step === stepIndexOf("schedule")) {
+      setStep(stepIndexOf("details"));
+      return;
+    }
+    setStep((s) => s - 1);
+  };
   const goNext = () => {
     if (!stepValid()) return;
+    if (isPsychological && step === stepIndexOf("details")) {
+      setStep(stepIndexOf("schedule"));
+      return;
+    }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
 
   const handleSubmit = async () => {
+    if (isPsychological) {
+      if (!createTestRequest) {
+        alert("Test request system not initialized.");
+        return;
+      }
+      if (!form.date || !form.preferredSlots.length || !form.phoneNumber) {
+        alert("Please complete all required fields before submitting.");
+        return;
+      }
+      setSubmitted(true);
+      const res = await createTestRequest({ student: myRecord, form });
+      if (res?.success) {
+        setSuccessModal({
+          open: true,
+          data: {
+            requestType: "psychological",
+            date: form.date,
+            testType: form.testType,
+            preferredSlots: form.preferredSlots.map(slotLabel),
+          },
+        });
+        setForm(initialForm);
+        setStep(0);
+      } else {
+        alert(res?.message || "Failed to submit test request.");
+      }
+      setSubmitted(false);
+      return;
+    }
+
     if (!createAppointment) {
       alert("Appointment system not initialized.");
       return;
@@ -154,20 +208,13 @@ export default function RequestAppointment() {
       setSuccessModal({
         open: true,
         data: {
+          requestType: "counseling",
           date: form.date,
           isUrgent: form.isUrgent,
           preferredSlots: form.preferredSlots.map(slotLabel),
         },
       });
-      setForm({
-        date: "",
-        timeSlot: "",
-        preferredSlots: [],
-        isUrgent: false,
-        phoneNumber: "",
-        reason: "",
-        acknowledged: false,
-      });
+      setForm(initialForm);
       setStep(0);
     } else {
       alert(res?.message || "Failed to submit appointment.");
@@ -176,8 +223,12 @@ export default function RequestAppointment() {
   };
 
   const current = STEPS[step];
-  const progress = ((step + 1) / STEPS.length) * 100;
+  const visibleSteps = isPsychological ? STEPS.filter((s) => s.id !== "priority") : STEPS;
+  const visibleIndex = visibleSteps.findIndex((s) => s.id === current.id);
+  const progress = ((visibleIndex + 1) / visibleSteps.length) * 100;
   const isLast = step === STEPS.length - 1;
+  const stepTitle =
+    current.id === "reason" ? (isPsychological ? "Test details" : "Reason for counseling") : current.title;
 
   return (
     <div className="px-4 sm:px-6 py-6 max-w-6xl mx-auto">
@@ -194,17 +245,17 @@ export default function RequestAppointment() {
           </button>
           <div className="min-w-0">
             <p className="text-xs font-medium text-maroon-600 uppercase tracking-wide">
-              Counseling appointment
+              {isPsychological ? "Psychological test request" : "Counseling appointment"}
             </p>
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight truncate">
-              {current.title}
+              {stepTitle}
             </h2>
           </div>
         </div>
 
         <div className="flex-shrink-0 text-right">
           <p className="text-sm font-medium text-gray-700">
-            Step {step + 1} <span className="text-gray-400">of {STEPS.length}</span>
+            Step {visibleIndex + 1} <span className="text-gray-400">of {visibleSteps.length}</span>
           </p>
           <div className="mt-2 w-32 sm:w-44 h-1.5 rounded-full bg-gray-100 overflow-hidden">
             <div
@@ -220,7 +271,10 @@ export default function RequestAppointment() {
         {/* Left: step content */}
         <div className="lg:col-span-2 space-y-4">
           {current.id === "details" && (
-            <DetailsStep currentUser={currentUser} myRecord={myRecord} form={form} setField={setField} />
+            <>
+              <RequestTypeStep form={form} setField={setField} />
+              <DetailsStep currentUser={currentUser} myRecord={myRecord} form={form} setField={setField} />
+            </>
           )}
           {current.id === "priority" && <PriorityStep form={form} setField={setField} />}
           {current.id === "schedule" && (
@@ -233,7 +287,9 @@ export default function RequestAppointment() {
             />
           )}
           {current.id === "reason" && <ReasonStep form={form} setField={setField} />}
-          {current.id === "consent" && <ConsentStep form={form} setField={setField} />}
+          {current.id === "consent" && (
+            <ConsentStep setField={setField} currentUser={currentUser} />
+          )}
           {current.id === "review" && (
             <ReviewStep
               printRef={printRef}
@@ -286,7 +342,11 @@ export default function RequestAppointment() {
       <Modal
         open={successModal.open}
         onClose={() => setSuccessModal({ open: false, data: null })}
-        title="Appointment Request Submitted"
+        title={
+          successModal.data?.requestType === "psychological"
+            ? "Test Request Submitted"
+            : "Appointment Request Submitted"
+        }
         size="md"
         footer={
           <button
@@ -302,7 +362,9 @@ export default function RequestAppointment() {
             <CheckCircle2 size={36} />
           </div>
           <h3 className="text-lg font-bold text-gray-900 mb-2 animate-fade-in-up">
-            Appointment Request Submitted Successfully!
+            {successModal.data?.requestType === "psychological"
+              ? "Test Request Submitted Successfully!"
+              : "Appointment Request Submitted Successfully!"}
           </h3>
           <p className="text-sm text-gray-600 mb-6 leading-relaxed max-w-sm">
             Your request has been recorded. The Guidance and Counseling team will review it and
@@ -311,17 +373,22 @@ export default function RequestAppointment() {
 
           <div className="w-full bg-gray-50 border border-gray-100 rounded-lg p-4 text-left space-y-2.5">
             <SummaryRow label="Student Name:" value={currentUser?.name} />
+            {successModal.data?.requestType === "psychological" ? (
+              <SummaryRow label="Test Type:" value={successModal.data?.testType} />
+            ) : null}
             <SummaryRow label="Preferred Date:" value={formatLong(successModal.data?.date)} mono />
-            <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
-              <span className="text-gray-500 font-medium">Priority:</span>
-              <span
-                className={`font-semibold ${
-                  successModal.data?.isUrgent ? "text-red-600 font-bold" : "text-emerald-600"
-                }`}
-              >
-                {successModal.data?.isUrgent ? "Urgent" : "Normal"}
-              </span>
-            </div>
+            {successModal.data?.requestType !== "psychological" && (
+              <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
+                <span className="text-gray-500 font-medium">Priority:</span>
+                <span
+                  className={`font-semibold ${
+                    successModal.data?.isUrgent ? "text-red-600 font-bold" : "text-emerald-600"
+                  }`}
+                >
+                  {successModal.data?.isUrgent ? "Urgent" : "Normal"}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between text-xs">
               <span className="text-gray-500 font-medium">Preferred Times:</span>
               <span
@@ -335,6 +402,54 @@ export default function RequestAppointment() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   Step: Request type (counseling vs. psychological test)
+──────────────────────────────────────────────────────────────────── */
+function RequestTypeStep({ form, setField }) {
+  return (
+    <StepCard
+      icon={Info}
+      title="What would you like to request?"
+      subtitle="Choose the type of request, then continue."
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <TypeOption
+          active={form.requestType === "counseling"}
+          onClick={() => setField({ requestType: "counseling" })}
+          icon={MessageCircle}
+          title="Counseling appointment"
+          desc="Talk with a counselor about personal, academic, or emotional concerns."
+        />
+        <TypeOption
+          active={form.requestType === "psychological"}
+          onClick={() => setField({ requestType: "psychological" })}
+          icon={Brain}
+          title="Psychological test"
+          desc="Request a psychological, personality, or career assessment."
+        />
+      </div>
+    </StepCard>
+  );
+}
+
+function TypeOption({ active, onClick, icon: Icon, title, desc }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left rounded-xl border p-4 transition ${
+        active ? "border-maroon-300 bg-maroon-50 ring-2 ring-maroon-200" : "border-gray-200 hover:bg-gray-50"
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        {Icon && <Icon size={16} className={active ? "text-maroon-600" : "text-gray-400"} />}
+        <span className={`text-sm font-semibold ${active ? "text-gray-900" : "text-gray-700"}`}>{title}</span>
+      </div>
+      <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
+    </button>
   );
 }
 
@@ -608,9 +723,43 @@ function TimeGroup({ label, slots, selected, onSelect, disabled }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────
-   Step: Reason
+   Step: Reason / Test details
 ──────────────────────────────────────────────────────────────────── */
 function ReasonStep({ form, setField }) {
+  if (form.requestType === "psychological") {
+    return (
+      <StepCard
+        icon={Brain}
+        title="Test details"
+        subtitle="Tell us what kind of assessment you'd like, and add any notes."
+      >
+        <div className="space-y-4">
+          <div>
+            <label className={LABEL}>Test type *</label>
+            <select
+              className={INPUT}
+              value={form.testType}
+              onChange={(e) => setField({ testType: e.target.value })}
+            >
+              <option>Psychological Test</option>
+              <option>Personality Test</option>
+              <option>Career Assessment</option>
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>Reason / notes (optional)</label>
+            <textarea
+              rows={5}
+              className={INPUT}
+              value={form.reason}
+              onChange={(e) => setField({ reason: e.target.value })}
+              placeholder="Any specific concerns or context…"
+            />
+          </div>
+        </div>
+      </StepCard>
+    );
+  }
   return (
     <StepCard
       icon={Info}
@@ -632,43 +781,13 @@ function ReasonStep({ form, setField }) {
 /* ────────────────────────────────────────────────────────────────────
    Step: Informed consent
 ──────────────────────────────────────────────────────────────────── */
-function ConsentStep({ form, setField }) {
+function ConsentStep({ setField, currentUser }) {
   return (
-    <StepCard icon={ShieldCheck} title="Informed consent" subtitle="Please read and acknowledge.">
-      <div className="bg-maroon-50 border border-maroon-200 rounded-lg p-5">
-        <div className="text-sm text-maroon-900 space-y-2.5 leading-relaxed">
-          <p>
-            <span className="font-semibold">Confidentiality:</span> All information shared during
-            counseling sessions is confidential and protected under RA 10173 (Data Privacy Act of
-            2012).
-          </p>
-          <div>
-            <span className="font-semibold">Exceptions to confidentiality:</span>
-            <ul className="list-disc list-inside ml-2 mt-1.5 space-y-0.5">
-              <li>Consultation within the counseling team for professional care</li>
-              <li>Clear and imminent danger of harm to self or others</li>
-              <li>Legal requirement to report abuse / neglect of minors</li>
-              <li>Court orders</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <label
-        className={`mt-4 flex items-center gap-3 cursor-pointer rounded-xl border p-3.5 transition ${
-          form.acknowledged ? "bg-maroon-50 border-maroon-300" : "bg-white border-gray-200 hover:bg-gray-50"
-        }`}
-      >
-        <input
-          type="checkbox"
-          checked={form.acknowledged}
-          onChange={(e) => setField({ acknowledged: e.target.checked })}
-          className="w-4 h-4 text-maroon-600 rounded"
-        />
-        <span className="text-sm font-medium text-gray-700">
-          I have read and understood the informed consent above.
-        </span>
-      </label>
+    <StepCard icon={ShieldCheck} title="Informed consent" subtitle="Please read and sign before continuing.">
+      <InformedConsentSection
+        currentUser={currentUser}
+        onConsentChange={(signed) => setField({ acknowledged: signed })}
+      />
     </StepCard>
   );
 }
@@ -691,13 +810,17 @@ function ReviewStep({ printRef, currentUser, myRecord, form, onJump }) {
           <ReviewLine label="Phone" value={form.phoneNumber} />
         </ReviewBlock>
 
-        <ReviewBlock title="Appointment" onEdit={() => onJump(2)}>
-          <ReviewLine label="Priority" value={form.isUrgent ? "Urgent" : "Normal"} />
+        <ReviewBlock title={form.requestType === "psychological" ? "Test request" : "Appointment"} onEdit={() => onJump(2)}>
+          {form.requestType === "psychological" ? (
+            <ReviewLine label="Test type" value={form.testType} />
+          ) : (
+            <ReviewLine label="Priority" value={form.isUrgent ? "Urgent" : "Normal"} />
+          )}
           <ReviewLine label="Preferred date" value={formatLong(form.date)} />
           <ReviewLine label="Preferred times" value={form.preferredSlots.map(slotLabel).join(", ")} />
         </ReviewBlock>
 
-        <ReviewBlock title="Reason" onEdit={() => onJump(3)}>
+        <ReviewBlock title={form.requestType === "psychological" ? "Additional notes" : "Reason"} onEdit={() => onJump(3)}>
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{form.reason || "—"}</p>
         </ReviewBlock>
 
@@ -773,14 +896,18 @@ function BookingSummary({ currentUser, myRecord, form }) {
 
         {/* Service */}
         <InfoRow icon={Info} label="Service">
-          <p className="text-sm font-medium text-gray-900">Counseling session</p>
-          <span
-            className={`inline-flex items-center mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-              form.isUrgent ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
-            }`}
-          >
-            {form.isUrgent ? "Urgent" : "Normal priority"}
-          </span>
+          <p className="text-sm font-medium text-gray-900">
+            {form.requestType === "psychological" ? form.testType : "Counseling session"}
+          </p>
+          {form.requestType !== "psychological" && (
+            <span
+              className={`inline-flex items-center mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+                form.isUrgent ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+              }`}
+            >
+              {form.isUrgent ? "Urgent" : "Normal priority"}
+            </span>
+          )}
         </InfoRow>
 
         {/* Counselor */}
