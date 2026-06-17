@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 import { useNotifications } from "../../context/NotificationsContext";
-import { Megaphone, Send } from "lucide-react";
+import { Megaphone, Send, ImagePlus, X } from "lucide-react";
 import {
   PageHeader,
   SectionCard,
@@ -9,7 +10,10 @@ import {
   LABEL,
 } from "../../components/ui";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
 export default function CreateAnnouncement() {
+  const { token } = useAuth();
   const { addNotification } = useNotifications();
 
   const [form, setForm] = useState({
@@ -17,24 +21,58 @@ export default function CreateAnnouncement() {
     message: "",
     sendTo: "all",
   });
+  const [pubmatFile, setPubmatFile] = useState(null);
+  const [pubmatPreview, setPubmatPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+
+  const handlePubmatChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (pubmatPreview) URL.revokeObjectURL(pubmatPreview);
+    setPubmatFile(file);
+    setPubmatPreview(URL.createObjectURL(file));
+  };
+
+  const removePubmat = () => {
+    if (pubmatPreview) URL.revokeObjectURL(pubmatPreview);
+    setPubmatFile(null);
+    setPubmatPreview(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     setFeedback(null);
     try {
+      let imageUrl;
+      if (pubmatFile) {
+        const fd = new FormData();
+        fd.append("pubmat", pubmatFile);
+        const uploadRes = await fetch(`${API_BASE}/api/uploads/pubmat`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          throw new Error(uploadData.message || "Unable to upload Pubmat image");
+        }
+        imageUrl = uploadData.pubmatUrl;
+      }
+
       const result = await addNotification({
         title: form.title,
         message: form.message,
         sendTo: form.sendTo,
+        imageUrl,
       });
       setFeedback({
         type: "success",
         text: `Announcement sent to ${result.recipientCount} user${result.recipientCount === 1 ? "" : "s"}.`,
       });
       setForm({ title: "", message: "", sendTo: "all" });
+      removePubmat();
     } catch (err) {
       setFeedback({ type: "error", text: err.message || "Failed to send announcement" });
     } finally {
@@ -74,9 +112,44 @@ export default function CreateAnnouncement() {
             <Megaphone size={14} className="text-maroon-600" /> Announcement
           </span>
         }
-        subtitle="Title, body, and audience"
+        subtitle="Title, body, audience, and an optional Pubmat image"
       >
         <form id="announcement-form" onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className={LABEL}>Pubmat (optional)</label>
+            {pubmatPreview ? (
+              <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                <img
+                  src={pubmatPreview}
+                  alt="Pubmat preview"
+                  className="w-full max-h-72 object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={removePubmat}
+                  className="absolute top-2 right-2 inline-flex items-center justify-center w-7 h-7 rounded-full bg-black/60 text-white hover:bg-black/80 transition"
+                  title="Remove image"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition cursor-pointer py-8 text-center">
+                <ImagePlus size={22} className="text-gray-400" />
+                <span className="text-sm text-gray-600">
+                  Upload an event poster (Pubmat) to make this announcement more engaging
+                </span>
+                <span className="text-xs text-gray-400">JPG, PNG, or WEBP — up to 5MB</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handlePubmatChange}
+                />
+              </label>
+            )}
+          </div>
+
           <div>
             <label className={LABEL}>Title *</label>
             <input

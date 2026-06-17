@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
-import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useReactToPrint } from "react-to-print";
 import { Calendar, Clock, FileText, Printer, X } from "lucide-react";
 import {
@@ -35,15 +34,13 @@ export default function StudentAppointments() {
   const { currentUser } = useAuth();
   const { appointments, fetchAppointments } = useAppointments();
   const { tests, fetchTests } = useTests();
-  const { sessions, fetchSessions } = useCounselingSessions?.() || {};
   const [activeTab, setActiveTab] = useState("all");
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
     fetchAppointments?.().catch(() => undefined);
     fetchTests?.().catch(() => undefined);
-    fetchSessions?.().catch(() => undefined);
-  }, [fetchAppointments, fetchTests, fetchSessions]);
+  }, [fetchAppointments, fetchTests]);
 
   const mine = useMemo(() => {
     const myAppts = (appointments || [])
@@ -54,22 +51,10 @@ export default function StudentAppointments() {
       .filter((t) => t.student_id === currentUser?.id || t.studentUserId === currentUser?.id)
       .map((t) => ({ ...t, isTest: true }));
 
-    const getSessionForAppt = (apptId) =>
-      sessions?.find((s) => s.appointmentId === apptId || s.appointment_id === apptId);
-
     return [...myAppts, ...myTestsList]
-      .filter((item) => {
-        if (item.isTest) {
-          return item.status !== "completed";
-        }
-        if (item.status === "completed") {
-          const s = getSessionForAppt(item.id);
-          return s && s.nextSession === "followup";
-        }
-        return true;
-      })
+      .filter((item) => item.status !== "completed")
       .sort((a, b) => new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0));
-  }, [appointments, tests, sessions, currentUser?.id]);
+  }, [appointments, tests, currentUser?.id]);
 
   const visible = useMemo(() => {
     if (activeTab === "all") return mine;
@@ -158,13 +143,7 @@ export default function StudentAppointments() {
                     </td>
                     <td className="px-4 py-3 text-gray-700">{a.counselorName || "TBD"}</td>
                     <td className="px-4 py-3">
-                      {a.status === "completed" ? (
-                        <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap">
-                          Follow-up needed
-                        </span>
-                      ) : (
-                        <StatusPill status={a.status} />
-                      )}
+                      <StatusPill status={a.status} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button

@@ -69,3 +69,23 @@ export const avatarUpload = multer({
   fileFilter: avatarFileFilter,
   limits: { fileSize: 2 * 1024 * 1024 },
 });
+
+const pubmatsDir = path.join(uploadsDir, "pubmats");
+if (!fs.existsSync(pubmatsDir)) {
+  fs.mkdirSync(pubmatsDir, { recursive: true });
+}
+
+const pubmatStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, pubmatsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const adminId = req.user?.id || "anon";
+    cb(null, `pubmat-${adminId}-${Date.now()}${ext}`);
+  },
+});
+
+export const pubmatUpload = multer({
+  storage: pubmatStorage,
+  fileFilter: avatarFileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 },
+});

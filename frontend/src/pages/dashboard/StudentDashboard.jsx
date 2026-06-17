@@ -90,6 +90,7 @@ export default function StudentDashboard() {
 
   const upcoming = myAppointments.filter((a) => a.status === "approved" || a.status === "rescheduled");
   const pending = myAppointments.filter((a) => a.status === "pending");
+  const recentAppointments = myAppointments.filter((a) => a.status === "completed");
   const upcomingTests = myTests.filter((t) => t.status === "approved" || t.status === "rescheduled");
   const pendingTests = myTests.filter((t) => t.status === "pending");
 
@@ -316,11 +317,11 @@ export default function StudentDashboard() {
             </Link>
           }
         >
-          {myAppointments.length === 0 ? (
+          {recentAppointments.length === 0 ? (
             <EmptyState
               icon={Calendar}
               title="No appointments yet"
-              hint="Your activity will show up here once you request a session."
+              hint="Conducted and follow-up sessions will show up here."
             />
           ) : (
             <div className="overflow-x-auto">
@@ -334,7 +335,7 @@ export default function StudentDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {myAppointments.slice(0, 5).map((appt) => {
+                  {recentAppointments.slice(0, 5).map((appt) => {
                     const session = getSessionForAppt(appt.id);
                     const isDone = appt.status === "completed";
                     const counselor = users?.find((u) => u.id === appt.counselor_id);
@@ -381,7 +382,7 @@ export default function StudentDashboard() {
           noBodyPadding
           action={
             <Link
-              to="/student/request-psych-test"
+              to="/student/request-appointment"
               className="text-xs font-medium text-gray-600 hover:text-gray-900 inline-flex items-center gap-1"
             >
               Request test <ArrowRight size={12} />
