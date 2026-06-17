@@ -1,4 +1,8 @@
 import express from "express";
+// Patches Express 4 so a rejected async route handler is forwarded to the
+// error-handling middleware instead of becoming an unhandled rejection that
+// crashes the whole process. Must be imported before the routes are used.
+import "express-async-errors";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
@@ -110,6 +114,27 @@ app.use("/api/student-consents", studentConsentsRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/referrals", referralsRoutes);
 app.use("/api/report-requests", reportRequestsRoutes);
+
+// Central error handler. Any error thrown in a route (including async ones,
+// thanks to express-async-errors) lands here and returns a 500 for that single
+// request instead of taking down the server. Express identifies this as the
+// error handler by its four arguments, so `next` must stay in the signature.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ message: "Internal server error" });
+});
+
+// Last-resort safety net. If an error ever escapes the request lifecycle (e.g.
+// in the SSE stream or a background task), log it and keep the server alive
+// rather than letting Node terminate the process.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
+});
 
 const port = process.env.PORT || 5000;
 
