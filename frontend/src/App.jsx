@@ -14,7 +14,6 @@ import NotFound from "./pages/NotFound";
 // Student pages
 import RequestAppointment from "./pages/student/RequestAppointment";
 import StudentProfile from "./pages/student/StudentProfile";
-import RequestPsychTest from "./pages/student/RequestPsychTest";
 import StudentNotifications from "./pages/student/StudentNotifications";
 import StudentConsent from "./pages/student/StudentConsent";
 
@@ -155,16 +154,6 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <StudentProfile />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/student/request-psych-test"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <RequestPsychTest />
               </Layout>
             </ProtectedRoute>
           }

@@ -176,7 +176,7 @@ export default function Appointments() {
           <h2 className="text-2xl font-semibold text-gray-900">Psychology Test Requests</h2>
           {currentUser?.role === "student" && (
             <Link
-              to="/student/request-psych-test"
+              to="/student/request-appointment"
               className="bg-maroon-500 text-white px-4 py-2 rounded-lg hover:bg-maroon-600 transition text-sm font-medium"
             >
               Request Test
