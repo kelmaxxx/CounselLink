@@ -32,7 +32,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     dashboard: "/",
     "request-appointment": "/student/request-appointment",
     "my-appointments": "/student/appointments",
-    "request-psych-test": "/student/request-psych-test",
     "counselor-directory": "/student/counselors",
     "student-feedback": "/student/feedback",
     consent: "/student/consent",
@@ -74,7 +73,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
             items: [
               { id: "dashboard", label: "Dashboard", icon: BarChart3 },
               { id: "request-appointment", label: "Request Appointment", icon: Calendar },
-              { id: "request-psych-test", label: "Request Psych Test", icon: ClipboardList },
               { id: "my-appointments", label: "My Appointments", icon: Calendar },
               { id: "consent", label: "Test Results", icon: FileSignature },
             ],
