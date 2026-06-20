@@ -1,7 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { createNotification } from "../utils/notify.js";
-import { notifyUser } from "../events.js";
+import { notifyUser, notifyRole } from "../events.js";
 
 const normalizeDate = (value) => {
   if (!value) return null;
@@ -77,7 +77,7 @@ export const completeAppointment = async (req, res) => {
   const counselorId = req.user?.id;
 
   const rows = await query(
-    "SELECT counselor_id, status, student_id, is_urgent FROM appointments WHERE id = ?",
+    "SELECT counselor_id, status, student_id, is_urgent, appointment_type FROM appointments WHERE id = ?",
     [id]
   );
   if (!rows.length) return res.status(404).json({ message: "Appointment not found" });
@@ -102,13 +102,24 @@ export const completeAppointment = async (req, res) => {
 
   await logAction(req, "complete_appointment", "appointment", id, {});
 
+  const isTest = appt.appointment_type === "psychological_test";
+
   await createNotification({
     userId: appt.student_id,
-    title: "Counseling session completed",
-    message: "Your counseling session has been marked as completed by the counselor.",
-    link: "/student/appointments",
+    title: isTest ? "Psychological test completed" : "Counseling session completed",
+    message: isTest
+      ? "Your psychological test has been marked as completed by the counselor."
+      : "Your counseling session has been marked as completed by the counselor.",
+    link: isTest ? "/student/tests" : "/student/appointments",
   });
-  notifyUser(appt.student_id, { type: "appointments" });
+  notifyUser(appt.student_id, { type: isTest ? "tests" : "appointments" });
+  if (isTest) {
+    // Tests live in their own frontend context (TestsContext), separate from
+    // AppointmentsContext, even though both read from the appointments table —
+    // so completing one needs its own "tests" signal to refresh other counselor
+    // sessions/tabs watching the same queue.
+    notifyRole("counselor", { type: "tests" });
+  }
 
   return res.json({ message: "Appointment marked as completed" });
 };

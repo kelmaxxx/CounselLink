@@ -23,6 +23,7 @@ import CounselorAppointments from "./pages/counselor/CounselorAppointments";
 import StudentCounselingForm from "./pages/counselor/StudentCounselingForm";
 import StudentTestForm from "./pages/counselor/StudentTestForm";
 import CounselorReports from "./pages/counselor/CounselorReports";
+import FeedbackTallySummary from "./pages/counselor/FeedbackTallySummary";
 import CounselorProfile from "./pages/counselor/CounselorProfile";
 import CounselorNotifications from "./pages/counselor/CounselorNotifications";
 import CounselorReferrals from "./pages/counselor/CounselorReferrals";
@@ -30,7 +31,6 @@ import ReferralConfirmation from "./pages/counselor/ReferralConfirmation";
 import StudentAppointments from "./pages/student/StudentAppointments";
 import CounselorDirectory from "./pages/student/CounselorDirectory";
 import CounselorPublicProfile from "./pages/student/CounselorPublicProfile";
-import StudentFeedback from "./pages/student/StudentFeedback";
 
 // College Rep pages
 import CounselingData from "./pages/rep/CounselingData";
@@ -139,16 +139,6 @@ export default function App() {
           }
         />
         <Route
-          path="/student/feedback"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <StudentFeedback />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/student/profile"
           element={
             <ProtectedRoute>
@@ -206,6 +196,16 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <CounselorReports />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/counselor/feedback-tally"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <FeedbackTallySummary />
               </Layout>
             </ProtectedRoute>
           }

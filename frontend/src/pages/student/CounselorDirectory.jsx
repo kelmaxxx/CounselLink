@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { MessageCircle, User2, Search } from "lucide-react";
 import ChatModal from "../../components/ChatModal";
+import { CounselorRatingBadge } from "../../components/RatingStars";
 import {
   PageHeader,
   SectionCard,
@@ -102,7 +103,10 @@ export default function CounselorDirectory() {
                   {initialsOf(c.name)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
+                    <CounselorRatingBadge counselorId={c.id} size={12} showLabel={false} className="flex-shrink-0" />
+                  </div>
                   <p className="text-xs text-gray-500 truncate">{c.department || "Counseling"}</p>
                   {c.specialization && (
                     <p className="text-xs text-gray-500 truncate mt-0.5">
