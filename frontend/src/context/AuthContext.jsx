@@ -162,6 +162,16 @@ export function AuthProvider({ children }) {
     return response.json();
   };
 
+  const fetchApprovedThisWeek = async () => {
+    const response = await authFetch(`${apiBase}/api/admin/pending-registrations/approved-this-week`);
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || "Unable to load approval stats");
+    }
+    const data = await response.json();
+    return data.count || 0;
+  };
+
   const approveRegistration = async (userId, { program, yearLevel }) => {
     const response = await authFetch(
       `${apiBase}/api/admin/pending-registrations/${userId}/approve`,
@@ -320,6 +330,7 @@ export function AuthProvider({ children }) {
       logout,
       setUsers,
       fetchPendingRegistrations,
+      fetchApprovedThisWeek,
       approveRegistration,
       rejectRegistration,
       refreshCurrentUser,

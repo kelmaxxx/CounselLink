@@ -371,16 +371,18 @@ export default function CounselorAppointments() {
                       >
                         <Check size={13} /> Accept
                       </button>
-                      <button
-                        onClick={() =>
-                          setRescheduleModal({ open: true, apptId: a.id, date: "", timeSlot: "", note: "" })
-                        }
-                        disabled={busyId === a.id}
-                        className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-100 transition disabled:opacity-50"
-                        title="Reschedule"
-                      >
-                        <CalendarClock size={13} /> Reschedule
-                      </button>
+                      {!(a.is_urgent || a.isUrgent) && (
+                        <button
+                          onClick={() =>
+                            setRescheduleModal({ open: true, apptId: a.id, date: "", timeSlot: "", note: "" })
+                          }
+                          disabled={busyId === a.id}
+                          className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-100 transition disabled:opacity-50"
+                          title="Reschedule"
+                        >
+                          <CalendarClock size={13} /> Reschedule
+                        </button>
+                      )}
                       <button
                         onClick={() => setRejectModal({ open: true, id: a.id, note: "" })}
                         disabled={busyId === a.id}
@@ -449,7 +451,9 @@ export default function CounselorAppointments() {
                           {a.studentName}
                         </button>
                         <span className="text-xs text-gray-500">{a.college || "—"}</span>
-                        <StatusPill status={a.status} />
+                        <StatusPill
+                          status={a.status === "approved" && a.reason === "Follow-up Session" ? "followup" : a.status}
+                        />
                         {a.controlNo && (
                           <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
                             <Hash size={10} />

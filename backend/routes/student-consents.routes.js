@@ -8,6 +8,7 @@ import {
   uploadConsentScan,
   deleteConsentScan,
   revokeConsent,
+  setReferralSharingConsent,
 } from "../controllers/student-consents.controller.js";
 
 const router = Router();
@@ -24,5 +25,10 @@ router.post(
 );
 router.delete("/:studentId/scan", requireRole("counselor"), deleteConsentScan);
 router.post("/:studentId/revoke", requireRole("counselor"), revokeConsent);
+router.post(
+  "/:studentId/referral-sharing",
+  requireRole("student", "counselor"),
+  setReferralSharingConsent
+);
 
 export default router;

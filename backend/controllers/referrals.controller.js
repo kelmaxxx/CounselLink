@@ -1,7 +1,18 @@
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import { query, withTransaction } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { createNotification } from "../utils/notify.js";
 import { notifyUser } from "../events.js";
+
+const NATURE_OF_CONCERN_OPTIONS = [
+  "Academic Concern",
+  "Behavioral Concern",
+  "Mental Health Concern",
+  "Family Problem",
+  "Social/Relationship Concern",
+  "Other",
+];
 
 const baseSelect = `
   SELECT r.id, r.student_id, r.referrer_id, r.receiving_counselor_id,
@@ -18,21 +29,43 @@ const baseSelect = `
 
 export const createReferral = async (req, res) => {
   const referrerId = req.user?.id;
-  const { studentId, receivingCounselorId, reason, notes } = req.body || {};
+  const {
+    fullName,
+    studentIdNumber,
+    college,
+    contactNumber,
+    natureOfConcern,
+    natureOfConcernOther,
+    description,
+    receivingCounselorId,
+  } = req.body || {};
 
-  if (!studentId || !receivingCounselorId || !reason?.trim()) {
-    return res
-      .status(400)
-      .json({ message: "studentId, receivingCounselorId, and reason are required" });
+  const trimmed = {
+    fullName: (fullName || "").trim(),
+    studentIdNumber: (studentIdNumber || "").trim(),
+    college: (college || "").trim(),
+    contactNumber: (contactNumber || "").trim(),
+    natureOfConcern: (natureOfConcern || "").trim(),
+    natureOfConcernOther: (natureOfConcernOther || "").trim(),
+    description: (description || "").trim(),
+  };
+
+  const hasAllRequired =
+    trimmed.fullName &&
+    trimmed.studentIdNumber &&
+    trimmed.college &&
+    trimmed.contactNumber &&
+    trimmed.natureOfConcern &&
+    trimmed.description &&
+    receivingCounselorId &&
+    NATURE_OF_CONCERN_OPTIONS.includes(trimmed.natureOfConcern) &&
+    (trimmed.natureOfConcern !== "Other" || trimmed.natureOfConcernOther);
+
+  if (!hasAllRequired) {
+    return res.status(400).json({ message: "Please complete all required fields." });
   }
 
-  const [student] = await query(
-    "SELECT id, name, college FROM users WHERE id = ? AND role = 'student'",
-    [studentId]
-  );
-  if (!student) return res.status(404).json({ message: "Student not found" });
-
-  if (req.user?.college && student.college && req.user.college !== student.college) {
+  if (req.user?.college && trimmed.college !== req.user.college) {
     return res
       .status(403)
       .json({ message: "You can only refer students from your own college" });
@@ -44,11 +77,47 @@ export const createReferral = async (req, res) => {
   );
   if (!receiver) return res.status(404).json({ message: "Receiving counselor not found" });
 
+  // Match against an existing student record (registered or a previous
+  // referral/walk-in placeholder) by Student ID so we don't create duplicates.
+  const existingStudents = await query(
+    "SELECT id, name, college FROM users WHERE student_id = ? AND role = 'student' LIMIT 1",
+    [trimmed.studentIdNumber]
+  );
+
+  let student;
+  let placeholderCreated = false;
+
+  if (existingStudents.length > 0) {
+    student = existingStudents[0];
+  } else {
+    // No account for this Student ID yet — create a placeholder student
+    // record so the referral can be linked to a student_id FK and the
+    // student shows up in Student Records. It can't be logged into (random
+    // password, synthetic email) and gets claimed/updated automatically if
+    // this student later registers with the same Student ID.
+    const placeholderEmail = `referral-${trimmed.studentIdNumber.replace(/[^a-zA-Z0-9]/g, "")}-${Date.now()}@placeholder.counselink.local`;
+    const randomPassword = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10);
+
+    const userResult = await query(
+      `INSERT INTO users (name, email, password, role, status, college, student_id, phone, is_placeholder)
+       VALUES (?, ?, ?, 'student', 'approved', ?, ?, ?, 1)`,
+      [trimmed.fullName, placeholderEmail, randomPassword, trimmed.college, trimmed.studentIdNumber, trimmed.contactNumber]
+    );
+    student = { id: userResult.insertId, name: trimmed.fullName, college: trimmed.college };
+    placeholderCreated = true;
+  }
+
+  const concernLabel =
+    trimmed.natureOfConcern === "Other"
+      ? `Other - ${trimmed.natureOfConcernOther}`
+      : trimmed.natureOfConcern;
+  const reason = `${concernLabel}\n\n${trimmed.description}\n\nContact number: ${trimmed.contactNumber}`;
+
   const result = await query(
     `INSERT INTO referrals
        (student_id, referrer_id, receiving_counselor_id, reason, notes, status)
-     VALUES (?, ?, ?, ?, ?, 'pending')`,
-    [studentId, referrerId, receivingCounselorId, reason.trim(), notes || null]
+     VALUES (?, ?, ?, ?, NULL, 'pending')`,
+    [student.id, referrerId, receivingCounselorId, reason]
   );
 
   await createNotification({
@@ -60,8 +129,10 @@ export const createReferral = async (req, res) => {
   notifyUser(receivingCounselorId, { type: "referrals" });
 
   await logAction(req, "create_referral", "referral", result.insertId, {
-    studentId,
+    studentIdNumber: trimmed.studentIdNumber,
+    studentId: student.id,
     receivingCounselorId,
+    placeholderCreated,
   });
 
   return res.status(201).json({ message: "Referral created", id: result.insertId });

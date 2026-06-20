@@ -21,6 +21,15 @@ export const pendingRegistrations = async (_req, res) => {
   return res.json(rows);
 };
 
+export const approvedThisWeekCount = async (_req, res) => {
+  const rows = await query(
+    `SELECT COUNT(*) AS count FROM users
+     WHERE role='student' AND status='approved' AND approved_at IS NOT NULL
+       AND YEARWEEK(approved_at, 1) = YEARWEEK(CURDATE(), 1)`
+  );
+  return res.json({ count: rows[0]?.count || 0 });
+};
+
 export const approveRegistration = async (req, res) => {
   const { id } = req.params;
   const { program, yearLevel } = req.body;
@@ -31,7 +40,7 @@ export const approveRegistration = async (req, res) => {
   }
 
   await query(
-    "UPDATE users SET status='approved', program=?, year_level=?, updated_at=NOW() WHERE id = ?",
+    "UPDATE users SET status='approved', program=?, year_level=?, approved_at=NOW(), updated_at=NOW() WHERE id = ?",
     [program || null, yearLevel || null, id]
   );
 

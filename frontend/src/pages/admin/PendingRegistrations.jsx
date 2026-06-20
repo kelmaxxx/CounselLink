@@ -55,7 +55,8 @@ const PROGRAMS = [
 const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
 
 export default function PendingRegistrations() {
-  const { fetchPendingRegistrations, approveRegistration, rejectRegistration } = useAuth();
+  const { fetchPendingRegistrations, fetchApprovedThisWeek, approveRegistration, rejectRegistration } =
+    useAuth();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
   const [selectedUser, setSelectedUser] = useState(null);
@@ -67,26 +68,32 @@ export default function PendingRegistrations() {
   const [message, setMessage] = useState(null);
 
   const [pendingUsers, setPendingUsers] = useState([]);
-  const [approvedToday, setApprovedToday] = useState(0);
+  const [approvedThisWeek, setApprovedThisWeek] = useState(0);
 
   useEffect(() => {
     let mounted = true;
     const loadPending = async () => {
       try {
         const data = await fetchPendingRegistrations();
-        if (mounted) {
-          setPendingUsers(data);
-          setApprovedToday(0);
-        }
+        if (mounted) setPendingUsers(data);
       } catch (err) {
         setMessage({ type: "error", text: err.message || "Unable to load pending registrations" });
       }
     };
+    const loadApprovedThisWeek = async () => {
+      try {
+        const count = await fetchApprovedThisWeek();
+        if (mounted) setApprovedThisWeek(count);
+      } catch {
+        // non-critical stat; ignore failures
+      }
+    };
     loadPending();
+    loadApprovedThisWeek();
     return () => {
       mounted = false;
     };
-  }, [fetchPendingRegistrations]);
+  }, [fetchPendingRegistrations, fetchApprovedThisWeek]);
 
   const handleApprove = async (user) => {
     if (!approvalForm.program || !approvalForm.yearLevel) {
@@ -100,6 +107,7 @@ export default function PendingRegistrations() {
         yearLevel: approvalForm.yearLevel,
       });
       setPendingUsers((prev) => prev.filter((item) => item.id !== user.id));
+      setApprovedThisWeek((prev) => prev + 1);
     } catch (err) {
       setMessage({ type: "error", text: err.message || "Unable to approve registration" });
       return;
@@ -193,8 +201,8 @@ export default function PendingRegistrations() {
           accent="bg-amber-500"
         />
         <StatCard
-          label="Approved today"
-          value={approvedToday}
+          label="Approved this week"
+          value={approvedThisWeek}
           hint="Sent welcome emails"
           icon={CheckCircle2}
           accent="bg-emerald-500"

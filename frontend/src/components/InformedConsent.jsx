@@ -19,7 +19,7 @@ const formatDateTime = (value) => {
 };
 
 export default function InformedConsentSection({ currentUser, onConsentChange }) {
-  const { getConsent, eSignConsent } = useStudentRecords?.() || {};
+  const { getConsent, eSignConsent, setReferralSharingConsent } = useStudentRecords?.() || {};
   const studentId = currentUser?.id;
 
   const [consent, setConsent] = useState(null);
@@ -28,6 +28,8 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
   const [typedName, setTypedName] = useState(currentUser?.name || "");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [sharingBusy, setSharingBusy] = useState(false);
+  const [sharingFeedback, setSharingFeedback] = useState(null);
 
   useEffect(() => {
     if (!studentId || !getConsent) {
@@ -83,6 +85,19 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
       onConsentChange?.(true);
     } else {
       setFeedback({ type: "error", text: res?.message || "Failed to record consent." });
+    }
+  };
+
+  const handleReferralSharingChoice = async (allow) => {
+    setSharingBusy(true);
+    setSharingFeedback(null);
+    const res = await setReferralSharingConsent(studentId, allow);
+    setSharingBusy(false);
+    if (res?.success) {
+      setConsent(res.consent);
+      setSharingFeedback({ type: "success", text: "Your choice has been saved." });
+    } else {
+      setSharingFeedback({ type: "error", text: res?.message || "Failed to save your choice." });
     }
   };
 
@@ -157,19 +172,73 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
       {loading ? (
         <p className="mt-4 text-sm text-gray-500">Checking your consent status…</p>
       ) : onFile ? (
-        <div className="mt-4 flex items-start gap-3 px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">
-          <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-medium">Consent on file</p>
-            {status === "signed" ? (
-              <p className="mt-0.5">
-                Signed by {consent.eConsentTypedName} on {formatDateTime(consent.eConsentSignedAt)}.
-              </p>
-            ) : (
-              <p className="mt-0.5">A signed paper consent is on file with your counselor.</p>
-            )}
+        <>
+          <div className="mt-4 flex items-start gap-3 px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 text-sm">
+            <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Consent on file</p>
+              {status === "signed" ? (
+                <p className="mt-0.5">
+                  Signed by {consent.eConsentTypedName} on {formatDateTime(consent.eConsentSignedAt)}.
+                </p>
+              ) : (
+                <p className="mt-0.5">A signed paper consent is on file with your counselor.</p>
+              )}
+            </div>
           </div>
-        </div>
+
+          <div className="mt-3 px-4 py-3.5 rounded-xl border border-gray-200 bg-white">
+            <p className="text-sm font-medium text-gray-900">Sharing with a college representative</p>
+            <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+              If a college representative refers you for counseling and later requests that
+              session's report, do you allow us to share it with them? This only applies to a
+              session that came from their referral — it does not affect any other counseling
+              record. You can change your answer anytime.
+            </p>
+
+            {sharingFeedback && (
+              <div
+                className={`mt-2 px-3 py-2 rounded-md border text-sm ${
+                  sharingFeedback.type === "success"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                    : "bg-red-50 border-red-200 text-red-700"
+                }`}
+              >
+                {sharingFeedback.text}
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleReferralSharingChoice(true)}
+                disabled={sharingBusy}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition disabled:opacity-50 ${
+                  consent?.referralSharingConsent === "yes"
+                    ? "bg-emerald-600 border-emerald-600 text-white"
+                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Yes, allow it
+              </button>
+              <button
+                type="button"
+                onClick={() => handleReferralSharingChoice(false)}
+                disabled={sharingBusy}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition disabled:opacity-50 ${
+                  consent?.referralSharingConsent === "no"
+                    ? "bg-maroon-600 border-maroon-600 text-white"
+                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                No, don&apos;t share
+              </button>
+              {!consent?.referralSharingConsent && (
+                <span className="text-xs text-gray-400">Not yet decided</span>
+              )}
+            </div>
+          </div>
+        </>
       ) : (
         <div className="mt-4 space-y-3">
           {status === "revoked" && (

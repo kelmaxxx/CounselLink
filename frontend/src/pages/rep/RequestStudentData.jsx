@@ -19,13 +19,14 @@ export default function RequestStudentData() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [counselors, setCounselors] = useState([]);
   const [loadingCounselors, setLoadingCounselors] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [form, setForm] = useState({
     requestType: "individual",
     counselorId: "",
-    studentName: searchParams.get("studentName") || "",
-    studentIdentifier: searchParams.get("studentIdentifier") || "",
+    studentId: searchParams.get("studentId") || "",
     reason: "",
   });
   const isCollege = form.requestType === "college";
@@ -33,13 +34,12 @@ export default function RequestStudentData() {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  // Drop the prefill params from the URL once they've been applied so a
-  // refresh does not re-stuff the form after the user clears it.
+  // Drop the prefill param from the URL once it's been applied so a refresh
+  // does not re-stuff the form after the user clears it.
   useEffect(() => {
-    if (searchParams.get("studentName") || searchParams.get("studentIdentifier")) {
+    if (searchParams.get("studentId")) {
       const next = new URLSearchParams(searchParams);
-      next.delete("studentName");
-      next.delete("studentIdentifier");
+      next.delete("studentId");
       setSearchParams(next, { replace: true });
     }
     // Run once on mount.
@@ -56,6 +56,18 @@ export default function RequestStudentData() {
       .then((data) => setCounselors(Array.isArray(data) ? data : []))
       .catch((err) => setError(err.message))
       .finally(() => setLoadingCounselors(false));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    setLoadingStudents(true);
+    fetch(`${API_BASE}/api/users?role=student`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => setStudents(Array.isArray(data) ? data : []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoadingStudents(false));
   }, [token]);
 
   const loadRequests = async () => {
@@ -88,8 +100,8 @@ export default function RequestStudentData() {
       setError("Counselor and reason are required.");
       return;
     }
-    if (!isCollege && !form.studentName.trim()) {
-      setError("Student name is required for an individual student request.");
+    if (!isCollege && !form.studentId) {
+      setError("Student is required for an individual student request.");
       return;
     }
     setSubmitting(true);
@@ -103,8 +115,7 @@ export default function RequestStudentData() {
         body: JSON.stringify({
           counselorId: Number(form.counselorId),
           requestType: form.requestType,
-          studentName: isCollege ? null : form.studentName.trim(),
-          studentIdentifier: isCollege ? null : form.studentIdentifier.trim() || null,
+          studentId: isCollege ? null : Number(form.studentId),
           reason: form.reason.trim(),
         }),
       });
@@ -112,15 +123,20 @@ export default function RequestStudentData() {
       if (!res.ok) {
         setError(body.message || "Failed");
       } else {
-        setSubmitted(true);
+        setSubmitted(
+          !isCollege
+            ? body.status === "fulfilled"
+              ? "Request fulfilled — the report is now available to you."
+              : "Request resolved — see the status and note below."
+            : true
+        );
         setForm({
           requestType: form.requestType,
           counselorId: "",
-          studentName: "",
-          studentIdentifier: "",
+          studentId: "",
           reason: "",
         });
-        setTimeout(() => setSubmitted(false), 3000);
+        setTimeout(() => setSubmitted(false), 4000);
         await loadRequests();
       }
     } catch (err) {
@@ -145,7 +161,7 @@ export default function RequestStudentData() {
 
       {submitted && (
         <div className="mb-4 px-3 py-2 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm">
-          Request submitted. The counselor has been notified.
+          {typeof submitted === "string" ? submitted : "Request submitted. The counselor has been notified."}
         </div>
       )}
 
@@ -198,28 +214,27 @@ export default function RequestStudentData() {
             </select>
           </div>
           {!isCollege && (
-            <>
-              <div>
-                <label className={LABEL}>Student name *</label>
-                <input
-                  type="text"
-                  required={!isCollege}
-                  className={INPUT}
-                  value={form.studentName}
-                  onChange={(e) => setForm({ ...form, studentName: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className={LABEL}>Student ID</label>
-                <input
-                  type="text"
-                  className={INPUT}
-                  value={form.studentIdentifier}
-                  onChange={(e) => setForm({ ...form, studentIdentifier: e.target.value })}
-                  placeholder="Optional — helps the counselor identify the student"
-                />
-              </div>
-            </>
+            <div>
+              <label className={LABEL}>Student *</label>
+              <select
+                required={!isCollege}
+                className={INPUT}
+                value={form.studentId}
+                onChange={(e) => setForm({ ...form, studentId: e.target.value })}
+                disabled={loadingStudents}
+              >
+                <option value="">{loadingStudents ? "Loading…" : "Select a student"}</option>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} {s.studentId ? `· ${s.studentId}` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                A session report is only released if this student referred from your office and
+                consented to share it. Otherwise the request is automatically declined.
+              </p>
+            </div>
           )}
           <div>
             <label className={LABEL}>Reason for request *</label>
