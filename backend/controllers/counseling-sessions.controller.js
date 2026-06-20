@@ -29,6 +29,36 @@ const parseFormData = (row) => {
   return { ...row, formData };
 };
 
+// Builds the report_recipients payload snapshot for a finalized session. Used
+// both by the automatic fan-out on finalize and by the individual
+// report-request auto-resolution path (report-requests.controller.js), so a
+// rep always sees an identical document however it reached them.
+// `session` is the snake_case row shape joined with student/counselor names
+// (student_id, counselor_id, session_date, presenting_concern, goals, summary,
+// plan, comments, next_session, counselor_signature, form_data, studentName,
+// studentCollege, counselorName).
+export const buildSessionReportPayload = (session) => {
+  let formData = session.form_data;
+  if (typeof formData === "string") {
+    try { formData = JSON.parse(formData); } catch { formData = null; }
+  }
+  return {
+    sessionId: session.id,
+    sessionDate: session.session_date,
+    studentName: session.studentName,
+    studentCollege: session.studentCollege,
+    counselorName: session.counselorName,
+    presentingConcern: session.presenting_concern,
+    goals: session.goals,
+    summary: session.summary,
+    plan: session.plan,
+    comments: session.comments,
+    nextSession: session.next_session,
+    counselorSignature: session.counselor_signature,
+    formData,
+  };
+};
+
 export const listSessions = async (req, res) => {
   const userId = req.user?.id;
   const role = req.user?.role;
@@ -247,43 +277,44 @@ export const finalizeSession = async (req, res) => {
     [id]
   );
 
+  // Privacy gate: a referral alone does not authorize sharing this session's
+  // details — the student must have separately agreed to it.
   let reportRecipientId = null;
+  let sharedWithRep = false;
   if (referrerId) {
-    let formData = session.form_data;
-    if (typeof formData === "string") {
-      try { formData = JSON.parse(formData); } catch { formData = null; }
-    }
-    const payload = {
-      sessionId: session.id,
-      sessionDate: session.session_date,
-      studentName: session.studentName,
-      studentCollege: session.studentCollege,
-      counselorName: session.counselorName,
-      presentingConcern: session.presenting_concern,
-      goals: session.goals,
-      summary: session.summary,
-      plan: session.plan,
-      comments: session.comments,
-      nextSession: session.next_session,
-      counselorSignature: session.counselor_signature,
-      formData,
-    };
-    const title = `Session Report — ${session.studentName} (${session.session_date})`;
-    const summaryText = (session.summary || session.presenting_concern || "").slice(0, 200) || null;
-
-    const insertResult = await query(
-      `INSERT INTO report_recipients (sender_id, recipient_id, title, summary, report_payload)
-       VALUES (?, ?, ?, ?, ?)`,
-      [counselorId, referrerId, title, summaryText, JSON.stringify(payload)]
+    const consentRows = await query(
+      "SELECT referral_sharing_consent FROM student_consents WHERE student_id = ?",
+      [session.student_id]
     );
-    reportRecipientId = insertResult.insertId;
+    const canShare = consentRows[0]?.referral_sharing_consent === "yes";
 
-    await createNotification({
-      userId: referrerId,
-      title: "Counseling report received",
-      message: `Session report for ${session.studentName} (${session.session_date}) is now available.`,
-      link: `/rep/counseling-data`,
-    });
+    if (canShare) {
+      const payload = buildSessionReportPayload(session);
+      const title = `Session Report — ${session.studentName} (${session.session_date})`;
+      const summaryText = (session.summary || session.presenting_concern || "").slice(0, 200) || null;
+
+      const insertResult = await query(
+        `INSERT INTO report_recipients (sender_id, recipient_id, title, summary, report_payload)
+         VALUES (?, ?, ?, ?, ?)`,
+        [counselorId, referrerId, title, summaryText, JSON.stringify(payload)]
+      );
+      reportRecipientId = insertResult.insertId;
+      sharedWithRep = true;
+
+      await createNotification({
+        userId: referrerId,
+        title: "Counseling report received",
+        message: `Session report for ${session.studentName} (${session.session_date}) is now available.`,
+        link: `/rep/counseling-data`,
+      });
+    } else {
+      await createNotification({
+        userId: referrerId,
+        title: "Session completed — sharing not consented",
+        message: `Session for ${session.studentName} (${session.session_date}) was completed, but the student has not consented to share their counseling session details with you.`,
+        link: `/rep/counseling-data`,
+      });
+    }
     notifyUser(referrerId, { type: "sessions" });
   }
 
@@ -293,7 +324,8 @@ export const finalizeSession = async (req, res) => {
   await logAction(req, "finalize_session", "counseling_session", id, {
     studentId: session.student_id,
     appointmentId: session.appointment_id,
-    fannedOutToRep: referrerId,
+    referrerId,
+    sharedWithRep,
     reportRecipientId,
   });
 
@@ -302,6 +334,6 @@ export const finalizeSession = async (req, res) => {
     message: "Session report submitted",
     session: parseFormData(rows[0]),
     reportRecipientId,
-    fannedOutToRep: referrerId,
+    fannedOutToRep: sharedWithRep ? referrerId : null,
   });
 };

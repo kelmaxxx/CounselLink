@@ -13,6 +13,7 @@ import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
 import { Modal, BTN, formatDate } from "../ui";
 import { downloadReportAsDocx, downloadReportAsPdf } from "../../utils/sessionReport";
+import ReportPreview from "./ReportPreview";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -110,6 +111,29 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
             <p>This student has not yet provided consent. Either ask them to e-sign on their own page (Student → Informed Consent), or upload a signed scan below.</p>
           </div>
         )}
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
+        <h4 className="font-semibold text-gray-900 mb-2">Referral data sharing</h4>
+        <p className="text-sm text-gray-600">
+          Whether the student allows a referral session's report to be shared with the
+          requesting College Representative. This is the student's own choice and cannot be
+          overridden here.
+        </p>
+        <div className="mt-2">
+          {consent?.referralSharingConsent === "yes" ? (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">Allowed</span>
+          ) : consent?.referralSharingConsent === "no" ? (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Not allowed</span>
+          ) : (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Not yet decided</span>
+          )}
+          {consent?.referralSharingDecidedAt && (
+            <span className="text-xs text-gray-500 ml-2">
+              as of {formatDateTime(consent.referralSharingDecidedAt)}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
@@ -328,32 +352,9 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
         }
       >
         {viewing && (
-          <dl className="divide-y divide-gray-100 text-sm">
-            <SessionViewRow label="Student" value={viewing.studentName || student?.name} />
-            <SessionViewRow label="College" value={viewing.studentCollege || student?.college} />
-            <SessionViewRow label="Session date" value={formatDate(viewing.sessionDate)} />
-            <SessionViewRow label="Counselor" value={viewing.counselorName} />
-            <SessionViewRow label="Presenting concern" value={viewing.presentingConcern} />
-            <SessionViewRow label="Goals" value={viewing.goals} />
-            <SessionViewRow label="Summary" value={viewing.summary} />
-            <SessionViewRow label="Plan" value={viewing.plan} />
-            <SessionViewRow label="Comments" value={viewing.comments} />
-            <SessionViewRow label="Next session" value={NEXT_LABELS[viewing.nextSession] || viewing.nextSession} />
-            <SessionViewRow label="Signed by" value={viewing.counselorSignature} />
-          </dl>
+          <ReportPreview report={viewing} title={titleFor(viewing)} />
         )}
       </Modal>
-    </div>
-  );
-}
-
-function SessionViewRow({ label, value }) {
-  return (
-    <div className="py-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-      <dt className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</dt>
-      <dd className="sm:col-span-2 text-sm text-gray-900 whitespace-pre-wrap">
-        {value || <span className="text-gray-400">—</span>}
-      </dd>
     </div>
   );
 }

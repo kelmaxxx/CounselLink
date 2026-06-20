@@ -22,6 +22,7 @@ const FIELD_TO_COLUMN = {
   college: "college",
   program: "program",
   yearLevel: "year_level",
+  studentId: "student_id",
   employeeId: "employee_id",
   avatarUrl: "avatar_url",
   avatarFileName: "avatar_file_name",
@@ -38,7 +39,7 @@ const SELF_UPDATABLE = {
 };
 
 const ADMIN_UPDATABLE = [
-  "name", "email", "phone", "bio", "college",
+  "name", "email", "phone", "bio", "college", "program", "studentId",
   "department", "specialization", "position", "employeeId",
   ...AVATAR_FIELDS,
 ];

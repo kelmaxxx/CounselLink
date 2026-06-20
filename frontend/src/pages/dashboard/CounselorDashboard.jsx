@@ -124,9 +124,12 @@ export default function CounselorDashboard() {
   const totalStudents = students.length;
   const pendingAppointments = myAppointments.filter((a) => a.status === "pending");
   const pendingTests = myTests.filter((t) => t.status === "pending");
-  const todayAppointments = myAppointments.filter(
-    (a) => a.status === "approved" || a.status === "rescheduled"
-  ).length;
+  const todayAppointments = myAppointments.filter((a) => {
+    if (a.status !== "approved" && a.status !== "rescheduled") return false;
+    const todayStr = new Date().toISOString().split("T")[0];
+    const apptDate = (a.scheduledDate || "").split("T")[0];
+    return apptDate === todayStr;
+  }).length;
   const reportsGenerated = 0;
 
   const topColleges = Object.entries(studentsByCollege).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -275,6 +278,7 @@ export default function CounselorDashboard() {
       detail: "General Counseling",
       date: x.preferredDate,
       slot: Array.isArray(x.preferredSlots) ? x.preferredSlots[0] : x.timeSlot,
+      isUrgent: Boolean(x.is_urgent || x.isUrgent),
     }));
     const t = pendingTests.map((x) => ({
       key: `t-${x.id}`,
@@ -452,8 +456,16 @@ export default function CounselorDashboard() {
 
                   {/* Preferred */}
                   <div className="md:col-span-3 text-xs text-gray-700 tabular-nums">
-                    <div className="font-medium text-gray-900">{formatDate(row.date)}</div>
-                    <div className="text-gray-500">{timeLabel(row.slot)}</div>
+                    {row.isUrgent ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                        <AlertTriangle size={11} /> Urgent
+                      </span>
+                    ) : (
+                      <>
+                        <div className="font-medium text-gray-900">{formatDate(row.date)}</div>
+                        <div className="text-gray-500">{timeLabel(row.slot)}</div>
+                      </>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -465,6 +477,15 @@ export default function CounselorDashboard() {
                     >
                       <MessageCircle size={14} />
                     </button>
+                    {row.isUrgent && row.type === "appointment" && (
+                      <Link
+                        to={`/counselor/appointments/${row.id}/form`}
+                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
+                        title="Open form"
+                      >
+                        <FileText size={13} /> Open form
+                      </Link>
+                    )}
                     <button
                       onClick={() => onAccept(row)}
                       className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
@@ -472,13 +493,15 @@ export default function CounselorDashboard() {
                     >
                       <Check size={13} /> Accept
                     </button>
-                    <button
-                      onClick={() => onReschedule(row)}
-                      className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-100 transition"
-                      title="Reschedule"
-                    >
-                      <CalendarClock size={13} /> Reschedule
-                    </button>
+                    {!row.isUrgent && (
+                      <button
+                        onClick={() => onReschedule(row)}
+                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-100 transition"
+                        title="Reschedule"
+                      >
+                        <CalendarClock size={13} /> Reschedule
+                      </button>
+                    )}
                     <button
                       onClick={() => onReject(row)}
                       className="w-7 h-7 inline-flex items-center justify-center rounded-md text-red-600 hover:bg-red-50 transition"
