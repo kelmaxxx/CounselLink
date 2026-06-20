@@ -55,7 +55,7 @@ export default function CounselorAppointments() {
     rejectAppointment,
     rescheduleAppointment,
   } = useAppointments();
-  const { getTestsForCurrentUser } = useTests();
+  const { getTestsForCurrentUser, fetchTests } = useTests();
   const { fetchSessionByAppointment, deleteSession, sessions } = useCounselingSessions();
   const [busyId, setBusyId] = useState(null);
 
@@ -80,17 +80,29 @@ export default function CounselorAppointments() {
     appt: null,
   });
 
+  const [actionErrorModal, setActionErrorModal] = useState({ open: false, message: "" });
+
   const handleMarkDone = (id, type = "counseling") => {
     setCompleteConfirmModal({ open: true, id, type });
   };
 
   const submitComplete = async () => {
-    const { id } = completeConfirmModal;
+    const { id, type } = completeConfirmModal;
     setCompleteConfirmModal({ open: false, id: null, type: "counseling" });
     setBusyId(id);
     const res = await completeAppointment({ id });
     setBusyId(null);
-    if (!res.success) alert(res.message || "Failed to mark as done");
+    if (!res.success) {
+      setActionErrorModal({ open: true, message: res.message || "Failed to mark as done" });
+      return;
+    }
+    // Psychological tests live in their own TestsContext cache, separate from
+    // AppointmentsContext — completing one updates the appointments table but
+    // doesn't refresh that cache, so the row stuck around until a manual
+    // page reload. Refetch it explicitly here.
+    if (type === "test") {
+      fetchTests().catch(() => undefined);
+    }
   };
 
   const handleDiscardSession = (appt) => {
@@ -807,6 +819,24 @@ export default function CounselorAppointments() {
             ? "Mark this psychological test request as completed? You will be able to fill up the test results and release them to the student afterwards."
             : "Mark this counseling session as completed? You will be able to open the form and submit the final Session Report afterwards."}
         </p>
+      </Modal>
+
+      <Modal
+        open={actionErrorModal.open}
+        onClose={() => setActionErrorModal({ open: false, message: "" })}
+        title="Unable to complete this action"
+        danger
+        footer={
+          <button
+            type="button"
+            className={BTN.primary}
+            onClick={() => setActionErrorModal({ open: false, message: "" })}
+          >
+            OK
+          </button>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">{actionErrorModal.message}</p>
       </Modal>
 
       <Modal

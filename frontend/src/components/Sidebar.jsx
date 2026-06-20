@@ -33,7 +33,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     "request-appointment": "/student/request-appointment",
     "my-appointments": "/student/appointments",
     "counselor-directory": "/student/counselors",
-    "student-feedback": "/student/feedback",
     consent: "/student/consent",
 
     // Role-aware shared items

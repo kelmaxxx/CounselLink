@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
   User,
@@ -14,6 +15,9 @@ import {
   Hash,
   MessageSquare,
   Building2,
+  ClipboardCheck,
+  ThumbsUp,
+  ClipboardList,
 } from "lucide-react";
 import {
   PageHeader,
@@ -22,9 +26,9 @@ import {
   BTN,
   INPUT,
   LABEL,
-  initialsOf,
 } from "../../components/ui";
 import ProfileHero from "../../components/ProfileHero";
+import { CounselorRatingBadge } from "../../components/RatingStars";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -39,6 +43,7 @@ const DSA_UNITS = [
 
 export default function CounselorProfile() {
   const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
+  const navigate = useNavigate();
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -144,23 +149,32 @@ export default function CounselorProfile() {
         title="My profile"
         subtitle="Manage your professional information and what students see."
         actions={
-          !isEditing ? (
-            <button onClick={() => setIsEditing(true)} className={BTN.primary}>
-              <Edit2 size={15} />
-              Edit profile
+          <>
+            <button
+              onClick={() => navigate("/counselor/feedback-tally")}
+              className={BTN.secondary}
+            >
+              <ClipboardCheck size={15} />
+              Feedback Summary
             </button>
-          ) : (
-            <>
-              <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
-                <X size={15} />
-                Cancel
+            {!isEditing ? (
+              <button onClick={() => setIsEditing(true)} className={BTN.primary}>
+                <Edit2 size={15} />
+                Edit profile
               </button>
-              <button onClick={handleSave} className={BTN.primary} disabled={saving}>
-                <Save size={15} />
-                {saving ? "Saving…" : "Save changes"}
-              </button>
-            </>
-          )
+            ) : (
+              <>
+                <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
+                  <X size={15} />
+                  Cancel
+                </button>
+                <button onClick={handleSave} className={BTN.primary} disabled={saving}>
+                  <Save size={15} />
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+              </>
+            )}
+          </>
         }
       />
 
@@ -191,6 +205,9 @@ export default function CounselorProfile() {
           myRecord?.department && { label: myRecord.department, icon: Briefcase },
           myRecord?.specialization && { label: myRecord.specialization, icon: Award },
         ].filter(Boolean)}
+        topRightSlot={
+          myRecord?.id ? <CounselorRatingBadge counselorId={myRecord.id} size={16} /> : null
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
@@ -318,7 +335,7 @@ export default function CounselorProfile() {
         )}
       </SectionCard>
 
-      <FeedbackPanel />
+      <FeedbackTallyBar />
     </div>
   );
 }
@@ -347,9 +364,15 @@ function Readout({ icon: Icon, label, value }) {
   );
 }
 
-function FeedbackPanel() {
+function FeedbackTallyBar() {
   const { token } = useAuth();
-  const [data, setData] = useState({ items: [], count: 0, average: null });
+  const emptyTally = {
+    count: 0,
+    rating: { average: null },
+    overallSatisfaction: { average: null },
+    recommend: { yes: 0, no: 0, not_sure: 0 },
+  };
+  const [tally, setTally] = useState(emptyTally);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -357,21 +380,17 @@ function FeedbackPanel() {
     if (!token) return;
     let mounted = true;
     setLoading(true);
-    fetch(`${API_BASE}/api/feedback?counselorId=me`, {
+    fetch(`${API_BASE}/api/client-feedback/tally?counselorId=me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json().then((body) => ({ res, body })))
       .then(({ res, body }) => {
         if (!mounted) return;
         if (!res.ok) {
-          setError(body.message || "Unable to load feedback");
-          setData({ items: [], count: 0, average: null });
+          setError(body.message || "Unable to load feedback tally");
+          setTally(emptyTally);
         } else {
-          setData({
-            items: Array.isArray(body.items) ? body.items : [],
-            count: body.count || 0,
-            average: body.average,
-          });
+          setTally(body);
         }
       })
       .catch((err) => mounted && setError(err.message))
@@ -379,88 +398,59 @@ function FeedbackPanel() {
     return () => {
       mounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  const recommendTotal = tally.recommend.yes + tally.recommend.no + tally.recommend.not_sure;
+  const recommendRate = recommendTotal ? (tally.recommend.yes / recommendTotal) * 100 : null;
+  const fmt = (n) => (n === null || n === undefined ? "—" : n.toFixed(1));
 
   return (
     <SectionCard
       title="Student feedback"
       subtitle={
-        data.count > 0
-          ? `${data.count} response${data.count === 1 ? "" : "s"} · average ${
-              data.average?.toFixed(1) ?? "—"
-            } / 5`
+        tally.count > 0
+          ? `${tally.count} response${tally.count === 1 ? "" : "s"} · Client Feedback Form (all time)`
           : "No feedback received yet"
       }
-      noBodyPadding
-      action={
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-0.5 text-amber-500">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                size={14}
-                fill={data.average && i < Math.round(data.average) ? "currentColor" : "none"}
-                stroke="currentColor"
-              />
-            ))}
-          </div>
-          {data.average !== null && data.average !== undefined && (
-            <span className="text-sm font-semibold text-gray-900 tabular-nums">
-              {data.average?.toFixed(1)}
-            </span>
-          )}
-        </div>
-      }
     >
-      {error && (
-        <div className="px-4 py-2 text-sm text-red-600 bg-red-50 border-b border-red-100">
-          {error}
-        </div>
-      )}
+      {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
       {loading ? (
-        <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
-      ) : data.items.length === 0 && !error ? (
+        <div className="text-sm text-gray-500 text-center py-6">Loading…</div>
+      ) : tally.count === 0 ? (
         <EmptyState
           icon={MessageSquare}
           title="No feedback yet"
-          hint="When students submit feedback after a session, it will appear here."
+          hint="When students submit the Client Feedback Form, a summary appears here."
         />
       ) : (
-        <ul className="divide-y divide-gray-100">
-          {data.items.map((fb) => (
-            <li key={fb.id} className="px-4 py-3 hover:bg-gray-50/60 transition">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                    {initialsOf(fb.studentName) || "AN"}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {fb.studentName || "Anonymous"}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {fb.created_at ? new Date(fb.created_at).toLocaleString() : ""}
-                    </p>
-                    {fb.comment && (
-                      <p className="text-sm text-gray-700 mt-1 leading-relaxed">{fb.comment}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-0.5 text-amber-500 flex-shrink-0">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      size={12}
-                      fill={i < fb.rating ? "currentColor" : "none"}
-                      stroke="currentColor"
-                    />
-                  ))}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <BarStat icon={ClipboardList} label="Responses" value={tally.count} />
+          <BarStat icon={Star} label="Avg. rating" value={`${fmt(tally.rating.average)} / 5`} />
+          <BarStat
+            icon={ClipboardCheck}
+            label="Avg. satisfaction"
+            value={`${fmt(tally.overallSatisfaction.average)} / 5`}
+          />
+          <BarStat
+            icon={ThumbsUp}
+            label="Recommend rate"
+            value={recommendRate === null ? "—" : `${recommendRate.toFixed(0)}%`}
+          />
+        </div>
       )}
     </SectionCard>
+  );
+}
+
+function BarStat({ icon: Icon, label, value }) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-center">
+      <div className="flex items-center justify-center gap-1.5 text-gray-400 mb-1">
+        {Icon && <Icon size={13} />}
+        <span className="text-xs font-medium text-gray-500">{label}</span>
+      </div>
+      <div className="text-xl font-semibold text-gray-900 tabular-nums">{value}</div>
+    </div>
   );
 }

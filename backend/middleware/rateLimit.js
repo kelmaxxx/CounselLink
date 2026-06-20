@@ -13,9 +13,9 @@ const limiter = (windowMs, max, message) =>
 // server.js sets `trust proxy` so this keys on the real client IP behind
 // Render/Vercel proxies.
 export const loginLimiter = limiter(
-  15 * 60 * 1000,
+  5 * 60 * 1000,
   10,
-  "Too many login attempts. Try again in 15 minutes."
+  "Too many login attempts. Try again in 5 minutes."
 );
 
 export const registerLimiter = limiter(
