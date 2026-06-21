@@ -246,6 +246,24 @@ CREATE TABLE IF NOT EXISTS feedback (
   CONSTRAINT chk_feedback_rating CHECK (rating BETWEEN 1 AND 5)
 );
 
+CREATE TABLE IF NOT EXISTS client_feedback_forms (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  student_id INT NOT NULL,
+  counselor_id INT NOT NULL,
+  appointment_id INT NULL,
+  responses JSON NOT NULL,
+  overall_satisfaction TINYINT NOT NULL,
+  would_recommend ENUM('yes','no','not_sure') NOT NULL,
+  rating TINYINT NULL,
+  comments TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES users(id),
+  FOREIGN KEY (counselor_id) REFERENCES users(id),
+  FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL,
+  INDEX idx_cff_counselor (counselor_id, created_at),
+  INDEX idx_cff_student (student_id, created_at)
+);
+
 CREATE TABLE IF NOT EXISTS report_recipients (
   id INT PRIMARY KEY AUTO_INCREMENT,
   sender_id INT NOT NULL,
