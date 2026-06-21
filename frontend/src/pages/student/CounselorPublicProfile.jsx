@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, MessageCircle, Mail, Briefcase, Award, User, Star } from "lucide-react";
+import { ArrowLeft, MessageCircle, Mail, Briefcase, Award, User, ClipboardList } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import ChatModal from "../../components/ChatModal";
-import { FeedbackModal } from "./StudentFeedback";
+import { ClientFeedbackFormModal } from "./ClientFeedbackForm";
+import { CounselorRatingBadge } from "../../components/RatingStars";
 import { PageHeader, SectionCard, BTN, initialsOf } from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -17,7 +18,7 @@ export default function CounselorPublicProfile() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [clientFormOpen, setClientFormOpen] = useState(false);
 
   useEffect(() => {
     fetchAppointments?.().catch(() => undefined);
@@ -89,8 +90,8 @@ export default function CounselorPublicProfile() {
             subtitle={`${user.department || "Counselor"}${user.specialization ? ` · ${user.specialization}` : ""}`}
             actions={
               <div className="flex gap-2">
-                <button onClick={() => setFeedbackOpen(true)} className={BTN.secondary}>
-                  <Star size={15} className="mr-1.5 inline-block text-amber-500 fill-amber-500" /> Feedback
+                <button onClick={() => setClientFormOpen(true)} className={BTN.secondary}>
+                  <ClipboardList size={15} className="mr-1.5 inline-block" /> Client Feedback Form
                 </button>
                 <button onClick={() => setChatOpen(true)} className={BTN.primary}>
                   <MessageCircle size={15} /> Send message
@@ -100,12 +101,15 @@ export default function CounselorPublicProfile() {
           />
 
           {/* Hero card */}
-          <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 mb-4">
+          <div className="relative bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 mb-4">
+            <div className="absolute top-4 right-5">
+              <CounselorRatingBadge counselorId={user.id} size={16} />
+            </div>
             <div className="flex items-start gap-4">
               <div className="w-16 h-16 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-lg font-semibold flex-shrink-0">
                 {initialsOf(user.name) || <User size={24} />}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pr-24">
                 <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
                 <p className="text-sm text-gray-500 capitalize">{user.role?.replace("_", " ")}</p>
                 <dl className="mt-3 space-y-2 text-sm">
@@ -132,15 +136,15 @@ export default function CounselorPublicProfile() {
       )}
 
       {chatOpen && user && <ChatModal recipientUser={user} onClose={() => setChatOpen(false)} />}
-      {feedbackOpen && user && (
-        <FeedbackModal
+      {clientFormOpen && user && (
+        <ClientFeedbackFormModal
           token={token}
           context={{
             counselorId: user.id,
             counselorName: user.name,
             appointmentId: latestCompletedApptId,
           }}
-          onClose={() => setFeedbackOpen(false)}
+          onClose={() => setClientFormOpen(false)}
         />
       )}
     </div>

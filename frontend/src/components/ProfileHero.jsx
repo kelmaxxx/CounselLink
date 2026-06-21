@@ -58,6 +58,7 @@ export default function ProfileHero({
   avatarUrl,
   onChangePhoto,
   uploading = false,
+  topRightSlot,
 }) {
   const t = THEMES[theme] || THEMES.student;
   const RoleIcon = t.icon;
@@ -78,7 +79,8 @@ export default function ProfileHero({
         </div>
       </div>
 
-      <div className="px-5 pb-5 pt-3">
+      <div className="px-5 pb-5 pt-3 relative">
+        {topRightSlot && <div className="absolute top-3 right-5">{topRightSlot}</div>}
         <div className="flex items-start gap-4 flex-wrap">
           <div className="relative flex-shrink-0 -mt-14">
             <Avatar
