@@ -17,7 +17,6 @@ import {
   X,
   Clock3,
   AlertTriangle,
-  Trash2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
@@ -55,8 +54,13 @@ export default function CounselorAppointments() {
     rejectAppointment,
     rescheduleAppointment,
   } = useAppointments();
+<<<<<<< HEAD
   const { getTestsForCurrentUser, fetchTests } = useTests();
   const { fetchSessionByAppointment, deleteSession, sessions } = useCounselingSessions();
+=======
+  const { getTestsForCurrentUser } = useTests();
+  const { sessions } = useCounselingSessions();
+>>>>>>> proper-and-printable-counseling-form
   const [busyId, setBusyId] = useState(null);
 
   // Pending-request action modals
@@ -75,6 +79,7 @@ export default function CounselorAppointments() {
     type: "counseling", // "counseling" or "test"
   });
 
+<<<<<<< HEAD
   const [discardConfirmModal, setDiscardConfirmModal] = useState({
     open: false,
     appt: null,
@@ -82,6 +87,8 @@ export default function CounselorAppointments() {
 
   const [actionErrorModal, setActionErrorModal] = useState({ open: false, message: "" });
 
+=======
+>>>>>>> proper-and-printable-counseling-form
   const handleMarkDone = (id, type = "counseling") => {
     setCompleteConfirmModal({ open: true, id, type });
   };
@@ -102,45 +109,6 @@ export default function CounselorAppointments() {
     // page reload. Refetch it explicitly here.
     if (type === "test") {
       fetchTests().catch(() => undefined);
-    }
-  };
-
-  const handleDiscardSession = (appt) => {
-    setDiscardConfirmModal({ open: true, appt });
-  };
-
-  const submitDiscard = async () => {
-    const { appt } = discardConfirmModal;
-    setDiscardConfirmModal({ open: false, appt: null });
-    if (!appt) return;
-    setBusyId(appt.id);
-    try {
-      // 1. Fetch draft session if it exists
-      const session = await fetchSessionByAppointment(appt.id);
-      if (session) {
-        if (session.finalizedAt) {
-          alert("Cannot delete a finalized session report.");
-          return;
-        }
-        await deleteSession(session.id);
-      }
-      
-      // 2. Reset appointment status back to 'approved'
-      const slot = appt.scheduledTimeSlot || appt.timeSlot || (appt.preferred_slots ? appt.preferred_slots.split(",")[0] : null);
-      const res = await acceptAppointment({
-        id: appt.id,
-        date: appt.scheduledDate || appt.preferredDate,
-        timeSlot: slot,
-        note: appt.note || null,
-      });
-      if (!res.success) {
-        alert(res.message || "Failed to update appointment status");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to discard session");
-    } finally {
-      setBusyId(null);
     }
   };
 
@@ -234,6 +202,22 @@ export default function CounselorAppointments() {
   const upcomingTests = myTests.filter(
     (t) => t.status === "approved" || t.status === "rescheduled"
   );
+  const completedTests = myTests.filter((t) => t.status === "completed");
+  // Unified "Completed Appointments" list — counseling sessions and
+  // psychological tests both shown together, newest first.
+  const recentlyCompleted = [
+    ...completedAppointments.map((a) => ({ ...a, _type: "counseling" })),
+    ...completedTests.map((t) => ({ ...t, _type: "test" })),
+  ].sort((x, y) => {
+    const dx = new Date(x.scheduledDate || x.preferredDate || 0).getTime();
+    const dy = new Date(y.scheduledDate || y.preferredDate || 0).getTime();
+    return dy - dx;
+  });
+  // All counseling appointments that aren't finished yet — approved, rescheduled,
+  // pending, follow-up, or urgent/emergency requests all carry one of these statuses.
+  const notCompletedAppointments = myAppointments.filter(
+    (a) => a.status !== "completed" && a.status !== "rejected"
+  );
 
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto">
@@ -253,6 +237,13 @@ export default function CounselorAppointments() {
           accent="bg-amber-500"
         />
         <StatCard
+          label="Counseling sessions"
+          value={notCompletedAppointments.length}
+          hint="Not yet completed"
+          icon={CalendarClock}
+          accent="bg-sky-500"
+        />
+        <StatCard
           label="Psych tests"
           value={upcomingTests.length}
           hint="Confirmed tests"
@@ -260,20 +251,10 @@ export default function CounselorAppointments() {
           accent="bg-blue-500"
         />
         <StatCard
-          label="Rescheduled"
-          value={
-            upcomingAppointments.filter((a) => a.status === "rescheduled").length +
-            upcomingTests.filter((t) => t.status === "rescheduled").length
-          }
-          hint="Across both queues"
-          icon={CalendarClock}
-          accent="bg-sky-500"
-        />
-        <StatCard
-          label="Total upcoming"
-          value={upcomingAppointments.length + upcomingTests.length}
-          hint="All schedules"
-          icon={FileText}
+          label="Completed appointments"
+          value={completedAppointments.length + completedTests.length}
+          hint="Sessions & tests"
+          icon={CheckCircle2}
           accent="bg-gray-400"
         />
       </div>
@@ -425,6 +406,12 @@ export default function CounselorAppointments() {
           <ul className="divide-y divide-gray-100">
             {upcomingAppointments.map((a) => {
               const studentId = a.student_id || a.studentUserId;
+              // Follow-up appointments are created with this fixed reason by
+              // executeSubmitReport (StudentCounselingForm.jsx) — there's no
+              // dedicated "follow-up" appointment status, so this is how we
+              // tell a fresh approval apart from a scheduled follow-up.
+              const isFollowup = a.status === "approved" && a.reason === "Follow-up Session";
+              const displayStatus = isFollowup ? "followup" : a.status;
               const original = a.preferredDate
                 ? `${formatDate(a.preferredDate)} · ${timeLabel(
                     a.timeSlot ||
@@ -451,9 +438,13 @@ export default function CounselorAppointments() {
                           {a.studentName}
                         </button>
                         <span className="text-xs text-gray-500">{a.college || "—"}</span>
+<<<<<<< HEAD
                         <StatusPill
                           status={a.status === "approved" && a.reason === "Follow-up Session" ? "followup" : a.status}
                         />
+=======
+                        <StatusPill status={displayStatus} />
+>>>>>>> proper-and-printable-counseling-form
                         {a.controlNo && (
                           <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
                             <Hash size={10} />
@@ -528,60 +519,9 @@ export default function CounselorAppointments() {
         )}
       </SectionCard>
 
-      {completedAppointments.length > 0 && (
-        <SectionCard
-          className="mb-6"
-          title="Recently completed"
-          subtitle={`${completedAppointments.length} session${
-            completedAppointments.length === 1 ? "" : "s"
-          } — finalize the Session Report to deliver it to the referring College Representative.`}
-          noBodyPadding
-        >
-          <ul className="divide-y divide-gray-100">
-            {completedAppointments.slice(0, 10).map((a) => (
-              <li key={a.id} className="px-4 py-3 hover:bg-gray-50/70 transition">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                    {initialsOf(a.studentName)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-gray-900">
-                        {a.studentName}
-                      </span>
-                      <span className="text-xs text-gray-500">{a.college || "—"}</span>
-                      <StatusPill status="completed" />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
-                      {formatDate(a.scheduledDate || a.preferredDate)}
-                      {a.scheduledTimeSlot ? ` · ${timeLabel(a.scheduledTimeSlot)}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={`/counselor/appointments/${a.id}/form`}
-                      className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
-                    >
-                      <FileText size={13} /> Submit Report
-                    </a>
-                    <button
-                      onClick={() => handleDiscardSession(a)}
-                      disabled={busyId === a.id}
-                      className="w-8 h-8 inline-flex items-center justify-center rounded-md border border-gray-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition"
-                      title="Discard completed session and delete draft"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
-      )}
-
       {/* Psychological tests */}
       <SectionCard
+        className="mb-6"
         title="Psychological tests"
         subtitle={`${upcomingTests.length} scheduled`}
         noBodyPadding
@@ -704,6 +644,53 @@ export default function CounselorAppointments() {
         )}
       </SectionCard>
 
+      {recentlyCompleted.length > 0 && (
+        <SectionCard
+          className="mb-6"
+          title="Completed Appointments"
+          subtitle={`${recentlyCompleted.length} completed appointment${
+            recentlyCompleted.length === 1 ? "" : "s"
+          } — counseling sessions and psychological tests.`}
+          noBodyPadding
+        >
+          <ul className="divide-y divide-gray-100">
+            {recentlyCompleted.slice(0, 10).map((item) => (
+              <li key={`${item._type}-${item.id}`} className="px-4 py-3 hover:bg-gray-50/70 transition">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                    {initialsOf(item.studentName)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {item.studentName}
+                      </span>
+                      <span className="text-xs text-gray-500">{item.college || "—"}</span>
+                      <StatusPill status="completed" />
+                      {item._type === "test" ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                          <ClipboardList size={11} />
+                          {item.testType || "Psychological test"}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-maroon-50 text-maroon-700 border-maroon-200">
+                          <FileText size={11} />
+                          Counseling
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
+                      {formatDate(item.scheduledDate || item.preferredDate)}
+                      {item.scheduledTimeSlot ? ` · ${timeLabel(item.scheduledTimeSlot)}` : ""}
+                    </p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      )}
+
       {/* Reschedule pending request */}
       <Modal
         open={rescheduleModal.open}
@@ -825,6 +812,7 @@ export default function CounselorAppointments() {
         </p>
       </Modal>
 
+<<<<<<< HEAD
       <Modal
         open={actionErrorModal.open}
         onClose={() => setActionErrorModal({ open: false, message: "" })}
@@ -869,6 +857,8 @@ export default function CounselorAppointments() {
         </p>
       </Modal>
 
+=======
+>>>>>>> proper-and-printable-counseling-form
       {selectedProfile && (
         <ProfileViewModal
           user={selectedProfile}

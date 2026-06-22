@@ -3,12 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useAuth } from "../../context/AuthContext";
+<<<<<<< HEAD
 import { useStudentRecords } from "../../context/StudentRecordsContext";
+=======
+>>>>>>> proper-and-printable-counseling-form
 import { downloadReportAsPdf } from "../../utils/sessionReport";
 import {
   ArrowLeft,
   ArrowRight,
   Printer,
+  FileDown,
   UserRound,
   ClipboardList,
   Target,
@@ -91,6 +95,7 @@ export default function StudentCounselingForm() {
     return sessions.filter((s) => (s.studentId === studentId || s.student_id === studentId) && s.finalizedAt).length;
   }, [studentId, sessions]);
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!studentId) return;
     getConsent(studentId)
@@ -113,13 +118,20 @@ export default function StudentCounselingForm() {
     }
   };
 
+=======
+>>>>>>> proper-and-printable-counseling-form
   const handlePrint = () => {
     downloadReportAsPdf(
       {
         studentName: form.studentName,
+<<<<<<< HEAD
         studentCollege: appt?.college,
         counselorName: form.counselorName,
         sessionDate: form.sessionDate,
+=======
+        sessionDate: form.sessionDate,
+        counselorName: form.counselorName,
+>>>>>>> proper-and-printable-counseling-form
         presentingConcern: form.presentingConcern,
         goals: form.goals,
         summary: form.summary,
@@ -423,6 +435,9 @@ export default function StudentCounselingForm() {
               <div className="flex items-center gap-2 flex-wrap justify-end">
                 <button type="button" onClick={handlePrint} className={BTN.secondary}>
                   <Printer size={14} /> Print
+                </button>
+                <button type="button" onClick={handlePrint} className={BTN.secondary}>
+                  <FileDown size={14} /> Export PDF
                 </button>
                 {!isFinalized && (
                   <>
@@ -736,6 +751,7 @@ function NextOption({ active, onClick, title, desc }) {
   );
 }
 
+<<<<<<< HEAD
 function ReviewStep({
   form,
   setField,
@@ -747,6 +763,9 @@ function ReviewStep({
   consentFeedback,
   onSetReferralSharing,
 }) {
+=======
+function ReviewStep({ form, setField, reason, onJump, isFinalized }) {
+>>>>>>> proper-and-printable-counseling-form
   const reasons = [
     reason.routine && `Routine${reason.routineNth ? ` (${reason.routineNth})` : ""}`,
     reason.studentInitiated && "Student initiated",
@@ -763,7 +782,11 @@ function ReviewStep({
           : "Check everything, then sign and submit. You can also save a draft."
       }
     >
+<<<<<<< HEAD
       <div className="space-y-4 print:space-y-2">
+=======
+      <div className="space-y-4">
+>>>>>>> proper-and-printable-counseling-form
         <ReviewBlock title="Session details" onEdit={isFinalized ? null : () => onJump(0)}>
           <ReviewLine label="Student" value={form.studentName} />
           <ReviewLine label="Date" value={formatDate(form.sessionDate)} />
@@ -844,7 +867,7 @@ function ReviewStep({
         </div>
 
         {/* Signature */}
-        <div className="rounded-xl border border-gray-100 p-4 print:border-0">
+        <div className="rounded-xl border border-gray-100 p-4">
           <h4 className="text-sm font-semibold text-gray-900 mb-2">Counselor signature</h4>
           <input
             className={INPUT}

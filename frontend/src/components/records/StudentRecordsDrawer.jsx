@@ -229,11 +229,40 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
   );
 }
 
+// A student's sessions form chains of follow-ups that end either in a
+// termination or are still open. Once a chain ends in termination, every
+// follow-up session that led up to it should read as "Terminated" too —
+// there's no more pending session, so the case is closed. This is computed
+// purely from chronological order (no DB link between sessions is needed):
+// walk the sessions oldest-first, and whenever one is a termination, mark
+// every session accumulated so far (the whole chain) as terminated.
+function computeEffectiveNextSession(studentSessions) {
+  const sorted = [...studentSessions].sort(
+    (a, b) => new Date(a.sessionDate || 0) - new Date(b.sessionDate || 0)
+  );
+  const effective = new Map();
+  let chain = [];
+  for (const s of sorted) {
+    chain.push(s);
+    if (s.nextSession === "termination") {
+      chain.forEach((cs) => effective.set(cs.id, "termination"));
+      chain = [];
+    }
+  }
+  // Any sessions left in an open chain (no termination yet) keep their own value.
+  chain.forEach((cs) => effective.set(cs.id, cs.nextSession));
+  return effective;
+}
+
 function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
   const { currentUser } = useAuth();
   const studentSessions = useMemo(
     () => sessions.filter((s) => s.studentId === student?.id),
     [sessions, student?.id]
+  );
+  const effectiveNextSession = useMemo(
+    () => computeEffectiveNextSession(studentSessions),
+    [studentSessions]
   );
   const [viewing, setViewing] = useState(null);
 
@@ -261,14 +290,16 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
           </tr>
         </thead>
         <tbody className="divide-y">
-          {studentSessions.map((s) => (
+          {studentSessions.map((s) => {
+            const effectiveNext = effectiveNextSession.get(s.id) ?? s.nextSession;
+            return (
             <tr key={s.id} className="hover:bg-gray-50/70">
               <td className="px-3 py-2 whitespace-nowrap text-gray-700">{formatDate(s.sessionDate)}</td>
               <td className="px-3 py-2 text-gray-700 max-w-xs truncate" title={s.presentingConcern}>{s.presentingConcern || "—"}</td>
               <td className="px-3 py-2 text-gray-700 max-w-xs truncate" title={s.summary}>{s.summary || "—"}</td>
               <td className="px-3 py-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
-                  {NEXT_LABELS[s.nextSession] || s.nextSession}
+                <span className={`text-xs px-2 py-1 rounded-full ${effectiveNext === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
+                  {NEXT_LABELS[effectiveNext] || effectiveNext}
                 </span>
               </td>
               <td className="px-3 py-2 text-right">
@@ -315,7 +346,8 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
 
