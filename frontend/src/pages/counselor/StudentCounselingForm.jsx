@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useReactToPrint } from "react-to-print";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useAuth } from "../../context/AuthContext";
+import { downloadReportAsPdf } from "../../utils/sessionReport";
 import {
   ArrowLeft,
   ArrowRight,
   Printer,
+  FileDown,
   UserRound,
   ClipboardList,
   Target,
@@ -86,11 +87,25 @@ export default function StudentCounselingForm() {
     return sessions.filter((s) => (s.studentId === studentId || s.student_id === studentId) && s.finalizedAt).length;
   }, [studentId, sessions]);
 
-  const printRef = useRef(null);
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `session-report-${appt?.studentName || apptId}`,
-  });
+  const handlePrint = () => {
+    downloadReportAsPdf(
+      {
+        studentName: form.studentName,
+        sessionDate: form.sessionDate,
+        counselorName: form.counselorName,
+        presentingConcern: form.presentingConcern,
+        goals: form.goals,
+        summary: form.summary,
+        plan: form.plan,
+        comments: form.comments,
+        nextSession: form.nextSession,
+        counselorSignature: form.counselorSignature,
+        finalizedAt,
+        formData: { reason },
+      },
+      { title: `Session Report — ${form.studentName || appt?.studentName || ""}` }
+    );
+  };
 
   useEffect(() => {
     if (!appt) return;
@@ -359,7 +374,6 @@ export default function StudentCounselingForm() {
           )}
           {current.id === "review" && (
             <ReviewStep
-              printRef={printRef}
               form={form}
               setField={setField}
               reason={reason}
@@ -378,6 +392,9 @@ export default function StudentCounselingForm() {
               <div className="flex items-center gap-2 flex-wrap justify-end">
                 <button type="button" onClick={handlePrint} className={BTN.secondary}>
                   <Printer size={14} /> Print
+                </button>
+                <button type="button" onClick={handlePrint} className={BTN.secondary}>
+                  <FileDown size={14} /> Export PDF
                 </button>
                 {!isFinalized && (
                   <>
@@ -691,7 +708,7 @@ function NextOption({ active, onClick, title, desc }) {
   );
 }
 
-function ReviewStep({ printRef, form, setField, reason, onJump, isFinalized }) {
+function ReviewStep({ form, setField, reason, onJump, isFinalized }) {
   const reasons = [
     reason.routine && `Routine${reason.routineNth ? ` (${reason.routineNth})` : ""}`,
     reason.studentInitiated && "Student initiated",
@@ -708,7 +725,7 @@ function ReviewStep({ printRef, form, setField, reason, onJump, isFinalized }) {
           : "Check everything, then sign and submit. You can also save a draft."
       }
     >
-      <div ref={printRef} className="space-y-4 print:space-y-2">
+      <div className="space-y-4">
         <ReviewBlock title="Session details" onEdit={isFinalized ? null : () => onJump(0)}>
           <ReviewLine label="Student" value={form.studentName} />
           <ReviewLine label="Date" value={formatDate(form.sessionDate)} />
@@ -738,7 +755,7 @@ function ReviewStep({ printRef, form, setField, reason, onJump, isFinalized }) {
         </ReviewBlock>
 
         {/* Signature */}
-        <div className="rounded-xl border border-gray-100 p-4 print:border-0">
+        <div className="rounded-xl border border-gray-100 p-4">
           <h4 className="text-sm font-semibold text-gray-900 mb-2">Counselor signature</h4>
           <input
             className={INPUT}

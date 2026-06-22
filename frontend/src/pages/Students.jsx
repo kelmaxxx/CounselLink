@@ -845,14 +845,8 @@ export default function ManageStudents() {
           onClose={() => setDrawerStudent(null)}
           onRecordsChanged={handleRecordsChanged}
           readOnly={currentUser?.role !== "counselor"}
-          onEditSession={(s) => {
-            openEdit(s);
-            setDrawerStudent(null);
-          }}
-          onDeleteSession={(s) => {
-            setConfirmDelete(s);
-            setDrawerStudent(null);
-          }}
+          onEditSession={(s) => openEdit(s)}
+          onDeleteSession={(s) => setConfirmDelete(s)}
         />
       )}
 
