@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useReferrals } from "../../context/ReferralsContext";
-import { Send, Plus, History, ArrowRightLeft } from "lucide-react";
+import { COLLEGES } from "../../data/mockData";
+import { Send, Plus, History } from "lucide-react";
 import {
   PageHeader,
   SectionCard,
@@ -17,33 +17,24 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
+const NATURE_OF_CONCERN_OPTIONS = [
+  "Academic Concern",
+  "Behavioral Concern",
+  "Mental Health Concern",
+  "Family Problem",
+  "Social/Relationship Concern",
+  "Other",
+];
+
 export default function RepReferrals() {
   const { currentUser, token } = useAuth();
   const { referrals, loading, error, fetchReferrals, cancelReferral } = useReferrals();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const presetStudentId = searchParams.get("studentId") || "";
   const [activeTab, setActiveTab] = useState("pending");
   const [newOpen, setNewOpen] = useState(false);
 
   useEffect(() => {
     fetchReferrals();
   }, [fetchReferrals]);
-
-  // Auto-open the New Referral modal when the user arrives from the
-  // Counseling Data page with a preselected student.
-  useEffect(() => {
-    if (presetStudentId) setNewOpen(true);
-  }, [presetStudentId]);
-
-  const handleCloseNew = () => {
-    setNewOpen(false);
-    if (presetStudentId) {
-      // Drop the prefill param so refreshing the page does not re-open the modal.
-      const next = new URLSearchParams(searchParams);
-      next.delete("studentId");
-      setSearchParams(next, { replace: true });
-    }
-  };
 
   const myReferrals = useMemo(
     () => referrals.filter((r) => r.referrer_id === currentUser?.id),
@@ -199,8 +190,7 @@ export default function RepReferrals() {
         <NewReferralModal
           token={token}
           currentUser={currentUser}
-          presetStudentId={presetStudentId}
-          onClose={handleCloseNew}
+          onClose={() => setNewOpen(false)}
           onCreated={() => fetchReferrals()}
         />
       )}
@@ -233,53 +223,54 @@ function TabBtn({ active, onClick, children, icon, count }) {
   );
 }
 
-function NewReferralModal({ token, currentUser, presetStudentId, onClose, onCreated }) {
-  const [students, setStudents] = useState([]);
+const EMPTY_REFERRAL_FORM = {
+  fullName: "",
+  studentIdNumber: "",
+  college: "",
+  contactNumber: "",
+  natureOfConcern: "",
+  natureOfConcernOther: "",
+  description: "",
+  receivingCounselorId: "",
+};
+
+function NewReferralModal({ token, currentUser, onClose, onCreated }) {
   const [counselors, setCounselors] = useState([]);
   const [loadingLists, setLoadingLists] = useState(false);
-  const [studentId, setStudentId] = useState(presetStudentId || "");
-  const [receivingCounselorId, setReceivingCounselorId] = useState("");
-  const [reason, setReason] = useState("");
-  const [notes, setNotes] = useState("");
+  const [form, setForm] = useState({
+    ...EMPTY_REFERRAL_FORM,
+    college: currentUser?.college || "",
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!token) return;
     setLoadingLists(true);
-    Promise.all([
-      fetch(`${API_BASE}/api/users?role=student`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-      fetch(`${API_BASE}/api/users?role=counselor`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then((r) => r.json()),
-    ])
-      .then(([stu, cou]) => {
-        const studentList = Array.isArray(stu) ? stu : [];
-        // Scope to the rep's own college when available.
-        const scoped = currentUser?.college
-          ? studentList.filter((s) => s.college === currentUser.college)
-          : studentList;
-        setStudents(scoped);
-        setCounselors(Array.isArray(cou) ? cou : []);
-      })
+    fetch(`${API_BASE}/api/users?role=counselor`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((cou) => setCounselors(Array.isArray(cou) ? cou : []))
       .catch((err) => setError(err.message))
       .finally(() => setLoadingLists(false));
-  }, [token, currentUser?.college]);
+  }, [token]);
 
-  // If the page passed a presetStudentId but the list loads later, keep the
-  // selection sticky once the matching student is present in the list.
-  useEffect(() => {
-    if (presetStudentId && students.some((s) => String(s.id) === String(presetStudentId))) {
-      setStudentId(String(presetStudentId));
-    }
-  }, [presetStudentId, students]);
+  const setField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!studentId || !receivingCounselorId || !reason.trim()) {
+    const required =
+      form.fullName.trim() &&
+      form.studentIdNumber.trim() &&
+      form.college.trim() &&
+      form.contactNumber.trim() &&
+      form.natureOfConcern.trim() &&
+      (form.natureOfConcern !== "Other" || form.natureOfConcernOther.trim()) &&
+      form.description.trim() &&
+      form.receivingCounselorId;
+    if (!required) {
       setError("All required fields must be filled.");
       return;
     }
@@ -292,10 +283,14 @@ function NewReferralModal({ token, currentUser, presetStudentId, onClose, onCrea
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          studentId: Number(studentId),
-          receivingCounselorId: Number(receivingCounselorId),
-          reason: reason.trim(),
-          notes: notes.trim() || null,
+          fullName: form.fullName.trim(),
+          studentIdNumber: form.studentIdNumber.trim(),
+          college: form.college.trim(),
+          contactNumber: form.contactNumber.trim(),
+          natureOfConcern: form.natureOfConcern,
+          natureOfConcernOther: form.natureOfConcernOther.trim() || null,
+          description: form.description.trim(),
+          receivingCounselorId: Number(form.receivingCounselorId),
         }),
       });
       const body = await res.json();
@@ -317,7 +312,7 @@ function NewReferralModal({ token, currentUser, presetStudentId, onClose, onCrea
       open
       onClose={onClose}
       title="New referral"
-      subtitle="Refer a student from your college to a counselor."
+      subtitle="Refer a student to a counselor — the student doesn't need an account yet."
       size="lg"
       align="top"
       footer={
@@ -337,35 +332,64 @@ function NewReferralModal({ token, currentUser, presetStudentId, onClose, onCrea
       }
     >
       <form id="new-referral-form" onSubmit={submit} className="space-y-3">
-        <div>
-          <label className={LABEL}>Student *</label>
-          <select
-            required
-            className={INPUT}
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            disabled={loadingLists}
-          >
-            <option value="">{loadingLists ? "Loading…" : "Select a student"}</option>
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} {s.college ? `· ${s.college}` : ""}
-              </option>
-            ))}
-          </select>
-          {!loadingLists && students.length === 0 && (
-            <p className="text-xs text-gray-500 mt-1">
-              No students found{currentUser?.college ? ` in ${currentUser.college}` : ""}.
-            </p>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className={LABEL}>Student name *</label>
+            <input
+              required
+              type="text"
+              className={INPUT}
+              value={form.fullName}
+              onChange={(e) => setField("fullName", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={LABEL}>Student ID *</label>
+            <input
+              required
+              type="text"
+              className={INPUT}
+              value={form.studentIdNumber}
+              onChange={(e) => setField("studentIdNumber", e.target.value)}
+              placeholder="e.g. 2021-00123"
+            />
+          </div>
+          <div>
+            <label className={LABEL}>College *</label>
+            <select
+              required
+              className={INPUT}
+              value={form.college}
+              onChange={(e) => setField("college", e.target.value)}
+            >
+              <option value="">Select college</option>
+              {COLLEGES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>Contact number *</label>
+            <input
+              required
+              type="tel"
+              className={INPUT}
+              value={form.contactNumber}
+              onChange={(e) => setField("contactNumber", e.target.value)}
+              placeholder="09XX XXX XXXX"
+            />
+          </div>
         </div>
+
         <div>
           <label className={LABEL}>Refer to counselor *</label>
           <select
             required
             className={INPUT}
-            value={receivingCounselorId}
-            onChange={(e) => setReceivingCounselorId(e.target.value)}
+            value={form.receivingCounselorId}
+            onChange={(e) => setField("receivingCounselorId", e.target.value)}
             disabled={loadingLists}
           >
             <option value="">{loadingLists ? "Loading…" : "Select a counselor"}</option>
@@ -376,24 +400,45 @@ function NewReferralModal({ token, currentUser, presetStudentId, onClose, onCrea
             ))}
           </select>
         </div>
+
         <div>
-          <label className={LABEL}>Reason *</label>
+          <label className={LABEL}>Nature of concern *</label>
+          <select
+            required
+            className={INPUT}
+            value={form.natureOfConcern}
+            onChange={(e) => setField("natureOfConcern", e.target.value)}
+          >
+            <option value="">Select nature of concern</option>
+            {NATURE_OF_CONCERN_OPTIONS.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </div>
+        {form.natureOfConcern === "Other" && (
+          <div>
+            <label className={LABEL}>Please specify *</label>
+            <input
+              required
+              type="text"
+              className={INPUT}
+              value={form.natureOfConcernOther}
+              onChange={(e) => setField("natureOfConcernOther", e.target.value)}
+            />
+          </div>
+        )}
+
+        <div>
+          <label className={LABEL}>Brief description *</label>
           <textarea
             required
             rows={3}
             className={INPUT}
             placeholder="Why are you referring this student?"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className={LABEL}>Notes (optional)</label>
-          <textarea
-            rows={2}
-            className={INPUT}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            value={form.description}
+            onChange={(e) => setField("description", e.target.value)}
           />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}

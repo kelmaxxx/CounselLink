@@ -8,6 +8,8 @@ const SELECT_FIELDS = `
   c.scan_url AS scanUrl, c.scan_filename AS scanFilename, c.scan_filetype AS scanFiletype,
   c.uploaded_by AS uploadedBy, c.uploaded_at AS uploadedAt,
   c.scope, c.revoked_at AS revokedAt, c.created_at AS createdAt, c.updated_at AS updatedAt,
+  c.referral_sharing_consent AS referralSharingConsent,
+  c.referral_sharing_decided_at AS referralSharingDecidedAt,
   s.name AS studentName, u.name AS uploaderName
 `;
 
@@ -123,6 +125,61 @@ export const deleteConsentScan = async (req, res) => {
   );
   await logAction(req, "delete_consent_scan", "student_consent", Number(studentId), {});
   return res.json({ message: "Scan removed" });
+};
+
+// Separate from the primary informed consent: whether the student allows a
+// referral session's report to be shared with the referring College
+// Representative. Normally the student sets this themselves; a counselor can
+// also confirm it on the student's behalf during a session, for students who
+// can't sign in yet (referred/walk-in placeholder accounts) but have agreed
+// in person. Can be changed at any time.
+export const setReferralSharingConsent = async (req, res) => {
+  const { studentId } = req.params;
+  const { allow } = req.body;
+  const userId = req.user?.id;
+  const role = req.user?.role;
+
+  const isSelf = role === "student" && userId === Number(studentId);
+  const isCounselor = role === "counselor";
+  if (!isSelf && !isCounselor) {
+    return res.status(403).json({ message: "Only the student or their counselor can set this preference" });
+  }
+  if (typeof allow !== "boolean") {
+    return res.status(400).json({ message: "allow (boolean) is required" });
+  }
+
+  const existing = await query("SELECT id FROM student_consents WHERE student_id = ?", [studentId]);
+
+  if (!existing.length) {
+    if (!isCounselor) {
+      return res.status(409).json({ message: "Sign the informed consent first" });
+    }
+    // A counselor confirming this in person doesn't require the student to
+    // have already e-signed/uploaded the primary consent online.
+    const result = await query(
+      `INSERT INTO student_consents (student_id, referral_sharing_consent, referral_sharing_decided_at)
+       VALUES (?, ?, NOW())`,
+      [studentId, allow ? "yes" : "no"]
+    );
+    await logAction(req, "set_referral_sharing_consent", "student_consent", result.insertId, {
+      allow,
+      confirmedBy: role,
+    });
+  } else {
+    await query(
+      `UPDATE student_consents
+       SET referral_sharing_consent = ?, referral_sharing_decided_at = NOW(), updated_at = NOW()
+       WHERE student_id = ?`,
+      [allow ? "yes" : "no", studentId]
+    );
+    await logAction(req, "set_referral_sharing_consent", "student_consent", existing[0].id, {
+      allow,
+      confirmedBy: role,
+    });
+  }
+
+  const rows = await query(`SELECT ${SELECT_FIELDS} ${FROM_JOIN} WHERE c.student_id = ?`, [studentId]);
+  return res.json(rows[0]);
 };
 
 export const revokeConsent = async (req, res) => {

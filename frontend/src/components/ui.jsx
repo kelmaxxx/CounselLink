@@ -68,6 +68,7 @@ const STATUS_PALETTE = {
   approved: "bg-emerald-50 text-emerald-700",
   accepted: "bg-emerald-50 text-emerald-700",
   rescheduled: "bg-sky-50 text-sky-700",
+  followup: "bg-violet-50 text-violet-700",
   rejected: "bg-red-50 text-red-700",
   cancelled: "bg-gray-100 text-gray-600",
   canceled: "bg-gray-100 text-gray-600",
@@ -84,6 +85,7 @@ const STATUS_PALETTE = {
 // is swapped to the friendlier "Declined" wording the spec uses.
 const STATUS_LABEL_OVERRIDES = {
   rejected: "Declined",
+  followup: "Follow-up",
 };
 
 export function StatusPill({ status, children, className = "" }) {

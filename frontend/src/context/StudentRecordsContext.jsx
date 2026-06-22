@@ -117,6 +117,16 @@ export function StudentRecordsProvider({ children }) {
     return { success: true };
   };
 
+  const setReferralSharingConsent = async (studentId, allow) => {
+    const response = await authFetch(
+      `${apiBase}/api/student-consents/${studentId}/referral-sharing`,
+      { method: "POST", body: JSON.stringify({ allow }) }
+    );
+    const data = await parseJson(response);
+    if (!response.ok) return { success: false, message: data.message || "Failed to save your choice" };
+    return { success: true, consent: data };
+  };
+
   // Convenience: fetch both records for a student in parallel.
   // Returns { inventory, consent } — either can be null if not yet created.
   const getRecords = async (studentId) => {
@@ -139,6 +149,7 @@ export function StudentRecordsProvider({ children }) {
         uploadConsentScan,
         deleteConsentScan,
         revokeConsent,
+        setReferralSharingConsent,
         getRecords,
       }}
     >

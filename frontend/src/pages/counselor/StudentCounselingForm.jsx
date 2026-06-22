@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useReactToPrint } from "react-to-print";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useAuth } from "../../context/AuthContext";
+import { useStudentRecords } from "../../context/StudentRecordsContext";
+import { downloadReportAsPdf } from "../../utils/sessionReport";
 import {
   ArrowLeft,
   ArrowRight,
@@ -52,6 +53,7 @@ export default function StudentCounselingForm() {
   const { currentUser } = useAuth();
   const { appointments, createAppointment, completeAppointment } = useAppointments();
   const { fetchSessionByAppointment, createSession, updateSession, finalizeSession, sessions, fetchSessions } = useCounselingSessions();
+  const { getConsent, setReferralSharingConsent } = useStudentRecords();
 
   const apptId = Number(id);
   const appt = useMemo(() => appointments.find((a) => a.id === apptId), [appointments, apptId]);
@@ -79,6 +81,9 @@ export default function StudentCounselingForm() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+  const [consent, setConsent] = useState(null);
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [consentFeedback, setConsentFeedback] = useState(null);
 
   const studentId = appt?.student_id || appt?.studentId;
   const previousSessionsCount = useMemo(() => {
@@ -86,11 +91,48 @@ export default function StudentCounselingForm() {
     return sessions.filter((s) => (s.studentId === studentId || s.student_id === studentId) && s.finalizedAt).length;
   }, [studentId, sessions]);
 
-  const printRef = useRef(null);
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `session-report-${appt?.studentName || apptId}`,
-  });
+  useEffect(() => {
+    if (!studentId) return;
+    getConsent(studentId)
+      .then((data) => setConsent(data))
+      .catch(() => setConsent(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId]);
+
+  const handleSetReferralSharing = async (allow) => {
+    if (!studentId) return;
+    setConsentBusy(true);
+    setConsentFeedback(null);
+    const res = await setReferralSharingConsent(studentId, allow);
+    setConsentBusy(false);
+    if (res?.success) {
+      setConsent(res.consent);
+      setConsentFeedback({ type: "success", text: "Saved." });
+    } else {
+      setConsentFeedback({ type: "error", text: res?.message || "Failed to save." });
+    }
+  };
+
+  const handlePrint = () => {
+    downloadReportAsPdf(
+      {
+        studentName: form.studentName,
+        studentCollege: appt?.college,
+        counselorName: form.counselorName,
+        sessionDate: form.sessionDate,
+        presentingConcern: form.presentingConcern,
+        goals: form.goals,
+        summary: form.summary,
+        plan: form.plan,
+        comments: form.comments,
+        nextSession: form.nextSession,
+        counselorSignature: form.counselorSignature,
+        finalizedAt,
+        formData: { reason },
+      },
+      { title: `Session Report — ${form.studentName || appt?.studentName || ""}` }
+    );
+  };
 
   useEffect(() => {
     if (!appt) return;
@@ -359,12 +401,15 @@ export default function StudentCounselingForm() {
           )}
           {current.id === "review" && (
             <ReviewStep
-              printRef={printRef}
               form={form}
               setField={setField}
               reason={reason}
               onJump={setStep}
               isFinalized={isFinalized}
+              consent={consent}
+              consentBusy={consentBusy}
+              consentFeedback={consentFeedback}
+              onSetReferralSharing={handleSetReferralSharing}
             />
           )}
 
@@ -691,7 +736,17 @@ function NextOption({ active, onClick, title, desc }) {
   );
 }
 
-function ReviewStep({ printRef, form, setField, reason, onJump, isFinalized }) {
+function ReviewStep({
+  form,
+  setField,
+  reason,
+  onJump,
+  isFinalized,
+  consent,
+  consentBusy,
+  consentFeedback,
+  onSetReferralSharing,
+}) {
   const reasons = [
     reason.routine && `Routine${reason.routineNth ? ` (${reason.routineNth})` : ""}`,
     reason.studentInitiated && "Student initiated",
@@ -708,7 +763,7 @@ function ReviewStep({ printRef, form, setField, reason, onJump, isFinalized }) {
           : "Check everything, then sign and submit. You can also save a draft."
       }
     >
-      <div ref={printRef} className="space-y-4 print:space-y-2">
+      <div className="space-y-4 print:space-y-2">
         <ReviewBlock title="Session details" onEdit={isFinalized ? null : () => onJump(0)}>
           <ReviewLine label="Student" value={form.studentName} />
           <ReviewLine label="Date" value={formatDate(form.sessionDate)} />
@@ -736,6 +791,57 @@ function ReviewStep({ printRef, form, setField, reason, onJump, isFinalized }) {
             </>
           )}
         </ReviewBlock>
+
+        {/* Sharing with college rep */}
+        <div className="rounded-xl border border-gray-100 p-4 print:hidden">
+          <h4 className="text-sm font-semibold text-gray-900 mb-1">
+            Sharing this session with a college representative
+          </h4>
+          <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+            If the student already answered this themselves, it's shown below. If they can't (e.g.
+            no account yet) but agreed in person, confirm it here on their behalf.
+          </p>
+          {consentFeedback && (
+            <div
+              className={`mb-2 px-3 py-2 rounded-md border text-xs ${
+                consentFeedback.type === "success"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                  : "bg-red-50 border-red-200 text-red-700"
+              }`}
+            >
+              {consentFeedback.text}
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onSetReferralSharing(true)}
+              disabled={isFinalized || consentBusy}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition disabled:opacity-50 ${
+                consent?.referralSharingConsent === "yes"
+                  ? "bg-emerald-600 border-emerald-600 text-white"
+                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              Yes, allowed
+            </button>
+            <button
+              type="button"
+              onClick={() => onSetReferralSharing(false)}
+              disabled={isFinalized || consentBusy}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition disabled:opacity-50 ${
+                consent?.referralSharingConsent === "no"
+                  ? "bg-maroon-600 border-maroon-600 text-white"
+                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              No, not allowed
+            </button>
+            {!consent?.referralSharingConsent && (
+              <span className="text-xs text-gray-400">Not yet decided</span>
+            )}
+          </div>
+        </div>
 
         {/* Signature */}
         <div className="rounded-xl border border-gray-100 p-4 print:border-0">

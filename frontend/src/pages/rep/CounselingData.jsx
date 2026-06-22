@@ -17,11 +17,8 @@ import {
   BTN,
   initialsOf,
 } from "../../components/ui";
-import {
-  downloadReportAsDocx,
-  downloadReportAsPdf,
-  normalizeSessionReport,
-} from "../../utils/sessionReport";
+import { downloadReportAsDocx, downloadReportAsPdf } from "../../utils/sessionReport";
+import ReportPreview from "../../components/records/ReportPreview";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -226,77 +223,11 @@ export default function CounselingData() {
         }
       >
         {activePayload ? (
-          isCollegeSummary(activePayload) ? (
-            <CollegeSummaryView payload={activePayload} />
-          ) : (
-            <SessionReportView payload={activePayload} />
-          )
+          <ReportPreview report={activePayload} title={activeReport?.title} />
         ) : (
           <p className="text-sm text-gray-500">No payload available.</p>
         )}
       </Modal>
-    </div>
-  );
-}
-
-function CollegeSummaryView({ payload }) {
-  const t = payload.totals || {};
-  return (
-    <div className="space-y-4 text-sm">
-      <div className="grid grid-cols-3 gap-3">
-        <SummaryStat label="Total sessions" value={t.totalSessions ?? "—"} />
-        <SummaryStat label="Active cases" value={t.activeCases ?? "—"} />
-        <SummaryStat label="Completed" value={t.completed ?? "—"} />
-      </div>
-      <dl className="divide-y divide-gray-100">
-        <Row label="College" value={payload.college} />
-        <Row label="Students enrolled" value={payload.studentCount} />
-        <Row label="Prepared by" value={payload.counselorName} />
-        <Row
-          label="Generated"
-          value={payload.generatedAt ? new Date(payload.generatedAt).toLocaleString() : ""}
-        />
-        <Row label="Counselor's summary" value={payload.narrative} />
-      </dl>
-    </div>
-  );
-}
-
-function SummaryStat({ label, value }) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50/60 px-3 py-2.5 text-center">
-      <div className="text-2xl font-semibold text-gray-900 tabular-nums">{value}</div>
-      <div className="text-xs text-gray-500 mt-0.5">{label}</div>
-    </div>
-  );
-}
-
-function SessionReportView({ payload }) {
-  const r = normalizeSessionReport(payload);
-  return (
-    <dl className="divide-y divide-gray-100 text-sm">
-      <Row label="Student" value={r.studentName} />
-      <Row label="College" value={r.studentCollege} />
-      <Row label="Session date" value={(r.sessionDate || "").split?.("T")?.[0] || r.sessionDate} />
-      <Row label="Counselor" value={r.counselorName} />
-      <Row label="Presenting concern" value={r.presentingConcern} />
-      <Row label="Goals" value={r.goals} />
-      <Row label="Summary" value={r.summary} />
-      <Row label="Plan" value={r.plan} />
-      <Row label="Comments" value={r.comments} />
-      <Row label="Next session" value={r.nextSession} />
-      <Row label="Signed by" value={r.counselorSignature} />
-    </dl>
-  );
-}
-
-function Row({ label, value }) {
-  return (
-    <div className="py-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-      <dt className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</dt>
-      <dd className="sm:col-span-2 text-sm text-gray-900 whitespace-pre-wrap">
-        {value || value === 0 ? value : <span className="text-gray-400">—</span>}
-      </dd>
     </div>
   );
 }

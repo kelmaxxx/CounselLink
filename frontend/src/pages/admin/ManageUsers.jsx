@@ -8,6 +8,8 @@ import {
   UserPlus,
   CheckCircle,
   AlertCircle,
+  Eye,
+  FileText,
 } from "lucide-react";
 import {
   PageHeader,
@@ -21,15 +23,6 @@ import {
   initialsOf,
 } from "../../components/ui";
 
-const DEPARTMENTS = [
-  "Guidance Office",
-  "Psychology Department",
-  "Student Affairs",
-  "Health Services",
-  "Academic Counseling",
-  "Career Development",
-];
-
 const POSITIONS = [
   "Section Chief",
   "Guidance Service Specialist I",
@@ -38,6 +31,14 @@ const POSITIONS = [
   "Guidance Service Specialist IV",
   "Guidance Service Specialist V",
 ];
+
+const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
+const buildCorUrl = (user) => {
+  if (!user?.corUrl) return null;
+  if (user.corUrl.startsWith("http")) return user.corUrl;
+  return `${apiBase}${user.corUrl}`;
+};
 
 const statusInfo = (u) => {
   if (u.status === "pending_approval") return { status: "pending", label: "Pending" };
@@ -73,7 +74,7 @@ const COUNSELOR_COLUMNS = [
 ];
 
 const REP_COLUMNS = [
-  { header: "ID / Email", render: emailCell },
+  { header: "Email", render: emailCell },
   { header: "College", render: (u) => u.college || "—" },
   { header: "Department", render: (u) => u.department || "—" },
 ];
@@ -154,6 +155,7 @@ export default function ManageUsers() {
   const [createModal, setCreateModal] = useState({ open: false, role: "" });
   const [editModal, setEditModal] = useState({ open: false, user: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, userId: null });
+  const [corModalOpen, setCorModalOpen] = useState(false);
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -171,6 +173,8 @@ export default function ManageUsers() {
     specialization: "",
     position: "",
     employeeId: "",
+    studentId: "",
+    program: "",
   });
 
   const filtered = useMemo(() => {
@@ -226,6 +230,8 @@ export default function ManageUsers() {
       specialization: user.specialization || "",
       position: user.position || "",
       employeeId: user.employeeId || "",
+      studentId: user.studentId || "",
+      program: user.program || "",
     });
     setEditModal({ open: true, user });
   };
@@ -235,13 +241,17 @@ export default function ManageUsers() {
     const updates = {
       name: editForm.name,
       email: editForm.email,
-      phone: editForm.phone,
     };
-    if (editModal.user.role === "counselor") {
-      updates.department = editForm.department;
-      updates.specialization = editForm.specialization;
-      updates.position = editForm.position;
+    if (editModal.user.role !== "admin") {
+      updates.phone = editForm.phone;
+    }
+    if (editModal.user.role === "student") {
+      updates.studentId = editForm.studentId;
+      updates.college = editForm.college;
+      updates.program = editForm.program;
+    } else if (editModal.user.role === "counselor") {
       updates.employeeId = editForm.employeeId;
+      updates.position = editForm.position;
     } else if (editModal.user.role === "college_rep") {
       updates.college = editForm.college;
       updates.department = editForm.department;
@@ -251,6 +261,7 @@ export default function ManageUsers() {
     setBusy(false);
     if (res.success) {
       setEditModal({ open: false, user: null });
+      setCorModalOpen(false);
       setMessage({ type: "success", text: "User updated successfully" });
     } else {
       setMessage({ type: "error", text: res.message || "Failed to update user" });
@@ -454,7 +465,10 @@ export default function ManageUsers() {
       {/* Edit modal */}
       <Modal
         open={editModal.open}
-        onClose={() => setEditModal({ open: false, user: null })}
+        onClose={() => {
+          setEditModal({ open: false, user: null });
+          setCorModalOpen(false);
+        }}
         title="Edit user"
         subtitle={
           editModal.user
@@ -467,7 +481,10 @@ export default function ManageUsers() {
           <>
             <button
               type="button"
-              onClick={() => setEditModal({ open: false, user: null })}
+              onClick={() => {
+                setEditModal({ open: false, user: null });
+                setCorModalOpen(false);
+              }}
               className={BTN.secondary}
             >
               Cancel
@@ -501,21 +518,75 @@ export default function ManageUsers() {
               />
             </div>
           </div>
-          <div>
-            <label className={LABEL}>Phone number</label>
-            <input
-              type="tel"
-              className={INPUT}
-              value={editForm.phone}
-              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-              placeholder="09XX XXX XXXX"
-            />
-          </div>
+          {editModal.user?.role !== "admin" && (
+            <div>
+              <label className={LABEL}>Phone number</label>
+              <input
+                type="tel"
+                className={INPUT}
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                placeholder="09XX XXX XXXX"
+              />
+            </div>
+          )}
 
           {editModal.user?.role === "student" && (
-            <div className="px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-xs text-blue-800">
-              Academic information (college, program, year level, student ID) is managed by the
-              student or the College Representative and is no longer editable here.
+            <div className="pt-3 border-t border-gray-100">
+              <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
+                Academic information
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>Student ID</label>
+                  <input
+                    type="text"
+                    className={INPUT}
+                    value={editForm.studentId}
+                    onChange={(e) => setEditForm({ ...editForm, studentId: e.target.value })}
+                    placeholder="e.g. 2021-00123"
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>College</label>
+                  <select
+                    className={INPUT}
+                    value={editForm.college}
+                    onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
+                  >
+                    <option value="">Select college</option>
+                    {COLLEGES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Department</label>
+                  <input
+                    type="text"
+                    className={INPUT}
+                    value={editForm.program}
+                    onChange={(e) => setEditForm({ ...editForm, program: e.target.value })}
+                    placeholder="e.g. BS Computer Science"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                {buildCorUrl(editModal.user) ? (
+                  <button
+                    type="button"
+                    onClick={() => setCorModalOpen(true)}
+                    className="inline-flex items-center gap-1 text-xs text-maroon-600 hover:text-maroon-700 font-medium"
+                  >
+                    <Eye size={12} /> View COR
+                  </button>
+                ) : (
+                  <p className="text-xs text-gray-500">No COR uploaded</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -549,33 +620,6 @@ export default function ManageUsers() {
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className={LABEL}>Department</label>
-                  <select
-                    className={INPUT}
-                    value={editForm.department}
-                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                  >
-                    <option value="">Select department</option>
-                    {DEPARTMENTS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={LABEL}>Specialization</label>
-                  <input
-                    type="text"
-                    className={INPUT}
-                    value={editForm.specialization}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, specialization: e.target.value })
-                    }
-                    placeholder="e.g. Academic Counseling"
-                  />
                 </div>
               </div>
             </div>
@@ -616,6 +660,46 @@ export default function ManageUsers() {
             </div>
           )}
         </form>
+      </Modal>
+
+      {/* COR view modal */}
+      <Modal
+        open={corModalOpen && editModal.user?.role === "student"}
+        onClose={() => setCorModalOpen(false)}
+        title="Certificate of Registration"
+        subtitle={
+          editModal.user
+            ? `${editModal.user.name} · ${editForm.studentId || ""}`
+            : ""
+        }
+        size="2xl"
+        align="top"
+      >
+        {editModal.user && (
+          <>
+            {buildCorUrl(editModal.user)?.match(/\.(png|jpg|jpeg)$/i) ? (
+              <img
+                src={buildCorUrl(editModal.user)}
+                alt="Certificate of Registration"
+                className="w-full h-auto border border-gray-200 rounded-md"
+              />
+            ) : (
+              <div className="text-center p-8">
+                <FileText size={32} className="text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 mb-3">
+                  PDF file — cannot preview in browser
+                </p>
+                <a
+                  href={buildCorUrl(editModal.user)}
+                  download={`COR_${editForm.studentId || editModal.user.id}.pdf`}
+                  className={BTN.primary}
+                >
+                  Download PDF
+                </a>
+              </div>
+            )}
+          </>
+        )}
       </Modal>
 
       {/* Delete confirmation */}
