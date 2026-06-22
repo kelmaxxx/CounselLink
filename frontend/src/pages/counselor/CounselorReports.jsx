@@ -30,11 +30,8 @@ import {
   LABEL,
   initialsOf,
 } from "../../components/ui";
-import {
-  downloadReportAsDocx,
-  downloadReportAsPdf,
-  normalizeSessionReport,
-} from "../../utils/sessionReport";
+import { downloadReportAsDocx, downloadReportAsPdf } from "../../utils/sessionReport";
+import ReportPreview from "../../components/records/ReportPreview";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -64,6 +61,10 @@ export default function CounselorReports() {
   const [respondNote, setRespondNote] = useState("");
   const [respondError, setRespondError] = useState("");
   const [responding, setResponding] = useState(false);
+
+  // Sending an individual request that's pending manual review.
+  const [sendingId, setSendingId] = useState(null);
+  const [sendError, setSendError] = useState("");
 
   // College-wide summary generation (fulfilling a college request).
   const [genTarget, setGenTarget] = useState(null); // the college request being fulfilled
@@ -125,6 +126,27 @@ export default function CounselorReports() {
     setRespondAction(null);
     setRespondNote("");
     setRespondError("");
+  };
+
+  const handleSendIndividual = async (request) => {
+    setSendingId(request.id);
+    setSendError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/report-requests/${request.id}/send`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setSendError(body.message || "Failed to send report");
+        return;
+      }
+      await Promise.all([reloadRequests(), reloadSentReports()]);
+    } catch (err) {
+      setSendError(err.message);
+    } finally {
+      setSendingId(null);
+    }
   };
 
   const openGenerate = async (request) => {
@@ -321,6 +343,11 @@ export default function CounselorReports() {
           {error}
         </div>
       )}
+      {sendError && (
+        <div className="mb-3 px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-sm">
+          {sendError}
+        </div>
+      )}
 
       <SectionCard
         className="mb-6"
@@ -329,7 +356,7 @@ export default function CounselorReports() {
             <ClipboardList size={14} className="text-maroon-600" /> Report requests from College Representatives
           </span>
         }
-        subtitle="Reps requesting an individual student report or a college-wide summary. Fulfill or decline each one."
+        subtitle="College-wide summary requests are fulfilled here. Individual student requests resolve automatically when consented and tied to this rep's referral — otherwise, with consent, you can send the latest finalized session manually."
         noBodyPadding
       >
         {loadingRequests ? (
@@ -406,23 +433,14 @@ export default function CounselorReports() {
                         })}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {r.status === "pending" ? (
+                        {r.status === "pending" && r.request_type === "college" ? (
                           <div className="inline-flex gap-1">
                             <button
-                              onClick={() =>
-                                r.request_type === "college"
-                                  ? openGenerate(r)
-                                  : openRespond(r, "fulfilled")
-                              }
+                              onClick={() => openGenerate(r)}
                               className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
-                              title={
-                                r.request_type === "college"
-                                  ? "Generate & send college summary"
-                                  : "Mark as fulfilled"
-                              }
+                              title="Generate & send college summary"
                             >
-                              <Check size={13} />{" "}
-                              {r.request_type === "college" ? "Generate" : "Fulfill"}
+                              <Check size={13} /> Generate
                             </button>
                             <button
                               onClick={() => openRespond(r, "declined")}
@@ -432,6 +450,15 @@ export default function CounselorReports() {
                               <X size={13} /> Decline
                             </button>
                           </div>
+                        ) : r.status === "pending" && r.request_type === "individual" ? (
+                          <button
+                            onClick={() => handleSendIndividual(r)}
+                            disabled={sendingId === r.id}
+                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition disabled:opacity-60"
+                            title="Send this student's finalized session report"
+                          >
+                            <Send size={13} /> {sendingId === r.id ? "Sending…" : "Send"}
+                          </button>
                         ) : (
                           <span className="text-xs text-gray-400">No action</span>
                         )}
@@ -652,11 +679,7 @@ export default function CounselorReports() {
         }
       >
         {activePayload ? (
-          activePayload.type === "college_summary" ? (
-            <CollegeSummaryView payload={activePayload} />
-          ) : (
-            <ReportView payload={activePayload} />
-          )
+          <ReportPreview report={activePayload} title={activeReport?.title} />
         ) : (
           <p className="text-sm text-gray-500">No report payload available.</p>
         )}
@@ -665,13 +688,11 @@ export default function CounselorReports() {
       <Modal
         open={!!respondTarget}
         onClose={responding ? undefined : closeRespond}
-        danger={respondAction === "declined"}
-        title={respondAction === "declined" ? "Decline report request" : "Fulfill report request"}
+        danger
+        title="Decline report request"
         subtitle={
           respondTarget
-            ? respondTarget.request_type === "college"
-              ? `College-wide summary · requested by ${respondTarget.requesterName || "—"}`
-              : `${respondTarget.student_name} · requested by ${respondTarget.requesterName || "—"}`
+            ? `College-wide summary · requested by ${respondTarget.requesterName || "—"}`
             : ""
         }
         footer={
@@ -680,16 +701,8 @@ export default function CounselorReports() {
               <button className={BTN.secondary} onClick={closeRespond} disabled={responding}>
                 Cancel
               </button>
-              <button
-                className={respondAction === "declined" ? BTN.danger : BTN.primary}
-                onClick={submitRespond}
-                disabled={responding}
-              >
-                {responding
-                  ? "Saving…"
-                  : respondAction === "declined"
-                  ? "Decline request"
-                  : "Mark as fulfilled"}
+              <button className={BTN.danger} onClick={submitRespond} disabled={responding}>
+                {responding ? "Saving…" : "Decline request"}
               </button>
             </div>
           )
@@ -704,20 +717,13 @@ export default function CounselorReports() {
               <p className="text-gray-700 whitespace-pre-wrap">{respondTarget.reason}</p>
             </div>
             <div>
-              <label className={LABEL}>
-                Note to the representative
-                {respondAction === "declined" ? " *" : " (optional)"}
-              </label>
+              <label className={LABEL}>Note to the representative *</label>
               <textarea
                 rows={4}
                 className={INPUT}
                 value={respondNote}
                 onChange={(e) => setRespondNote(e.target.value)}
-                placeholder={
-                  respondAction === "declined"
-                    ? "Explain why you can't fulfill this request…"
-                    : "Add any context for the representative…"
-                }
+                placeholder="Explain why you can't fulfill this request…"
               />
             </div>
             {respondError && <p className="text-sm text-red-600">{respondError}</p>}
@@ -886,56 +892,4 @@ function SessionDownloadButtons({ session, onView }) {
   );
 }
 
-function ReportView({ payload }) {
-  const r = normalizeSessionReport(payload);
-  return (
-    <dl className="divide-y divide-gray-100 text-sm">
-      <Row label="Student" value={r.studentName} />
-      <Row label="College" value={r.studentCollege} />
-      <Row label="Session date" value={(r.sessionDate || "").split?.("T")?.[0] || r.sessionDate} />
-      <Row label="Counselor" value={r.counselorName} />
-      <Row label="Presenting concern" value={r.presentingConcern} />
-      <Row label="Goals" value={r.goals} />
-      <Row label="Summary" value={r.summary} />
-      <Row label="Plan" value={r.plan} />
-      <Row label="Comments" value={r.comments} />
-      <Row label="Next session" value={r.nextSession} />
-      <Row label="Signed by" value={r.counselorSignature} />
-    </dl>
-  );
-}
-
-function CollegeSummaryView({ payload }) {
-  const t = payload.totals || {};
-  return (
-    <div className="space-y-4 text-sm">
-      <div className="grid grid-cols-3 gap-3">
-        <GenStat label="Total sessions" value={t.totalSessions ?? "—"} />
-        <GenStat label="Active cases" value={t.activeCases ?? "—"} />
-        <GenStat label="Completed" value={t.completed ?? "—"} />
-      </div>
-      <dl className="divide-y divide-gray-100">
-        <Row label="College" value={payload.college} />
-        <Row label="Students enrolled" value={String(payload.studentCount ?? "—")} />
-        <Row label="Prepared by" value={payload.counselorName} />
-        <Row
-          label="Generated"
-          value={payload.generatedAt ? new Date(payload.generatedAt).toLocaleString() : ""}
-        />
-        <Row label="Counselor's summary" value={payload.narrative} />
-      </dl>
-    </div>
-  );
-}
-
-function Row({ label, value }) {
-  return (
-    <div className="py-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-      <dt className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</dt>
-      <dd className="sm:col-span-2 text-sm text-gray-900 whitespace-pre-wrap">
-        {value || <span className="text-gray-400">—</span>}
-      </dd>
-    </div>
-  );
-}
 

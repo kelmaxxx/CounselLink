@@ -87,11 +87,6 @@ export default function CreateAnnouncement() {
         eyebrow="Administrator"
         title="Create announcement"
         subtitle="Broadcast a message to students, counselors, or college deans."
-        actions={
-          <button type="submit" form="announcement-form" disabled={submitting} className={BTN.primary}>
-            <Send size={14} /> {submitting ? "Sending…" : "Send announcement"}
-          </button>
-        }
       />
 
       {feedback && (
@@ -186,6 +181,12 @@ export default function CreateAnnouncement() {
               <option value="counselors">Counselors only</option>
               <option value="reps">College deans only</option>
             </select>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button type="submit" disabled={submitting} className={BTN.primary}>
+              <Send size={14} /> {submitting ? "Sending…" : "Send announcement"}
+            </button>
           </div>
         </form>
       </SectionCard>

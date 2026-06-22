@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
   employee_id VARCHAR(30),
   rejection_reason TEXT,
   is_placeholder TINYINT(1) NOT NULL DEFAULT 0,
+  approved_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -295,3 +296,47 @@ CREATE TABLE IF NOT EXISTS password_resets (
   INDEX idx_pwreset_user (user_id, used_at),
   INDEX idx_pwreset_email_lookup (user_id, used_at, expires_at)
 );
+
+-- Whether the student allows a referral session's report to be shared with
+-- the referring College Representative. Separate from the primary informed
+-- consent (student_consents.e_consent_signed_at) — this is decided per
+-- student, any time after the primary consent is on file. Guarded so re-runs
+-- of this file are a no-op.
+SET @has_referral_sharing_col := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'student_consents'
+    AND COLUMN_NAME = 'referral_sharing_consent'
+);
+SET @add_referral_sharing_col := IF(@has_referral_sharing_col = 0,
+  "ALTER TABLE student_consents ADD COLUMN referral_sharing_consent ENUM('yes','no') NULL, ADD COLUMN referral_sharing_decided_at TIMESTAMP NULL",
+  'SELECT 1');
+PREPARE stmt FROM @add_referral_sharing_col; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Ties a report_requests row to the actual student record (needed to
+-- automatically resolve individual requests against referrals + consent,
+-- instead of matching on free-text student_name).
+SET @has_report_request_student_col := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'report_requests'
+    AND COLUMN_NAME = 'student_id'
+);
+SET @add_report_request_student_col := IF(@has_report_request_student_col = 0,
+  'ALTER TABLE report_requests ADD COLUMN student_id INT NULL, ADD CONSTRAINT fk_report_requests_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE SET NULL',
+  'SELECT 1');
+PREPARE stmt FROM @add_report_request_student_col; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- When a registration was approved, separate from updated_at (which also
+-- changes on unrelated profile edits) so admin stats like "approved this
+-- week" stay accurate after later edits.
+SET @has_approved_at_col := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'users'
+    AND COLUMN_NAME = 'approved_at'
+);
+SET @add_approved_at_col := IF(@has_approved_at_col = 0,
+  'ALTER TABLE users ADD COLUMN approved_at TIMESTAMP NULL',
+  'SELECT 1');
+PREPARE stmt FROM @add_approved_at_col; EXECUTE stmt; DEALLOCATE PREPARE stmt;

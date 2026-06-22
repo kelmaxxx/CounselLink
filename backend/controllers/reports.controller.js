@@ -165,6 +165,22 @@ const getCollegeStudentCount = async (college) => {
   return Number(row?.count || 0);
 };
 
+// Per-session breakdown for a college summary — deliberately omits student
+// name/number/id so the rep sees real session detail without identifying
+// which student it belongs to.
+const getCollegeAnonymizedSessions = async (college) => {
+  const rows = await query(
+    `SELECT cs.session_date AS sessionDate, cs.presenting_concern AS presentingConcern,
+            cs.summary, cs.plan, cs.next_session AS nextSession
+     FROM counseling_sessions cs
+     JOIN users s ON cs.student_id = s.id
+     WHERE s.college = ? AND cs.finalized_at IS NOT NULL
+     ORDER BY cs.session_date DESC`,
+    [college]
+  );
+  return rows;
+};
+
 // Counselor-facing: the auto-computed totals for a college, used to prefill the
 // "generate college summary" form before the counselor adds their notes.
 export const getCollegeTotals = async (req, res) => {
@@ -212,12 +228,14 @@ export const createCollegeSummary = async (req, res) => {
 
   const totals = await computeCollegeTotals(rep.college);
   const studentCount = await getCollegeStudentCount(rep.college);
+  const sessions = await getCollegeAnonymizedSessions(rep.college);
 
   const payload = {
     type: "college_summary",
     college: rep.college,
     totals,
     studentCount,
+    sessions,
     narrative: narrative.trim(),
     counselorName: req.user?.name || null,
     generatedAt: new Date().toISOString(),
