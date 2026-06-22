@@ -8,7 +8,6 @@ import {
   Users,
   Calendar,
   Clock3,
-  FileText,
   ArrowRight,
   ArrowUpRight,
   Check,
@@ -35,6 +34,7 @@ const STATUS_COLORS = {
   rescheduled: "#0ea5e9",
   rejected: "#dc2626",
   completed: "#065f46",
+  "follow-up": "#eab308",
 };
 
 const TIME_LABEL = {
@@ -124,21 +124,41 @@ export default function CounselorDashboard() {
   const totalStudents = students.length;
   const pendingAppointments = myAppointments.filter((a) => a.status === "pending");
   const pendingTests = myTests.filter((t) => t.status === "pending");
+  const isSameDay = (value) => {
+    if (!value) return false;
+    const d = new Date(value);
+    const today = new Date();
+    return (
+      d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate()
+    );
+  };
+  // "Today's appointments" — scheduled to actually happen today.
   const todayAppointments = myAppointments.filter(
+    (a) => (a.status === "approved" || a.status === "rescheduled") && isSameDay(a.scheduledDate)
+  ).length;
+  // "Incoming appointments" — every appointment still ahead of us, regardless
+  // of date: fresh approvals, reschedules, and follow-ups all carry one of
+  // these two statuses (there's no separate DB status for follow-ups).
+  const incomingAppointments = myAppointments.filter(
     (a) => a.status === "approved" || a.status === "rescheduled"
   ).length;
-  const reportsGenerated = 0;
 
   const topColleges = Object.entries(studentsByCollege).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   const appointmentStatusBreakdown = useMemo(() => {
     const counts = myAppointments.reduce((acc, a) => {
-      const key = a.status || "pending";
+      // Follow-up appointments are plain "approved" rows with this fixed
+      // reason (set when a finalized session schedules its follow-up) — split
+      // them out so the breakdown reflects what's actually shown elsewhere.
+      const isFollowup = a.status === "approved" && a.reason === "Follow-up Session";
+      const key = isFollowup ? "followup" : a.status || "pending";
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
     return Object.entries(counts).map(([name, value]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
+      name: name === "followup" ? "Follow-up" : name.charAt(0).toUpperCase() + name.slice(1),
       value,
     }));
   }, [myAppointments]);
@@ -258,10 +278,17 @@ export default function CounselorDashboard() {
     setRescheduleTestModal({ open: false, testId: null, date: "", timeSlot: "", note: "" });
   };
 
-  const recentlyRejected = useMemo(
-    () => myAppointments.filter((a) => a.status === "rejected").slice(0, 5),
-    [myAppointments]
-  );
+  const recentlyRejected = useMemo(() => {
+    const cutoff = Date.now() - 2 * 24 * 60 * 60 * 1000; // last 2 days only — "recently"
+    return myAppointments
+      .filter((a) => {
+        if (a.status !== "rejected") return false;
+        const rejectedAt = a.updatedAt || a.updated_at;
+        return rejectedAt ? new Date(rejectedAt).getTime() >= cutoff : false;
+      })
+      .sort((a, b) => new Date(b.updatedAt || b.updated_at) - new Date(a.updatedAt || a.updated_at))
+      .slice(0, 5);
+  }, [myAppointments]);
 
   // ── Unified pending queue (appointments + tests) ─────────────────────
   const pendingQueue = useMemo(() => {
@@ -352,13 +379,6 @@ export default function CounselorDashboard() {
           accent="bg-gray-400"
         />
         <StatCard
-          label="Today's appointments"
-          value={todayAppointments}
-          hint={`${pendingAppointments.length} pending`}
-          icon={Calendar}
-          accent="bg-emerald-500"
-        />
-        <StatCard
           label="Pending requests"
           value={pendingAppointments.length + pendingTests.length}
           hint="Awaiting response"
@@ -366,10 +386,17 @@ export default function CounselorDashboard() {
           accent="bg-amber-500"
         />
         <StatCard
-          label="Reports generated"
-          value={reportsGenerated}
-          hint="This month"
-          icon={FileText}
+          label="Today's appointments"
+          value={todayAppointments}
+          hint="Scheduled for today"
+          icon={Calendar}
+          accent="bg-emerald-500"
+        />
+        <StatCard
+          label="Incoming appointments"
+          value={incomingAppointments}
+          hint="Approved, rescheduled & follow-up"
+          icon={Inbox}
           accent="bg-blue-500"
         />
       </div>
