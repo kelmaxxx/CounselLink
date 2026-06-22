@@ -78,11 +78,15 @@ const STATUS_PALETTE = {
   active: "bg-emerald-50 text-emerald-700",
   inactive: "bg-gray-100 text-gray-600",
   confirmed: "bg-emerald-50 text-emerald-700",
+  followup: "bg-indigo-50 text-indigo-700",
 };
 
 // User-facing label overrides for stored enum values. The DB still stores
 // 'rejected' so we keep that value end-to-end; only the rendered pill label
-// is swapped to the friendlier "Declined" wording the spec uses.
+// is swapped to the friendlier "Declined" wording the spec uses. 'followup'
+// isn't a real appointment status (the DB only has approved/rescheduled/etc.)
+// — callers pass it in as a computed display-only status for appointments
+// created as a follow-up from a finalized session.
 const STATUS_LABEL_OVERRIDES = {
   rejected: "Declined",
   followup: "Follow-up",
@@ -130,7 +134,7 @@ export function Modal({
   const alignClass = align === "top" ? "items-start" : "items-center";
   return (
     <div
-      className={`fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center p-4 z-50 overflow-y-auto ${alignClass}`}
+      className={`fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center p-4 z-[60] overflow-y-auto ${alignClass}`}
       onClick={onClose}
     >
       <div
