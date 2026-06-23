@@ -5,14 +5,14 @@
 //   - Consent:   e-sign status, signed-paper scan, revoke
 //   - Sessions:  counseling sessions filtered to this student
 import React, { useEffect, useMemo, useState } from "react";
-import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, Download, FileDown, Edit, Trash2 } from "lucide-react";
+import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, FileDown, Edit, Trash2 } from "lucide-react";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useAuth } from "../../context/AuthContext";
 import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
 import { Modal, BTN, formatDate } from "../ui";
-import { downloadReportAsDocx, downloadReportAsPdf } from "../../utils/sessionReport";
+import { downloadReportAsPdf } from "../../utils/sessionReport";
 import ReportPreview from "./ReportPreview";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
@@ -312,13 +312,6 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
                     <Eye size={14} />
                   </button>
                   <button
-                    onClick={() => downloadReportAsDocx(s, { title: titleFor(s) })}
-                    className="p-1.5 rounded hover:bg-gray-100"
-                    title="Download as Word (DOCX)"
-                  >
-                    <Download size={14} />
-                  </button>
-                  <button
                     onClick={() => downloadReportAsPdf(s, { title: titleFor(s) })}
                     className="p-1.5 rounded hover:bg-gray-100"
                     title="Download / print as PDF"
@@ -366,15 +359,9 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
             <div className="flex items-center gap-2">
               <button
                 className={BTN.secondary}
-                onClick={() => downloadReportAsDocx(viewing, { title: titleFor(viewing) })}
-              >
-                <Download size={14} /> DOCX
-              </button>
-              <button
-                className={BTN.secondary}
                 onClick={() => downloadReportAsPdf(viewing, { title: titleFor(viewing) })}
               >
-                <FileDown size={14} /> PDF
+                <FileDown size={14} /> Download PDF
               </button>
               <button className={BTN.primary} onClick={() => setViewing(null)}>
                 Close

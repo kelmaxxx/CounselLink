@@ -124,15 +124,6 @@ export default function CounselorDashboard() {
   const totalStudents = students.length;
   const pendingAppointments = myAppointments.filter((a) => a.status === "pending");
   const pendingTests = myTests.filter((t) => t.status === "pending");
-<<<<<<< HEAD
-  const todayAppointments = myAppointments.filter((a) => {
-    if (a.status !== "approved" && a.status !== "rescheduled") return false;
-    const todayStr = new Date().toISOString().split("T")[0];
-    const apptDate = (a.scheduledDate || "").split("T")[0];
-    return apptDate === todayStr;
-  }).length;
-  const reportsGenerated = 0;
-=======
   const isSameDay = (value) => {
     if (!value) return false;
     const d = new Date(value);
@@ -153,7 +144,6 @@ export default function CounselorDashboard() {
   const incomingAppointments = myAppointments.filter(
     (a) => a.status === "approved" || a.status === "rescheduled"
   ).length;
->>>>>>> proper-and-printable-counseling-form
 
   const topColleges = Object.entries(studentsByCollege).sort((a, b) => b[1] - a[1]).slice(0, 5);
 

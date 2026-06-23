@@ -4,7 +4,6 @@ import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import {
   FileText,
   Eye,
-  Download,
   FileDown,
   Send,
   Inbox,
@@ -30,7 +29,7 @@ import {
   LABEL,
   initialsOf,
 } from "../../components/ui";
-import { downloadReportAsDocx, downloadReportAsPdf } from "../../utils/sessionReport";
+import { downloadReportAsPdf } from "../../utils/sessionReport";
 import ReportPreview from "../../components/records/ReportPreview";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -657,19 +656,11 @@ export default function CounselorReports() {
             <div className="flex items-center gap-2">
               <button
                 className={BTN.secondary}
-                onClick={() => downloadReportAsDocx(parsePayload(activeReport.report_payload), {
-                  title: activeReport.title,
-                })}
-              >
-                <Download size={14} /> DOCX
-              </button>
-              <button
-                className={BTN.secondary}
                 onClick={() => downloadReportAsPdf(parsePayload(activeReport.report_payload), {
                   title: activeReport.title,
                 })}
               >
-                <FileDown size={14} /> PDF
+                <FileDown size={14} /> Download PDF
               </button>
               <button className={BTN.primary} onClick={() => setActiveReport(null)}>
                 Close
@@ -844,13 +835,6 @@ function ReportActions({ report, onView }) {
         <Eye size={13} /> View
       </button>
       <button
-        onClick={handle(downloadReportAsDocx)}
-        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-        title="Download as Word document"
-      >
-        <Download size={13} /> DOCX
-      </button>
-      <button
         onClick={handle(downloadReportAsPdf)}
         className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
         title="Download / print as PDF"
@@ -873,13 +857,6 @@ function SessionDownloadButtons({ session, onView }) {
         title="View"
       >
         <Eye size={13} /> View
-      </button>
-      <button
-        onClick={() => downloadReportAsDocx(session, opts)}
-        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-        title="DOCX"
-      >
-        <Download size={13} /> DOCX
       </button>
       <button
         onClick={() => downloadReportAsPdf(session, opts)}
