@@ -54,13 +54,8 @@ export default function CounselorAppointments() {
     rejectAppointment,
     rescheduleAppointment,
   } = useAppointments();
-<<<<<<< HEAD
   const { getTestsForCurrentUser, fetchTests } = useTests();
-  const { fetchSessionByAppointment, deleteSession, sessions } = useCounselingSessions();
-=======
-  const { getTestsForCurrentUser } = useTests();
   const { sessions } = useCounselingSessions();
->>>>>>> proper-and-printable-counseling-form
   const [busyId, setBusyId] = useState(null);
 
   // Pending-request action modals
@@ -79,16 +74,8 @@ export default function CounselorAppointments() {
     type: "counseling", // "counseling" or "test"
   });
 
-<<<<<<< HEAD
-  const [discardConfirmModal, setDiscardConfirmModal] = useState({
-    open: false,
-    appt: null,
-  });
-
   const [actionErrorModal, setActionErrorModal] = useState({ open: false, message: "" });
 
-=======
->>>>>>> proper-and-printable-counseling-form
   const handleMarkDone = (id, type = "counseling") => {
     setCompleteConfirmModal({ open: true, id, type });
   };
@@ -438,13 +425,7 @@ export default function CounselorAppointments() {
                           {a.studentName}
                         </button>
                         <span className="text-xs text-gray-500">{a.college || "—"}</span>
-<<<<<<< HEAD
-                        <StatusPill
-                          status={a.status === "approved" && a.reason === "Follow-up Session" ? "followup" : a.status}
-                        />
-=======
                         <StatusPill status={displayStatus} />
->>>>>>> proper-and-printable-counseling-form
                         {a.controlNo && (
                           <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
                             <Hash size={10} />
@@ -812,7 +793,6 @@ export default function CounselorAppointments() {
         </p>
       </Modal>
 
-<<<<<<< HEAD
       <Modal
         open={actionErrorModal.open}
         onClose={() => setActionErrorModal({ open: false, message: "" })}
@@ -831,34 +811,6 @@ export default function CounselorAppointments() {
         <p className="text-sm text-gray-700 leading-relaxed">{actionErrorModal.message}</p>
       </Modal>
 
-      <Modal
-        open={discardConfirmModal.open}
-        onClose={() => setDiscardConfirmModal({ open: false, appt: null })}
-        title="Discard completed session"
-        subtitle="This action cannot be undone"
-        danger
-        footer={
-          <>
-            <button
-              type="button"
-              className={BTN.secondary}
-              onClick={() => setDiscardConfirmModal({ open: false, appt: null })}
-            >
-              Cancel
-            </button>
-            <button type="button" className={BTN.danger} onClick={submitDiscard}>
-              Confirm Discard
-            </button>
-          </>
-        }
-      >
-        <p className="text-sm text-gray-700 leading-relaxed">
-          Are you sure you want to discard this completed session and delete the draft report? The appointment will be reset back to approved status and returned to your active upcoming list.
-        </p>
-      </Modal>
-
-=======
->>>>>>> proper-and-printable-counseling-form
       {selectedProfile && (
         <ProfileViewModal
           user={selectedProfile}

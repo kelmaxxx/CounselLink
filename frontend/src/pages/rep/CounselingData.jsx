@@ -4,7 +4,6 @@ import {
   FileText,
   Eye,
   Inbox,
-  Download,
   FileDown,
   Building2,
   User,
@@ -17,7 +16,7 @@ import {
   BTN,
   initialsOf,
 } from "../../components/ui";
-import { downloadReportAsDocx, downloadReportAsPdf } from "../../utils/sessionReport";
+import { downloadReportAsPdf } from "../../utils/sessionReport";
 import ReportPreview from "../../components/records/ReportPreview";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -155,15 +154,6 @@ export default function CounselingData() {
                           </button>
                           <button
                             onClick={() =>
-                              downloadReportAsDocx(payload, { title: r.title })
-                            }
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                            title="Download as Word document"
-                          >
-                            <Download size={13} /> DOCX
-                          </button>
-                          <button
-                            onClick={() =>
                               downloadReportAsPdf(payload, { title: r.title })
                             }
                             className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
@@ -198,22 +188,12 @@ export default function CounselingData() {
               <button
                 className={BTN.secondary}
                 onClick={() =>
-                  downloadReportAsDocx(parsePayload(activeReport.report_payload), {
-                    title: activeReport.title,
-                  })
-                }
-              >
-                <Download size={14} /> DOCX
-              </button>
-              <button
-                className={BTN.secondary}
-                onClick={() =>
                   downloadReportAsPdf(parsePayload(activeReport.report_payload), {
                     title: activeReport.title,
                   })
                 }
               >
-                <FileDown size={14} /> PDF
+                <FileDown size={14} /> Download PDF
               </button>
               <button className={BTN.primary} onClick={() => setActiveReport(null)}>
                 Close

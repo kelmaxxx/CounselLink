@@ -5,7 +5,7 @@
 //   Overview        : analytics (existing)
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Search, Plus, Edit, Trash2, Users, FileText, Download, FileDown, Eye, Calendar,
+  Search, Plus, Edit, Trash2, Users, FileText, FileDown, Eye, Calendar,
   TrendingUp, Activity, AlertCircle, RefreshCw, UserRound, ClipboardList, Target,
   ListChecks, ArrowLeft, ArrowRight, CheckCircle2, Folder
 } from "lucide-react";
@@ -14,10 +14,7 @@ import { useCounselingSessions } from "../context/CounselingSessionsContext";
 import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
 import { Modal, BTN, INPUT, LABEL, formatDate } from "../components/ui";
-import {
-  downloadReportAsDocx,
-  downloadReportAsPdf,
-} from "../utils/sessionReport";
+import { downloadReportAsPdf } from "../utils/sessionReport";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 
@@ -225,7 +222,10 @@ export default function ManageStudents() {
       : await createSession(payload);
     setBusy(false);
     if (res.success) {
-      closeModal();
+      // Stay open on this step so the counselor can keep reviewing/editing —
+      // they close the modal themselves (X button) once they're done, rather
+      // than the save action exiting for them.
+      setEditing(res.session);
       showFeedback("success", editing?.id ? "Session updated" : "Session record added");
     } else {
       showFeedback("error", res.message || "Failed to save");
@@ -600,13 +600,6 @@ export default function ManageStudents() {
                             <Eye size={14} className="text-gray-700" />
                           </button>
                           <button
-                            onClick={() => downloadReportAsDocx(s, { title: reportTitleFor(s) })}
-                            className="p-1.5 rounded hover:bg-gray-100"
-                            title="Download as Word (DOCX)"
-                          >
-                            <Download size={14} className="text-gray-700" />
-                          </button>
-                          <button
                             onClick={() => downloadReportAsPdf(s, { title: reportTitleFor(s) })}
                             className="p-1.5 rounded hover:bg-gray-100"
                             title="Download / print as PDF"
@@ -872,15 +865,9 @@ export default function ManageStudents() {
             <div className="flex items-center gap-2">
               <button
                 className={BTN.secondary}
-                onClick={() => downloadReportAsDocx(viewSession, { title: reportTitleFor(viewSession) })}
-              >
-                <Download size={14} /> DOCX
-              </button>
-              <button
-                className={BTN.secondary}
                 onClick={() => downloadReportAsPdf(viewSession, { title: reportTitleFor(viewSession) })}
               >
-                <FileDown size={14} /> PDF
+                <FileDown size={14} /> Download PDF
               </button>
               <button className={BTN.primary} onClick={() => setViewSession(null)}>
                 Close

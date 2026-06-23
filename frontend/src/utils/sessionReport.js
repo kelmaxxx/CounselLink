@@ -16,8 +16,6 @@ const formatLine = (value) => {
   return escapeHtml(value).replace(/\n/g, "<br/>");
 };
 
-const checkbox = (checked) => (checked ? "☑" : "☐");
-
 const formatDateOnly = (value) => {
   if (!value) return "—";
   const iso = typeof value === "string" ? value.split("T")[0] : value;
@@ -41,15 +39,11 @@ export function normalizeSessionReport(input = {}) {
   const get = (camel, snake) => input[camel] ?? input[snake];
   let formData = get("formData", "form_data");
   if (typeof formData === "string") {
-<<<<<<< HEAD
-    try { formData = JSON.parse(formData); } catch { formData = null; }
-=======
     try {
       formData = JSON.parse(formData);
     } catch {
       formData = null;
     }
->>>>>>> proper-and-printable-counseling-form
   }
   const reason = formData?.reason || {};
   return {
@@ -210,10 +204,6 @@ export function buildReportHTML(report, opts = {}) {
   if (report?.type === "college_summary") return buildCollegeSummaryHTML(report, opts);
   const { title = "Student Counseling Form" } = opts;
   const r = normalizeSessionReport(report);
-<<<<<<< HEAD
-  const date = formatDateOnly(r.sessionDate);
-  const isFollowup = (r.nextSession || "followup") !== "termination";
-=======
   const date =
     r.sessionDate && typeof r.sessionDate === "string"
       ? r.sessionDate.split("T")[0]
@@ -231,60 +221,12 @@ export function buildReportHTML(report, opts = {}) {
   const matchedNthIndex = ROUTINE_ORDINALS.findIndex((o) => o.toLowerCase() === normalizedNth);
   const routineOverflow = r.reasonRoutineNth && matchedNthIndex === -1 ? r.reasonRoutineNth : "";
   const routineBoxes = ROUTINE_ORDINALS.map((o, i) => `${cb(i === matchedNthIndex)}${o}`).join(" ");
->>>>>>> proper-and-printable-counseling-form
 
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
-<<<<<<< HEAD
-  <style>${LETTERHEAD_STYLES}</style>
-</head>
-<body>
-  ${renderLetterhead()}
-  ${renderDocControl({ dateLabel: date })}
-  <div class="form-title">Student Counseling Form</div>
-
-  <table class="info-table">
-    <tr>
-      <td style="width:65%"><strong>Student's Name:</strong> ${formatLine(r.studentName)}</td>
-      <td><strong>Date:</strong> ${escapeHtml(date)}</td>
-    </tr>
-    <tr>
-      <td colspan="2"><strong>Counselor's Name:</strong> ${formatLine(r.counselorName)}</td>
-    </tr>
-  </table>
-
-  <div class="section-label">1. REASON FOR COUNSELING:</div>
-  <p class="reason-line">
-    ${checkbox(r.reasonRoutine)} Routine${r.reasonRoutineNth ? ` (${escapeHtml(r.reasonRoutineNth)} visit)` : ""}
-    &nbsp;&nbsp;&nbsp; ${checkbox(r.reasonStudentInitiated)} Student Initiated
-    &nbsp;&nbsp;&nbsp; ${checkbox(r.reasonInstituteInitiated)} Institute Initiated
-  </p>
-  <p class="reason-line">Identify reason: ${formatLine(r.presentingConcern)}</p>
-
-  <div class="section-label">2. Goals:</div>
-  <p class="section-body">${formatLine(r.goals)}</p>
-
-  <div class="section-label">3. Summary of Counseling / Key Points of Discussion:</div>
-  <p class="section-body">${formatLine(r.summary)}</p>
-
-  <div class="section-label">4. Plan of Action:</div>
-  <p class="section-body">${formatLine(r.plan)}</p>
-
-  <div class="section-label">5. Counselor's Comments:</div>
-  <p class="section-body">${formatLine(r.comments)}</p>
-
-  <p class="reason-line"><strong>Next Counseling Session:</strong>
-    &nbsp; ${checkbox(isFollowup)} Follow-up
-    &nbsp;&nbsp;&nbsp; ${checkbox(!isFollowup)} Termination
-  </p>
-
-  <div class="signature-block">
-    <div class="signature-line"></div>
-    <div class="signature-caption">${formatLine(r.counselorSignature)}<br/>Signature of Counselor</div>
-=======
   <style>
     @page { size: A4 portrait; margin: 12mm 14mm; }
     body { font-family: 'Times New Roman', Georgia, serif; color: #111; line-height: 1.35; padding: 0; margin: 0; font-size: 10.5pt; }
@@ -379,40 +321,9 @@ export function buildReportHTML(report, opts = {}) {
 
   <div class="signature-block">
     <div class="signature-line">Signature of Counselor</div>
->>>>>>> proper-and-printable-counseling-form
   </div>
 </body>
 </html>`;
-}
-
-function safeFileBase(report) {
-  if (report?.type === "college_summary") {
-    const college = (report.college || "college").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "");
-    const date = (report.generatedAt || new Date().toISOString()).split("T")[0];
-    return `college-summary_${college}_${date}`.toLowerCase();
-  }
-  const r = normalizeSessionReport(report);
-  const name = (r.studentName || "session").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "");
-  const date =
-    r.sessionDate && typeof r.sessionDate === "string"
-      ? r.sessionDate.split("T")[0]
-      : new Date().toISOString().split("T")[0];
-  return `session-report_${name}_${date}`.toLowerCase();
-}
-
-export function downloadReportAsDocx(report, opts = {}) {
-  const html = buildReportHTML(report, opts);
-  // Word reads HTML files served as application/msword with a .doc extension
-  // (the common "Word-compatible export" trick — no library required).
-  const blob = new Blob(["﻿", html], { type: "application/msword" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${safeFileBase(report)}.doc`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 // Opens a print window pre-populated with the report HTML. The user picks
