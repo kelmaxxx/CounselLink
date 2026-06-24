@@ -6,54 +6,8 @@ import { useAuth } from "../../context/AuthContext";
 import { useTestResults } from "../../context/TestResultsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { PageHeader, SectionCard, EmptyState } from "../../components/ui";
-
-// Builds a small standalone HTML document from a set of label/value rows and
-// triggers a direct file download (no print dialog).
-function downloadResultAsHtml({ filename, subtitle, rows }) {
-  const escapeHtml = (str) =>
-    String(str ?? "").replace(/[&<>"']/g, (c) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    }[c]));
-
-  const rowsHtml = rows
-    .map(
-      ([label, value]) => `
-        <div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid #e5e7eb;">
-          <div style="flex:0 0 140px;font-weight:600;color:#4b5563;font-size:12px;">${escapeHtml(label)}</div>
-          <div style="flex:1;font-size:14px;color:#111827;white-space:pre-wrap;">${escapeHtml(value)}</div>
-        </div>`
-    )
-    .join("");
-
-  const html = `<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>${escapeHtml(subtitle)}</title>
-  </head>
-  <body style="font-family: sans-serif; max-width: 640px; margin: 24px auto;">
-    <div style="text-align:center;margin-bottom:16px;">
-      <h2 style="margin:0;">CounselLink · MSU Marawi</h2>
-      <p style="margin:4px 0 0;color:#6b7280;font-size:13px;">${escapeHtml(subtitle)}</p>
-    </div>
-    ${rowsHtml}
-  </body>
-</html>`;
-
-  const blob = new Blob([html], { type: "text/html" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+import { saveReportAsPdfFile } from "../../utils/sessionReport";
+import { saveTestResultAsPdfFile } from "../../utils/testResultReport";
 
 export default function StudentConsent() {
   const { currentUser } = useAuth();
@@ -72,8 +26,8 @@ export default function StudentConsent() {
     <div className="px-6 py-6 max-w-4xl mx-auto">
       <PageHeader
         eyebrow="Student"
-        title="View test results"
-        subtitle="View any psychological test results and counseling reports released by your counselor."
+        title="My Records"
+        subtitle="View any counseling reports and psychological test results released by your counselor."
       />
 
       <CounselingResultsSection studentName={currentUser?.name} />
@@ -130,22 +84,17 @@ function TestResultsSection({ studentName }) {
 }
 
 function TestResultCard({ result, studentName }) {
-  const handleSave = () => {
-    downloadResultAsHtml({
-      filename: `test-result-${result.testName || result.id}.html`,
-      subtitle: "Psychological Test Result",
-      rows: [
-        ["Student", studentName || "—"],
-        ["Test", result.testName || "—"],
-        [
-          "Completed",
-          result.completedDate ? new Date(result.completedDate).toLocaleDateString() : "—",
-        ],
-        ...(result.counselorName ? [["Counselor", result.counselorName]] : []),
-        ...(result.summary ? [["Summary", result.summary]] : []),
-        ...(result.recommendations ? [["Recommendations", result.recommendations]] : []),
-      ],
-    });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveTestResultAsPdfFile(result, { studentName });
+    } catch {
+      alert("Failed to save the test result as PDF. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -166,9 +115,10 @@ function TestResultCard({ result, studentName }) {
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={handleSave}
-            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition"
+            disabled={saving}
+            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition disabled:opacity-50"
           >
-            <Download size={12} /> Save
+            <Download size={12} /> {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </div>
@@ -211,24 +161,22 @@ function CounselingResultsSection({ studentName }) {
 }
 
 function CounselingResultCard({ session, studentName }) {
-  const handleSave = () => {
-    downloadResultAsHtml({
-      filename: `counseling-result-${session.id}.html`,
-      subtitle: "Counseling Session Report",
-      rows: [
-        ["Student", studentName || "—"],
-        [
-          "Date of Session",
-          session.sessionDate ? new Date(session.sessionDate).toLocaleDateString() : "—",
-        ],
-        ...(session.counselorName ? [["Counselor", session.counselorName]] : []),
-        ...(session.presentingConcern ? [["Reason for counseling", session.presentingConcern]] : []),
-        ...(session.goals ? [["Goals", session.goals]] : []),
-        ...(session.summary ? [["Summary of discussion", session.summary]] : []),
-        ...(session.plan ? [["Plan of action", session.plan]] : []),
-        ...(session.comments ? [["Comments", session.comments]] : []),
-      ],
-    });
+  // Same official MSU DSA GCS Form 3.3 letterhead template the counselor
+  // uses in StudentRecordsDrawer.jsx — students and counselors end up with
+  // an identical document. Unlike the counselor's "Download / print as PDF"
+  // action, this one saves the file directly — no print dialog.
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const title = `Session Report — ${session.studentName || studentName || ""} (${(session.sessionDate || "").split("T")[0]})`;
+      await saveReportAsPdfFile(session, { title });
+    } catch {
+      alert("Failed to save the report as PDF. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -249,9 +197,10 @@ function CounselingResultCard({ session, studentName }) {
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={handleSave}
-            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition"
+            disabled={saving}
+            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition disabled:opacity-50"
           >
-            <Download size={12} /> Save
+            <Download size={12} /> {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </div>
