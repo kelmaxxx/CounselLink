@@ -88,3 +88,73 @@ export async function printInventoryDocxBlob(blob) {
   }
   return { success: true };
 }
+
+// Kept as an alias for any older call sites/imports.
+export const downloadInventoryAsPdf = printInventoryForm;
+
+// "Export PDF" — renders page 1 and page 2 into a hidden iframe, captures
+// each as its own canvas, and saves an actual two-page .pdf file straight
+// to disk — no print dialog in the way.
+//
+// Each form is captured and placed on its own jsPDF page deliberately,
+// instead of rendering both as one tall canvas and letting a page-break
+// calculation slice it: html2canvas's text layout doesn't always match the
+// pixel height the same CSS produces in the browser's native print engine,
+// so a height-based split is liable to spill onto a 3rd, mostly-blank page.
+// One canvas per page is exact by construction — always 2 pages.
+//
+// The iframe (rather than an off-screen <div>) matters too: html2canvas
+// clones and rasterizes starting at (0,0). A <div> pushed off-screen via
+// `top: -10000px` sits at a *negative* coordinate in the parent document,
+// outside any capturable canvas region, and silently renders as a 0-height
+// image. An iframe's contentDocument has its own (0,0)-origin coordinate
+// system regardless of where the iframe sits in the parent page.
+export async function exportInventoryAsPdfFile(inventoryData, studentProfile = {}, consent = null) {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import("html2canvas"),
+    import("jspdf"),
+  ]);
+
+  const PAGE_PX_WIDTH = 816; // 8.5in @ 96dpi
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.top = "-10000px";
+  iframe.style.left = "0";
+  iframe.style.width = `${PAGE_PX_WIDTH}px`;
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument;
+  doc.open();
+  doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>${SHARED_STYLES} html,body{margin:0;background:#fff;}</style></head><body>${renderPage1(inventoryData, studentProfile)}${renderPage2(inventoryData, consent)}</body></html>`);
+  doc.close();
+
+  // Let layout (and the letterhead logo <img> tags) settle before capture.
+  await new Promise((resolve) => {
+    const imgs = Array.from(doc.images);
+    if (!imgs.length) return resolve();
+    let pending = imgs.length;
+    const done = () => { if (--pending <= 0) resolve(); };
+    imgs.forEach((img) => (img.complete ? done() : (img.addEventListener("load", done), img.addEventListener("error", done))));
+    setTimeout(resolve, 1500);
+  });
+
+  try {
+    const pageEls = Array.from(doc.querySelectorAll(".form-page"));
+    const pdf = new jsPDF({ unit: "in", format: [8.5, 13], orientation: "portrait" });
+
+    for (let i = 0; i < pageEls.length; i++) {
+      const canvas = await html2canvas(pageEls[i], { scale: 2, useCORS: true, windowWidth: doc.body.scrollWidth });
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+      if (i > 0) pdf.addPage([8.5, 13], "portrait");
+      // Fit the captured page to the full 8.5x13 sheet (each .form-page is
+      // already laid out for exactly one long-bond page).
+      const imgHeightIn = (canvas.height / canvas.width) * 8.5;
+      pdf.addImage(imgData, "JPEG", 0, 0, 8.5, Math.min(imgHeightIn, 13));
+    }
+
+    pdf.save(`${safeFileBase(studentProfile?.name, inventoryData?.personal?.idNumber)}.pdf`);
+  } finally {
+    document.body.removeChild(iframe);
+  }
+}

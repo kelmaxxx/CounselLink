@@ -67,10 +67,7 @@ export const listSessions = async (req, res) => {
   const where = [];
   const params = [];
 
-  if (role === "counselor") {
-    where.push("cs.counselor_id = ?");
-    params.push(userId);
-  } else if (role === "student") {
+  if (role === "student") {
     where.push("cs.student_id = ?");
     params.push(userId);
   } else if (role === "college_rep") {
@@ -80,7 +77,10 @@ export const listSessions = async (req, res) => {
     where.push("s.college = ?");
     params.push(repCollege);
   }
-  // admin: no role filter
+  // counselor and admin: no role filter — the Guidance and Counseling
+  // Section shares visibility across counselors so anyone can pull up a
+  // student's history even if a different counselor ran the session.
+  // Write actions (update/delete/finalize below) still check ownership.
 
   if (studentId) { where.push("cs.student_id = ?"); params.push(studentId); }
   if (appointmentId) { where.push("cs.appointment_id = ?"); params.push(appointmentId); }
@@ -105,7 +105,6 @@ export const getSession = async (req, res) => {
   const session = parseFormData(rows[0]);
   const role = req.user?.role;
   const userId = req.user?.id;
-  if (role === "counselor" && session.counselorId !== userId) return res.status(403).json({ message: "Forbidden" });
   if (role === "student" && session.studentId !== userId) return res.status(403).json({ message: "Forbidden" });
 
   return res.json(session);
