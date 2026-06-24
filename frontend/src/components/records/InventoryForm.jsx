@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown, FileText, CheckCircle2 } from "lucide-react";
 import { Modal, BTN } from "../ui";
-import { downloadInventoryAsPdf } from "../../utils/inventoryReport";
+import { printInventoryDocxBlob } from "../../utils/inventoryReport";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 
 const EDUC_LEVELS = ["Elementary", "Junior High School", "Vocational", "Senior High School", "College"];
@@ -193,14 +193,13 @@ export default function InventoryForm({
   inventory,
   studentName,
   studentId,
-  studentProfile = {},
   apiBase,
   onSave,
   onUploadScan,
   onDeleteScan,
   readOnly = false,
 }) {
-  const { downloadInventoryDocx } = useStudentRecords();
+  const { downloadInventoryDocx, fetchInventoryDocxBlob } = useStudentRecords();
   const [data, setData] = useState(() => mergeInventory(inventory?.formData));
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -285,6 +284,30 @@ export default function InventoryForm({
     const res = await downloadInventoryDocx(studentId, studentName || "student");
     setBusy(false);
     if (!res.success) showFeedback("error", res.message || "Failed to generate Word file");
+  };
+
+  // Print / Save-as-PDF renders the very same server-generated Word file in the
+  // browser, so the printout matches the .docx exactly. Persist edits first.
+  const handlePrint = async () => {
+    setBusy(true);
+    if (!readOnly) {
+      const saveRes = await onSave(data);
+      if (!saveRes.success) {
+        setBusy(false);
+        showFeedback("error", saveRes.message || "Could not save before printing");
+        return;
+      }
+      dirtyRef.current = false;
+    }
+    const docRes = await fetchInventoryDocxBlob(studentId);
+    if (!docRes.success) {
+      setBusy(false);
+      showFeedback("error", docRes.message || "Failed to prepare the form for printing");
+      return;
+    }
+    const printRes = await printInventoryDocxBlob(docRes.blob);
+    setBusy(false);
+    if (!printRes.success) showFeedback("error", printRes.message || "Failed to open the print dialog");
   };
 
   const handleScanChange = async (e) => {
@@ -620,10 +643,10 @@ export default function InventoryForm({
 
       {/* Save bar */}
       <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-white border-t border-gray-200 mt-4 flex items-center justify-end gap-2">
-        <button type="button" onClick={() => downloadInventoryAsPdf(data, studentProfile)} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700">
+        <button type="button" onClick={handlePrint} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50">
           <Printer size={16} /> Print Form
         </button>
-        <button type="button" onClick={() => downloadInventoryAsPdf(data, studentProfile)} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700">
+        <button type="button" onClick={handlePrint} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50">
           <FileDown size={16} /> Save as PDF
         </button>
         <button type="button" onClick={handleDownloadDocx} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50">

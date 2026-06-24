@@ -155,6 +155,16 @@ function build() {
     return full;
   });
 
+  // 2a) Pin both tables to a FIXED layout so injected data can never resize
+  // columns — cells keep their tblGrid widths and long text wraps inside the
+  // cell instead of stretching the grid. (tblLayout must sit after tblW and
+  // before tblLook in the OOXML schema order.)
+  let tblFixed = 0;
+  xml = xml.replace(/(<w:tblW\b[^>]*\/>)(?!<w:tblLayout)/g, (m, tblW) => {
+    tblFixed++;
+    return `${tblW}<w:tblLayout w:type="fixed"/>`;
+  });
+
   // 2) Replace the 5 Civil Status Wingdings symbols with placeholder runs.
   let symIdx = 0;
   xml = xml.replace(/<w:sym w:font="Wingdings 2" w:char="00A3"\/>/g, () => makeRun(SYM_TAGS[symIdx++] ?? ""));
@@ -179,6 +189,7 @@ function build() {
   const out = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
   fs.writeFileSync(OUT, out);
 
+  console.log(`Tables pinned to fixed layout: ${tblFixed}`);
   console.log(`Text nodes edited: ${textEdited}/${Object.keys(TEXT_EDITS).length}`);
   console.log(`Civil-status symbols replaced: ${symIdx}/${SYM_TAGS.length}`);
   console.log(`Educational cells filled: ${eduIdx}/${EDU_TAGS.length}`);
