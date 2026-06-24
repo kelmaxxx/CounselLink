@@ -25,7 +25,7 @@ const ROUTE_TITLES = [
   { pattern: "/student/appointments", title: "My Appointments" },
   { pattern: "/student/counselors", title: "Counselor Directory" },
   { pattern: "/student/feedback", title: "Leave Feedback" },
-  { pattern: "/student/consent", title: "Test Results" },
+  { pattern: "/student/consent", title: "My Records" },
   { pattern: "/student/profile", title: "Profile" },
   { pattern: "/student/notifications", title: "Notifications" },
   { pattern: "/rep/counseling-data", title: "Counseling Data" },

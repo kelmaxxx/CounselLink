@@ -53,13 +53,15 @@ export const listTestResultsForUser = async (req, res) => {
   }
 
   if (role === "counselor") {
+    // Shared visibility across the Guidance and Counseling Section: any
+    // counselor can see a student's released test results, not just the one
+    // who administered the test (mirrors counseling-sessions.controller.js).
     const rows = await query(
-      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId
+      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName
        FROM test_results r
        LEFT JOIN users s ON r.student_id = s.id
-       WHERE r.counselor_id = ?
-       ORDER BY r.completed_date DESC`,
-      [userId]
+       LEFT JOIN users c ON r.counselor_id = c.id
+       ORDER BY r.completed_date DESC`
     );
     return res.json(rows);
   }

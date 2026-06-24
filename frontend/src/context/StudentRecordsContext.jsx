@@ -7,15 +7,19 @@ export function StudentRecordsProvider({ children }) {
   const { token } = useAuth();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-  const authFetch = (url, options = {}) =>
-    fetch(url, {
+  const authFetch = (url, options = {}) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    return fetch(url, {
       ...options,
+      signal: controller.signal,
       headers: {
         ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
         ...(options.headers || {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-    });
+    }).finally(() => clearTimeout(timeout));
+  };
 
   const parseJson = async (response) => {
     const text = await response.text();
