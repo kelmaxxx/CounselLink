@@ -6,9 +6,9 @@
 // stored as a JSON blob in student_inventories.form_data — the shape below is
 // the contract; do not rename keys without a data migration.
 import React, { useEffect, useMemo, useState } from "react";
-import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown, CheckCircle2 } from "lucide-react";
+import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown, CheckCircle2, FileSignature } from "lucide-react";
 import { Modal, BTN } from "../ui";
-import { downloadInventoryAsPdf } from "../../utils/inventoryReport";
+import { printInventoryForm, exportInventoryAsPdfFile } from "../../utils/inventoryReport";
 
 const EDUC_LEVELS = ["Elementary", "Junior High School", "Vocational", "Senior High School", "College"];
 
@@ -194,6 +194,7 @@ export default function InventoryForm({
   studentId,
   studentProfile = {},
   apiBase,
+  consent = null,
   onSave,
   onUploadScan,
   onDeleteScan,
@@ -205,6 +206,7 @@ export default function InventoryForm({
   const [scanInputKey, setScanInputKey] = useState(0); // forces file input remount after upload
   const [confirmRemoveScan, setConfirmRemoveScan] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     setData(mergeInventory(inventory?.formData));
@@ -252,6 +254,17 @@ export default function InventoryForm({
       alert(res.message || "Failed to save");
     }
     showFeedback(res.success ? "success" : "error", res.success ? "Inventory saved" : (res.message || "Failed to save"));
+  };
+
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      await exportInventoryAsPdfFile(data, studentProfile, consent);
+    } catch (err) {
+      showFeedback("error", err?.message || "Failed to export PDF");
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const handleScanChange = async (e) => {
@@ -571,8 +584,8 @@ export default function InventoryForm({
         <TextInput value={data.other.helpNeededOther} onChange={(v) => updateSection("other", { helpNeededOther: v })} disabled={readOnly} />
       </Field>
 
-      {/* ACKNOWLEDGMENT */}
-      <SectionHeader>Acknowledgment</SectionHeader>
+      {/* DISCLAIMER (Form 1 signature block) */}
+      <SectionHeader>Disclaimer</SectionHeader>
       <p className="text-xs text-gray-600">
         I hereby authorize the Guidance and Counseling Section of Division of Student Affairs to collect data
         indicated herein for Individual Inventory and documentation purposes only. I understand that my personal
@@ -585,13 +598,35 @@ export default function InventoryForm({
       </div>
       <p className="text-xs text-gray-500 italic">Student's signature is captured separately on the uploaded scan or via the Informed Consent e-sign page.</p>
 
-      {/* Save bar */}
-      <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-white border-t border-gray-200 mt-4 flex items-center justify-end gap-2">
-        <button type="button" onClick={() => downloadInventoryAsPdf(data, studentProfile)} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700">
+      {/* Form 2 status — Informed Consent / Confidentiality / Acknowledgment is a
+          separate e-sign flow (student_consents); printing/exporting this form
+          pulls that record in as page 2. */}
+      <div className={`mt-3 flex items-start gap-2 p-3 rounded border text-xs ${consent?.eConsentSignedAt && !consent?.revokedAt ? "bg-green-50 border-green-200 text-green-800" : "bg-amber-50 border-amber-200 text-amber-800"}`}>
+        <FileSignature size={14} className="mt-0.5 flex-shrink-0" />
+        {consent?.eConsentSignedAt && !consent?.revokedAt ? (
+          <span>
+            Form 2 (Informed Consent) — signed by <strong>{consent.eConsentTypedName}</strong> on{" "}
+            {new Date(consent.eConsentSignedAt).toLocaleDateString()}. It will be included as page 2 when printing or exporting.
+          </span>
+        ) : (
+          <span>
+            Form 2 (Informed Consent) has not been signed yet. Page 2 will print with blank signature lines until the
+            student completes the Informed Consent e-sign page.
+          </span>
+        )}
+      </div>
+
+      {/* Save bar. No negative-margin "full bleed" here on purpose — this
+          component renders inside differently-padded containers (a Modal's
+          own px-6 body in StudentProfile.jsx vs. a plain px-6 tab body in
+          StudentRecordsDrawer.jsx), so breaking out via -mx-6 stretched this
+          bar past the modal's rounded edges in one of the two contexts. */}
+      <div className="sticky bottom-0 py-3 bg-white border-t border-gray-200 mt-4 flex items-center justify-end gap-2">
+        <button type="button" onClick={() => printInventoryForm(data, studentProfile, consent)} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700">
           <Printer size={16} /> Print Form
         </button>
-        <button type="button" onClick={() => downloadInventoryAsPdf(data, studentProfile)} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700">
-          <FileDown size={16} /> Save as PDF
+        <button type="button" onClick={handleExportPdf} disabled={exportingPdf} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50">
+          <FileDown size={16} /> {exportingPdf ? "Exporting..." : "Export PDF"}
         </button>
         {!readOnly && (
           <button type="button" onClick={handleSave} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700 disabled:opacity-50">

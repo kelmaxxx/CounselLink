@@ -506,6 +506,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
               studentId={student?.id}
               studentProfile={student}
               apiBase={apiBase}
+              consent={consent}
               onSave={handleSaveInventory}
               onUploadScan={handleUploadInventoryScan}
               onDeleteScan={handleDeleteInventoryScan}
