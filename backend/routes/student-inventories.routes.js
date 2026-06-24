@@ -7,6 +7,7 @@ import {
   upsertInventory,
   uploadInventoryScan,
   deleteInventoryScan,
+  downloadInventoryDocx,
 } from "../controllers/student-inventories.controller.js";
 
 const router = Router();
@@ -14,6 +15,7 @@ const router = Router();
 router.use(auth);
 
 router.get("/:studentId", getInventory);
+router.get("/:studentId/docx", downloadInventoryDocx);
 router.put("/:studentId", upsertInventory);
 router.post(
   "/:studentId/scan",

@@ -1,5 +1,6 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
+import { generateInventoryDocx } from "../utils/inventory-docx.js";
 
 const SELECT_FIELDS = `
   i.id, i.student_id AS studentId, i.counselor_id AS counselorId,
@@ -128,4 +129,51 @@ export const deleteInventoryScan = async (req, res) => {
   );
   await logAction(req, "delete_inventory_scan", "student_inventory", Number(studentId), {});
   return res.json({ message: "Scan removed" });
+};
+
+const safeFileBase = (name, idNumber) =>
+  `inventory_${(name || idNumber || "student")}`
+    .replace(/[^a-z0-9]+/gi, "_")
+    .replace(/^_|_$/g, "")
+    .toLowerCase();
+
+// Renders the saved inventory into a filled-in copy of the official MSU DSA
+// Word form and streams it back as a .docx download.
+export const downloadInventoryDocx = async (req, res) => {
+  const { studentId } = req.params;
+  if (!canAccess(req, studentId)) return res.status(403).json({ message: "Forbidden" });
+
+  const rows = await query(
+    `SELECT i.form_data AS formData, s.name AS studentName, s.student_id AS studentNumber, s.email AS studentEmail
+       FROM student_inventories i
+       JOIN users s ON i.student_id = s.id
+      WHERE i.student_id = ? LIMIT 1`,
+    [studentId]
+  );
+  if (!rows.length) return res.status(404).json({ message: "No inventory record yet" });
+
+  const row = parseFormData(rows[0]);
+  const profile = {
+    name: row.studentName,
+    studentNumber: row.studentNumber,
+    email: row.studentEmail,
+  };
+
+  let buffer;
+  try {
+    buffer = generateInventoryDocx(row.formData || {}, profile);
+  } catch (err) {
+    console.error("Inventory docx generation failed:", err);
+    return res.status(500).json({ message: "Failed to generate the inventory document" });
+  }
+
+  await logAction(req, "download_inventory_docx", "student_inventory", Number(studentId), {});
+
+  const filename = `${safeFileBase(row.studentName, row.studentNumber)}.docx`;
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  );
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  return res.send(buffer);
 };

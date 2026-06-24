@@ -65,6 +65,30 @@ export function StudentRecordsProvider({ children }) {
     return { success: true };
   };
 
+  // Downloads the saved inventory as the official filled-in Word (.docx) file.
+  const downloadInventoryDocx = async (studentId, fallbackName = "student") => {
+    const response = await authFetch(`${apiBase}/api/student-inventories/${studentId}/docx`);
+    if (!response.ok) {
+      const data = await parseJson(response);
+      return { success: false, message: data.message || "Failed to generate the Word document" };
+    }
+    const blob = await response.blob();
+    // Prefer the filename the server set, fall back to the student's name.
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `inventory_${fallbackName}.docx`;
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    return { success: true };
+  };
+
   // ---- Consent ----
 
   const getConsent = async (studentId) => {
@@ -144,6 +168,7 @@ export function StudentRecordsProvider({ children }) {
         upsertInventory,
         uploadInventoryScan,
         deleteInventoryScan,
+        downloadInventoryDocx,
         getConsent,
         eSignConsent,
         uploadConsentScan,
