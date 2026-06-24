@@ -141,17 +141,27 @@ export async function exportInventoryAsPdfFile(inventoryData, studentProfile = {
 
   try {
     const pageEls = Array.from(doc.querySelectorAll(".form-page"));
-    const pdf = new jsPDF({ unit: "in", format: [8.5, 13], orientation: "portrait" });
 
-    for (let i = 0; i < pageEls.length; i++) {
-      const canvas = await html2canvas(pageEls[i], { scale: 2, useCORS: true, windowWidth: doc.body.scrollWidth });
-      const imgData = canvas.toDataURL("image/jpeg", 0.98);
-      if (i > 0) pdf.addPage([8.5, 13], "portrait");
-      // Fit the captured page to the full 8.5x13 sheet (each .form-page is
-      // already laid out for exactly one long-bond page).
+    // Capture every page before building the PDF — jsPDF needs the first
+    // page's size up front, and each page should never shrink below the
+    // real long-bond sheet size (8.5x13in) but must also never clip content
+    // that happens to run a little taller than that.
+    const captures = [];
+    for (const el of pageEls) {
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, windowWidth: doc.body.scrollWidth });
       const imgHeightIn = (canvas.height / canvas.width) * 8.5;
-      pdf.addImage(imgData, "JPEG", 0, 0, 8.5, Math.min(imgHeightIn, 13));
+      captures.push({
+        imgData: canvas.toDataURL("image/jpeg", 0.98),
+        imgHeightIn,
+        pageHeightIn: Math.max(imgHeightIn, 13),
+      });
     }
+
+    const pdf = new jsPDF({ unit: "in", format: [8.5, captures[0].pageHeightIn], orientation: "portrait" });
+    captures.forEach(({ imgData, imgHeightIn, pageHeightIn }, i) => {
+      if (i > 0) pdf.addPage([8.5, pageHeightIn], "portrait");
+      pdf.addImage(imgData, "JPEG", 0, 0, 8.5, imgHeightIn);
+    });
 
     pdf.save(`${safeFileBase(studentProfile?.name, inventoryData?.personal?.idNumber)}.pdf`);
   } finally {
