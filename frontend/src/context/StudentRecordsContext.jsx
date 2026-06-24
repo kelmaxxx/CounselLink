@@ -65,18 +65,28 @@ export function StudentRecordsProvider({ children }) {
     return { success: true };
   };
 
-  // Downloads the saved inventory as the official filled-in Word (.docx) file.
-  const downloadInventoryDocx = async (studentId, fallbackName = "student") => {
+  // Fetches the official filled-in Word (.docx) file as a Blob. Shared by the
+  // "Download Word" action and the Print / Save-as-PDF flow (which renders the
+  // very same document in the browser so the print matches the Word layout).
+  const fetchInventoryDocxBlob = async (studentId) => {
     const response = await authFetch(`${apiBase}/api/student-inventories/${studentId}/docx`);
     if (!response.ok) {
       const data = await parseJson(response);
       return { success: false, message: data.message || "Failed to generate the Word document" };
     }
     const blob = await response.blob();
-    // Prefer the filename the server set, fall back to the student's name.
     const disposition = response.headers.get("Content-Disposition") || "";
     const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename = match ? match[1] : `inventory_${fallbackName}.docx`;
+    return { success: true, blob, filename: match ? match[1] : null };
+  };
+
+  // Downloads the saved inventory as the official filled-in Word (.docx) file.
+  const downloadInventoryDocx = async (studentId, fallbackName = "student") => {
+    const res = await fetchInventoryDocxBlob(studentId);
+    if (!res.success) return res;
+    const blob = res.blob;
+    // Prefer the filename the server set, fall back to the student's name.
+    const filename = res.filename || `inventory_${fallbackName}.docx`;
 
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -169,6 +179,7 @@ export function StudentRecordsProvider({ children }) {
         uploadInventoryScan,
         deleteInventoryScan,
         downloadInventoryDocx,
+        fetchInventoryDocxBlob,
         getConsent,
         eSignConsent,
         uploadConsentScan,
