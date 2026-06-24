@@ -5,10 +5,11 @@
 // Field set mirrors the wet-paper form section by section. The whole form is
 // stored as a JSON blob in student_inventories.form_data — the shape below is
 // the contract; do not rename keys without a data migration.
-import React, { useEffect, useMemo, useState } from "react";
-import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown, CheckCircle2 } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown, FileText, CheckCircle2 } from "lucide-react";
 import { Modal, BTN } from "../ui";
 import { downloadInventoryAsPdf } from "../../utils/inventoryReport";
+import { useStudentRecords } from "../../context/StudentRecordsContext";
 
 const EDUC_LEVELS = ["Elementary", "Junior High School", "Vocational", "Senior High School", "College"];
 
@@ -199,25 +200,37 @@ export default function InventoryForm({
   onDeleteScan,
   readOnly = false,
 }) {
+  const { downloadInventoryDocx } = useStudentRecords();
   const [data, setData] = useState(() => mergeInventory(inventory?.formData));
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [scanInputKey, setScanInputKey] = useState(0); // forces file input remount after upload
   const [confirmRemoveScan, setConfirmRemoveScan] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  // True once the user edits a field and until the next successful save. While
+  // dirty we never re-sync from the server copy, so a parent re-render (which
+  // hands us a freshly-parsed formData object) can't wipe unsaved input.
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
+    if (dirtyRef.current) return;
     setData(mergeInventory(inventory?.formData));
-  }, [inventory?.id, inventory?.updatedAt, inventory?.formData]);
+  }, [inventory?.id, inventory?.updatedAt]);
+
+  // Wrap every edit so it both records the change and flags the form dirty.
+  const edit = (updater) => {
+    dirtyRef.current = true;
+    setData(updater);
+  };
 
   const updateSection = (section, patch) =>
-    setData((d) => ({ ...d, [section]: { ...d[section], ...patch } }));
+    edit((d) => ({ ...d, [section]: { ...d[section], ...patch } }));
 
   const updateNested = (section, key, patch) =>
-    setData((d) => ({ ...d, [section]: { ...d[section], [key]: { ...d[section][key], ...patch } } }));
+    edit((d) => ({ ...d, [section]: { ...d[section], [key]: { ...d[section][key], ...patch } } }));
 
   const updateBackgroundRow = (idx, patch) =>
-    setData((d) => ({
+    edit((d) => ({
       ...d,
       educational: {
         ...d.educational,
@@ -226,16 +239,16 @@ export default function InventoryForm({
     }));
 
   const updateTestRow = (idx, patch) =>
-    setData((d) => ({
+    edit((d) => ({
       ...d,
       testRecord: d.testRecord.map((row, i) => (i === idx ? { ...row, ...patch } : row)),
     }));
 
   const addTestRow = () =>
-    setData((d) => ({ ...d, testRecord: [...d.testRecord, { date: "", kindOfTest: "", score: "", rank: "" }] }));
+    edit((d) => ({ ...d, testRecord: [...d.testRecord, { date: "", kindOfTest: "", score: "", rank: "" }] }));
 
   const removeTestRow = (idx) =>
-    setData((d) => ({ ...d, testRecord: d.testRecord.filter((_, i) => i !== idx) }));
+    edit((d) => ({ ...d, testRecord: d.testRecord.filter((_, i) => i !== idx) }));
 
   const showFeedback = (type, text, ms = 3000) => {
     setFeedback({ type, text });
@@ -247,11 +260,31 @@ export default function InventoryForm({
     const res = await onSave(data);
     setBusy(false);
     if (res.success) {
+      // Saved — drop the dirty flag so the form re-syncs with the server copy.
+      dirtyRef.current = false;
       setShowSaveSuccess(true);
     } else {
       alert(res.message || "Failed to save");
     }
     showFeedback(res.success ? "success" : "error", res.success ? "Inventory saved" : (res.message || "Failed to save"));
+  };
+
+  // The Word file is generated on the server from the saved record, so persist
+  // any on-screen edits first (when editable) to keep the document in sync.
+  const handleDownloadDocx = async () => {
+    setBusy(true);
+    if (!readOnly) {
+      const saveRes = await onSave(data);
+      if (!saveRes.success) {
+        setBusy(false);
+        showFeedback("error", saveRes.message || "Could not save before download");
+        return;
+      }
+      dirtyRef.current = false;
+    }
+    const res = await downloadInventoryDocx(studentId, studentName || "student");
+    setBusy(false);
+    if (!res.success) showFeedback("error", res.message || "Failed to generate Word file");
   };
 
   const handleScanChange = async (e) => {
@@ -592,6 +625,9 @@ export default function InventoryForm({
         </button>
         <button type="button" onClick={() => downloadInventoryAsPdf(data, studentProfile)} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700">
           <FileDown size={16} /> Save as PDF
+        </button>
+        <button type="button" onClick={handleDownloadDocx} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50">
+          <FileText size={16} /> Download Word
         </button>
         {!readOnly && (
           <button type="button" onClick={handleSave} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700 disabled:opacity-50">
