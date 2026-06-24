@@ -95,62 +95,66 @@ const HELP_LABELS = [
 
 const ADDRESS_TYPE_LABELS = { residential: "Residential", boarding: "Boarding House", dormitory: "Dormitory" };
 
+// Scaled up ~1.33x from the original 9pt-base design (every font-size,
+// box dimension, and spacing value below keeps the same proportions, just
+// bigger) so the form reads at a real 12pt base and the content actually
+// fills an 8.5x13in long-bond sheet instead of leaving it mostly blank.
 const SHARED_STYLES = `
     @page { size: 8.5in 13in; margin: 9mm 13mm; }
     * { box-sizing: border-box; }
-    body { font-family: 'Times New Roman', Georgia, serif; color: #000; line-height: 1.15; margin: 0; padding: 0; font-size: 9pt; }
+    body { font-family: 'Times New Roman', Georgia, serif; color: #000; line-height: 1.2; margin: 0; padding: 0; font-size: 12pt; }
     .form-page { page-break-after: always; }
     .form-page:last-child { page-break-after: auto; }
-    .ckbox { display: inline-block; width: 9px; height: 9px; border: 1px solid #000; text-align: center; line-height: 9px; font-size: 7.5pt; font-weight: bold; margin-right: 3px; vertical-align: middle; }
+    .ckbox { display: inline-block; width: 12px; height: 12px; border: 1px solid #000; text-align: center; line-height: 12px; font-size: 10pt; font-weight: bold; margin-right: 4px; vertical-align: middle; }
 
     .letterhead-table { width: 100%; border-collapse: collapse; }
-    .letterhead-table td { vertical-align: middle; padding: 1px 4px; }
-    .letterhead-logo { width: 52px; text-align: center; }
-    .letterhead-logo img { height: 44px; }
+    .letterhead-table td { vertical-align: middle; padding: 1px 5px; }
+    .letterhead-logo { width: 69px; text-align: center; }
+    .letterhead-logo img { height: 59px; }
     .letterhead-text { text-align: center; }
-    .letterhead-text .uni { font-weight: 700; font-size: 11pt; letter-spacing: 0.2px; }
-    .letterhead-text .sub { font-size: 8.5pt; }
-    .letterhead-text .gcs { font-weight: 700; font-size: 8.5pt; margin-top: 1px; }
+    .letterhead-text .uni { font-weight: 700; font-size: 14.5pt; letter-spacing: 0.2px; }
+    .letterhead-text .sub { font-size: 11.5pt; }
+    .letterhead-text .gcs { font-weight: 700; font-size: 11.5pt; margin-top: 1px; }
 
-    .top-row { display: flex; align-items: flex-start; gap: 8px; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 4px; }
+    .top-row { display: flex; align-items: flex-start; gap: 10px; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 5px; }
     .top-row .letterhead-table { flex: 1; }
-    .doc-control { border-collapse: collapse; font-size: 6.8pt; width: 230px; flex-shrink: 0; }
-    .doc-control td { border: 1px solid #000; padding: 1px 3px; }
+    .doc-control { border-collapse: collapse; font-size: 9pt; width: 307px; flex-shrink: 0; }
+    .doc-control td { border: 1px solid #000; padding: 1px 4px; }
     .doc-control td.label { font-weight: 700; }
 
-    .form-title { text-align: center; font-weight: 700; font-size: 11pt; text-transform: uppercase; margin: 2px 0 4px; }
-    .direction { font-size: 8pt; font-style: italic; margin: 0 0 4px; }
-    .section-title { font-weight: 700; background: #d9d9d9; padding: 1.5px 5px; border: 1px solid #000; text-transform: uppercase; font-size: 8.5pt; margin: 4px 0 0; }
+    .form-title { text-align: center; font-weight: 700; font-size: 14.5pt; text-transform: uppercase; margin: 3px 0 5px; }
+    .direction { font-size: 10.5pt; font-style: italic; margin: 0 0 5px; }
+    .section-title { font-weight: 700; background: #d9d9d9; padding: 2px 7px; border: 1px solid #000; text-transform: uppercase; font-size: 11.5pt; margin: 5px 0 0; }
 
-    .line { display: flex; flex-wrap: wrap; gap: 1px 14px; margin: 1.5px 0; font-size: 8pt; align-items: baseline; }
-    .line .f { display: inline-flex; align-items: baseline; gap: 3px; min-width: 0; }
-    .line .f.grow { flex: 1 1 220px; }
+    .line { display: flex; flex-wrap: wrap; gap: 2px 19px; margin: 2px 0; font-size: 10.5pt; align-items: baseline; }
+    .line .f { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
+    .line .f.grow { flex: 1 1 280px; }
     .line .lbl { font-weight: 600; white-space: nowrap; }
-    .line .ans { border-bottom: 1px solid #000; padding: 0 3px; min-width: 16px; display: inline-block; }
+    .line .ans { border-bottom: 1px solid #000; padding: 0 4px; min-width: 21px; display: inline-block; }
     .line .f.grow .ans { flex: 1; }
 
-    table.grid-table { width: 100%; border-collapse: collapse; margin: 2px 0 3px; font-size: 7.5pt; }
-    table.grid-table th, table.grid-table td { border: 1px solid #000; padding: 1.5px 4px; vertical-align: top; }
+    table.grid-table { width: 100%; border-collapse: collapse; margin: 3px 0 4px; font-size: 10pt; }
+    table.grid-table th, table.grid-table td { border: 1px solid #000; padding: 2px 5px; vertical-align: top; }
     table.grid-table th { background: #eee; font-weight: 700; text-align: center; }
 
-    .picture-box { width: 0.9in; height: 1.05in; border: 1px solid #000; display: flex; align-items: center; justify-content: center; font-size: 6.5pt; text-align: center; color: #555; overflow: hidden; flex-shrink: 0; }
+    .picture-box { width: 1.2in; height: 1.4in; border: 1px solid #000; display: flex; align-items: center; justify-content: center; font-size: 8.5pt; text-align: center; color: #555; overflow: hidden; flex-shrink: 0; }
     .picture-box img { width: 100%; height: 100%; object-fit: cover; }
-    .relative-row { display: flex; gap: 8px; align-items: flex-start; }
+    .relative-row { display: flex; gap: 10px; align-items: flex-start; }
     .relative-row > .grow { flex: 1; }
 
-    .check-line { font-size: 8pt; margin: 1.5px 0; }
-    .check-inline span.opt { display: inline-block; margin-right: 9px; white-space: nowrap; }
+    .check-line { font-size: 10.5pt; margin: 2px 0; }
+    .check-inline span.opt { display: inline-block; margin-right: 12px; white-space: nowrap; }
 
-    p.legal { font-size: 8pt; text-align: justify; margin: 3px 0; }
-    .notice { color: #c00; font-style: italic; font-size: 8pt; text-align: center; margin: 4px 0; }
-    ul.exceptions { font-size: 8pt; margin: 3px 0 3px 16px; padding: 0; }
-    ul.exceptions li { margin-bottom: 3px; text-align: justify; }
+    p.legal { font-size: 10.5pt; text-align: justify; margin: 4px 0; }
+    .notice { color: #c00; font-style: italic; font-size: 10.5pt; text-align: center; margin: 5px 0; }
+    ul.exceptions { font-size: 10.5pt; margin: 4px 0 4px 21px; padding: 0; }
+    ul.exceptions li { margin-bottom: 4px; text-align: justify; }
 
-    .sig-row { display: flex; justify-content: space-between; margin-top: 14px; gap: 24px; }
+    .sig-row { display: flex; justify-content: space-between; margin-top: 19px; gap: 32px; }
     .sig-box { flex: 1; text-align: center; }
-    .sig-line { border-top: 1px solid #000; padding-top: 2px; font-size: 7.5pt; }
-    .sig-name { font-family: 'Brush Script MT', cursive; font-size: 12pt; min-height: 16px; display: block; }
-    .date-signed { margin-top: 10px; font-size: 8pt; }
+    .sig-line { border-top: 1px solid #000; padding-top: 3px; font-size: 10pt; }
+    .sig-name { font-family: 'Brush Script MT', cursive; font-size: 16pt; min-height: 21px; display: block; }
+    .date-signed { margin-top: 13px; font-size: 10.5pt; }
 `;
 
 // Renders a row of inline "label: ____answer____" fields, mirroring the
@@ -525,17 +529,27 @@ export async function exportInventoryAsPdfFile(inventoryData, studentProfile = {
 
   try {
     const pageEls = Array.from(doc.querySelectorAll(".form-page"));
-    const pdf = new jsPDF({ unit: "in", format: [8.5, 13], orientation: "portrait" });
 
-    for (let i = 0; i < pageEls.length; i++) {
-      const canvas = await html2canvas(pageEls[i], { scale: 2, useCORS: true, windowWidth: doc.body.scrollWidth });
-      const imgData = canvas.toDataURL("image/jpeg", 0.98);
-      if (i > 0) pdf.addPage([8.5, 13], "portrait");
-      // Fit the captured page to the full 8.5x13 sheet (each .form-page is
-      // already laid out for exactly one long-bond page).
+    // Capture every page before building the PDF — jsPDF needs the first
+    // page's size up front, and each page should never shrink below the
+    // real long-bond sheet size (8.5x13in) but must also never clip content
+    // that happens to run a little taller than that.
+    const captures = [];
+    for (const el of pageEls) {
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, windowWidth: doc.body.scrollWidth });
       const imgHeightIn = (canvas.height / canvas.width) * 8.5;
-      pdf.addImage(imgData, "JPEG", 0, 0, 8.5, Math.min(imgHeightIn, 13));
+      captures.push({
+        imgData: canvas.toDataURL("image/jpeg", 0.98),
+        imgHeightIn,
+        pageHeightIn: Math.max(imgHeightIn, 13),
+      });
     }
+
+    const pdf = new jsPDF({ unit: "in", format: [8.5, captures[0].pageHeightIn], orientation: "portrait" });
+    captures.forEach(({ imgData, imgHeightIn, pageHeightIn }, i) => {
+      if (i > 0) pdf.addPage([8.5, pageHeightIn], "portrait");
+      pdf.addImage(imgData, "JPEG", 0, 0, 8.5, imgHeightIn);
+    });
 
     pdf.save(`${safeFileBase(studentProfile?.name, inventoryData?.personal?.idNumber)}.pdf`);
   } finally {
