@@ -6,6 +6,7 @@
 //   - Student Records drawer / Session Records list (download a single record)
 import msuSeal from "../assets/officialForm/msuSealDataUri.js";
 import guidanceLogo from "../assets/officialForm/guidanceLogoDataUri.js";
+import { saveHtmlAsPdfFile } from "./htmlToPdf.js";
 
 const ESC_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const escapeHtml = (s) =>
@@ -112,6 +113,61 @@ function renderLetterhead() {
   <div class="letterhead-rule"></div>`;
 }
 
+// Shared CSS for the official MSU DSA GCS letterhead (logos + doc-control
+// strip). Exported so other "official form" documents (e.g. the appointment
+// slip) can reproduce the exact same header instead of duplicating it.
+export const OFFICIAL_HEADER_STYLES = `
+    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; background: #c3d69b; }
+    .header-table td { padding: 6px 8px; vertical-align: middle; }
+    .header-logo { width: 70px; text-align: center; }
+    .header-logo img { height: 56px; }
+    .header-text { text-align: center; }
+    .header-text .uni { font-weight: 700; font-size: 10.5pt; }
+    .header-text .dsa { font-size: 9pt; }
+    .header-text .gcs { font-weight: 800; font-size: 14pt; margin-top: 1px; }
+    .doc-control { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 10px; }
+    .doc-control td { border: 1px solid #999; padding: 2px 6px; }
+    .doc-control td.label { font-weight: 600; width: 16%; }
+    .doc-control td.value { width: 34%; }
+    .form-title { text-align: center; font-weight: 700; font-size: 13pt; margin: 2px 0 10px; text-transform: uppercase; }
+`;
+
+// The MSU/DSA/Guidance logo strip + doc-control block shared by every
+// official form document (Student Counseling Form, Appointment Slip, ...).
+export function buildOfficialHeaderHTML({ docCode = "MSU DSA GCS Form 3.3", pageLabel = "Page 1", date = "—" } = {}) {
+  const msuLogoUrl = `${window.location.origin}/msu-logo.png`;
+  const dsaLogoUrl = `${window.location.origin}/dsa-logo.png`;
+  const guidanceLogoUrl = `${window.location.origin}/guidance-logo.jpg`;
+  return `
+  <table class="header-table">
+    <tr>
+      <td class="header-logo"><img src="${msuLogoUrl}" alt="MSU seal" onerror="this.style.display='none'" /></td>
+      <td class="header-text">
+        <div class="uni">MINDANAO STATE UNIVERSITY &ndash; MAIN CAMPUS</div>
+        <div class="dsa">Division of Student Affairs</div>
+        <div class="gcs">Guidance and Counseling Section</div>
+      </td>
+      <td class="header-logo"><img src="${dsaLogoUrl}" alt="Division of Student Affairs logo" onerror="this.style.display='none'" /></td>
+      <td class="header-logo"><img src="${guidanceLogoUrl}" alt="Guidance and Counseling logo" onerror="this.style.display='none'" /></td>
+    </tr>
+  </table>
+
+  <table class="doc-control">
+    <tr>
+      <td class="label">Doc. Code:</td><td class="value">${escapeHtml(docCode)}</td>
+      <td class="label">Page No.</td><td class="value">${escapeHtml(pageLabel)}</td>
+    </tr>
+    <tr>
+      <td class="label">Issue Date</td><td class="value">04/04/2024</td>
+      <td class="label">Date:</td><td class="value">${escapeHtml(date)}</td>
+    </tr>
+    <tr>
+      <td class="label">Revision No.</td><td class="value">0</td>
+      <td class="label">Control No.</td><td class="value">&nbsp;</td>
+    </tr>
+  </table>`;
+}
+
 function renderDocControl({ dateLabel = "—" } = {}) {
   return `
   <table class="doc-control">
@@ -210,13 +266,6 @@ export function buildReportHTML(report, opts = {}) {
       : r.sessionDate || "—";
   const isFollowup = (r.nextSession || "followup") !== "termination";
 
-  // Construct absolute paths for logos so they load in the print popup
-  // (mirrors the pattern used by utils/inventoryReport.js for the
-  // Inventory form's official MSU DSA letterhead).
-  const msuLogoUrl = `${window.location.origin}/msu-logo.png`;
-  const dsaLogoUrl = `${window.location.origin}/dsa-logo.png`;
-  const guidanceLogoUrl = `${window.location.origin}/guidance-logo.jpg`;
-
   const normalizedNth = (r.reasonRoutineNth || "").trim().toLowerCase();
   const matchedNthIndex = ROUTINE_ORDINALS.findIndex((o) => o.toLowerCase() === normalizedNth);
   const routineOverflow = r.reasonRoutineNth && matchedNthIndex === -1 ? r.reasonRoutineNth : "";
@@ -228,21 +277,13 @@ export function buildReportHTML(report, opts = {}) {
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
   <style>
-    @page { size: A4 portrait; margin: 12mm 14mm; }
-    body { font-family: 'Times New Roman', Georgia, serif; color: #111; line-height: 1.35; padding: 0; margin: 0; font-size: 10.5pt; }
-    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; background: #c3d69b; }
-    .header-table td { padding: 6px 8px; vertical-align: middle; }
-    .header-logo { width: 70px; text-align: center; }
-    .header-logo img { height: 56px; }
-    .header-text { text-align: center; }
-    .header-text .uni { font-weight: 700; font-size: 10.5pt; }
-    .header-text .dsa { font-size: 9pt; }
-    .header-text .gcs { font-weight: 800; font-size: 14pt; margin-top: 1px; }
-    .doc-control { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin-bottom: 10px; }
-    .doc-control td { border: 1px solid #999; padding: 2px 6px; }
-    .doc-control td.label { font-weight: 600; width: 16%; }
-    .doc-control td.value { width: 34%; }
-    .form-title { text-align: center; font-weight: 700; font-size: 13pt; margin: 2px 0 10px; text-transform: uppercase; }
+    @page { size: A4 portrait; margin: 0; }
+    body { font-family: 'Times New Roman', Georgia, serif; color: #111; line-height: 1.35; padding: 0; margin: 0; font-size: 10.5pt; background: #fff; }
+    /* Real padding (not @page margin) so a direct-save capture (html2canvas,
+       which never invokes the print engine and so never honors @page) ends
+       up with the same spacing as the printed/print-to-PDF version. */
+    .pdf-page { padding: 12mm 14mm; box-sizing: border-box; background: #fff; }
+    ${OFFICIAL_HEADER_STYLES}
     .info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10.5pt; }
     .info-table td { border: 1px solid #000; padding: 4px 6px; }
     .section-label { font-weight: 700; margin: 8px 0 2px; }
@@ -251,37 +292,11 @@ export function buildReportHTML(report, opts = {}) {
     .routine-boxes { font-size: 9.5pt; white-space: nowrap; }
     .signature-block { margin-top: 36px; text-align: right; }
     .signature-line { border-top: 1px solid #000; width: 240px; margin: 0 0 0 auto; padding-top: 2px; }
-    @media print { body { padding: 0; } }
   </style>
 </head>
 <body>
-  <table class="header-table">
-    <tr>
-      <td class="header-logo"><img src="${msuLogoUrl}" alt="MSU seal" onerror="this.style.display='none'" /></td>
-      <td class="header-text">
-        <div class="uni">MINDANAO STATE UNIVERSITY &ndash; MAIN CAMPUS</div>
-        <div class="dsa">Division of Student Affairs</div>
-        <div class="gcs">Guidance and Counseling Section</div>
-      </td>
-      <td class="header-logo"><img src="${dsaLogoUrl}" alt="Division of Student Affairs logo" onerror="this.style.display='none'" /></td>
-      <td class="header-logo"><img src="${guidanceLogoUrl}" alt="Guidance and Counseling logo" onerror="this.style.display='none'" /></td>
-    </tr>
-  </table>
-
-  <table class="doc-control">
-    <tr>
-      <td class="label">Doc. Code:</td><td class="value">MSU DSA GCS Form 3.3</td>
-      <td class="label">Page No.</td><td class="value">Page 1</td>
-    </tr>
-    <tr>
-      <td class="label">Issue Date</td><td class="value">04/04/2024</td>
-      <td class="label">Date:</td><td class="value">${escapeHtml(date)}</td>
-    </tr>
-    <tr>
-      <td class="label">Revision No.</td><td class="value">0</td>
-      <td class="label">Control No.</td><td class="value">&nbsp;</td>
-    </tr>
-  </table>
+  <div class="pdf-page">
+  ${buildOfficialHeaderHTML({ date })}
 
   <div class="form-title">Student Counseling Form</div>
 
@@ -322,6 +337,7 @@ export function buildReportHTML(report, opts = {}) {
   <div class="signature-block">
     <div class="signature-line">Signature of Counselor</div>
   </div>
+  </div>
 </body>
 </html>`;
 }
@@ -348,4 +364,16 @@ export function downloadReportAsPdf(report, opts = {}) {
       /* user cancelled */
     }
   }, 250);
+}
+
+const safeFileBase = (name) =>
+  `session_report_${(name || "report").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "")}`.toLowerCase();
+
+// Saves the report straight to disk as a real .pdf file — no print dialog,
+// no pop-up window. Used wherever the action is meant to be "save", not
+// "print" (e.g. the student's own My Records page).
+export async function saveReportAsPdfFile(report, opts = {}) {
+  const html = buildReportHTML(report, opts);
+  const r = normalizeSessionReport(report);
+  await saveHtmlAsPdfFile(html, `${safeFileBase(r.studentName)}.pdf`, { pageWidthIn: 8.27, pageHeightIn: 11.69 });
 }

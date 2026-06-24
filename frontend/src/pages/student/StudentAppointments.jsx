@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
-import { useReactToPrint } from "react-to-print";
-import { Calendar, Clock, FileText, Printer, X } from "lucide-react";
+import { Calendar, Clock, FileText, Download } from "lucide-react";
+import { saveAppointmentSlipAsPdfFile } from "../../utils/appointmentSlip";
 import {
   PageHeader,
   SectionCard,
@@ -150,7 +150,7 @@ export default function StudentAppointments() {
                         onClick={() => setSelected(a)}
                         className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
                       >
-                        <FileText size={13} /> View / print
+                        <FileText size={13} /> View
                       </button>
                     </td>
                   </tr>
@@ -173,18 +173,29 @@ export default function StudentAppointments() {
 }
 
 function AppointmentDetailModal({ appointment, studentName, onClose }) {
-  const printRef = useRef(null);
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `appointment-${appointment.id}`,
-  });
+  const [saving, setSaving] = useState(false);
+  // Saving (a real .pdf, evidence of the appointment) only makes sense once
+  // the counselor has acted on the request — while it's still pending there
+  // is nothing confirmed yet to save, so the student can only view it.
+  const canSave = ["approved", "accepted", "rescheduled"].includes(appointment.status);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveAppointmentSlipAsPdfFile(appointment, { studentName });
+    } catch {
+      alert("Failed to save the appointment slip as PDF. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Modal
       open
       onClose={onClose}
       title="Appointment details"
-      subtitle="Printable appointment slip"
+      subtitle={canSave ? "You may save this slip as a PDF for your records." : "View-only — you can save a PDF once this request is approved or rescheduled."}
       size="2xl"
       align="top"
       footer={
@@ -192,13 +203,15 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
           <button onClick={onClose} className={BTN.secondary}>
             Close
           </button>
-          <button onClick={handlePrint} className={BTN.primary}>
-            <Printer size={14} /> Print
-          </button>
+          {canSave && (
+            <button onClick={handleSave} disabled={saving} className={BTN.primary}>
+              <Download size={14} /> {saving ? "Saving…" : "Save"}
+            </button>
+          )}
         </>
       }
     >
-      <div ref={printRef} className="space-y-4">
+      <div className="space-y-4">
         <div className="text-center pb-3 border-b border-gray-200">
           <h2 className="text-base font-bold text-gray-900">CounselLink · MSU Marawi</h2>
           <p className="text-xs text-gray-600">
