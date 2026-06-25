@@ -4,6 +4,7 @@ import { query, withTransaction } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { createNotification } from "../utils/notify.js";
 import { notifyUser } from "../events.js";
+import { isValidPhMobile } from "../utils/validators.js";
 
 const NATURE_OF_CONCERN_OPTIONS = [
   "Academic Concern",
@@ -63,6 +64,10 @@ export const createReferral = async (req, res) => {
 
   if (!hasAllRequired) {
     return res.status(400).json({ message: "Please complete all required fields." });
+  }
+
+  if (!isValidPhMobile(trimmed.contactNumber)) {
+    return res.status(400).json({ message: "Contact number must start with 09 and have 11 digits" });
   }
 
   if (req.user?.college && trimmed.college !== req.user.college) {

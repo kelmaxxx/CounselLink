@@ -1,5 +1,6 @@
 import { query } from "../config/db.js";
 import { notifyRole } from "../events.js";
+import { isValidPhMobile } from "../utils/validators.js";
 
 export const createAppointment = async (req, res) => {
   const { preferredDate, preferredSlots, isUrgent, phoneNumber, reason, studentId: bodyStudentId } = req.body;
@@ -17,6 +18,10 @@ export const createAppointment = async (req, res) => {
 
   if (!preferredDate || !preferredSlots?.length || !finalPhoneNumber || !finalReason) {
     return res.status(400).json({ message: "Missing required appointment fields" });
+  }
+
+  if (!isCounselor && !isValidPhMobile(finalPhoneNumber)) {
+    return res.status(400).json({ message: "Phone number must start with 09 and have 11 digits" });
   }
 
   const slots = Array.isArray(preferredSlots) ? preferredSlots.join(",") : preferredSlots;

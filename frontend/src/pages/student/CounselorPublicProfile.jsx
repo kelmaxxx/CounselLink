@@ -1,12 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, MessageCircle, Mail, Briefcase, Award, User, ClipboardList } from "lucide-react";
+import {
+  ArrowLeft,
+  MessageCircle,
+  Mail,
+  Phone,
+  Hash,
+  Briefcase,
+  Award,
+  User,
+  ClipboardList,
+  Users,
+  CheckCircle2,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import ChatModal from "../../components/ChatModal";
 import { ClientFeedbackFormModal } from "./ClientFeedbackForm";
 import { CounselorRatingBadge } from "../../components/RatingStars";
-import { PageHeader, SectionCard, BTN, initialsOf } from "../../components/ui";
+import { PageHeader, SectionCard, StatCard, BTN, initialsOf } from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -19,10 +31,21 @@ export default function CounselorPublicProfile() {
   const [loading, setLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [clientFormOpen, setClientFormOpen] = useState(false);
+  const [stats, setStats] = useState({ studentsCount: 0, sessionsCount: 0 });
 
   useEffect(() => {
     fetchAppointments?.().catch(() => undefined);
   }, [fetchAppointments]);
+
+  useEffect(() => {
+    if (!id || !token) return;
+    fetch(`${API_BASE}/api/users/${id}/counselor-stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((body) => setStats({ studentsCount: body.studentsCount || 0, sessionsCount: body.sessionsCount || 0 }))
+      .catch(() => undefined);
+  }, [id, token]);
 
   const latestCompletedApptId = React.useMemo(() => {
     if (!appointments || !user) return null;
@@ -87,7 +110,7 @@ export default function CounselorPublicProfile() {
           <PageHeader
             eyebrow="Counselor profile"
             title={user.name}
-            subtitle={`${user.department || "Counselor"}${user.specialization ? ` · ${user.specialization}` : ""}`}
+            subtitle={user.specialization || user.position || "Counselor"}
             actions={
               <div className="flex gap-2">
                 <button onClick={() => setClientFormOpen(true)} className={BTN.secondary}>
@@ -113,16 +136,36 @@ export default function CounselorPublicProfile() {
                 <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
                 <p className="text-sm text-gray-500 capitalize">{user.role?.replace("_", " ")}</p>
                 <dl className="mt-3 space-y-2 text-sm">
-                  {user.department && (
-                    <Row icon={Briefcase} label="Department" value={user.department} />
-                  )}
+                  {user.email && <Row icon={Mail} label="Email" value={user.email} />}
+                  {user.phone && <Row icon={Phone} label="Contact number" value={user.phone} />}
+                  {user.position && <Row icon={Briefcase} label="Position" value={user.position} />}
                   {user.specialization && (
                     <Row icon={Award} label="Specialization" value={user.specialization} />
                   )}
-                  {user.email && <Row icon={Mail} label="Email" value={user.email} />}
+                  {user.employeeId && (
+                    <Row icon={Hash} label="Employee number" value={user.employeeId} />
+                  )}
                 </dl>
               </div>
             </div>
+          </div>
+
+          {/* Counseling activity */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <StatCard
+              label="Students counseled"
+              value={stats.studentsCount}
+              hint="Distinct students entertained"
+              icon={Users}
+              accent="bg-blue-500"
+            />
+            <StatCard
+              label="Sessions conducted"
+              value={stats.sessionsCount}
+              hint="Completed appointments"
+              icon={CheckCircle2}
+              accent="bg-emerald-500"
+            />
           </div>
 
           {user.bio && (

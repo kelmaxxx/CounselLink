@@ -1,6 +1,7 @@
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 import fs from "fs";
+import { withRetries, describeDbConfig } from "../utils/dbRetry.js";
 
 dotenv.config();
 
@@ -62,8 +63,15 @@ export const withTransaction = async (fn) => {
   }
 };
 
+// Used once at server boot. Hosted MySQL (Aiven) connections intermittently
+// hit ETIMEDOUT/ENOTFOUND even when the host is reachable moments later, so
+// a single failed attempt here shouldn't stop the server from starting.
 export const testConnection = async () => {
-  await pool.query("SELECT 1");
+  console.log("Connecting with:", describeDbConfig(process.env));
+  await withRetries(() => pool.query("SELECT 1"), {
+    onAttemptFailed: (err, attempt, attempts) =>
+      console.warn(`DB connection attempt ${attempt}/${attempts} failed (${err.code || err.message}), retrying...`),
+  });
 };
 
 export default pool;
