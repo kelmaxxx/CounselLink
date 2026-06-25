@@ -89,3 +89,40 @@ export const pubmatUpload = multer({
   fileFilter: avatarFileFilter,
   limits: { fileSize: 5 * 1024 * 1024 },
 });
+
+const testResultsDir = path.join(uploadsDir, "test-results");
+if (!fs.existsSync(testResultsDir)) {
+  fs.mkdirSync(testResultsDir, { recursive: true });
+}
+
+const testResultStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, testResultsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const counselorId = req.user?.id || "anon";
+    cb(null, `result-${counselorId}-${Date.now()}${ext}`);
+  },
+});
+
+// Counselors attach a photo or scanned/typed document (e.g. an answer sheet)
+// when releasing a test result, so PDFs and Word docs are allowed here in
+// addition to images (unlike corUpload/avatarUpload/pubmatUpload).
+const testResultFileFilter = (_req, file, cb) => {
+  const allowed = [
+    "image/jpeg",
+    "image/png",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
+  if (!allowed.includes(file.mimetype)) {
+    return cb(new Error("Only JPG, PNG, PDF, DOC, or DOCX files are allowed"));
+  }
+  return cb(null, true);
+};
+
+export const testResultUpload = multer({
+  storage: testResultStorage,
+  fileFilter: testResultFileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});

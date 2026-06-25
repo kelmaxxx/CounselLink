@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { query } from "../config/db.js";
 import { sendEmail } from "../services/email.service.js";
 import { validatePassword } from "../utils/password.js";
+import { isValidPhMobile } from "../utils/validators.js";
 
 const RESET_TTL_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
@@ -77,6 +78,10 @@ export const registerStudent = async (req, res) => {
   const { name, email, password, studentId, college, phone, corUrl, corFileName, corFileType, avatarUrl, avatarFileName, avatarFileType } = req.body;
   if (!name || !email || !password || !studentId || !college) {
     return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  if (phone && !isValidPhMobile(phone)) {
+    return res.status(400).json({ message: "Phone number must start with 09 and have 11 digits" });
   }
 
   const policy = validatePassword(password);
