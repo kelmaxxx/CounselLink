@@ -29,17 +29,11 @@ import {
 } from "../../components/ui";
 import ProfileHero from "../../components/ProfileHero";
 import { CounselorRatingBadge } from "../../components/RatingStars";
+import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const DSA_OFFICE = "Division of Student Affairs (DSA)";
-
-const DSA_UNITS = [
-  "DSA - Counseling & Guidance Services",
-  "DSA - Psychological Services",
-  "DSA - Wellness & Career Services",
-  "DSA - Office of the Director",
-];
 
 export default function CounselorProfile() {
   const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
@@ -107,6 +101,10 @@ export default function CounselorProfile() {
   const handleSave = async () => {
     if (!formData.name || !formData.email) {
       setMessage({ type: "error", text: "Name and email are required" });
+      return;
+    }
+    if (formData.phone && !isValidPhMobile(formData.phone)) {
+      setMessage({ type: "error", text: `Contact number: ${PHONE_HINT}` });
       return;
     }
     setSaving(true);
@@ -233,13 +231,41 @@ export default function CounselorProfile() {
                   placeholder="Enter your email"
                 />
               </Field>
-              <Field icon={Phone} label="Phone number">
+              <Field icon={Phone} label="Contact number">
                 <input
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={11}
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, phone: sanitizePhoneDigits(e.target.value) })}
                   className={INPUT}
-                  placeholder="Enter phone number"
+                  placeholder="09XXXXXXXXX"
+                />
+              </Field>
+            </div>
+          ) : (
+            <dl className="space-y-2.5 text-sm">
+              <Readout icon={User} label="Name" value={myRecord?.name} />
+              <Readout icon={Mail} label="Email" value={myRecord?.email} />
+              <Readout icon={Phone} label="Contact number" value={myRecord?.phone || "Not provided"} />
+            </dl>
+          )}
+        </SectionCard>
+
+        {/* Professional information */}
+        <SectionCard title="Professional information" subtitle="Your office, specialization, and employee ID">
+          {isEditing ? (
+            <div className="space-y-3">
+              <Field icon={Building2} label="Office">
+                <input type="text" value={DSA_OFFICE} disabled className={INPUT} />
+              </Field>
+              <Field icon={Award} label="Specialization">
+                <input
+                  type="text"
+                  value={formData.specialization}
+                  onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                  className={INPUT}
+                  placeholder="e.g. Academic Counseling, Career Guidance"
                 />
               </Field>
               <Field icon={Hash} label="Employee ID">
@@ -253,59 +279,13 @@ export default function CounselorProfile() {
             </div>
           ) : (
             <dl className="space-y-2.5 text-sm">
-              <Readout icon={User} label="Name" value={myRecord?.name} />
-              <Readout icon={Mail} label="Email" value={myRecord?.email} />
-              <Readout icon={Phone} label="Phone" value={myRecord?.phone || "Not provided"} />
-              <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
-              <Readout icon={User} label="Role" value="DSA Counselor" />
-            </dl>
-          )}
-        </SectionCard>
-
-        {/* DSA affiliation */}
-        <SectionCard title="DSA affiliation" subtitle="Your office, unit, and expertise">
-          {isEditing ? (
-            <div className="space-y-3">
-              <Field icon={Building2} label="Office">
-                <input type="text" value={DSA_OFFICE} disabled className={INPUT} />
-              </Field>
-              <Field icon={Briefcase} label="DSA unit">
-                <select
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className={INPUT}
-                >
-                  <option value="">Select DSA unit</option>
-                  {DSA_UNITS.map((unit) => (
-                    <option key={unit} value={unit}>
-                      {unit}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field icon={Award} label="Specialization">
-                <input
-                  type="text"
-                  value={formData.specialization}
-                  onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
-                  className={INPUT}
-                  placeholder="e.g. Academic Counseling, Career Guidance"
-                />
-              </Field>
-            </div>
-          ) : (
-            <dl className="space-y-2.5 text-sm">
               <Readout icon={Building2} label="Office" value={DSA_OFFICE} />
-              <Readout
-                icon={Briefcase}
-                label="DSA unit"
-                value={myRecord?.department || "Not provided"}
-              />
               <Readout
                 icon={Award}
                 label="Specialization"
                 value={myRecord?.specialization || "Not provided"}
               />
+              <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
             </dl>
           )}
         </SectionCard>

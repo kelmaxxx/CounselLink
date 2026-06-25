@@ -12,6 +12,9 @@ const normalizeResult = (result) => ({
   testName: result.test_name || result.testName || null,
   summary: result.summary || "",
   recommendations: result.recommendations || "",
+  resultFileUrl: result.result_file_url || result.resultFileUrl || null,
+  resultFileName: result.result_file_name || result.resultFileName || null,
+  resultFileType: result.result_file_type || result.resultFileType || null,
 });
 
 export function TestResultsProvider({ children }) {
@@ -37,14 +40,24 @@ export function TestResultsProvider({ children }) {
     return normalized;
   }, [apiBase, token]);
 
-  const createTestResult = async ({ appointmentId, studentId, testName, completedDate, summary, recommendations }) => {
+  const createTestResult = async ({ appointmentId, studentId, testName, completedDate, summary, recommendations, resultFile }) => {
+    // multipart/form-data (not JSON) so an optional result document/photo can
+    // ride along — the browser sets the Content-Type boundary automatically.
+    const body = new FormData();
+    if (appointmentId != null) body.append("appointmentId", appointmentId);
+    body.append("studentId", studentId);
+    body.append("testName", testName);
+    body.append("completedDate", completedDate);
+    if (summary) body.append("summary", summary);
+    if (recommendations) body.append("recommendations", recommendations);
+    if (resultFile) body.append("resultFile", resultFile);
+
     const response = await fetch(`${apiBase}/api/test-results`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ appointmentId, studentId, testName, completedDate, summary, recommendations }),
+      body,
     });
     const data = await response.json();
     if (!response.ok) {

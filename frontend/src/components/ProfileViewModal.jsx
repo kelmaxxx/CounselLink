@@ -14,6 +14,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { Modal, BTN } from "./ui";
 import Avatar from "./Avatar";
+import { CounselorRatingBadge } from "./RatingStars";
 
 const ROLE_THEME = {
   student: "student",
@@ -80,28 +81,35 @@ export default function ProfileViewModal({ user, onClose, onOpenChat }) {
           ROLE_BANNER[user.role] || ROLE_BANNER.student
         }`}
       >
-        <div className="flex items-center gap-4">
-          <Avatar
-            name={user.name}
-            url={user.avatarUrl}
-            size="md"
-            theme="light"
-            ringClassName="ring-2 ring-white/30"
-          />
-          <div className="min-w-0">
-            <h3 className="text-lg font-semibold truncate">{user.name || "—"}</h3>
-            <p className="text-xs text-white/85">
-              {ROLE_LABEL[user.role] || user.role}
-              {user.college ? ` · ${user.college}` : ""}
-            </p>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <Avatar
+              name={user.name}
+              url={user.avatarUrl}
+              size="md"
+              theme="light"
+              ringClassName="ring-2 ring-white/30"
+            />
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold truncate">{user.name || "—"}</h3>
+              <p className="text-xs text-white/85">
+                {user.role === "counselor" ? user.specialization || "" : ROLE_LABEL[user.role] || user.role}
+                {user.college ? ` · ${user.college}` : ""}
+              </p>
+            </div>
           </div>
+          {user.role === "counselor" && (
+            <div className="flex items-center gap-0.5 text-amber-300 flex-shrink-0">
+              <CounselorRatingBadge counselorId={user.id} size={15} showLabel={false} />
+            </div>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Section title="Contact information">
           <Row icon={Mail} label="Email" value={user.email} />
-          <Row icon={Phone} label="Phone" value={user.phone} />
+          {user.role !== "counselor" && <Row icon={Phone} label="Phone" value={user.phone} />}
         </Section>
 
         {user.role === "student" && (
@@ -114,14 +122,20 @@ export default function ProfileViewModal({ user, onClose, onOpenChat }) {
         )}
 
         {isStaff && (
-          <Section title="Professional information">
+          <Section title="Personal information">
             <Row icon={Hash} label="Employee ID" value={user.employeeId} />
+            {user.role === "counselor" && (
+              <>
+                <Row icon={Briefcase} label="Position" value={user.position} />
+                <Row icon={Phone} label="Contact number" value={user.phone} />
+              </>
+            )}
             {user.role === "college_rep" ? (
               <Row icon={GraduationCap} label="College" value={user.college} />
             ) : (
               <Row icon={Building2} label="Unit" value={user.department} />
             )}
-            {user.specialization && (
+            {user.role !== "counselor" && user.specialization && (
               <Row icon={Award} label="Specialization" value={user.specialization} />
             )}
             {!user.specialization && user.role !== "college_rep" && !user.department && (

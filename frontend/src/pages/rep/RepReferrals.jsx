@@ -14,6 +14,7 @@ import {
   LABEL,
   initialsOf,
 } from "../../components/ui";
+import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -274,6 +275,10 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
       setError("All required fields must be filled.");
       return;
     }
+    if (!isValidPhMobile(form.contactNumber.trim())) {
+      setError(`Contact number: ${PHONE_HINT}`);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`${API_BASE}/api/referrals`, {
@@ -375,10 +380,12 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
             <input
               required
               type="tel"
+              inputMode="numeric"
+              maxLength={11}
               className={INPUT}
               value={form.contactNumber}
-              onChange={(e) => setField("contactNumber", e.target.value)}
-              placeholder="09XX XXX XXXX"
+              onChange={(e) => setField("contactNumber", sanitizePhoneDigits(e.target.value))}
+              placeholder="09123456789"
             />
           </div>
         </div>

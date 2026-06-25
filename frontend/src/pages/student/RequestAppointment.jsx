@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { BTN, INPUT, LABEL, Modal, initialsOf } from "../../components/ui";
 import InformedConsentSection from "../../components/InformedConsent";
+import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const TIME_SLOTS_MORNING = [
   { label: "9:00 – 10:00 AM", value: "9:00-10:00" },
@@ -131,7 +132,7 @@ export default function RequestAppointment() {
   const stepValid = (i = step) => {
     switch (STEPS[i].id) {
       case "details":
-        return form.phoneNumber.trim().length >= 7;
+        return isValidPhMobile(form.phoneNumber);
       case "schedule":
         return Boolean(form.date) && form.preferredSlots.length === 1;
       case "reason":
@@ -472,11 +473,16 @@ function DetailsStep({ currentUser, myRecord, form, setField }) {
           <input
             type="tel"
             required
+            inputMode="numeric"
+            maxLength={11}
             className={INPUT}
             value={form.phoneNumber}
-            onChange={(e) => setField({ phoneNumber: e.target.value })}
-            placeholder="e.g. 09123456789"
+            onChange={(e) => setField({ phoneNumber: sanitizePhoneDigits(e.target.value) })}
+            placeholder="09123456789"
           />
+          {form.phoneNumber && !isValidPhMobile(form.phoneNumber) && (
+            <p className="text-xs text-red-600 mt-1">{PHONE_HINT}</p>
+          )}
         </div>
       </div>
     </StepCard>

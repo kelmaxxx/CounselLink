@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL } from "../components/ui";
+import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../utils/phone";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -92,7 +93,8 @@ export default function Login() {
 
   const handleSignupChange = (e) => {
     resetSignupErrors();
-    setSignupForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setSignupForm((p) => ({ ...p, [name]: name === "phone" ? sanitizePhoneDigits(value) : value }));
   };
 
   const handleCorUpload = (e) => {
@@ -156,6 +158,9 @@ export default function Login() {
     if (!signupForm.name.trim()) nextErrors.name = "Full name is required.";
     if (!signupForm.email.trim()) nextErrors.email = "Email is required.";
     if (!signupForm.studentId.trim()) nextErrors.studentId = "Student ID is required.";
+    if (signupForm.phone && !isValidPhMobile(signupForm.phone)) {
+      nextErrors.phone = PHONE_HINT;
+    }
     if (!signupForm.password) nextErrors.password = "Password is required.";
     if (signupForm.password && !isStrongPassword(signupForm.password)) {
       nextErrors.password = "Use at least 8 characters with a letter and a number.";
@@ -310,11 +315,13 @@ export default function Login() {
                   />
                 </InputWithIcon>
               </FieldRow>
-              <FieldRow label="Phone Number">
+              <FieldRow label="Phone Number" error={signupErrors.phone}>
                 <InputWithIcon icon={Phone}>
                   <input
                     name="phone"
                     type="tel"
+                    inputMode="numeric"
+                    maxLength={11}
                     value={signupForm.phone}
                     onChange={handleSignupChange}
                     className={`${INPUT} pl-9`}
