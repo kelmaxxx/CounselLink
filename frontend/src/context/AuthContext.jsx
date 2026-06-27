@@ -15,8 +15,8 @@ export function AuthProvider({ children }) {
 
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-  const authFetch = (url, options = {}) =>
-    fetch(url, {
+  const authFetch = async (url, options = {}) => {
+    const response = await fetch(url, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -24,6 +24,17 @@ export function AuthProvider({ children }) {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
+    if (response.status === 401) {
+      setCurrentUser(null);
+      setToken(null);
+      setUsers([]);
+      localStorage.removeItem("currentUser");
+      localStorage.removeItem("token");
+      sessionStorage.removeItem("welcomeShown");
+      throw new Error("Session expired. Please log in again.");
+    }
+    return response;
+  };
 
   const parseResponseJson = async (response) => {
     const text = await response.text();
