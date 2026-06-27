@@ -15,6 +15,7 @@ const normalizeTest = (test) => ({
   studentName: test.studentName || test.student_name || null,
   controlNo: test.controlNo || `PT-${String(test.id).padStart(6, "0")}`,
   note: test.counselor_action_note || test.note || null,
+  testType: test.testType || test.test_type || null,
 });
 
 export function TestsProvider({ children }) {

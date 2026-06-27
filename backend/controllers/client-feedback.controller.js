@@ -1,5 +1,6 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
+import { createNotification } from "../utils/notify.js";
 
 const RESPONSE_KEYS = ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12"];
 const RECOMMEND_VALUES = ["yes", "no", "not_sure"];
@@ -26,9 +27,20 @@ export const getCounselorRating = async (req, res) => {
     return res.status(400).json({ message: "counselorId is required" });
   }
 
-  const rows = await query("SELECT rating FROM client_feedback_forms WHERE counselor_id = ?", [
-    counselorId,
-  ]);
+  // Join to a subquery that picks only the latest row per student
+  // so a student who re-submitted is counted exactly once.
+  const rows = await query(
+    `SELECT f.rating
+     FROM client_feedback_forms f
+     INNER JOIN (
+       SELECT MAX(id) AS max_id
+       FROM client_feedback_forms
+       WHERE counselor_id = ?
+       GROUP BY student_id
+     ) latest ON f.id = latest.max_id
+     WHERE f.counselor_id = ?`,
+    [counselorId, counselorId]
+  );
   const valid = rows.map((r) => Number(r.rating)).filter((v) => isValidScore(v));
   const average = valid.length ? valid.reduce((sum, v) => sum + v, 0) / valid.length : null;
 
@@ -83,7 +95,14 @@ export const submitClientFeedback = async (req, res) => {
   const result = await query(
     `INSERT INTO client_feedback_forms
        (student_id, counselor_id, appointment_id, responses, overall_satisfaction, would_recommend, rating, comments)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       appointment_id         = VALUES(appointment_id),
+       responses              = VALUES(responses),
+       overall_satisfaction   = VALUES(overall_satisfaction),
+       would_recommend        = VALUES(would_recommend),
+       rating                 = VALUES(rating),
+       comments               = VALUES(comments)`,
     [
       studentId,
       counselorId,
@@ -96,16 +115,13 @@ export const submitClientFeedback = async (req, res) => {
     ]
   );
 
-  await query(
-    `INSERT INTO notifications (user_id, title, message, status, link)
-     VALUES (?, ?, ?, 'unread', ?)`,
-    [
-      counselorId,
-      "New client feedback form received",
-      "A student submitted the Client Feedback Form. View the tally summary for the latest figures.",
-      "/counselor/feedback-tally",
-    ]
-  );
+  await createNotification({
+    userId: counselorId,
+    title: "New client feedback received",
+    message: "A student submitted the Client Feedback Form. View the tally summary for the latest figures.",
+    link: "/counselor/feedback-tally",
+    type: "info",
+  });
 
   await logAction(req, "submit_client_feedback", "client_feedback_form", result.insertId, {
     counselorId,
@@ -131,23 +147,32 @@ export const getClientFeedbackTally = async (req, res) => {
     return res.status(403).json({ message: "Forbidden" });
   }
 
-  const where = ["counselor_id = ?"];
-  const params = [counselorId];
+  // Build outer-query conditions (counselor + optional date range).
+  const outerWhere = ["f.counselor_id = ?"];
+  const outerParams = [counselorId];
   if (from) {
-    where.push("created_at >= ?");
-    params.push(from);
+    outerWhere.push("f.created_at >= ?");
+    outerParams.push(from);
   }
   if (to) {
-    where.push("created_at < DATE_ADD(?, INTERVAL 1 DAY)");
-    params.push(to);
+    outerWhere.push("f.created_at < DATE_ADD(?, INTERVAL 1 DAY)");
+    outerParams.push(to);
   }
 
+  // The subquery selects the latest row id per student for this counselor.
+  // That way a student who re-submitted is counted exactly once (latest answer only).
   const rows = await query(
-    `SELECT responses, overall_satisfaction, would_recommend, rating, comments, created_at
-     FROM client_feedback_forms
-     WHERE ${where.join(" AND ")}
-     ORDER BY created_at DESC`,
-    params
+    `SELECT f.responses, f.overall_satisfaction, f.would_recommend, f.rating, f.comments, f.created_at
+     FROM client_feedback_forms f
+     INNER JOIN (
+       SELECT MAX(id) AS max_id
+       FROM client_feedback_forms
+       WHERE counselor_id = ?
+       GROUP BY student_id
+     ) latest ON f.id = latest.max_id
+     WHERE ${outerWhere.join(" AND ")}
+     ORDER BY f.created_at DESC`,
+    [counselorId, ...outerParams]
   );
 
   const perQuestion = {};
