@@ -109,7 +109,7 @@ export default function ProfileViewModal({ user, onClose, onOpenChat }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Section title="Contact information">
           <Row icon={Mail} label="Email" value={user.email} />
-          {user.role !== "counselor" && <Row icon={Phone} label="Phone" value={user.phone} />}
+          <Row icon={Phone} label="Contact number" value={user.phone} />
         </Section>
 
         {user.role === "student" && (
@@ -122,13 +122,10 @@ export default function ProfileViewModal({ user, onClose, onOpenChat }) {
         )}
 
         {isStaff && (
-          <Section title="Personal information">
+          <Section title="Professional information">
             <Row icon={Hash} label="Employee ID" value={user.employeeId} />
             {user.role === "counselor" && (
-              <>
-                <Row icon={Briefcase} label="Position" value={user.position} />
-                <Row icon={Phone} label="Contact number" value={user.phone} />
-              </>
+              <Row icon={Briefcase} label="Position" value={user.position} />
             )}
             {user.role === "college_rep" ? (
               <Row icon={GraduationCap} label="College" value={user.college} />

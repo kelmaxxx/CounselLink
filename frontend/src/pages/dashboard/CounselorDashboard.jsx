@@ -18,6 +18,7 @@ import {
   Inbox,
   ClipboardList,
   AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
@@ -170,18 +171,18 @@ export default function CounselorDashboard() {
       appt.preferredTime ||
       appt.preferred_time ||
       appt.preferredSlots?.[0] ||
-      (appt.preferred_slots ? appt.preferred_slots.split(",")[0] : null);
-    const result = await acceptAppointment({
-      id,
-      date: appt.preferredDate || appt.preferred_date,
-      timeSlot: slot,
-      note: null,
-    });
+      (appt.preferred_slots ? appt.preferred_slots.split(",")[0] : null) ||
+      new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    const date =
+      appt.preferredDate ||
+      appt.preferred_date ||
+      new Date().toISOString().split("T")[0];
+    const result = await acceptAppointment({ id, date, timeSlot: slot, note: null });
     if (result.success) {
       setMyAppointments((prev) =>
         prev.map((a) =>
           a.id === id
-            ? { ...a, status: "approved", scheduledDate: appt.preferredDate || appt.preferred_date, scheduledTimeSlot: slot }
+            ? { ...a, status: "approved", scheduledDate: date, scheduledTimeSlot: slot }
             : a
         )
       );
