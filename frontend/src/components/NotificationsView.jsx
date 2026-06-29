@@ -10,6 +10,8 @@ import {
   Info,
   Bell,
   CheckCheck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { PageHeader, SectionCard, EmptyState, Modal, BTN } from "./ui";
 
@@ -55,7 +57,9 @@ export default function NotificationsView({ eyebrow = "Account" }) {
   const notifications = getNotificationsForCurrentUser();
   const unreadCount = getUnreadCount();
 
+  const PAGE_SIZE = 10;
   const [filter, setFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const [viewNotif, setViewNotif] = useState(null);
 
   const filtered = useMemo(() => {
@@ -64,9 +68,17 @@ export default function NotificationsView({ eyebrow = "Account" }) {
     return notifications;
   }, [notifications, filter]);
 
-  const FilterTab = ({ value, label, count }) => (
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const changeFilter = (value) => {
+    setFilter(value);
+    setPage(1);
+  };
+
+  const FilterTab = ({ value, label, count, onChange }) => (
     <button
-      onClick={() => setFilter(value)}
+      onClick={() => onChange(value)}
       className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition ${
         filter === value
           ? "text-maroon-700 border-maroon-600"
@@ -107,9 +119,9 @@ export default function NotificationsView({ eyebrow = "Account" }) {
       />
 
       <div className="flex items-center gap-1 border-b border-gray-200 mb-4">
-        <FilterTab value="all" label="All" count={notifications.length} />
-        <FilterTab value="unread" label="Unread" count={unreadCount} />
-        <FilterTab value="read" label="Read" count={notifications.length - unreadCount} />
+        <FilterTab value="all" label="All" count={notifications.length} onChange={changeFilter} />
+        <FilterTab value="unread" label="Unread" count={unreadCount} onChange={changeFilter} />
+        <FilterTab value="read" label="Read" count={notifications.length - unreadCount} onChange={changeFilter} />
       </div>
 
       <SectionCard noBodyPadding>
@@ -130,8 +142,9 @@ export default function NotificationsView({ eyebrow = "Account" }) {
             }
           />
         ) : (
+          <>
           <ul className="divide-y divide-gray-100">
-            {filtered.map((notif) => {
+            {paginated.map((notif) => {
               const meta = TYPE_META[notif.type] || TYPE_META.info;
               const Icon = meta.icon;
               return (
@@ -223,6 +236,33 @@ export default function NotificationsView({ eyebrow = "Account" }) {
               );
             })}
           </ul>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/40">
+              <p className="text-xs text-gray-500 tabular-nums">
+                {(page - 1) * PAGE_SIZE + 1}{" - "}{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-xs font-medium text-gray-700 px-2 tabular-nums">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </SectionCard>
 
