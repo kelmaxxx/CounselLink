@@ -72,7 +72,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
               { id: "dashboard", label: "Dashboard", icon: BarChart3 },
               { id: "request-appointment", label: "Request Appointment", icon: Calendar },
               { id: "my-appointments", label: "My Appointments", icon: Calendar },
-              { id: "consent", label: "Test Results", icon: FileSignature },
+              { id: "consent", label: "My Records", icon: FileSignature },
             ],
           },
           {

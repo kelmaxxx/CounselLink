@@ -194,6 +194,7 @@ export default function InventoryForm({
   studentName,
   studentId,
   apiBase,
+  consent = null,
   onSave,
   onUploadScan,
   onDeleteScan,
@@ -627,8 +628,8 @@ export default function InventoryForm({
         <TextInput value={data.other.helpNeededOther} onChange={(v) => updateSection("other", { helpNeededOther: v })} disabled={readOnly} />
       </Field>
 
-      {/* ACKNOWLEDGMENT */}
-      <SectionHeader>Acknowledgment</SectionHeader>
+      {/* DISCLAIMER (Form 1 signature block) */}
+      <SectionHeader>Disclaimer</SectionHeader>
       <p className="text-xs text-gray-600">
         I hereby authorize the Guidance and Counseling Section of Division of Student Affairs to collect data
         indicated herein for Individual Inventory and documentation purposes only. I understand that my personal

@@ -463,13 +463,6 @@ function DetailsStep({ currentUser, myRecord, form, setField }) {
       title="Confirm your details"
       subtitle="Verified from your profile. Add a contact number we can reach you on."
     >
-      <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-sm text-blue-800">
-        <Info size={14} className="flex-shrink-0 mt-0.5" />
-        <p>
-          On submission this creates two identical slips — one for DSA records and one for your
-          reference.
-        </p>
-      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <ReadOnly label="Name" value={currentUser?.name} />
         <ReadOnly label="Student ID" value={myRecord?.studentId || "N/A"} />
