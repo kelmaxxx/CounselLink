@@ -44,7 +44,14 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
         setConsent(data);
         if (data?.eConsentSignedAt && !data?.revokedAt) onConsentChange?.(true);
       })
-      .catch(() => {})
+      .catch(() => {
+        if (mounted) {
+          setFeedback({
+            type: "error",
+            text: "Couldn't reach the server to check your consent status. Please check your connection and try again.",
+          });
+        }
+      })
       .finally(() => mounted && setLoading(false));
     return () => {
       mounted = false;
@@ -74,30 +81,47 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
       return;
     }
     setBusy(true);
-    const res = await eSignConsent(studentId, {
-      typedName: typedName.trim(),
-      scope: CONSENT_SCOPE_DEFAULT,
-    });
-    setBusy(false);
-    if (res?.success) {
-      setConsent(res.consent);
-      setFeedback({ type: "success", text: "Consent recorded. Thank you." });
-      onConsentChange?.(true);
-    } else {
-      setFeedback({ type: "error", text: res?.message || "Failed to record consent." });
+    setFeedback(null);
+    try {
+      const res = await eSignConsent(studentId, {
+        typedName: typedName.trim(),
+        scope: CONSENT_SCOPE_DEFAULT,
+      });
+      if (res?.success) {
+        setConsent(res.consent);
+        setFeedback({ type: "success", text: "Consent recorded. Thank you." });
+        onConsentChange?.(true);
+      } else {
+        setFeedback({ type: "error", text: res?.message || "Failed to record consent." });
+      }
+    } catch {
+      setFeedback({
+        type: "error",
+        text: "Couldn't reach the server to record your consent. Please check your connection and try again.",
+      });
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleReferralSharingChoice = async (allow) => {
     setSharingBusy(true);
     setSharingFeedback(null);
-    const res = await setReferralSharingConsent(studentId, allow);
-    setSharingBusy(false);
-    if (res?.success) {
-      setConsent(res.consent);
-      setSharingFeedback({ type: "success", text: "Your choice has been saved." });
-    } else {
-      setSharingFeedback({ type: "error", text: res?.message || "Failed to save your choice." });
+    try {
+      const res = await setReferralSharingConsent(studentId, allow);
+      if (res?.success) {
+        setConsent(res.consent);
+        setSharingFeedback({ type: "success", text: "Your choice has been saved." });
+      } else {
+        setSharingFeedback({ type: "error", text: res?.message || "Failed to save your choice." });
+      }
+    } catch {
+      setSharingFeedback({
+        type: "error",
+        text: "Couldn't reach the server to save your choice. Please check your connection and try again.",
+      });
+    } finally {
+      setSharingBusy(false);
     }
   };
 

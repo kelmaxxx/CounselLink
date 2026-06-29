@@ -34,7 +34,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 export default function StudentProfile() {
   const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
   const { appointments, fetchAppointments } = useAppointments();
-  const { getInventory, upsertInventory, uploadInventoryScan, deleteInventoryScan } = useStudentRecords();
+  const { getInventory, upsertInventory, uploadInventoryScan, deleteInventoryScan, getConsent } = useStudentRecords();
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -51,6 +51,7 @@ export default function StudentProfile() {
   const [inventory, setInventory] = useState(null);
   const [loadingInventory, setLoadingInventory] = useState(true);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [consent, setConsent] = useState(null);
 
   const handleSaveInventory = async (formData) => {
     const res = await upsertInventory(currentUser?.id, formData);
@@ -122,6 +123,9 @@ export default function StudentProfile() {
         .then((inv) => setInventory(inv))
         .catch((err) => console.error("Failed to load inventory:", err))
         .finally(() => setLoadingInventory(false));
+      getConsent(currentUser.id)
+        .then((c) => setConsent(c))
+        .catch((err) => console.error("Failed to load consent:", err));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -368,6 +372,7 @@ export default function StudentProfile() {
                 studentId={currentUser?.id}
                 studentProfile={currentUser}
                 apiBase={API_BASE}
+                consent={consent}
                 onSave={handleSaveInventory}
                 onUploadScan={handleUploadInventoryScan}
                 onDeleteScan={handleDeleteInventoryScan}
