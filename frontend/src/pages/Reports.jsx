@@ -1,6 +1,6 @@
 // src/pages/Reports.jsx
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { BarChart2, Users, Calendar, FileText, TrendingUp, Download } from "lucide-react";
 
 function StatCard({ icon: Icon, label, count, color }) {

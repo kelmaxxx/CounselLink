@@ -22,6 +22,7 @@ import {
   LABEL,
   initialsOf,
 } from "../../components/ui";
+import { sanitizePhoneDigits } from "../../utils/phone";
 
 const POSITIONS = [
   "Section Chief",
@@ -71,6 +72,7 @@ const STUDENT_COLUMNS = [
 const COUNSELOR_COLUMNS = [
   { header: "ID / Email", render: counselorIdEmailCell },
   { header: "Position", render: (u) => u.position || "—" },
+  { header: "Specialization", render: (u) => u.specialization || "—" },
 ];
 
 const REP_COLUMNS = [
@@ -190,7 +192,10 @@ export default function ManageUsers() {
     );
   }, [users, query]);
 
-  const students = useMemo(() => filtered.filter((u) => u.role === "student"), [filtered]);
+  const students = useMemo(
+    () => filtered.filter((u) => u.role === "student" && u.status !== "rejected"),
+    [filtered]
+  );
   const counselors = useMemo(() => filtered.filter((u) => u.role === "counselor"), [filtered]);
   const reps = useMemo(() => filtered.filter((u) => u.role === "college_rep"), [filtered]);
   const admins = useMemo(() => filtered.filter((u) => u.role === "admin"), [filtered]);
@@ -252,6 +257,7 @@ export default function ManageUsers() {
     } else if (editModal.user.role === "counselor") {
       updates.employeeId = editForm.employeeId;
       updates.position = editForm.position;
+      updates.specialization = editForm.specialization;
     } else if (editModal.user.role === "college_rep") {
       updates.college = editForm.college;
       updates.department = editForm.department;
@@ -523,10 +529,12 @@ export default function ManageUsers() {
               <label className={LABEL}>Phone number</label>
               <input
                 type="tel"
+                inputMode="numeric"
+                maxLength={11}
                 className={INPUT}
                 value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                placeholder="09XX XXX XXXX"
+                onChange={(e) => setEditForm({ ...editForm, phone: sanitizePhoneDigits(e.target.value) })}
+                placeholder="09XXXXXXXXX"
               />
             </div>
           )}
@@ -620,6 +628,16 @@ export default function ManageUsers() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Specialization</label>
+                  <input
+                    type="text"
+                    className={INPUT}
+                    value={editForm.specialization}
+                    onChange={(e) => setEditForm({ ...editForm, specialization: e.target.value })}
+                    placeholder="e.g. Career Counseling"
+                  />
                 </div>
               </div>
             </div>

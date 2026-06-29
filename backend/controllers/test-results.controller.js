@@ -11,11 +11,15 @@ export const createTestResult = async (req, res) => {
     return res.status(400).json({ message: "Missing required result fields" });
   }
 
+  const resultFileUrl = req.file ? `/uploads/test-results/${req.file.filename}` : null;
+  const resultFileName = req.file ? req.file.originalname : null;
+  const resultFileType = req.file ? req.file.mimetype : null;
+
   const result = await query(
     `INSERT INTO test_results
-      (appointment_id, student_id, counselor_id, test_name, completed_date, summary, recommendations)
-     VALUES (?, ?, ?, ?, ?, ?, ?)` ,
-    [appointmentId || null, studentId, counselorId, testName, completedDate, summary || null, recommendations || null]
+      (appointment_id, student_id, counselor_id, test_name, completed_date, summary, recommendations, result_file_url, result_file_name, result_file_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+    [appointmentId || null, studentId, counselorId, testName, completedDate, summary || null, recommendations || null, resultFileUrl, resultFileName, resultFileType]
   );
 
   await logAction(req, "upload_test_result", "test_result", result.insertId, {

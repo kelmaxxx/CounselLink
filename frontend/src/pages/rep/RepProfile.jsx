@@ -20,6 +20,7 @@ import {
   LABEL,
 } from "../../components/ui";
 import ProfileHero from "../../components/ProfileHero";
+import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const COLLEGES = [
   "CAS - College of Arts and Sciences",
@@ -101,6 +102,10 @@ export default function RepProfile() {
   const handleSave = async () => {
     if (!formData.name || !formData.email) {
       setMessage({ type: "error", text: "Name and email are required" });
+      return;
+    }
+    if (formData.phone && !isValidPhMobile(formData.phone)) {
+      setMessage({ type: "error", text: `Phone number: ${PHONE_HINT}` });
       return;
     }
     setSaving(true);
@@ -209,10 +214,12 @@ export default function RepProfile() {
               <Field icon={Phone} label="Phone number">
                 <input
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={11}
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, phone: sanitizePhoneDigits(e.target.value) })}
                   className={INPUT}
-                  placeholder="Enter phone number"
+                  placeholder="09XXXXXXXXX"
                 />
               </Field>
               <Field icon={Hash} label="Employee ID">

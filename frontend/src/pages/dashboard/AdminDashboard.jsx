@@ -13,6 +13,8 @@ import {
   GraduationCap,
   UserCheck,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import WelcomeHero from "../../components/WelcomeHero";
@@ -21,6 +23,7 @@ import {
   StatCard,
   SectionCard,
   EmptyState,
+  Modal,
   BTN,
   INPUT,
 } from "../../components/ui";
@@ -40,10 +43,11 @@ const resolveImageUrl = (url) => {
 
 export default function AdminDashboard() {
   const { currentUser, users, token } = useAuth();
-  const students = users?.filter((u) => u.role === "student") || [];
-  const counselors = users?.filter((u) => u.role === "counselor") || [];
-  const reps = users?.filter((u) => u.role === "college_rep") || [];
-  const admins = users?.filter((u) => u.role === "admin") || [];
+  const visibleUsers = users?.filter((u) => u.status !== "rejected") || [];
+  const students = visibleUsers.filter((u) => u.role === "student");
+  const counselors = visibleUsers.filter((u) => u.role === "counselor");
+  const reps = visibleUsers.filter((u) => u.role === "college_rep");
+  const admins = visibleUsers.filter((u) => u.role === "admin");
   const pendingApprovals =
     users?.filter((u) => u.role === "student" && u.status === "pending_approval").length || 0;
 
@@ -79,7 +83,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard
           label="Total users"
-          value={users?.length || 0}
+          value={visibleUsers.length}
           hint="All active accounts"
           icon={Users}
           accent="bg-gray-400"
@@ -117,7 +121,7 @@ export default function AdminDashboard() {
           subtitle="System breakdown by role"
           action={
             <span className="text-xs text-gray-500 tabular-nums">
-              Total <span className="font-semibold text-gray-900">{users?.length || 0}</span>
+              Total <span className="font-semibold text-gray-900">{visibleUsers.length}</span>
             </span>
           }
         >
@@ -173,6 +177,9 @@ function AnnouncementsPanel({ token }) {
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editMessage, setEditMessage] = useState("");
+  const [slide, setSlide] = useState(0);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
 
   const headers = {
     "Content-Type": "application/json",
@@ -199,6 +206,15 @@ function AnnouncementsPanel({ token }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  useEffect(() => {
+    if (slide > 0 && slide >= items.length) {
+      setSlide(Math.max(0, items.length - 1));
+    }
+  }, [items, slide]);
+
+  const goPrev = () => setSlide((s) => (s - 1 + items.length) % items.length);
+  const goNext = () => setSlide((s) => (s + 1) % items.length);
 
   const startEdit = (item) => {
     const { title, message } = splitContent(item.content);
@@ -233,8 +249,9 @@ function AnnouncementsPanel({ token }) {
     }
   };
 
-  const remove = async (id) => {
-    if (!window.confirm("Delete this announcement?")) return;
+  const confirmDelete = async () => {
+    const id = deleteId;
+    if (!id) return;
     try {
       const res = await fetch(`${API_BASE}/api/announcements/${id}`, {
         method: "DELETE",
@@ -242,13 +259,17 @@ function AnnouncementsPanel({ token }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Delete failed");
+      setDeleteId(null);
       load();
     } catch (err) {
       setError(err.message);
     }
   };
 
+  const currentItem = items[slide];
+
   return (
+    <>
     <SectionCard
       title={
         <span className="inline-flex items-center gap-1.5">
@@ -256,7 +277,9 @@ function AnnouncementsPanel({ token }) {
           Recent announcements
         </span>
       }
-      subtitle="Most recent 5"
+      subtitle={
+        items.length > 0 ? `Slide ${slide + 1} of ${items.length}` : "Most recent 5"
+      }
       noBodyPadding
       action={
         <Link
@@ -281,84 +304,167 @@ function AnnouncementsPanel({ token }) {
           hint="Create one to keep students and counselors informed."
         />
       ) : (
-        <ul className="divide-y divide-gray-100">
-          {items.map((item) => {
-            const { title, message } = splitContent(item.content);
-            const isEditing = editingId === item.id;
-            return (
-              <li key={item.id} className="px-4 py-3">
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <input
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className={INPUT}
-                      placeholder="Title"
-                    />
-                    <textarea
-                      value={editMessage}
-                      onChange={(e) => setEditMessage(e.target.value)}
-                      rows={3}
-                      className={INPUT}
-                      placeholder="Message"
-                    />
-                    <div className="flex gap-2 justify-end">
-                      <button onClick={cancelEdit} className={BTN.secondary}>
-                        <X size={13} /> Cancel
+        (() => {
+          const item = items[slide];
+          const { title, message } = splitContent(item.content);
+          const isEditing = editingId === item.id;
+          return (
+            <div className="px-4 py-3" style={{ minHeight: 280 }}>
+              {isEditing ? (
+                <div className="space-y-2">
+                  <input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className={INPUT}
+                    placeholder="Title"
+                  />
+                  <textarea
+                    value={editMessage}
+                    onChange={(e) => setEditMessage(e.target.value)}
+                    rows={3}
+                    className={INPUT}
+                    placeholder="Message"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={cancelEdit} className={BTN.secondary}>
+                      <X size={13} /> Cancel
+                    </button>
+                    <button onClick={() => saveEdit(item.id)} className={BTN.primary}>
+                      <Save size={13} /> Save
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {item.imageUrl && (
+                    <div className="mb-2 rounded-lg overflow-hidden border border-gray-100">
+                      <img
+                        src={resolveImageUrl(item.imageUrl)}
+                        alt={title}
+                        className="w-full max-h-48 object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {title || "(untitled)"}
+                      </p>
+                      <p className="text-xs text-gray-500 tabular-nums">
+                        {item.adminName ? `by ${item.adminName} · ` : ""}
+                        {item.date_posted ? new Date(item.date_posted).toLocaleString() : ""}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        title="Edit"
+                        onClick={() => startEdit(item)}
+                        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
+                      >
+                        <Pencil size={13} />
                       </button>
-                      <button onClick={() => saveEdit(item.id)} className={BTN.primary}>
-                        <Save size={13} /> Save
+                      <button
+                        title="Delete"
+                        onClick={() => setDeleteId(item.id)}
+                        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-red-600 hover:bg-red-50 transition"
+                      >
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    {item.imageUrl && (
-                      <div className="mb-2 rounded-lg overflow-hidden border border-gray-100">
-                        <img
-                          src={resolveImageUrl(item.imageUrl)}
-                          alt={title}
-                          className="w-full max-h-48 object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
-                          {title || "(untitled)"}
-                        </p>
-                        <p className="text-xs text-gray-500 tabular-nums">
-                          {item.adminName ? `by ${item.adminName} · ` : ""}
-                          {item.date_posted ? new Date(item.date_posted).toLocaleString() : ""}
-                        </p>
-                      </div>
-                      <div className="flex gap-1 shrink-0">
-                        <button
-                          title="Edit"
-                          onClick={() => startEdit(item)}
-                          className="w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          title="Delete"
-                          onClick={() => remove(item.id)}
-                          className="w-7 h-7 inline-flex items-center justify-center rounded-md text-red-600 hover:bg-red-50 transition"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-700 mt-1.5 whitespace-pre-wrap line-clamp-3 leading-relaxed">
-                      {message}
-                    </p>
-                  </>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                  <p
+                    onClick={() => setViewOpen(true)}
+                    title="Click to read full announcement"
+                    className="text-sm text-gray-700 mt-1.5 whitespace-pre-wrap leading-relaxed line-clamp-2 cursor-pointer hover:text-gray-900"
+                  >
+                    {message}
+                  </p>
+                </>
+              )}
+
+              {items.length > 1 && (
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                  <button
+                    onClick={goPrev}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900"
+                  >
+                    <ChevronLeft size={14} /> Prev
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    {items.map((it, idx) => (
+                      <button
+                        key={it.id}
+                        onClick={() => setSlide(idx)}
+                        aria-label={`Go to announcement ${idx + 1}`}
+                        className={`w-1.5 h-1.5 rounded-full transition ${
+                          idx === slide ? "bg-maroon-600" : "bg-gray-300"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={goNext}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900"
+                  >
+                    Next <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()
       )}
     </SectionCard>
+
+    {/* Full announcement view */}
+    {currentItem && (
+      <Modal
+        open={viewOpen}
+        onClose={() => setViewOpen(false)}
+        title={splitContent(currentItem.content).title || "(untitled)"}
+        subtitle={
+          `${currentItem.adminName ? `by ${currentItem.adminName} · ` : ""}` +
+          (currentItem.date_posted ? new Date(currentItem.date_posted).toLocaleString() : "")
+        }
+        size="lg"
+      >
+        {currentItem.imageUrl && (
+          <div className="mb-3 rounded-lg overflow-hidden border border-gray-100">
+            <img
+              src={resolveImageUrl(currentItem.imageUrl)}
+              alt={splitContent(currentItem.content).title}
+              className="w-full max-h-80 object-cover"
+            />
+          </div>
+        )}
+        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+          {splitContent(currentItem.content).message}
+        </p>
+      </Modal>
+    )}
+
+    {/* Delete confirmation */}
+    <Modal
+      open={!!deleteId}
+      onClose={() => setDeleteId(null)}
+      title="Delete announcement"
+      subtitle="This action cannot be undone."
+      danger
+      footer={
+        <>
+          <button onClick={() => setDeleteId(null)} className={BTN.secondary}>
+            Cancel
+          </button>
+          <button onClick={confirmDelete} className={BTN.danger}>
+            <Trash2 size={14} /> Delete
+          </button>
+        </>
+      }
+    >
+      <p className="text-sm text-gray-700">
+        Are you sure you want to delete this announcement?
+      </p>
+    </Modal>
+    </>
   );
 }
