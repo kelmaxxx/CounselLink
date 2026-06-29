@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   counselor_id INT NULL,
   referral_id INT NULL,
   appointment_type ENUM('counseling','psychological_test') NOT NULL,
+  test_type VARCHAR(100) NULL,
   preferred_date DATE,
   preferred_time TIME,
   preferred_slots VARCHAR(255),
@@ -265,7 +266,8 @@ CREATE TABLE IF NOT EXISTS client_feedback_forms (
   FOREIGN KEY (counselor_id) REFERENCES users(id),
   FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL,
   INDEX idx_cff_counselor (counselor_id, created_at),
-  INDEX idx_cff_student (student_id, created_at)
+  INDEX idx_cff_student (student_id, created_at),
+  UNIQUE KEY uq_cff_student_counselor (student_id, counselor_id)
 );
 
 CREATE TABLE IF NOT EXISTS report_recipients (

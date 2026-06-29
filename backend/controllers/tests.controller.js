@@ -32,13 +32,25 @@ export const createTestRequest = async (req, res) => {
 
   const result = await query(
     `INSERT INTO appointments
-      (student_id, counselor_id, appointment_type, preferred_date, preferred_time, status, reason, phone_number, is_urgent, preferred_slots)
+      (student_id, counselor_id, appointment_type, test_type, preferred_date, preferred_time, status, reason, phone_number, is_urgent, preferred_slots)
      VALUES
-      (?, NULL, 'psychological_test', ?, NULL, 'pending', ?, ?, 0, ?)` ,
-    [studentId, normalizedDate, reason, phoneNumber, slots]
+      (?, NULL, 'psychological_test', ?, ?, NULL, 'pending', ?, ?, 0, ?)`,
+    [studentId, testType || null, normalizedDate, reason, phoneNumber, slots]
   );
 
-  // New pending test request shows in every counselor's queue.
+  // Insert a DB notification for every counselor so their bell shows this request,
+  // then fire SSE signals so their UI refreshes without a page reload.
+  const counselorRows = await query("SELECT id FROM users WHERE role = 'counselor'");
+  const counselorIds = counselorRows.map((r) => r.id);
+  if (counselorIds.length) {
+    await notifyUsers(counselorIds, {
+      title: "New Psychological Test Request",
+      message: "A student has submitted a psychological test assessment request.",
+      link: "/counselor/appointments",
+      type: "info",
+    });
+  }
+  notifyRole("counselor", { type: "notification" });
   notifyRole("counselor", { type: "tests" });
 
   return res.status(201).json({

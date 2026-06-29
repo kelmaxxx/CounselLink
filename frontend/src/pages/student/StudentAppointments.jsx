@@ -69,7 +69,7 @@ export default function StudentAppointments() {
       <PageHeader
         eyebrow="Student"
         title="My appointments"
-        subtitle="Every appointment you've requested, with current status."
+        subtitle="Your requested appointment and thier current status."
       />
 
       <div className="flex items-center gap-1 border-b border-gray-200 mb-4 overflow-x-auto">
@@ -78,25 +78,23 @@ export default function StudentAppointments() {
             t.id === "all"
               ? mine.length
               : t.id === "approved"
-              ? mine.filter((a) => a.status === "approved" || a.status === "accepted").length
-              : mine.filter((a) => a.status === t.id).length;
+                ? mine.filter((a) => a.status === "approved" || a.status === "accepted").length
+                : mine.filter((a) => a.status === t.id).length;
           return (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
-                activeTab === t.id
-                  ? "text-maroon-700 border-maroon-600"
-                  : "text-gray-500 border-transparent hover:text-gray-900"
-              }`}
+              className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${activeTab === t.id
+                ? "text-maroon-700 border-maroon-600"
+                : "text-gray-500 border-transparent hover:text-gray-900"
+                }`}
             >
               {t.label}
               <span
-                className={`inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[10px] font-semibold tabular-nums ${
-                  activeTab === t.id
-                    ? "bg-maroon-100 text-maroon-700"
-                    : "bg-gray-100 text-gray-600"
-                }`}
+                className={`inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[10px] font-semibold tabular-nums ${activeTab === t.id
+                  ? "bg-maroon-100 text-maroon-700"
+                  : "bg-gray-100 text-gray-600"
+                  }`}
               >
                 {count}
               </span>

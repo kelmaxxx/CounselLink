@@ -1,5 +1,6 @@
 import { query } from "../config/db.js";
 import { notifyRole } from "../events.js";
+import { notifyUsers } from "../utils/notify.js";
 import { isValidPhMobile } from "../utils/validators.js";
 
 export const createAppointment = async (req, res) => {
@@ -36,8 +37,21 @@ export const createAppointment = async (req, res) => {
     [studentId, counselorId, preferredDate, status, finalReason, finalPhoneNumber, isUrgent ? 1 : 0, slots]
   );
 
-  // A new pending request (counselor_id is NULL) shows in every counselor's
-  // queue, so signal them all to refresh.
+  // Insert a DB notification for every counselor so their bell shows this request,
+  // then fire SSE signals so their UI refreshes without a page reload.
+  if (!isCounselor) {
+    const counselorRows = await query("SELECT id FROM users WHERE role = 'counselor'");
+    const counselorIds = counselorRows.map((r) => r.id);
+    if (counselorIds.length) {
+      await notifyUsers(counselorIds, {
+        title: "New Appointment Request",
+        message: "A student has submitted a counseling appointment request.",
+        link: "/counselor/appointments",
+        type: "info",
+      });
+    }
+    notifyRole("counselor", { type: "notification" });
+  }
   notifyRole("counselor", { type: "appointments" });
 
   return res.status(201).json({

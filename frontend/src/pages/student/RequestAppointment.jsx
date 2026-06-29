@@ -75,11 +75,11 @@ const isSelectableDate = (d) => d >= startOfToday() && !isWeekend(d);
 const formatLong = (iso) =>
   iso
     ? new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
     : "";
 
 // First open weekday from today (skips weekends/past).
@@ -382,9 +382,8 @@ export default function RequestAppointment() {
               <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
                 <span className="text-gray-500 font-medium">Priority:</span>
                 <span
-                  className={`font-semibold ${
-                    successModal.data?.isUrgent ? "text-red-600 font-bold" : "text-emerald-600"
-                  }`}
+                  className={`font-semibold ${successModal.data?.isUrgent ? "text-red-600 font-bold" : "text-emerald-600"
+                    }`}
                 >
                   {successModal.data?.isUrgent ? "Urgent" : "Normal"}
                 </span>
@@ -441,9 +440,8 @@ function TypeOption({ active, onClick, icon: Icon, title, desc }) {
     <button
       type="button"
       onClick={onClick}
-      className={`text-left rounded-xl border p-4 transition ${
-        active ? "border-maroon-300 bg-maroon-50 ring-2 ring-maroon-200" : "border-gray-200 hover:bg-gray-50"
-      }`}
+      className={`text-left rounded-xl border p-4 transition ${active ? "border-maroon-300 bg-maroon-50 ring-2 ring-maroon-200" : "border-gray-200 hover:bg-gray-50"
+        }`}
     >
       <div className="flex items-center gap-2 mb-1">
         {Icon && <Icon size={16} className={active ? "text-maroon-600" : "text-gray-400"} />}
@@ -526,8 +524,8 @@ function PriorityOption({ active, onClick, title, desc, tone }) {
         ? "border-red-300 bg-red-50 ring-2 ring-red-200"
         : "border-gray-200 hover:bg-gray-50"
       : active
-      ? "border-maroon-300 bg-maroon-50 ring-2 ring-maroon-200"
-      : "border-gray-200 hover:bg-gray-50";
+        ? "border-maroon-300 bg-maroon-50 ring-2 ring-maroon-200"
+        : "border-gray-200 hover:bg-gray-50";
   return (
     <button type="button" onClick={onClick} className={`text-left rounded-xl border p-4 transition ${ring}`}>
       <div className="flex items-center gap-2 mb-1">
@@ -678,8 +676,8 @@ function MonthGrid({ month, selected, onSelect }) {
                 isSelected
                   ? "bg-maroon-500 text-white font-semibold shadow-sm"
                   : selectable
-                  ? "text-gray-700 hover:bg-maroon-50 hover:text-maroon-700"
-                  : "text-gray-300 cursor-not-allowed line-through decoration-gray-200",
+                    ? "text-gray-700 hover:bg-maroon-50 hover:text-maroon-700"
+                    : "text-gray-300 cursor-not-allowed line-through decoration-gray-200",
               ].join(" ")}
             >
               {day}
@@ -890,7 +888,7 @@ function BookingSummary({ currentUser, myRecord, form }) {
         {/* Location */}
         <InfoRow icon={MapPin} label="Location">
           <p className="text-sm font-medium text-gray-900">Guidance &amp; Counseling Office</p>
-          <p className="text-xs text-gray-500">DSA Building · On-campus</p>
+          <p className="text-xs text-gray-500">DSA Office, Admin Building · On-campus</p>
         </InfoRow>
 
         {/* Service */}
@@ -900,9 +898,8 @@ function BookingSummary({ currentUser, myRecord, form }) {
           </p>
           {form.requestType !== "psychological" && (
             <span
-              className={`inline-flex items-center mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-                form.isUrgent ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
-              }`}
+              className={`inline-flex items-center mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${form.isUrgent ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                }`}
             >
               {form.isUrgent ? "Urgent" : "Normal priority"}
             </span>
@@ -917,7 +914,7 @@ function BookingSummary({ currentUser, myRecord, form }) {
             </span>
             <div>
               <p className="text-sm font-medium text-gray-900">To be assigned</p>
-              <p className="text-xs text-gray-500">Matched by DSA after review</p>
+              <p className="text-xs text-gray-500">Assigned to approving counselor</p>
             </div>
           </div>
         </InfoRow>
