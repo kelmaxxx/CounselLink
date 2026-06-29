@@ -1,6 +1,6 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
-import { createNotification } from "../utils/notify.js";
+import { createNotification, notifyUsers } from "../utils/notify.js";
 import { notifyUser, notifyRole } from "../events.js";
 import { isValidPhMobile } from "../utils/validators.js";
 
@@ -19,7 +19,7 @@ export const createTestRequest = async (req, res) => {
   const { preferredDate, preferredSlots, phoneNumber, reason, testType } = req.body;
   const studentId = req.user?.id;
 
-  if (!preferredDate || !preferredSlots?.length || !phoneNumber || !reason) {
+  if (!preferredDate || !preferredSlots?.length || !phoneNumber) {
     return res.status(400).json({ message: "Missing required test request fields" });
   }
 
