@@ -15,6 +15,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { withRetries, describeDbConfig } from "../utils/dbRetry.js";
 
 dotenv.config();
 
@@ -30,15 +31,24 @@ const ssl =
     : undefined;
 
 const run = async () => {
-  const connection = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: Number(process.env.DB_PORT || 3306),
-    ...(ssl ? { ssl } : {}),
-    multipleStatements: true,
-  });
+  console.log("Connecting with:", describeDbConfig(process.env));
+  const connection = await withRetries(
+    () =>
+      mysql.createConnection({
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+        port: Number(process.env.DB_PORT || 3306),
+        ...(ssl ? { ssl } : {}),
+        connectTimeout: 20000,
+        multipleStatements: true,
+      }),
+    {
+      onAttemptFailed: (err, attempt, attempts) =>
+        console.warn(`DB connection attempt ${attempt}/${attempts} failed (${err.code || err.message}), retrying...`),
+    }
+  );
 
   try {
     const [tables] = await connection.query("SHOW TABLES LIKE 'schema_migrations'");
@@ -88,6 +98,7 @@ const run = async () => {
 };
 
 run().catch((err) => {
-  console.error("\nMigration failed:", err.message);
+  console.error("\nMigration failed:");
+  console.error(err);
   process.exit(1);
 });

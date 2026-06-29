@@ -28,6 +28,7 @@ import { useAppointments } from "../../context/AppointmentsContext";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import InventoryForm from "../../components/records/InventoryForm";
 import ProfileHero from "../../components/ProfileHero";
+import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -133,6 +134,10 @@ export default function StudentProfile() {
   const handleSave = async () => {
     if (!formData.name || !formData.email) {
       setMessage({ type: "error", text: "Name and email are required" });
+      return;
+    }
+    if (formData.phone && !isValidPhMobile(formData.phone)) {
+      setMessage({ type: "error", text: `Contact number: ${PHONE_HINT}` });
       return;
     }
     setSaving(true);
@@ -249,10 +254,12 @@ export default function StudentProfile() {
               <Field icon={Phone} label="Phone number">
                 <input
                   type="tel"
+                  inputMode="numeric"
+                  maxLength={11}
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, phone: sanitizePhoneDigits(e.target.value) })}
                   className={INPUT}
-                  placeholder="Enter phone number"
+                  placeholder="09XXXXXXXXX"
                 />
               </Field>
               <Field icon={Hash} label="Student ID">

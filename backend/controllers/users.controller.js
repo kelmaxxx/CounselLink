@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
+import { isValidPhMobile } from "../utils/validators.js";
 
 const SELECT_FIELDS = `
   id, name, email, role, status, college, student_id AS studentId, phone,
@@ -54,6 +55,9 @@ const buildUpdate = (allowedFields, body) => {
       if (field === "email" && value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
         return { error: "Invalid email format" };
       }
+      if (field === "phone" && value && !isValidPhMobile(value)) {
+        return { error: "Phone number must start with 09 and have 11 digits" };
+      }
       updates.push(`${column} = ?`);
       params.push(value === "" ? null : value);
     }
@@ -95,13 +99,32 @@ export const lookupUser = async (req, res) => {
   const { id } = req.params;
   const rows = await query(
     `SELECT id, name, role, college, student_id AS studentId, program, year_level AS yearLevel,
-            department, specialization, position, bio, employee_id AS employeeId, email,
+            department, specialization, position, bio, employee_id AS employeeId, email, phone,
             avatar_url AS avatarUrl
      FROM users WHERE id = ?`,
     [id]
   );
   if (!rows.length) return res.status(404).json({ message: "User not found" });
   return res.json(rows[0]);
+};
+
+// Aggregate-only, role-agnostic lookup (mirrors getCounselorRating's contract)
+// so a counselor's public profile can show how many distinct students they've
+// counseled and how many sessions they've conducted, without exposing any
+// individual appointment record to the viewer.
+export const getCounselorStats = async (req, res) => {
+  const { id } = req.params;
+  const rows = await query(
+    `SELECT COUNT(*) AS sessionsCount, COUNT(DISTINCT student_id) AS studentsCount
+     FROM appointments
+     WHERE counselor_id = ? AND status = 'completed'`,
+    [id]
+  );
+  const { sessionsCount, studentsCount } = rows[0] || {};
+  return res.json({
+    sessionsCount: Number(sessionsCount) || 0,
+    studentsCount: Number(studentsCount) || 0,
+  });
 };
 
 export const listUsers = async (req, res) => {

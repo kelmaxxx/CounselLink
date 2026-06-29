@@ -11,7 +11,7 @@ import {
   Bell,
   CheckCheck,
 } from "lucide-react";
-import { PageHeader, SectionCard, EmptyState, BTN } from "./ui";
+import { PageHeader, SectionCard, EmptyState, Modal, BTN } from "./ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -27,6 +27,11 @@ const TYPE_META = {
   info: { icon: Info, iconClass: "text-blue-600 bg-blue-50" },
   urgent_counseling: { icon: AlertTriangle, iconClass: "text-red-600 bg-red-50" },
 };
+
+// Announcement-originated notifications all link to "/notifications" itself
+// (every other notification type links somewhere specific), so that's the
+// signal we use to know which ones should open the full-announcement modal.
+const isAnnouncement = (notif) => notif.link === "/notifications";
 
 function formatRelative(dateString) {
   if (!dateString) return "—";
@@ -51,6 +56,7 @@ export default function NotificationsView({ eyebrow = "Account" }) {
   const unreadCount = getUnreadCount();
 
   const [filter, setFilter] = useState("all");
+  const [viewNotif, setViewNotif] = useState(null);
 
   const filtered = useMemo(() => {
     if (filter === "unread") return notifications.filter((n) => !n.read);
@@ -131,7 +137,10 @@ export default function NotificationsView({ eyebrow = "Account" }) {
               return (
                 <li
                   key={notif.id}
-                  onClick={() => !notif.read && markAsRead(notif.id)}
+                  onClick={() => {
+                    if (!notif.read) markAsRead(notif.id);
+                    if (isAnnouncement(notif)) setViewNotif(notif);
+                  }}
                   className={`relative px-4 py-3 transition cursor-pointer ${
                     !notif.read ? "bg-maroon-50/30 hover:bg-maroon-50/60" : "hover:bg-gray-50/60"
                   }`}
@@ -180,14 +189,27 @@ export default function NotificationsView({ eyebrow = "Account" }) {
                             <span className="text-xs text-gray-500 tabular-nums">
                               {formatRelative(notif.createdAt)}
                             </span>
-                            {notif.link && (
-                              <Link
-                                to={notif.link}
-                                onClick={(e) => e.stopPropagation()}
+                            {notif.link && isAnnouncement(notif) ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!notif.read) markAsRead(notif.id);
+                                  setViewNotif(notif);
+                                }}
                                 className="text-xs font-medium text-maroon-600 hover:underline"
                               >
                                 View details →
-                              </Link>
+                              </button>
+                            ) : (
+                              notif.link && (
+                                <Link
+                                  to={notif.link}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-xs font-medium text-maroon-600 hover:underline"
+                                >
+                                  View details →
+                                </Link>
+                              )
                             )}
                           </div>
                         </div>
@@ -203,6 +225,27 @@ export default function NotificationsView({ eyebrow = "Account" }) {
           </ul>
         )}
       </SectionCard>
+
+      <Modal
+        open={!!viewNotif}
+        onClose={() => setViewNotif(null)}
+        title={viewNotif?.title || "(untitled)"}
+        subtitle={viewNotif ? formatRelative(viewNotif.createdAt) : ""}
+        size="lg"
+      >
+        {viewNotif?.imageUrl && (
+          <div className="mb-3 rounded-lg overflow-hidden border border-gray-100">
+            <img
+              src={resolveImageUrl(viewNotif.imageUrl)}
+              alt={viewNotif.title}
+              className="w-full max-h-80 object-cover"
+            />
+          </div>
+        )}
+        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+          {viewNotif?.message}
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -17,6 +17,8 @@ import {
   CheckCircle2,
   Lock,
   Info,
+  Upload,
+  X,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
 
@@ -24,8 +26,18 @@ const STEPS = [
   { id: "details", title: "Test details" },
   { id: "results", title: "Results & summary" },
   { id: "recommendations", title: "Recommendations" },
+  { id: "upload", title: "Upload files or pictures" },
   { id: "review", title: "Review & submit" },
 ];
+
+const ALLOWED_RESULT_FILE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const MAX_RESULT_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function StudentTestForm() {
   const { id } = useParams();
@@ -48,6 +60,7 @@ export default function StudentTestForm() {
     testName: "",
     summary: "",
     recommendations: "",
+    resultFile: null,
     counselorSignature: currentUser?.name || "",
   }));
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
@@ -102,6 +115,7 @@ export default function StudentTestForm() {
       completedDate: form.completedDate,
       summary: form.summary,
       recommendations: form.recommendations,
+      resultFile: form.resultFile,
     });
 
     if (!resultRes.success) {
@@ -205,6 +219,9 @@ export default function StudentTestForm() {
           )}
           {current.id === "recommendations" && (
             <RecommendationsStep form={form} setField={setField} disabled={isFinalized} />
+          )}
+          {current.id === "upload" && (
+            <UploadStep form={form} setField={setField} disabled={isFinalized} />
           )}
           {current.id === "review" && (
             <ReviewStep
@@ -382,6 +399,98 @@ function RecommendationsStep({ form, setField, disabled }) {
   );
 }
 
+function UploadStep({ form, setField, disabled }) {
+  const inputRef = useRef(null);
+  const file = form.resultFile;
+  const previewUrl = useMemo(
+    () => (file && file.type.startsWith("image/") ? URL.createObjectURL(file) : null),
+    [file]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const handlePick = (e) => {
+    const picked = e.target.files?.[0];
+    e.target.value = "";
+    if (!picked) return;
+    if (!ALLOWED_RESULT_FILE_TYPES.includes(picked.type)) {
+      alert("Only JPG, PNG, PDF, DOC, or DOCX files are allowed.");
+      return;
+    }
+    if (picked.size > MAX_RESULT_FILE_SIZE) {
+      alert("File is too large. Maximum size is 10MB.");
+      return;
+    }
+    setField({ resultFile: picked });
+  };
+
+  return (
+    <StepCard
+      icon={Upload}
+      title="Upload files or pictures"
+      subtitle="Attach a scanned answer sheet or photo of the test, if you have one."
+    >
+      <div className="space-y-2">
+        <p className="text-xs text-gray-500">
+          JPG, PNG, PDF, DOC, or DOCX — max 10MB. Optional, but recommended for the student's record.
+        </p>
+
+        {file ? (
+          <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt="Selected preview"
+                className="w-14 h-14 rounded-lg object-cover border border-gray-100 flex-shrink-0"
+              />
+            ) : (
+              <span className="w-14 h-14 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 flex-shrink-0">
+                <FileText size={22} />
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+              <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(0)} KB</p>
+            </div>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={() => setField({ resultFile: null })}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition flex-shrink-0"
+                aria-label="Remove file"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => inputRef.current?.click()}
+            className="w-full flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 py-8 text-gray-500 hover:border-blue-300 hover:text-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload size={22} />
+            <span className="text-sm font-medium">Click to upload</span>
+          </button>
+        )}
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+          className="hidden"
+          onChange={handlePick}
+        />
+      </div>
+    </StepCard>
+  );
+}
+
 function ReviewStep({ printRef, form, setField, onJump, isFinalized }) {
   return (
     <StepCard
@@ -407,6 +516,14 @@ function ReviewStep({ printRef, form, setField, onJump, isFinalized }) {
 
         <ReviewBlock title="Recommendations" onEdit={isFinalized ? null : () => onJump(2)}>
           <ReviewParagraph value={form.recommendations} />
+        </ReviewBlock>
+
+        <ReviewBlock title="Uploaded file" onEdit={isFinalized ? null : () => onJump(3)}>
+          {form.resultFile ? (
+            <p className="text-sm text-gray-900">{form.resultFile.name}</p>
+          ) : (
+            <p className="text-sm text-gray-500">No file attached.</p>
+          )}
         </ReviewBlock>
 
         <div className="rounded-xl border border-gray-100 p-4 print:border-0">
