@@ -30,8 +30,15 @@ import reportRequestsRoutes from "./routes/report-requests.routes.js";
 import urgentCounselingRoutes from "./routes/urgent-counseling.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import dns from "dns";
 
 dotenv.config();
+
+// Render's network has no outbound IPv6 route, but getaddrinfo returns AAAA
+// (IPv6) records first for hosts like smtp.gmail.com — causing ENETUNREACH on
+// every SMTP connect. Force IPv4 to be preferred for all DNS lookups process-
+// wide so password-reset and other emails can actually send.
+dns.setDefaultResultOrder("ipv4first");
 
 // Refuse to boot in production with a missing/placeholder JWT secret —
 // every session token would be forgeable otherwise.
