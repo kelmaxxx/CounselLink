@@ -16,6 +16,10 @@ export const getTransporter = () => {
     // Render's network has no outbound IPv6 route; Gmail's SMTP host resolves
     // to an IPv6 address first, causing ENETUNREACH unless we pin IPv4.
     family: 4,
+    // Fail fast instead of hanging when SMTP is unreachable or misconfigured.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
