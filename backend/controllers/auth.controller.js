@@ -208,24 +208,29 @@ export const requestPasswordReset = async (req, res) => {
     [user.id, tokenHash, otp, expiresAt]
   );
 
-  try {
-    await sendEmail({
-      to: user.email,
-      subject: "Your CounselLink password reset code",
-      text: `Hello ${user.name},\n\nYour verification code is: ${otp}\n\nThis code expires in ${RESET_TTL_MINUTES} minutes. If you did not request a password reset, ignore this email.`,
-      html: `<p>Hello ${user.name},</p>
+  // Respond immediately. Sending the email over SMTP can take several seconds
+  // (Gmail connect + auth), and we never want the user to wait on it — the OTP
+  // is already persisted, so delivery can happen in the background.
+  res.json({ message: genericMessage });
+
+  // Fire-and-forget: failures are logged, not surfaced (the generic message
+  // already avoids leaking whether the account exists).
+  sendEmail({
+    to: user.email,
+    subject: "Your CounselLink password reset code",
+    text: `Hello ${user.name},\n\nYour verification code is: ${otp}\n\nThis code expires in ${RESET_TTL_MINUTES} minutes. If you did not request a password reset, ignore this email.`,
+    html: `<p>Hello ${user.name},</p>
 <p>Your CounselLink password reset code is:</p>
 <p style="font-family:monospace;font-size:28px;letter-spacing:6px;background:#f3f4f6;padding:12px 16px;border-radius:8px;text-align:center;font-weight:600;color:#7f1d1d;">${otp}</p>
 <p>This code expires in <strong>${RESET_TTL_MINUTES} minutes</strong>. If you did not request a password reset, ignore this email.</p>`,
-    });
-  } catch (err) {
-    console.warn("[password-reset] SMTP not configured, OTP shown in console:", err.message);
+  }).catch((err) => {
+    console.warn("[password-reset] Email send failed:", err.message);
     if (process.env.NODE_ENV !== "production") {
+      // In dev, the SMTP creds are often placeholders — surface the OTP so you
+      // can still test the flow from the backend console.
       console.info(`[password-reset] OTP for ${user.email}: ${otp}`);
     }
-  }
-
-  return res.json({ message: genericMessage });
+  });
 };
 
 export const verifyResetOtp = async (req, res) => {
