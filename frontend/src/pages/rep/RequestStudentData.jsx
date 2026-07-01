@@ -11,6 +11,7 @@ import {
   INPUT,
   LABEL,
 } from "../../components/ui";
+import { getDepartments } from "../../data/msuColleges";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -27,9 +28,13 @@ export default function RequestStudentData() {
     requestType: "individual",
     counselorId: "",
     studentId: searchParams.get("studentId") || "",
+    department: "",
     reason: "",
   });
   const isCollege = form.requestType === "college";
+  const isDepartment = form.requestType === "department";
+  const isIndividual = form.requestType === "individual";
+  const myDepartments = getDepartments(currentUser?.college);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -100,8 +105,12 @@ export default function RequestStudentData() {
       setError("Counselor and reason are required.");
       return;
     }
-    if (!isCollege && !form.studentId) {
+    if (isIndividual && !form.studentId) {
       setError("Student is required for an individual student request.");
+      return;
+    }
+    if (isDepartment && !form.department) {
+      setError("Department is required for a department summary request.");
       return;
     }
     setSubmitting(true);
@@ -115,7 +124,8 @@ export default function RequestStudentData() {
         body: JSON.stringify({
           counselorId: Number(form.counselorId),
           requestType: form.requestType,
-          studentId: isCollege ? null : Number(form.studentId),
+          studentId: isIndividual ? Number(form.studentId) : null,
+          department: isDepartment ? form.department : null,
           reason: form.reason.trim(),
         }),
       });
@@ -124,7 +134,7 @@ export default function RequestStudentData() {
         setError(body.message || "Failed");
       } else {
         setSubmitted(
-          !isCollege
+          isIndividual
             ? body.status === "fulfilled"
               ? "Request fulfilled — the report is now available to you."
               : "Request resolved — see the status and note below."
@@ -134,6 +144,7 @@ export default function RequestStudentData() {
           requestType: form.requestType,
           counselorId: "",
           studentId: "",
+          department: "",
           reason: "",
         });
         setTimeout(() => setSubmitted(false), 4000);
@@ -177,13 +188,20 @@ export default function RequestStudentData() {
         <form id="request-report-form" onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className={LABEL}>Request type *</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <RequestTypeOption
-                active={!isCollege}
+                active={isIndividual}
                 onClick={() => setForm({ ...form, requestType: "individual" })}
                 icon={User}
                 title="Individual student"
                 description="A session report for one specific student."
+              />
+              <RequestTypeOption
+                active={isDepartment}
+                onClick={() => setForm({ ...form, requestType: "department" })}
+                icon={ClipboardList}
+                title="Specific department"
+                description="A summary scoped to one department in your college."
               />
               <RequestTypeOption
                 active={isCollege}
@@ -213,11 +231,11 @@ export default function RequestStudentData() {
               ))}
             </select>
           </div>
-          {!isCollege && (
+          {isIndividual && (
             <div>
               <label className={LABEL}>Student *</label>
               <select
-                required={!isCollege}
+                required={isIndividual}
                 className={INPUT}
                 value={form.studentId}
                 onChange={(e) => setForm({ ...form, studentId: e.target.value })}
@@ -236,6 +254,29 @@ export default function RequestStudentData() {
               </p>
             </div>
           )}
+          {isDepartment && (
+            <div>
+              <label className={LABEL}>Department *</label>
+              <select
+                required={isDepartment}
+                className={INPUT}
+                value={form.department}
+                onChange={(e) => setForm({ ...form, department: e.target.value })}
+              >
+                <option value="">Select a department</option>
+                {myDepartments.map((d) => (
+                  <option key={d.code} value={d.name}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                The counselor generates an anonymized summary scoped to this department
+                {currentUser?.college ? ` in ${currentUser.college}` : ""} — useful for
+                per-department accreditation.
+              </p>
+            </div>
+          )}
           <div>
             <label className={LABEL}>Reason for request *</label>
             <textarea
@@ -247,6 +288,8 @@ export default function RequestStudentData() {
               placeholder={
                 isCollege
                   ? "Explain what college-wide summary you need…"
+                  : isDepartment
+                  ? "Explain what department summary you need…"
                   : "Explain why you need this report…"
               }
             />
@@ -305,6 +348,11 @@ export default function RequestStudentData() {
                         <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
                           <Building2 size={13} className="text-maroon-600" />
                           College-wide summary
+                        </div>
+                      ) : r.request_type === "department" ? (
+                        <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
+                          <ClipboardList size={13} className="text-maroon-600" />
+                          {r.department || "Department"} summary
                         </div>
                       ) : (
                         <>

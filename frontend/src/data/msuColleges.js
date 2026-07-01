@@ -554,56 +554,6 @@ export const MSU_COLLEGES = [
     ]
   },
   {
-    "code": "DET",
-    "name": "Division of Engineering Technology",
-    "departments": [
-      {
-        "code": "G-DET",
-        "name": "Graduate (Division of Engineering Technology)",
-        "programs": [
-          "MSIET Construction Engineering",
-          "MSIET Electrical and Renewable Energy",
-          "MSIET Materials Science"
-        ]
-      },
-      {
-        "code": "M",
-        "name": "Metal Department",
-        "programs": [
-          "BSET Electrical and Renewable Energy",
-          "BSET Machining and Fabrication",
-          "DT Machine Shop Technology",
-          "Diploma in Electrical Technology major in Renewable Energy"
-        ]
-      },
-      {
-        "code": "W",
-        "name": "Wood Department",
-        "programs": [
-          "BSET Construction Engineering Management",
-          "Diploma in Technology Major in Construction Technology"
-        ]
-      }
-    ]
-  },
-  {
-    "code": "ISED",
-    "name": "Institute of Science Education",
-    "departments": [
-      {
-        "code": "G-ISED",
-        "name": "Graduate (ISED)",
-        "programs": [
-          "MST Elementary Science",
-          "MST General Science",
-          "MSciEd Secondary Mathematics",
-          "Ph.D. Science Education (Biology)",
-          "Ph.D. Science Education (Mathematics)"
-        ]
-      }
-    ]
-  },
-  {
     "code": "KFCIAAS",
     "name": "King Faisal Center for Islamic, Arabic and Asian Studies",
     "departments": [
