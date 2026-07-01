@@ -128,7 +128,7 @@ export const createReferral = async (req, res) => {
   await createNotification({
     userId: receivingCounselorId,
     title: "New referral received",
-    message: `${req.user?.name || "A College Representative"} referred ${student.name} to you.`,
+    message: `${req.user?.name || "A College"} referred ${student.name} to you.`,
     link: `/counselor/referrals`,
   });
   notifyUser(receivingCounselorId, { type: "referrals" });

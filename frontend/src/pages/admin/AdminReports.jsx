@@ -200,7 +200,7 @@ export default function AdminReports() {
     rows.push(["Role", "Count"]);
     rows.push(["Students", students]);
     rows.push(["Counselors", counselors]);
-    rows.push(["College Representatives", reps]);
+    rows.push(["Colleges", reps]);
     rows.push(["Admins", admins]);
     rows.push([]);
     rows.push(["Totals"]);
@@ -372,7 +372,7 @@ export default function AdminReports() {
                 <dl className="space-y-2 text-sm">
                   <Row label="Students" value={students} />
                   <Row label="Counselors" value={counselors} />
-                  <Row label="College deans" value={reps} />
+                  <Row label="Colleges" value={reps} />
                   <Row label="Admins" value={admins} />
                   <div className="pt-2 mt-1 border-t border-gray-100">
                     <Row label="Total" value={totalUsers} strong />
@@ -493,7 +493,7 @@ export default function AdminReports() {
             <tbody className="divide-y divide-gray-100">
               <DetailRow label="Students" value={students} />
               <DetailRow label="Counselors" value={counselors} />
-              <DetailRow label="College deans" value={reps} />
+              <DetailRow label="Colleges" value={reps} />
               <DetailRow label="Admins" value={admins} />
             </tbody>
           </table>

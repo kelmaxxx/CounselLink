@@ -34,14 +34,14 @@ export default function RepresentativeDashboard() {
       .catch(() => setReceivedReportsCount(0));
   }, [token]);
 
-  const firstName = currentUser?.name?.split(" ")[0] || "Representative";
+  const firstName = currentUser?.name?.split(" ")[0] || "College";
 
   return (
     <>
       <WelcomeHero userName={firstName} />
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
-        eyebrow="College Representative"
+        eyebrow="College"
         title={`Welcome, ${firstName}`}
         subtitle={myCollege || "No college assigned"}
         actions={

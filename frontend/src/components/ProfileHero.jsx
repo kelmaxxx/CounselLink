@@ -33,7 +33,7 @@ const THEMES = {
     icon: Building2,
     badgeBg: "bg-indigo-50 text-indigo-800 border-indigo-200",
     avatarRing: "ring-indigo-100",
-    label: "College Representative",
+    label: "College",
     paletteKey: "rep",
   },
   admin: {

@@ -149,7 +149,7 @@ export default function RequestStudentData() {
   return (
     <div className="px-6 py-6 max-w-4xl mx-auto">
       <PageHeader
-        eyebrow="College Representative"
+        eyebrow="College"
         title="Request a report from a counselor"
         subtitle="Request an individual student session report, or a college-wide summary. The counselor reviews, generates, and responds."
         actions={

@@ -95,7 +95,7 @@ export default function CounselorReferrals() {
       <PageHeader
         eyebrow="Counselor"
         title="Referrals"
-        subtitle="Review students referred to you by College Representatives."
+        subtitle="Review students referred to you by Colleges."
       />
 
       <div className="flex items-center gap-1 border-b border-gray-200 mb-4">
@@ -140,7 +140,7 @@ export default function CounselorReferrals() {
             title={activeTab === "incoming" ? "No incoming referrals" : "No history yet"}
             hint={
               activeTab === "incoming"
-                ? "When a College Representative refers a student to you, it will appear here."
+                ? "When a College refers a student to you, it will appear here."
                 : "Resolved referrals (accepted or declined) will collect here."
             }
           />
@@ -233,7 +233,7 @@ export default function CounselorReferrals() {
         title={decisionModal.status === "accepted" ? "Accept referral" : "Reject referral"}
         subtitle={
           decisionModal.status === "accepted"
-            ? "Set the appointment date and time slot. The student and the referring College Representative will be notified."
+            ? "Set the appointment date and time slot. The student and the referring College will be notified."
             : "Add a short note explaining why this referral was declined. Required."
         }
         danger={decisionModal.status === "rejected"}

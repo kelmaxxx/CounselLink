@@ -74,7 +74,7 @@ export default function ReferralConfirmation() {
 
             <p className="text-xs text-gray-500 mt-4">
               This page acts as the formal confirmation slip. Print this for your records or share the
-              decision note with the referring College Representative.
+              decision note with the referring College.
             </p>
           </>
         )}

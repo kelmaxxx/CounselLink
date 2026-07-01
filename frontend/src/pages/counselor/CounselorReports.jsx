@@ -51,7 +51,7 @@ export default function CounselorReports() {
   const [error, setError] = useState("");
   const [activeReport, setActiveReport] = useState(null);
 
-  // Incoming report requests from College Representatives.
+  // Incoming report requests from Colleges.
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [requestsPage, setRequestsPage] = useState(1);
@@ -303,21 +303,21 @@ export default function CounselorReports() {
       <PageHeader
         eyebrow="Counselor"
         title="Reports"
-        subtitle="Individual student counseling reports — sent to the College Representative who referred each student."
+        subtitle="Individual student counseling reports — sent to the College who referred each student."
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard
           label="Pending requests"
           value={pendingRequests}
-          hint="From College Representatives"
+          hint="From Colleges"
           icon={ClipboardList}
           accent="bg-maroon-500"
         />
         <StatCard
           label="Reports sent"
           value={stats.sent}
-          hint="To College Representatives"
+          hint="To Colleges"
           icon={Send}
           accent="bg-emerald-500"
         />
@@ -331,7 +331,7 @@ export default function CounselorReports() {
         <StatCard
           label="Awaiting send"
           value={stats.pending}
-          hint="Finalized but not referred to a rep"
+          hint="Finalized but not referred to a College"
           icon={Clock3}
           accent="bg-amber-500"
         />
@@ -352,10 +352,10 @@ export default function CounselorReports() {
         className="mb-6"
         title={
           <span className="inline-flex items-center gap-1.5">
-            <ClipboardList size={14} className="text-maroon-600" /> Report requests from College Representatives
+            <ClipboardList size={14} className="text-maroon-600" /> Report requests from Colleges
           </span>
         }
-        subtitle="College-wide summary requests are fulfilled here. Individual student requests resolve automatically when consented and tied to this rep's referral — otherwise, with consent, you can send the latest finalized session manually."
+        subtitle="College-wide summary requests are fulfilled here. Individual student requests resolve automatically when consented and tied to this College's referral — otherwise, with consent, you can send the latest finalized session manually."
         noBodyPadding
       >
         {loadingRequests ? (
@@ -364,7 +364,7 @@ export default function CounselorReports() {
           <EmptyState
             icon={Inbox}
             title="No report requests"
-            hint="When a College Representative requests a report, it appears here for you to fulfill or decline."
+            hint="When a College requests a report, it appears here for you to fulfill or decline."
           />
         ) : (
           <>
@@ -480,10 +480,10 @@ export default function CounselorReports() {
         className="mb-6"
         title={
           <span className="inline-flex items-center gap-1.5">
-            <Mail size={14} className="text-maroon-600" /> Reports sent to College Representatives
+            <Mail size={14} className="text-maroon-600" /> Reports sent to Colleges
           </span>
         }
-        subtitle="Individual student reports and college-wide summaries delivered to reps."
+        subtitle="Individual student reports and college-wide summaries delivered to Colleges."
         noBodyPadding
       >
         {loadingReports ? (
