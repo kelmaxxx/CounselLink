@@ -15,6 +15,7 @@ import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
 import { Modal, BTN, INPUT, LABEL, formatDate } from "../components/ui";
 import { downloadReportAsPdf } from "../utils/sessionReport";
+import { getDepartments, getCollegeName } from "../data/msuColleges";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 
@@ -62,6 +63,7 @@ export default function ManageStudents() {
   const [drawerStudent, setDrawerStudent] = useState(null);
   const [viewSession, setViewSession] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState(null);
+  const [selectedDept, setSelectedDept] = useState(null);
 
   const reportTitleFor = (s) =>
     `Session Report — ${s.studentName} (${(s.sessionDate || "").split("T")[0]})`;
@@ -393,17 +395,19 @@ export default function ManageStudents() {
                 );
               };
 
+              // Level 1 — College folders (e.g. CICS, COE …)
               if (!selectedFolder) {
                 return (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                     {Object.keys(byCollege).sort().map(college => (
-                      <div 
-                        key={college} 
-                        onClick={() => setSelectedFolder(college)} 
+                      <div
+                        key={college}
+                        onClick={() => { setSelectedFolder(college); setSelectedDept(null); }}
                         className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
                       >
                         <Folder size={48} className="text-maroon-600 fill-maroon-100" />
                         <div className="font-semibold text-gray-800 text-sm">{college}</div>
+                        <div className="text-[11px] text-gray-500 leading-tight">{getCollegeName(college)}</div>
                         <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                           {byCollege[college].length} student{byCollege[college].length !== 1 && "s"}
                         </div>
@@ -418,20 +422,78 @@ export default function ManageStudents() {
                 );
               }
 
-              const folderStudents = byCollege[selectedFolder] || [];
+              // Group the selected college's students into department sub-folders.
+              const collegeStudents = byCollege[selectedFolder] || [];
+              const byDept = {};
+              collegeStudents.forEach((s) => {
+                const d = s.department || "Unassigned";
+                if (!byDept[d]) byDept[d] = [];
+                byDept[d].push(s);
+              });
+
+              // Level 2 — Department sub-folders within a college (e.g. CICS ▸ DCS / DIS)
+              if (!selectedDept) {
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <button
+                        onClick={() => setSelectedFolder(null)}
+                        className="text-sm font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
+                      >
+                        <ArrowLeft size={16} /> Back to Folders
+                      </button>
+                      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <Folder size={20} className="text-maroon-600 fill-maroon-100" />
+                        {selectedFolder}
+                        <span className="text-sm font-normal text-gray-500">· {getCollegeName(selectedFolder)}</span>
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {Object.keys(byDept).sort().map((dept) => {
+                        const code = getDepartments(selectedFolder).find((d) => d.name === dept)?.code;
+                        return (
+                          <div
+                            key={dept}
+                            onClick={() => setSelectedDept(dept)}
+                            className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                          >
+                            <Folder size={40} className="text-amber-600 fill-amber-100" />
+                            <div className="font-semibold text-gray-800 text-sm">{code || dept}</div>
+                            {code && <div className="text-[11px] text-gray-500 leading-tight">{dept}</div>}
+                            <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                              {byDept[dept].length} student{byDept[dept].length !== 1 && "s"}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Level 3 — Students within the chosen department
+              const folderStudents = byDept[selectedDept] || [];
               return (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <button 
-                      onClick={() => setSelectedFolder(null)} 
-                      className="text-sm font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
+                  <div className="flex items-center gap-2 flex-wrap text-sm">
+                    <button
+                      onClick={() => { setSelectedFolder(null); setSelectedDept(null); }}
+                      className="font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
                     >
-                      <ArrowLeft size={16} /> Back to Folders
+                      <ArrowLeft size={16} /> Folders
                     </button>
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                      <Folder size={20} className="text-maroon-600 fill-maroon-100" />
+                    <span className="text-gray-400">/</span>
+                    <button
+                      onClick={() => setSelectedDept(null)}
+                      className="font-medium text-maroon-700 hover:text-maroon-800"
+                    >
                       {selectedFolder}
-                    </h3>
+                    </button>
+                    <span className="text-gray-400">/</span>
+                    <span className="font-semibold text-gray-800 flex items-center gap-1.5">
+                      <Folder size={16} className="text-amber-600 fill-amber-100" />
+                      {selectedDept}
+                    </span>
                   </div>
                   <div className="bg-white rounded-xl border border-gray-200 shadow overflow-x-auto">
                     <table className="min-w-full divide-y">
