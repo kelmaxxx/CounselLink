@@ -159,7 +159,7 @@ export default function CounselorReports() {
       const res = await fetch(
         `${API_BASE}/api/reports/college-totals?college=${encodeURIComponent(
           request.requesterCollege || ""
-        )}`,
+        )}${request.department ? `&department=${encodeURIComponent(request.department)}` : ""}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const body = await res.json();
@@ -389,6 +389,11 @@ export default function CounselorReports() {
                             <Building2 size={13} className="text-maroon-600" />
                             College-wide summary
                           </div>
+                        ) : r.request_type === "department" ? (
+                          <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
+                            <ClipboardList size={13} className="text-maroon-600" />
+                            {r.department || "Department"} summary
+                          </div>
                         ) : (
                           <div className="inline-flex items-start gap-1.5">
                             <User size={13} className="text-gray-400 mt-0.5" />
@@ -432,12 +437,12 @@ export default function CounselorReports() {
                         })}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {r.status === "pending" && r.request_type === "college" ? (
+                        {r.status === "pending" && (r.request_type === "college" || r.request_type === "department") ? (
                           <div className="inline-flex gap-1">
                             <button
                               onClick={() => openGenerate(r)}
                               className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
-                              title="Generate & send college summary"
+                              title="Generate & send summary"
                             >
                               <Check size={13} /> Generate
                             </button>
@@ -725,12 +730,12 @@ export default function CounselorReports() {
       <Modal
         open={!!genTarget}
         onClose={generating ? undefined : closeGenerate}
-        title="Generate college summary"
+        title={genTarget?.request_type === "department" ? "Generate department summary" : "Generate college summary"}
         subtitle={
           genTarget
-            ? `For ${genTarget.requesterCollege || "—"} · requested by ${
-                genTarget.requesterName || "—"
-              }`
+            ? `For ${genTarget.department ? `${genTarget.department}, ` : ""}${
+                genTarget.requesterCollege || "—"
+              } · requested by ${genTarget.requesterName || "—"}`
             : ""
         }
         size="lg"
@@ -777,8 +782,9 @@ export default function CounselorReports() {
               )}
               {genTotals && (
                 <p className="text-xs text-gray-500 mt-1.5">
-                  {genTotals.studentCount} student{genTotals.studentCount === 1 ? "" : "s"} enrolled
-                  in {genTotals.college}. These figures are recomputed and attached when you send.
+                  {genTotals.studentCount} student{genTotals.studentCount === 1 ? "" : "s"} in{" "}
+                  {genTotals.department ? `${genTotals.department}, ${genTotals.college}` : genTotals.college}.
+                  These figures are recomputed and attached when you send.
                 </p>
               )}
             </div>
