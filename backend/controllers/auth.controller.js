@@ -75,7 +75,7 @@ export const login = async (req, res) => {
 };
 
 export const registerStudent = async (req, res) => {
-  const { name, email, password, studentId, college, phone, corUrl, corFileName, corFileType, avatarUrl, avatarFileName, avatarFileType } = req.body;
+  const { name, email, password, studentId, college, department, phone, corUrl, corFileName, corFileType, avatarUrl, avatarFileName, avatarFileType } = req.body;
   if (!name || !email || !password || !studentId || !college) {
     return res.status(400).json({ message: "Missing required fields" });
   }
@@ -124,6 +124,7 @@ export const registerStudent = async (req, res) => {
            password = ?,
            status = 'pending_approval',
            college = ?,
+           department = ?,
            student_id = ?,
            phone = ?,
            cor_url = ?,
@@ -140,6 +141,7 @@ export const registerStudent = async (req, res) => {
         email,
         hashed,
         college,
+        department || null,
         studentId,
         phone || null,
         corUrl || null,
@@ -161,9 +163,9 @@ export const registerStudent = async (req, res) => {
   const hashed = await bcrypt.hash(password, 10);
 
   const result = await query(
-    `INSERT INTO users (name, email, password, role, status, college, student_id, phone, cor_url, cor_file_name, cor_file_type, avatar_url, avatar_file_name, avatar_file_type)
-     VALUES (?, ?, ?, 'student', 'pending_approval', ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
-    [name, email, hashed, college, studentId, phone || null, corUrl || null, corFileName || null, corFileType || null, avatarUrl || null, avatarFileName || null, avatarFileType || null]
+    `INSERT INTO users (name, email, password, role, status, college, department, student_id, phone, cor_url, cor_file_name, cor_file_type, avatar_url, avatar_file_name, avatar_file_type)
+     VALUES (?, ?, ?, 'student', 'pending_approval', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+    [name, email, hashed, college, department || null, studentId, phone || null, corUrl || null, corFileName || null, corFileType || null, avatarUrl || null, avatarFileName || null, avatarFileType || null]
   );
 
   return res.status(201).json({
