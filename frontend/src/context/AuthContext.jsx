@@ -80,7 +80,7 @@ export function AuthProvider({ children }) {
   };
 
   // signup (adds to in-memory users, returns user) - FOR STUDENT: pending approval
-  const signup = async ({ name, email, password, role = "student", college = null, studentId = null, phone = "", corFile, avatarFile }) => {
+  const signup = async ({ name, email, password, role = "student", college = null, department = null, studentId = null, phone = "", corFile, avatarFile }) => {
     setLoading(true);
     setError(null);
     try {
@@ -137,7 +137,7 @@ export function AuthProvider({ children }) {
         response = await fetch(`${apiBase}/api/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password, college, studentId, phone, role, ...corMeta, ...avatarMeta }),
+          body: JSON.stringify({ name, email, password, college, department, studentId, phone, role, ...corMeta, ...avatarMeta }),
         });
       } catch (err) {
         setError("Unable to connect to server");
