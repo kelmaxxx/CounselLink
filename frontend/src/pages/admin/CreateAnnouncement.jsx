@@ -179,7 +179,7 @@ export default function CreateAnnouncement() {
               <option value="all">All users</option>
               <option value="students">Students only</option>
               <option value="counselors">Counselors only</option>
-              <option value="reps">College deans only</option>
+              <option value="reps">Colleges only</option>
             </select>
           </div>
 

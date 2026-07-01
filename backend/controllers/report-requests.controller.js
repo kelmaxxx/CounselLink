@@ -65,7 +65,7 @@ export const createReportRequest = async (req, res) => {
   );
   const requestId = result.insertId;
 
-  const requesterName = req.user?.name || "A College Representative";
+  const requesterName = req.user?.name || "A College";
   const collegeLabel = req.user?.college ? ` for ${req.user.college}` : "";
 
   await query(
@@ -141,7 +141,7 @@ export const createReportRequest = async (req, res) => {
       responseNote = null;
     } else {
       responseNote =
-        "The student has not consented to share their counseling session details with college representatives.";
+        "The student has not consented to share their counseling session details with Colleges.";
     }
   } else {
     const anySessionRows = await query(
@@ -153,7 +153,7 @@ export const createReportRequest = async (req, res) => {
         status = null; // leave pending for the assigned counselor to send manually
       } else {
         responseNote =
-          "The student has not consented to share their counseling session details with college representatives.";
+          "The student has not consented to share their counseling session details with Colleges.";
       }
     }
   }

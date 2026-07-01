@@ -59,7 +59,7 @@ export default function RepReferrals() {
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
-        eyebrow="College Representative"
+        eyebrow="College"
         title="Referrals"
         subtitle="Refer students from your college to a counselor."
         actions={

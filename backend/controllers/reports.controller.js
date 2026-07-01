@@ -221,9 +221,9 @@ export const createCollegeSummary = async (req, res) => {
   const [rep] = await query("SELECT id, name, college FROM users WHERE id = ?", [
     request.requester_id,
   ]);
-  if (!rep) return res.status(404).json({ message: "Requesting representative not found" });
+  if (!rep) return res.status(404).json({ message: "Requesting College not found" });
   if (!rep.college) {
-    return res.status(400).json({ message: "The representative has no college assigned" });
+    return res.status(400).json({ message: "No college is assigned to this account" });
   }
 
   const totals = await computeCollegeTotals(rep.college);
@@ -339,7 +339,7 @@ export const sendReportToRecipient = async (req, res) => {
     [recipientId]
   );
   if (!recipient.length) {
-    return res.status(404).json({ message: "Recipient must be a College Representative (college_rep)" });
+    return res.status(404).json({ message: "Recipient must be a College (college_rep)" });
   }
 
   const payloadJson = typeof payload === "string" ? payload : JSON.stringify(payload);

@@ -25,7 +25,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const ROLE_OPTIONS = [
   { value: "student", label: "Student" },
   { value: "counselor", label: "Counselor" },
-  { value: "college_rep", label: "Rep" },
+  { value: "college_rep", label: "College" },
   { value: "admin", label: "Admin" },
 ];
 
