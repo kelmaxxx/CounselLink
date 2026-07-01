@@ -2,7 +2,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { COLLEGES } from "../data/mockData";
-import { getDepartments, getCollegeName } from "../data/msuColleges";
+import { getDepartments, getPrograms, getCollegeName } from "../data/msuColleges";
 import { useNavigate } from "react-router-dom";
 import {
   Upload,
@@ -41,6 +41,7 @@ const emptySignupErrors = {
   studentId: "",
   phone: "",
   department: "",
+  program: "",
   password: "",
   confirmPassword: "",
   cor: "",
@@ -69,6 +70,7 @@ export default function Login() {
     role: "student",
     college: COLLEGES[0],
     department: "",
+    program: "",
     studentId: "",
     phone: "",
     corImage: null,
@@ -100,7 +102,13 @@ export default function Login() {
     // Changing college invalidates the current department selection — reset it so
     // the cascading dropdown only ever holds a department that belongs to the college.
     if (name === "college") {
-      setSignupForm((p) => ({ ...p, college: value, department: "" }));
+      setSignupForm((p) => ({ ...p, college: value, department: "", program: "" }));
+      return;
+    }
+    // Changing department invalidates the chosen program — reset it so the
+    // program dropdown only ever holds a program that belongs to the department.
+    if (name === "department") {
+      setSignupForm((p) => ({ ...p, department: value, program: "" }));
       return;
     }
     setSignupForm((p) => ({ ...p, [name]: name === "phone" ? sanitizePhoneDigits(value) : value }));
@@ -168,6 +176,7 @@ export default function Login() {
     if (!signupForm.email.trim()) nextErrors.email = "Email is required.";
     if (!signupForm.studentId.trim()) nextErrors.studentId = "Student ID is required.";
     if (!signupForm.department) nextErrors.department = "Please select your department.";
+    if (!signupForm.program) nextErrors.program = "Please select your program / course.";
     if (signupForm.phone && !isValidPhMobile(signupForm.phone)) {
       nextErrors.phone = PHONE_HINT;
     }
@@ -232,6 +241,7 @@ export default function Login() {
       role: signupForm.role,
       college: signupForm.college,
       department: signupForm.department,
+      program: signupForm.program,
       studentId: signupForm.studentId,
       phone: signupForm.phone,
       corImage: signupForm.corImage,
@@ -368,6 +378,25 @@ export default function Login() {
                 {getDepartments(signupForm.college).map((d) => (
                   <option key={d.code} value={d.name}>
                     {d.name}
+                  </option>
+                ))}
+              </select>
+            </FieldRow>
+
+            <FieldRow label="Program / Course" error={signupErrors.program}>
+              <select
+                name="program"
+                value={signupForm.program}
+                onChange={handleSignupChange}
+                className={INPUT}
+                disabled={!signupForm.department}
+              >
+                <option value="">
+                  {signupForm.department ? "Select program / course" : "Select a department first"}
+                </option>
+                {getPrograms(signupForm.college, signupForm.department).map((p) => (
+                  <option key={p} value={p}>
+                    {p}
                   </option>
                 ))}
               </select>
