@@ -31,10 +31,18 @@ function ConsentStatusBadge({ consent }) {
   return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting consent</span>;
 }
 
-function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDeleteScan, onRevoke, readOnly }) {
+function AuthorizeBadge({ inventory }) {
+  const ack = inventory?.formData?.acknowledgment;
+  if (!ack?.disclaimerAgreed) return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
+  if (ack.disclaimerRevokedAt) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Revoked</span>;
+  return <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">Authorized</span>;
+}
+
+function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadScan, onDeleteScan, onRevoke, onRevokeAuthorization, readOnly }) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const [confirmRevokeAuth, setConfirmRevokeAuth] = useState(false);
   const [confirmRemoveScan, setConfirmRemoveScan] = useState(false);
   const [scanInputKey, setScanInputKey] = useState(0);
 
@@ -67,6 +75,14 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
     const res = await onRevoke();
     setBusy(false);
     showFeedback(res.success ? "success" : "error", res.success ? "Consent revoked" : (res.message || "Failed"));
+  };
+
+  const handleRevokeAuthorization = async () => {
+    setConfirmRevokeAuth(false);
+    setBusy(true);
+    const res = await onRevokeAuthorization();
+    setBusy(false);
+    showFeedback(res.success ? "success" : "error", res.success ? "Authorization revoked" : (res.message || "Failed"));
   };
 
   const scanHref = useMemo(() => {
@@ -112,6 +128,50 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
           </div>
         )}
       </div>
+
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-semibold text-gray-900">Current authorization status</h4>
+          <AuthorizeBadge inventory={inventory} />
+        </div>
+        {(() => {
+          const ack = inventory?.formData?.acknowledgment;
+          if (ack?.disclaimerAgreed && !ack.disclaimerRevokedAt) {
+            return (
+              <div className="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800 flex items-start gap-2">
+                <CheckCircle2 size={16} className="mt-0.5" />
+                <p>Student has authorized data collection under RA 10173, Data Privacy Act of 2012.</p>
+              </div>
+            );
+          }
+          if (ack?.disclaimerRevokedAt) {
+            return (
+              <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-800 flex items-start gap-2">
+                <AlertTriangle size={16} className="mt-0.5" />
+                <p>Authorization revoked on {formatDateTime(ack.disclaimerRevokedAt)}. The student will need to re-check the disclaimer in their inventory.</p>
+              </div>
+            );
+          }
+          return (
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-yellow-800 flex items-start gap-2">
+              <AlertTriangle size={16} className="mt-0.5" />
+              <p>Student has not yet checked the data authorization disclaimer in their inventory form.</p>
+            </div>
+          );
+        })()}
+      </div>
+
+      {!readOnly && inventory?.formData?.acknowledgment?.disclaimerAgreed && !inventory?.formData?.acknowledgment?.disclaimerRevokedAt && (
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
+          <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <ShieldOff size={18} className="text-red-600" /> Revoke authorization
+          </h4>
+          <p className="text-sm text-gray-600 mb-3">Use this only if the student has formally withdrawn their data authorization. They can re-authorize by re-checking the disclaimer in their inventory.</p>
+          <button disabled={busy} onClick={() => setConfirmRevokeAuth(true)} className="px-4 py-2 rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50">
+            Revoke authorization
+          </button>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
         <h4 className="font-semibold text-gray-900 mb-2">Referral data sharing</h4>
@@ -201,6 +261,29 @@ function ConsentPanel({ student, consent, onConsentChanged, onUploadScan, onDele
         <p className="text-sm text-gray-700 leading-relaxed">
           This sets a revoked timestamp on the consent record. The student will need to e-sign
           again before further counseling.
+        </p>
+      </Modal>
+
+      <Modal
+        open={confirmRevokeAuth}
+        onClose={() => setConfirmRevokeAuth(false)}
+        title="Revoke data authorization?"
+        subtitle={student?.name ? `Authorization record for ${student.name}` : undefined}
+        danger
+        footer={
+          <>
+            <button onClick={() => setConfirmRevokeAuth(false)} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button onClick={handleRevokeAuthorization} className={BTN.danger}>
+              Revoke
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          This removes the student's data authorization under RA 10173. The student will need to
+          re-check the disclaimer in their inventory form to re-authorize.
         </p>
       </Modal>
 
@@ -458,6 +541,21 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
     return res;
   };
 
+  const handleRevokeAuthorization = async () => {
+    const currentFormData = inventory?.formData || {};
+    const updatedFormData = {
+      ...currentFormData,
+      acknowledgment: {
+        ...(currentFormData.acknowledgment || {}),
+        disclaimerAgreed: false,
+        disclaimerRevokedAt: new Date().toISOString(),
+      },
+    };
+    const res = await upsertInventory(student.id, updatedFormData);
+    if (res.success) await refresh();
+    return res;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/40" onClick={onClose} />
@@ -516,9 +614,11 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
             <ConsentPanel
               student={student}
               consent={consent}
+              inventory={inventory}
               onUploadScan={handleUploadConsentScan}
               onDeleteScan={handleDeleteConsentScan}
               onRevoke={handleRevokeConsent}
+              onRevokeAuthorization={handleRevokeAuthorization}
               readOnly={readOnly}
             />
           ) : (
