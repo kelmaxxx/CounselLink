@@ -322,6 +322,17 @@ export default function ManageStudents() {
                 const inv = rec?.inventory;
                 const con = rec?.consent;
                 const sessionCount = sessions.filter((x) => x.studentId === s.id).length;
+                const ack = inv?.formData?.acknowledgment;
+                let authBadge;
+                if (!rec?.loaded) {
+                  authBadge = <span className="text-xs text-gray-400">—</span>;
+                } else if (!inv || !ack?.disclaimerAgreed) {
+                  authBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
+                } else if (ack?.disclaimerRevokedAt) {
+                  authBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Revoked</span>;
+                } else {
+                  authBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">Authorized</span>;
+                }
                 const invBadge = !rec?.loaded
                   ? <span className="text-xs text-gray-400">—</span>
                   : inv
@@ -352,6 +363,7 @@ export default function ManageStudents() {
                       <div className="text-xs text-gray-500">{s.studentId || "—"}</div>
                     </td>
                     <td className="px-4 py-3">{invBadge}</td>
+                    <td className="px-4 py-3">{authBadge}</td>
                     <td className="px-4 py-3">{conBadge}</td>
                     <td className="px-4 py-3 text-gray-700">{sessionCount}</td>
                     <td className="px-4 py-3 text-right">
@@ -440,6 +452,7 @@ export default function ManageStudents() {
                           <th className="px-4 py-3 font-medium">Student</th>
                           <th className="px-4 py-3 font-medium">College / ID</th>
                           <th className="px-4 py-3 font-medium">Inventory</th>
+                          <th className="px-4 py-3 font-medium">Authorize</th>
                           <th className="px-4 py-3 font-medium">Consent</th>
                           <th className="px-4 py-3 font-medium">Sessions</th>
                           <th className="px-4 py-3 font-medium text-right">Actions</th>

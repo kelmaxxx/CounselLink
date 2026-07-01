@@ -384,6 +384,7 @@ export default function StudentProfile() {
                 onUploadScan={handleUploadInventoryScan}
                 onDeleteScan={handleDeleteInventoryScan}
                 readOnly={false}
+                isStudentView={true}
               />
             )}
           </div>
