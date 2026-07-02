@@ -289,7 +289,7 @@ export default function StudentCounselingForm() {
       showFeedback(
         "success",
         res.fannedOutToRep
-          ? "Session Report submitted and delivered to the referring College Representative."
+          ? "Session Report submitted and delivered to the referring College."
           : "Session Report submitted to the Student Record."
       );
     } else {
@@ -490,7 +490,7 @@ export default function StudentCounselingForm() {
           }
         >
           <p className="text-sm text-gray-700 leading-relaxed">
-            Submit this session as the final Session Report? Once submitted the record becomes read-only and, if the appointment came from a referral, the report will be delivered to the referring College Representative.
+            Submit this session as the final Session Report? Once submitted the record becomes read-only and, if the appointment came from a referral, the report will be delivered to the referring College.
           </p>
         </Modal>
       )}
@@ -796,7 +796,7 @@ function ReviewStep({
           )}
         </ReviewBlock>
 
-        {/* Sharing with college rep */}
+        {/* Sharing with College */}
         <div className="rounded-xl border border-gray-100 p-4 print:hidden">
           <h4 className="text-sm font-semibold text-gray-900 mb-1">
             Sharing this session with a college representative

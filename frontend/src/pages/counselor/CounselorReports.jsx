@@ -51,7 +51,7 @@ export default function CounselorReports() {
   const [error, setError] = useState("");
   const [activeReport, setActiveReport] = useState(null);
 
-  // Incoming report requests from College Representatives.
+  // Incoming report requests from Colleges.
   const [requests, setRequests] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [requestsPage, setRequestsPage] = useState(1);
@@ -159,7 +159,7 @@ export default function CounselorReports() {
       const res = await fetch(
         `${API_BASE}/api/reports/college-totals?college=${encodeURIComponent(
           request.requesterCollege || ""
-        )}`,
+        )}${request.department ? `&department=${encodeURIComponent(request.department)}` : ""}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const body = await res.json();
@@ -303,21 +303,21 @@ export default function CounselorReports() {
       <PageHeader
         eyebrow="Counselor"
         title="Reports"
-        subtitle="Individual student counseling reports — sent to the College Representative who referred each student."
+        subtitle="Individual student counseling reports — sent to the College who referred each student."
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard
           label="Pending requests"
           value={pendingRequests}
-          hint="From College Representatives"
+          hint="From Colleges"
           icon={ClipboardList}
           accent="bg-maroon-500"
         />
         <StatCard
           label="Reports sent"
           value={stats.sent}
-          hint="To College Representatives"
+          hint="To Colleges"
           icon={Send}
           accent="bg-emerald-500"
         />
@@ -331,7 +331,7 @@ export default function CounselorReports() {
         <StatCard
           label="Awaiting send"
           value={stats.pending}
-          hint="Finalized but not referred to a rep"
+          hint="Finalized but not referred to a College"
           icon={Clock3}
           accent="bg-amber-500"
         />
@@ -352,10 +352,10 @@ export default function CounselorReports() {
         className="mb-6"
         title={
           <span className="inline-flex items-center gap-1.5">
-            <ClipboardList size={14} className="text-maroon-600" /> Report requests from College Representatives
+            <ClipboardList size={14} className="text-maroon-600" /> Report requests from Colleges
           </span>
         }
-        subtitle="College-wide summary requests are fulfilled here. Individual student requests resolve automatically when consented and tied to this rep's referral — otherwise, with consent, you can send the latest finalized session manually."
+        subtitle="College-wide summary requests are fulfilled here. Individual student requests resolve automatically when consented and tied to this College's referral — otherwise, with consent, you can send the latest finalized session manually."
         noBodyPadding
       >
         {loadingRequests ? (
@@ -364,7 +364,7 @@ export default function CounselorReports() {
           <EmptyState
             icon={Inbox}
             title="No report requests"
-            hint="When a College Representative requests a report, it appears here for you to fulfill or decline."
+            hint="When a College requests a report, it appears here for you to fulfill or decline."
           />
         ) : (
           <>
@@ -388,6 +388,11 @@ export default function CounselorReports() {
                           <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
                             <Building2 size={13} className="text-maroon-600" />
                             College-wide summary
+                          </div>
+                        ) : r.request_type === "department" ? (
+                          <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
+                            <ClipboardList size={13} className="text-maroon-600" />
+                            {r.department || "Department"} summary
                           </div>
                         ) : (
                           <div className="inline-flex items-start gap-1.5">
@@ -432,12 +437,12 @@ export default function CounselorReports() {
                         })}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {r.status === "pending" && r.request_type === "college" ? (
+                        {r.status === "pending" && (r.request_type === "college" || r.request_type === "department") ? (
                           <div className="inline-flex gap-1">
                             <button
                               onClick={() => openGenerate(r)}
                               className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
-                              title="Generate & send college summary"
+                              title="Generate & send summary"
                             >
                               <Check size={13} /> Generate
                             </button>
@@ -480,10 +485,10 @@ export default function CounselorReports() {
         className="mb-6"
         title={
           <span className="inline-flex items-center gap-1.5">
-            <Mail size={14} className="text-maroon-600" /> Reports sent to College Representatives
+            <Mail size={14} className="text-maroon-600" /> Reports sent to Colleges
           </span>
         }
-        subtitle="Individual student reports and college-wide summaries delivered to reps."
+        subtitle="Individual student reports and college-wide summaries delivered to Colleges."
         noBodyPadding
       >
         {loadingReports ? (
@@ -725,12 +730,12 @@ export default function CounselorReports() {
       <Modal
         open={!!genTarget}
         onClose={generating ? undefined : closeGenerate}
-        title="Generate college summary"
+        title={genTarget?.request_type === "department" ? "Generate department summary" : "Generate college summary"}
         subtitle={
           genTarget
-            ? `For ${genTarget.requesterCollege || "—"} · requested by ${
-                genTarget.requesterName || "—"
-              }`
+            ? `For ${genTarget.department ? `${genTarget.department}, ` : ""}${
+                genTarget.requesterCollege || "—"
+              } · requested by ${genTarget.requesterName || "—"}`
             : ""
         }
         size="lg"
@@ -777,8 +782,9 @@ export default function CounselorReports() {
               )}
               {genTotals && (
                 <p className="text-xs text-gray-500 mt-1.5">
-                  {genTotals.studentCount} student{genTotals.studentCount === 1 ? "" : "s"} enrolled
-                  in {genTotals.college}. These figures are recomputed and attached when you send.
+                  {genTotals.studentCount} student{genTotals.studentCount === 1 ? "" : "s"} in{" "}
+                  {genTotals.department ? `${genTotals.department}, ${genTotals.college}` : genTotals.college}.
+                  These figures are recomputed and attached when you send.
                 </p>
               )}
             </div>

@@ -178,7 +178,7 @@ export const listUsers = async (req, res) => {
 };
 
 export const adminCreateUser = async (req, res) => {
-  const { name, email, password, role, college } = req.body;
+  const { name, email, password, role, college, department } = req.body;
   if (!name || !email || !password || !role) {
     return res.status(400).json({ message: "Missing required fields" });
   }
@@ -191,10 +191,10 @@ export const adminCreateUser = async (req, res) => {
 
   const hashed = await bcrypt.hash(password, 10);
   const result = await query(
-    "INSERT INTO users (name, email, password, role, status, college) VALUES (?, ?, ?, ?, 'approved', ?)",
-    [name, email, hashed, role, college || null]
+    "INSERT INTO users (name, email, password, role, status, college, department) VALUES (?, ?, ?, ?, 'approved', ?, ?)",
+    [name, email, hashed, role, college || null, department || null]
   );
-  await logAction(req, "create_user", "user", result.insertId, { name, email, role, college: college || null });
+  await logAction(req, "create_user", "user", result.insertId, { name, email, role, college: college || null, department: department || null });
   const rows = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [result.insertId]);
   return res.status(201).json(rows[0]);
 };

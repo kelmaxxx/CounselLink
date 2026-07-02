@@ -8,7 +8,7 @@ const ROLE_LABEL = {
   student: "Student",
   counselor: "Counselor",
   admin: "Administrator",
-  college_rep: "College Representative",
+  college_rep: "College",
 };
 
 export default function ChatModal({ recipientUser, onClose }) {

@@ -1,4 +1,6 @@
-export const COLLEGES = ['CICS', 'COE', 'CBAA', 'CHS', 'CED', 'COL', 'COA', 'CNSM', 'CSSH', 'CPA', 'KFCIASS','CFES', 'CFAS', 'CHTM'];
+// College codes now come from the canonical MSU hierarchy (frontend/src/data/msuColleges.js),
+// derived from the official XLSX. Re-exported here for backward compatibility with existing imports.
+export { COLLEGES } from './msuColleges';
 
 export const MOCK_USERS = [
   // Admin

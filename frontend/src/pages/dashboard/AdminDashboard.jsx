@@ -56,7 +56,7 @@ export default function AdminDashboard() {
       [
         { name: "Students", value: students.length },
         { name: "Counselors", value: counselors.length },
-        { name: "College Representatives", value: reps.length },
+        { name: "Colleges", value: reps.length },
         { name: "Admins", value: admins.length },
       ].filter((d) => d.value > 0),
     [students.length, counselors.length, reps.length, admins.length]
@@ -96,7 +96,7 @@ export default function AdminDashboard() {
           accent="bg-emerald-500"
         />
         <StatCard
-          label="College Representatives"
+          label="Colleges"
           value={reps.length}
           hint="Across colleges"
           icon={GraduationCap}

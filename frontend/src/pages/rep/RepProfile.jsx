@@ -140,7 +140,7 @@ export default function RepProfile() {
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto">
       <PageHeader
-        eyebrow="College Representative"
+        eyebrow="College"
         title="My profile"
         subtitle="Manage your college representative account."
         actions={
@@ -176,7 +176,7 @@ export default function RepProfile() {
       <ProfileHero
         theme="rep"
         name={myRecord?.name}
-        subtitle="College Representative · DSA liaison"
+        subtitle="College · DSA liaison"
         email={myRecord?.email}
         phone={myRecord?.phone}
         identifier={myRecord?.employeeId}
@@ -232,7 +232,7 @@ export default function RepProfile() {
               <Readout icon={Mail} label="Email" value={myRecord?.email} />
               <Readout icon={Phone} label="Phone" value={myRecord?.phone || "Not provided"} />
               <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
-              <Readout icon={Briefcase} label="Role" value="College Representative" />
+              <Readout icon={Briefcase} label="Role" value="College" />
             </dl>
           )}
         </SectionCard>
@@ -255,7 +255,7 @@ export default function RepProfile() {
                 </select>
               </Field>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Program / course and year level do not apply to a College Representative — those
+                Program / course and year level do not apply to a College — those
                 are student-only fields.
               </p>
             </div>
@@ -266,7 +266,7 @@ export default function RepProfile() {
                 label="College"
                 value={myRecord?.college || "Not assigned"}
               />
-              <Readout icon={Briefcase} label="Position" value="College Representative" />
+              <Readout icon={Briefcase} label="Position" value="College" />
             </dl>
           )}
         </SectionCard>

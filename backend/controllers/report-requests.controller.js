@@ -6,7 +6,7 @@ import { buildSessionReportPayload } from "./counseling-sessions.controller.js";
 
 const baseSelect = `
   SELECT rr.id, rr.requester_id, rr.counselor_id, rr.request_type,
-         rr.student_name, rr.student_identifier,
+         rr.student_name, rr.student_identifier, rr.department,
          rr.reason, rr.status, rr.response_note, rr.responded_at,
          rr.created_at, rr.updated_at,
          req.name AS requesterName, req.college AS requesterCollege,
@@ -18,9 +18,9 @@ const baseSelect = `
 
 export const createReportRequest = async (req, res) => {
   const requesterId = req.user?.id;
-  const { counselorId, requestType, studentId, reason } = req.body || {};
+  const { counselorId, requestType, studentId, department, reason } = req.body || {};
 
-  const type = requestType === "college" ? "college" : "individual";
+  const type = ["college", "department"].includes(requestType) ? requestType : "individual";
 
   if (!counselorId || !reason?.trim()) {
     return res
@@ -31,6 +31,11 @@ export const createReportRequest = async (req, res) => {
     return res
       .status(400)
       .json({ message: "studentId is required for an individual student request" });
+  }
+  if (type === "department" && !department?.trim()) {
+    return res
+      .status(400)
+      .json({ message: "department is required for a department summary request" });
   }
 
   const [counselor] = await query(
@@ -51,8 +56,8 @@ export const createReportRequest = async (req, res) => {
 
   const result = await query(
     `INSERT INTO report_requests
-       (requester_id, counselor_id, request_type, student_id, student_name, student_identifier, reason, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+       (requester_id, counselor_id, request_type, student_id, student_name, student_identifier, department, reason, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
     [
       requesterId,
       counselorId,
@@ -60,12 +65,13 @@ export const createReportRequest = async (req, res) => {
       student?.id || null,
       student?.name || null,
       student?.studentNumber || null,
+      type === "department" ? department.trim() : null,
       reason.trim(),
     ]
   );
   const requestId = result.insertId;
 
-  const requesterName = req.user?.name || "A College Representative";
+  const requesterName = req.user?.name || "A College";
   const collegeLabel = req.user?.college ? ` for ${req.user.college}` : "";
 
   await query(
@@ -76,17 +82,21 @@ export const createReportRequest = async (req, res) => {
       "Report request received",
       type === "college"
         ? `${requesterName} requested a college-wide summary report${collegeLabel}.`
+        : type === "department"
+        ? `${requesterName} requested a ${department.trim()} summary${collegeLabel}.`
         : `${requesterName} requested a report on ${student.name}.`,
       `/counselor/reports`,
     ]
   );
 
-  if (type === "college") {
-    // College-wide summaries still go through the assigned counselor, who
-    // writes the narrative — handled by reports.controller.js createCollegeSummary.
+  if (type === "college" || type === "department") {
+    // College-wide and department summaries still go through the assigned
+    // counselor, who writes the narrative — handled by
+    // reports.controller.js createCollegeSummary.
     await logAction(req, "create_report_request", "report_request", requestId, {
       counselorId,
       requestType: type,
+      department: type === "department" ? department.trim() : null,
     });
     return res.status(201).json({ message: "Report request submitted", id: requestId });
   }
@@ -141,7 +151,7 @@ export const createReportRequest = async (req, res) => {
       responseNote = null;
     } else {
       responseNote =
-        "The student has not consented to share their counseling session details with college representatives.";
+        "The student has not consented to share their counseling session details with Colleges.";
     }
   } else {
     const anySessionRows = await query(
@@ -153,7 +163,7 @@ export const createReportRequest = async (req, res) => {
         status = null; // leave pending for the assigned counselor to send manually
       } else {
         responseNote =
-          "The student has not consented to share their counseling session details with college representatives.";
+          "The student has not consented to share their counseling session details with Colleges.";
       }
     }
   }

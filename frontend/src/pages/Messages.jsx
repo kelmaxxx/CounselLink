@@ -7,7 +7,7 @@ import ChatModal from "../components/ChatModal";
 const ROLE_LABELS = {
   student: "Student",
   counselor: "Counselor",
-  college_rep: "College Rep",
+  college_rep: "College",
   admin: "Admin",
 };
 

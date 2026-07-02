@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { COLLEGES } from "../../data/mockData";
+import { getDepartments, getCollegeName } from "../../data/msuColleges";
 import {
   Edit2,
   Trash2,
@@ -164,6 +165,7 @@ export default function ManageUsers() {
     email: "",
     password: "",
     college: COLLEGES[0],
+    department: "",
   });
 
   const [editForm, setEditForm] = useState({
@@ -201,7 +203,7 @@ export default function ManageUsers() {
   const admins = useMemo(() => filtered.filter((u) => u.role === "admin"), [filtered]);
 
   const openCreateModal = (role) => {
-    setCreateForm({ name: "", email: "", password: "password123", college: COLLEGES[0] });
+    setCreateForm({ name: "", email: "", password: "password123", college: COLLEGES[0], department: "" });
     setCreateModal({ open: true, role });
   };
 
@@ -214,6 +216,7 @@ export default function ManageUsers() {
       password: createForm.password,
       role: createModal.role,
       college: createModal.role === "college_rep" ? createForm.college : null,
+      department: createModal.role === "college_rep" ? createForm.department : null,
     });
     setBusy(false);
     if (res.success) {
@@ -302,7 +305,7 @@ export default function ManageUsers() {
               <UserPlus size={14} /> Create counselor
             </button>
             <button onClick={() => openCreateModal("college_rep")} className={BTN.primary}>
-              <UserPlus size={14} /> Create rep
+              <UserPlus size={14} /> Create College
             </button>
           </>
         }
@@ -369,7 +372,7 @@ export default function ManageUsers() {
         </SectionCard>
 
         <SectionCard
-          title="College Representatives"
+          title="Colleges"
           subtitle={`${reps.length} account${reps.length === 1 ? "" : "s"}`}
           noBodyPadding
         >
@@ -450,20 +453,37 @@ export default function ManageUsers() {
             />
           </div>
           {createModal.role === "college_rep" && (
-            <div>
-              <label className={LABEL}>College *</label>
-              <select
-                className={INPUT}
-                value={createForm.college}
-                onChange={(e) => setCreateForm({ ...createForm, college: e.target.value })}
-              >
-                {COLLEGES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label className={LABEL}>College *</label>
+                <select
+                  className={INPUT}
+                  value={createForm.college}
+                  onChange={(e) => setCreateForm({ ...createForm, college: e.target.value, department: "" })}
+                >
+                  {COLLEGES.map((c) => (
+                    <option key={c} value={c}>
+                      {c} — {getCollegeName(c)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={LABEL}>Department *</label>
+                <select
+                  className={INPUT}
+                  value={createForm.department}
+                  onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
+                >
+                  <option value="">Select department</option>
+                  {getDepartments(createForm.college).map((d) => (
+                    <option key={d.code} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
         </form>
       </Modal>
@@ -646,7 +666,7 @@ export default function ManageUsers() {
           {editModal.user?.role === "college_rep" && (
             <div className="pt-3 border-t border-gray-100">
               <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
-                Representative information
+                College information
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
