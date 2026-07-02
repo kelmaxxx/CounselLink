@@ -35,6 +35,13 @@ const ROLE_OPTIONS = [
 const isStrongPassword = (pw) =>
   typeof pw === "string" && pw.length >= 8 && /[a-zA-Z]/.test(pw) && /\d/.test(pw);
 
+// Mirrors the backend student-email allowlist (backend/controllers/auth.controller.js)
+const STUDENT_EMAIL_DOMAINS = ["@msu.edu.ph", "@s.msumain.edu.ph", "@msumain.edu.ph"];
+const isAllowedStudentEmail = (email) => {
+  const lower = String(email || "").trim().toLowerCase();
+  return STUDENT_EMAIL_DOMAINS.some((d) => lower.endsWith(d));
+};
+
 const emptyLoginErrors = { identifier: "", password: "", form: "" };
 const emptySignupErrors = {
   name: "",
@@ -84,6 +91,17 @@ export default function Login() {
   const [signupErrors, setSignupErrors] = useState(emptySignupErrors);
   const [corPreview, setCorPreview] = useState(null);
 
+  // Email-mailbox verification (student signup). The student must prove they
+  // control the MSU email by confirming an emailed 6-digit code before submit.
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [emailCodeSent, setEmailCodeSent] = useState(false);
+  const [emailOtp, setEmailOtp] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [emailVerifyMsg, setEmailVerifyMsg] = useState("");
+
+  const canSendCode = isAllowedStudentEmail(signupForm.email);
+
   const identifierLabel = useMemo(
     () => (selectedRole === "student" ? "Student ID" : "Email address"),
     [selectedRole]
@@ -112,7 +130,78 @@ export default function Login() {
       setSignupForm((p) => ({ ...p, department: value, program: "" }));
       return;
     }
+    // Editing the email invalidates any prior verification — force them to
+    // re-verify the new address before they can submit.
+    if (name === "email") {
+      setEmailVerified(false);
+      setEmailCodeSent(false);
+      setEmailOtp("");
+      setEmailVerifyMsg("");
+    }
     setSignupForm((p) => ({ ...p, [name]: name === "phone" ? sanitizePhoneDigits(value) : value }));
+  };
+
+  const handleSendSignupCode = async () => {
+    if (!canSendCode) {
+      setSignupErrors((prev) => ({
+        ...prev,
+        email: "Use your MSU institutional email (e.g., name@s.msumain.edu.ph).",
+      }));
+      return;
+    }
+    setSignupErrors((prev) => ({ ...prev, email: "" }));
+    setEmailVerifyMsg("");
+    setSendingCode(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/signup/send-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: signupForm.email.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSignupErrors((prev) => ({ ...prev, email: data.message || "Unable to send code." }));
+        return;
+      }
+      setEmailCodeSent(true);
+      setEmailOtp("");
+      setEmailVerifyMsg(data.message || "A 6-digit code has been sent to your email.");
+    } catch {
+      setSignupErrors((prev) => ({ ...prev, email: "Network error. Please try again." }));
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifySignupCode = async () => {
+    const code = emailOtp.replace(/\D/g, "");
+    if (code.length !== 6) {
+      setSignupErrors((prev) => ({ ...prev, email: "Enter the 6-digit code from your email." }));
+      return;
+    }
+    setSignupErrors((prev) => ({ ...prev, email: "" }));
+    setEmailVerifyMsg("");
+    setVerifyingCode(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/signup/verify-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: signupForm.email.trim(), code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSignupErrors((prev) => ({ ...prev, email: data.message || "Invalid code." }));
+        return;
+      }
+      setEmailVerified(true);
+      setEmailCodeSent(false);
+      setEmailOtp("");
+      setEmailVerifyMsg("");
+    } catch {
+      setSignupErrors((prev) => ({ ...prev, email: "Network error. Please try again." }));
+    } finally {
+      setVerifyingCode(false);
+    }
   };
 
   const handleCorUpload = async (e) => {
@@ -205,10 +294,10 @@ export default function Login() {
     if (!signupForm.corImage) {
       nextErrors.cor = "Please upload your Certificate of Registration (COR).";
     }
-    const emailLower = signupForm.email.toLowerCase();
-    const allowedDomains = ["@msu.edu.ph", "@s.msumain.edu.ph", "@msumain.edu.ph"];
-    if (signupForm.email && !allowedDomains.some((d) => emailLower.endsWith(d))) {
+    if (signupForm.email && !isAllowedStudentEmail(signupForm.email)) {
       nextErrors.email = "Use your MSU institutional email (e.g., name@s.msumain.edu.ph).";
+    } else if (signupForm.email && !emailVerified) {
+      nextErrors.email = "Please verify your email address first.";
     }
     return nextErrors;
   };
@@ -317,20 +406,68 @@ export default function Login() {
 
             <FieldRow
               label="Institutional email"
-
               error={signupErrors.email}
             >
-              <InputWithIcon icon={Mail}>
+              <InputWithIcon
+                icon={Mail}
+                trailing={
+                  emailVerified ? (
+                    <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-medium">
+                      <CheckCircle2 size={14} /> Verified
+                    </span>
+                  ) : null
+                }
+              >
                 <input
                   name="email"
                   type="email"
                   value={signupForm.email}
                   onChange={handleSignupChange}
-                  className={`${INPUT} pl-9`}
+                  readOnly={emailVerified}
+                  className={`${INPUT} pl-9 ${emailVerified ? "pr-24 bg-gray-50 text-gray-600" : ""}`}
                   placeholder="name@s.msumain.edu.ph"
                   required
                 />
               </InputWithIcon>
+
+              {/* Verification flow: send a code, then confirm it. */}
+              {!emailVerified && !emailCodeSent && (
+                <button
+                  type="button"
+                  onClick={handleSendSignupCode}
+                  disabled={!canSendCode || sendingCode}
+                  className={`${BTN.secondary} mt-2 w-full`}
+                >
+                  {sendingCode ? "Sending code…" : "Send verification code"}
+                </button>
+              )}
+
+              {!emailVerified && emailCodeSent && (
+                <div className="mt-3 space-y-2 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                  {emailVerifyMsg && (
+                    <p className="text-xs text-emerald-700">{emailVerifyMsg}</p>
+                  )}
+                  <OtpInput value={emailOtp} onChange={setEmailOtp} />
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSendSignupCode}
+                      disabled={sendingCode}
+                      className="text-xs text-maroon-700 hover:text-maroon-800 font-medium disabled:opacity-60"
+                    >
+                      {sendingCode ? "Resending…" : "Resend code"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleVerifySignupCode}
+                      disabled={verifyingCode}
+                      className={BTN.primary}
+                    >
+                      {verifyingCode ? "Verifying…" : "Verify email"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </FieldRow>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -667,6 +804,10 @@ export default function Login() {
                 onClick={() => {
                   setIsSignup(true);
                   resetSignupErrors();
+                  setEmailVerified(false);
+                  setEmailCodeSent(false);
+                  setEmailOtp("");
+                  setEmailVerifyMsg("");
                 }}
                 className="text-sm text-gray-600 hover:text-gray-900 font-medium"
               >
