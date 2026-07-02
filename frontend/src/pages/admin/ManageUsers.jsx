@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { COLLEGES } from "../../data/mockData";
-import { getDepartments, getCollegeName } from "../../data/msuColleges";
+import { getDepartments, getCollegeName, getPrograms } from "../../data/msuColleges";
 import {
   Edit2,
   Trash2,
@@ -67,7 +67,8 @@ const emailCell = (u) => <p className="text-sm text-gray-600">{u.email}</p>;
 const STUDENT_COLUMNS = [
   { header: "ID / Email", render: studentIdEmailCell },
   { header: "College", render: (u) => u.college || "—" },
-  { header: "Department", render: (u) => u.program || "—" },
+  { header: "Department", render: (u) => u.department || "—" },
+  { header: "Course", render: (u) => u.program || "—" },
 ];
 
 const COUNSELOR_COLUMNS = [
@@ -256,6 +257,7 @@ export default function ManageUsers() {
     if (editModal.user.role === "student") {
       updates.studentId = editForm.studentId;
       updates.college = editForm.college;
+      updates.department = editForm.department;
       updates.program = editForm.program;
     } else if (editModal.user.role === "counselor") {
       updates.employeeId = editForm.employeeId;
@@ -279,6 +281,9 @@ export default function ManageUsers() {
   };
 
   const openDeleteConfirm = (userId) => setDeleteConfirm({ open: true, userId });
+
+  const editDepartments = getDepartments(editForm.college);
+  const editPrograms = getPrograms(editForm.college, editForm.department);
 
   const handleDelete = async () => {
     setBusy(true);
@@ -580,25 +585,62 @@ export default function ManageUsers() {
                   <select
                     className={INPUT}
                     value={editForm.college}
-                    onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, college: e.target.value, department: "", program: "" })
+                    }
                   >
                     <option value="">Select college</option>
                     {COLLEGES.map((c) => (
                       <option key={c} value={c}>
-                        {c}
+                        {c} — {getCollegeName(c)}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className={LABEL}>Department</label>
-                  <input
-                    type="text"
+                  <select
+                    className={INPUT}
+                    value={editForm.department}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, department: e.target.value, program: "" })
+                    }
+                    disabled={!editForm.college}
+                  >
+                    <option value="">
+                      {editForm.college ? "Select department" : "Select a college first"}
+                    </option>
+                    {editForm.department &&
+                      !editDepartments.some((d) => d.name === editForm.department) && (
+                        <option value={editForm.department}>{editForm.department}</option>
+                      )}
+                    {editDepartments.map((d) => (
+                      <option key={d.code} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Course</label>
+                  <select
                     className={INPUT}
                     value={editForm.program}
                     onChange={(e) => setEditForm({ ...editForm, program: e.target.value })}
-                    placeholder="e.g. BS Computer Science"
-                  />
+                    disabled={!editForm.department}
+                  >
+                    <option value="">
+                      {editForm.department ? "Select course" : "Select a department first"}
+                    </option>
+                    {editForm.program && !editPrograms.includes(editForm.program) && (
+                      <option value={editForm.program}>{editForm.program}</option>
+                    )}
+                    {editPrograms.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -674,25 +716,39 @@ export default function ManageUsers() {
                   <select
                     className={INPUT}
                     value={editForm.college}
-                    onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, college: e.target.value, department: "" })
+                    }
                   >
                     <option value="">Select college</option>
                     {COLLEGES.map((c) => (
                       <option key={c} value={c}>
-                        {c}
+                        {c} — {getCollegeName(c)}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className={LABEL}>Department</label>
-                  <input
-                    type="text"
+                  <select
                     className={INPUT}
                     value={editForm.department}
                     onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                    placeholder="e.g. Department of Computer Science"
-                  />
+                    disabled={!editForm.college}
+                  >
+                    <option value="">
+                      {editForm.college ? "Select department" : "Select a college first"}
+                    </option>
+                    {editForm.department &&
+                      !editDepartments.some((d) => d.name === editForm.department) && (
+                        <option value={editForm.department}>{editForm.department}</option>
+                      )}
+                    {editDepartments.map((d) => (
+                      <option key={d.code} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
