@@ -4,6 +4,7 @@ import {
   User,
   Mail,
   GraduationCap,
+  Building2,
   BookOpen,
   Calendar,
   Phone,
@@ -291,6 +292,11 @@ export default function StudentProfile() {
               icon={GraduationCap}
               label="College"
               value={myRecord?.college || "Not set"}
+            />
+            <Readout
+              icon={Building2}
+              label="Department"
+              value={myRecord?.department || "Not set"}
             />
             <Readout
               icon={BookOpen}

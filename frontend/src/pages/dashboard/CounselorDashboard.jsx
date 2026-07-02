@@ -345,7 +345,7 @@ export default function CounselorDashboard() {
             </p>
           </div>
           <Link
-            to="/counselor/notifications"
+            to="/counselor/appointments"
             className="text-sm font-semibold text-red-700 hover:underline whitespace-nowrap"
           >
             View →
