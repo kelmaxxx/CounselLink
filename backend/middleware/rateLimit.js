@@ -37,6 +37,14 @@ export const otpLimiter = limiter(
   "Too many verification attempts. Try again in 15 minutes."
 );
 
+// Sending signup verification codes triggers an email each time, so keep the
+// per-IP limit tight (complements the per-email 5/hour limit in the controller).
+export const signupCodeLimiter = limiter(
+  15 * 60 * 1000,
+  5,
+  "Too many verification codes requested. Try again in 15 minutes."
+);
+
 // This endpoint is public and triggers emails to every counselor, so keep
 // the per-IP limit tight.
 export const urgentCounselingLimiter = limiter(
