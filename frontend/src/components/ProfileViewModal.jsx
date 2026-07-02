@@ -116,6 +116,7 @@ export default function ProfileViewModal({ user, onClose, onOpenChat }) {
           <Section title="Academic information">
             <Row icon={Hash} label="Student ID" value={user.studentId} />
             <Row icon={GraduationCap} label="College" value={user.college} />
+            <Row icon={Building2} label="Department" value={user.department} />
             <Row icon={BookOpen} label="Program" value={user.program} />
             <Row icon={Calendar} label="Year level" value={user.yearLevel} />
           </Section>
