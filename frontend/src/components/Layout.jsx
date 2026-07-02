@@ -16,7 +16,7 @@ export default function Layout({ children }) {
   };
 
   return (
-    <div className="flex bg-gray-50 min-h-screen text-gray-800">
+    <div className="flex bg-gray-50 h-screen overflow-hidden text-gray-800">
       <Sidebar
         currentUser={currentUser}
         activeView={activeView}
@@ -29,7 +29,7 @@ export default function Layout({ children }) {
       <div className="flex-1 flex flex-col min-w-0">
         <Header currentUser={currentUser} onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 overflow-auto bg-gray-50">
+        <main className="flex-1 overflow-auto bg-gray-50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {children}
         </main>
       </div>

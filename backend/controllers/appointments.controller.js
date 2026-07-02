@@ -116,3 +116,23 @@ export const listAppointmentsForUser = async (req, res) => {
   );
   return res.json(rows);
 };
+
+export const getAppointmentStats = async (_req, res) => {
+  const [totalRow] = await query(
+    "SELECT COUNT(*) AS total FROM appointments WHERE status = 'completed'"
+  );
+
+  const byCollege = await query(
+    `SELECT u.college, COUNT(*) AS total
+     FROM appointments a
+     JOIN users u ON a.student_id = u.id
+     WHERE a.status = 'completed' AND u.college IS NOT NULL AND u.college <> ''
+     GROUP BY u.college
+     ORDER BY total DESC`
+  );
+
+  return res.json({
+    totalCompleted: totalRow.total,
+    byCollege,
+  });
+};

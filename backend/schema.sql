@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(120) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   role ENUM('student','counselor','admin','college_rep') NOT NULL,
-  status ENUM('pending_approval','approved','rejected') DEFAULT 'approved',
+  status ENUM('pending_approval','approved','rejected','banned') DEFAULT 'approved',
   college VARCHAR(50),
   student_id VARCHAR(30),
   phone VARCHAR(30),

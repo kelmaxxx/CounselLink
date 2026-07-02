@@ -11,6 +11,7 @@ import {
   Hash,
   CheckCircle2,
   Building2,
+  Lock,
 } from "lucide-react";
 import {
   PageHeader,
@@ -20,6 +21,7 @@ import {
   LABEL,
 } from "../../components/ui";
 import ProfileHero from "../../components/ProfileHero";
+import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const DSA_OFFICE = "Division of Student Affairs (DSA)";
@@ -41,6 +43,7 @@ export default function AdminProfile() {
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
+  const [changePwOpen, setChangePwOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
     email: myRecord?.email || "",
@@ -136,9 +139,14 @@ export default function AdminProfile() {
         subtitle="Manage your administrator account."
         actions={
           !isEditing ? (
-            <button onClick={() => setIsEditing(true)} className={BTN.primary}>
-              <Edit2 size={15} /> Edit profile
-            </button>
+            <>
+              <button onClick={() => setChangePwOpen(true)} className={BTN.secondary}>
+                <Lock size={15} /> Change password
+              </button>
+              <button onClick={() => setIsEditing(true)} className={BTN.primary}>
+                <Edit2 size={15} /> Edit profile
+              </button>
+            </>
           ) : (
             <>
               <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
@@ -177,6 +185,8 @@ export default function AdminProfile() {
         uploading={uploadingAvatar}
         chips={[{ label: "Full system access", icon: Shield }]}
       />
+
+      <ChangePasswordModal open={changePwOpen} onClose={() => setChangePwOpen(false)} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <SectionCard title="Administrator information" subtitle="Contact and identity">

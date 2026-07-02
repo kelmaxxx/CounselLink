@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { COLLEGES } from "../../data/mockData";
 import { getDepartments, getCollegeName, getPrograms } from "../../data/msuColleges";
@@ -11,6 +11,9 @@ import {
   AlertCircle,
   Eye,
   FileText,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
 } from "lucide-react";
 import {
   PageHeader,
@@ -51,18 +54,18 @@ const statusInfo = (u) => {
 const studentIdEmailCell = (u) => (
   <div>
     <p className="text-sm font-medium text-gray-900 tabular-nums">{u.studentId || "—"}</p>
-    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+    <p className="text-xs text-gray-500 break-all">{u.email}</p>
   </div>
 );
 
 const counselorIdEmailCell = (u) => (
   <div>
     <p className="text-sm font-medium text-gray-900 tabular-nums">{u.employeeId || "—"}</p>
-    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+    <p className="text-xs text-gray-500 break-all">{u.email}</p>
   </div>
 );
 
-const emailCell = (u) => <p className="text-sm text-gray-600">{u.email}</p>;
+const emailCell = (u) => <p className="text-sm text-gray-600 break-all">{u.email}</p>;
 
 const STUDENT_COLUMNS = [
   { header: "ID / Email", render: studentIdEmailCell },
@@ -85,74 +88,82 @@ const REP_COLUMNS = [
 
 const ADMIN_COLUMNS = [{ header: "Email", render: emailCell }];
 
-function UserTable({ rows, columns, onEdit, onDelete, emptyText }) {
+function UserTable({ rows, columns, onEdit, onDelete, emptyText, hideEdit = false, hideDelete = false }) {
   if (!rows.length) {
     return <EmptyState title={emptyText} />;
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
-            <th className="px-4 py-2.5">Name</th>
-            {columns.map((col) => (
-              <th key={col.header} className="px-4 py-2.5">
-                {col.header}
-              </th>
-            ))}
-            <th className="px-4 py-2.5">Status</th>
-            <th className="px-4 py-2.5 text-right">Action</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {rows.map((u) => {
-            const { status, label } = statusInfo(u);
-            return (
-              <tr key={u.id} className="hover:bg-gray-50/70 transition">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                      {initialsOf(u.name)}
-                    </div>
-                    <span className="font-medium text-gray-900 text-sm">{u.name}</span>
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+          <th className="px-4 py-2.5">Name</th>
+          {columns.map((col) => (
+            <th key={col.header} className="px-4 py-2.5">
+              {col.header}
+            </th>
+          ))}
+          <th className="px-4 py-2.5">Status</th>
+          <th className="px-4 py-2.5 w-16 text-right">Action</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-gray-100">
+        {rows.map((u) => {
+          const { status, label } = statusInfo(u);
+          return (
+            <tr key={u.id} className="hover:bg-gray-50/70 transition">
+              <td className="px-4 py-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">
+                    {initialsOf(u.name)}
                   </div>
+                  <span className="font-medium text-gray-900 text-sm break-words leading-snug">{u.name}</span>
+                </div>
+              </td>
+              {columns.map((col) => (
+                <td key={col.header} className="px-4 py-3 text-gray-700 text-sm break-words leading-snug">
+                  {col.render(u)}
                 </td>
-                {columns.map((col) => (
-                  <td key={col.header} className="px-4 py-3 text-gray-700 text-sm">
-                    {col.render(u)}
-                  </td>
-                ))}
-                <td className="px-4 py-3">
-                  <StatusPill status={status}>{label}</StatusPill>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="inline-flex gap-1">
+              ))}
+              <td className="px-4 py-3">
+                <StatusPill status={status}>{label}</StatusPill>
+              </td>
+              <td className="px-4 py-3 text-right">
+                <div className="inline-flex gap-1">
+                  {!hideEdit && (
                     <button
                       onClick={() => onEdit(u)}
-                      className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                      title="Edit"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition"
                     >
-                      <Edit2 size={12} /> Edit
+                      <Edit2 size={13} />
                     </button>
+                  )}
+                  {!hideDelete && (
                     <button
                       onClick={() => onDelete(u.id)}
-                      className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-red-600 hover:bg-red-50 transition"
+                      title="Delete"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition"
                     >
-                      <Trash2 size={12} /> Delete
+                      <Trash2 size={13} />
                     </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  )}
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
 export default function ManageUsers() {
-  const { users, createUser, updateUser, deleteUser } = useAuth();
+  const { users, createUser, updateUser, deleteUser, banUser, unbanUser } = useAuth();
   const [query, setQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("student");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [page, setPage] = useState(0);
+  const [recoverOpen, setRecoverOpen] = useState(false);
   const [message, setMessage] = useState(null);
   const [_busy, setBusy] = useState(false);
 
@@ -183,7 +194,7 @@ export default function ManageUsers() {
   });
 
   const filtered = useMemo(() => {
-    const allUsers = users || [];
+    const allUsers = (users || []).filter((u) => u.status !== "banned");
     const q = query.trim().toLowerCase();
     if (!q) return allUsers;
     return allUsers.filter(
@@ -202,6 +213,30 @@ export default function ManageUsers() {
   const counselors = useMemo(() => filtered.filter((u) => u.role === "counselor"), [filtered]);
   const reps = useMemo(() => filtered.filter((u) => u.role === "college_rep"), [filtered]);
   const admins = useMemo(() => filtered.filter((u) => u.role === "admin"), [filtered]);
+
+  const suggestions = useMemo(() => {
+    const allCounselors = (users || []).filter((u) => u.role === "counselor");
+    if (!query.trim()) return allCounselors.slice(0, 6);
+    return allCounselors
+      .filter(
+        (c) =>
+          c.name.toLowerCase().includes(query.toLowerCase()) ||
+          c.email.toLowerCase().includes(query.toLowerCase())
+      )
+      .slice(0, 6);
+  }, [users, query]);
+
+  const bannedUsers = useMemo(
+    () => (users || []).filter((u) => u.status === "banned"),
+    [users]
+  );
+
+  useEffect(() => { setPage(0); }, [activeTab, query]);
+
+  const PAGE_SIZE = 10;
+  const activeRows = { student: students, counselor: counselors, college_rep: reps, admin: admins }[activeTab] || [];
+  const totalPages = Math.max(1, Math.ceil(activeRows.length / PAGE_SIZE));
+  const pagedRows = activeRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const openCreateModal = (role) => {
     setCreateForm({ name: "", email: "", password: "password123", college: COLLEGES[0], department: "" });
@@ -247,6 +282,11 @@ export default function ManageUsers() {
 
   const handleEdit = async (e) => {
     e.preventDefault();
+    if (editModal.user.role === "student" && !/^\d{9}$/.test(editForm.studentId)) {
+      setMessage({ type: "error", text: "Student ID must be exactly 9 digits." });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
     const updates = {
       name: editForm.name,
       email: editForm.email,
@@ -286,14 +326,13 @@ export default function ManageUsers() {
   const editPrograms = getPrograms(editForm.college, editForm.department);
 
   const handleDelete = async () => {
-    setBusy(true);
-    const res = await deleteUser(deleteConfirm.userId);
-    setBusy(false);
+    const userId = deleteConfirm.userId;
+    setDeleteConfirm({ open: false, userId: null });
+    const res = await banUser(userId);
     if (res.success) {
-      setDeleteConfirm({ open: false, userId: null });
-      setMessage({ type: "success", text: "User deleted successfully" });
+      setMessage({ type: "success", text: "Account banned. The user can no longer log in." });
     } else {
-      setMessage({ type: "error", text: res.message || "Failed to delete user" });
+      setMessage({ type: "error", text: res.message || "Failed to ban account" });
     }
     setTimeout(() => setMessage(null), 3000);
   };
@@ -306,6 +345,14 @@ export default function ManageUsers() {
         subtitle="Create, edit, and delete accounts across all roles."
         actions={
           <>
+            {bannedUsers.length > 0 && (
+              <button onClick={() => setRecoverOpen(true)} className={BTN.secondary}>
+                <RotateCcw size={14} /> Recover account
+                <span className="ml-1 bg-amber-400 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  {bannedUsers.length}
+                </span>
+              </button>
+            )}
             <button onClick={() => openCreateModal("counselor")} className={BTN.secondary}>
               <UserPlus size={14} /> Create counselor
             </button>
@@ -329,81 +376,138 @@ export default function ManageUsers() {
         </div>
       )}
 
-      <SectionCard className="mb-4">
-        <div>
-          <label className={LABEL}>Search</label>
-          <div className="relative max-w-md">
-            <Search
-              size={13}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              className={`${INPUT} pl-8`}
-              placeholder="Name, email, or ID…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+      {/* Search bar with counselor suggestions on hover */}
+      <div className="mb-4">
+        <div
+          className="relative max-w-md"
+          onMouseEnter={() => setShowSuggestions(true)}
+          onMouseLeave={() => setShowSuggestions(false)}
+        >
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
+          <input
+            className={`${INPUT} pl-8`}
+            placeholder="Search by name, email, or ID…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoComplete="off"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 overflow-hidden">
+              <div className="px-3 pt-2.5 pb-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  Counselors
+                </p>
+              </div>
+              <ul>
+                {suggestions.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 text-left transition"
+                      onClick={() => {
+                        setQuery(c.name);
+                        setActiveTab("counselor");
+                        setShowSuggestions(false);
+                      }}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                        {initialsOf(c.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{c.position || c.email}</p>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-      </SectionCard>
-
-      <div className="space-y-4">
-        <SectionCard
-          title="Students"
-          subtitle={`${students.length} account${students.length === 1 ? "" : "s"}`}
-          noBodyPadding
-        >
-          <UserTable
-            rows={students}
-            columns={STUDENT_COLUMNS}
-            onEdit={openEditModal}
-            onDelete={openDeleteConfirm}
-            emptyText="No students match your search"
-          />
-        </SectionCard>
-
-        <SectionCard
-          title="Counselors"
-          subtitle={`${counselors.length} account${counselors.length === 1 ? "" : "s"}`}
-          noBodyPadding
-        >
-          <UserTable
-            rows={counselors}
-            columns={COUNSELOR_COLUMNS}
-            onEdit={openEditModal}
-            onDelete={openDeleteConfirm}
-            emptyText="No counselors match your search"
-          />
-        </SectionCard>
-
-        <SectionCard
-          title="Colleges"
-          subtitle={`${reps.length} account${reps.length === 1 ? "" : "s"}`}
-          noBodyPadding
-        >
-          <UserTable
-            rows={reps}
-            columns={REP_COLUMNS}
-            onEdit={openEditModal}
-            onDelete={openDeleteConfirm}
-            emptyText="No college representatives match your search"
-          />
-        </SectionCard>
-
-        <SectionCard
-          title="Administrators"
-          subtitle={`${admins.length} account${admins.length === 1 ? "" : "s"}`}
-          noBodyPadding
-        >
-          <UserTable
-            rows={admins}
-            columns={ADMIN_COLUMNS}
-            onEdit={openEditModal}
-            onDelete={openDeleteConfirm}
-            emptyText="No administrators match your search"
-          />
-        </SectionCard>
       </div>
+
+      {/* Tabbed user table */}
+      <SectionCard noBodyPadding>
+        {/* Tab bar */}
+        <div className="flex border-b border-gray-100 px-4 pt-3 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[
+            { id: "student", label: "Students", count: students.length },
+            { id: "counselor", label: "Counselors", count: counselors.length },
+            { id: "college_rep", label: "Colleges", count: reps.length },
+            { id: "admin", label: "Administrators", count: admins.length },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition ${
+                activeTab === tab.id
+                  ? "border-maroon-600 text-maroon-700"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {tab.label}
+              <span
+                className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${
+                  activeTab === tab.id
+                    ? "bg-maroon-100 text-maroon-700"
+                    : "bg-gray-100 text-gray-500"
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Active tab content */}
+        <UserTable
+          rows={pagedRows}
+          columns={
+            activeTab === "student" ? STUDENT_COLUMNS
+            : activeTab === "counselor" ? COUNSELOR_COLUMNS
+            : activeTab === "college_rep" ? REP_COLUMNS
+            : ADMIN_COLUMNS
+          }
+          onEdit={openEditModal}
+          onDelete={openDeleteConfirm}
+          hideEdit={activeTab === "student" || activeTab === "counselor" || activeTab === "college_rep"}
+          hideDelete={activeTab === "admin"}
+          emptyText={
+            activeTab === "student" ? "No students match your search"
+            : activeTab === "counselor" ? "No counselors match your search"
+            : activeTab === "college_rep" ? "No college representatives match your search"
+            : "No administrators match your search"
+          }
+        />
+
+        {/* Pagination */}
+        {activeRows.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+            <p className="text-xs text-gray-500">
+              Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, activeRows.length)} of {activeRows.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page === 0}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs text-gray-600 px-2 tabular-nums">
+                {page + 1} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= totalPages - 1}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </SectionCard>
 
       {/* Create modal */}
       <Modal
@@ -574,10 +678,12 @@ export default function ManageUsers() {
                   <label className={LABEL}>Student ID</label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    maxLength={9}
                     className={INPUT}
                     value={editForm.studentId}
-                    onChange={(e) => setEditForm({ ...editForm, studentId: e.target.value })}
-                    placeholder="e.g. 2021-00123"
+                    onChange={(e) => setEditForm({ ...editForm, studentId: e.target.value.replace(/\D/g, "").slice(0, 9) })}
+                    placeholder="9-digit ID"
                   />
                 </div>
                 <div>
@@ -796,12 +902,12 @@ export default function ManageUsers() {
         )}
       </Modal>
 
-      {/* Delete confirmation */}
+      {/* Delete/ban confirmation */}
       <Modal
         open={deleteConfirm.open}
         onClose={() => setDeleteConfirm({ open: false, userId: null })}
-        title="Delete user"
-        subtitle="This action cannot be undone."
+        title="Ban user"
+        subtitle="The account will be suspended immediately."
         danger
         footer={
           <>
@@ -812,14 +918,56 @@ export default function ManageUsers() {
               Cancel
             </button>
             <button onClick={handleDelete} className={BTN.danger}>
-              <Trash2 size={14} /> Delete user
+              <Trash2 size={14} /> Ban account
             </button>
           </>
         }
       >
         <p className="text-sm text-gray-700">
-          Are you sure you want to delete this user? Related data may also be affected.
+          The user will be blocked from logging in and will see a message to contact the DSA admin.
+          You can restore the account at any time from <strong>Recover account</strong>.
         </p>
+      </Modal>
+
+      {/* Recover Account modal */}
+      <Modal
+        open={recoverOpen}
+        onClose={() => setRecoverOpen(false)}
+        title="Recover account"
+        subtitle="Banned accounts. Click Restore to re-enable login."
+      >
+        {bannedUsers.length === 0 ? (
+          <p className="text-sm text-gray-500 py-4 text-center">No banned accounts.</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {bannedUsers.map((u) => (
+              <li key={u.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                    {initialsOf(u.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                    <p className="text-[11px] text-gray-400 capitalize">{u.role?.replace("_", " ")}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    const res = await unbanUser(u.id);
+                    if (res.success) {
+                      setMessage({ type: "success", text: `${u.name} has been restored.` });
+                      setTimeout(() => setMessage(null), 3000);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-50 flex-shrink-0 transition"
+                >
+                  <RotateCcw size={11} /> Restore
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Modal>
     </div>
   );
