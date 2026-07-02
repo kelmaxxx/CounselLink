@@ -48,6 +48,13 @@ export const login = async (req, res) => {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
+  if (user.status === "banned") {
+    return res.status(403).json({
+      message: "Your account has been banned. Please contact the DSA admin for restoration.",
+      status: "banned",
+    });
+  }
+
   if (user.role === "student" && user.status === "pending_approval") {
     return res.status(403).json({ message: "Account pending approval", status: "pending_approval" });
   }
@@ -66,10 +73,16 @@ export const login = async (req, res) => {
       name: user.name,
       status: user.status,
       college: user.college,
+      department: user.department,
+      program: user.program,
+      yearLevel: user.year_level,
       studentId: user.student_id,
+      employeeId: user.employee_id,
       avatarUrl: user.avatar_url,
       phone: user.phone,
       bio: user.bio,
+      position: user.position,
+      specialization: user.specialization,
     },
   });
 };
@@ -332,4 +345,29 @@ export const resetPassword = async (req, res) => {
   await query("UPDATE password_resets SET used_at = NOW() WHERE id = ?", [record.id]);
 
   return res.json({ message: "Password updated. You can now log in with your new password." });
+};
+
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword)
+      return res.status(400).json({ message: "Current and new password are required." });
+
+    const policy = validatePassword(newPassword);
+    if (!policy.ok) return res.status(400).json({ message: policy.message });
+
+    const [user] = await query("SELECT password FROM users WHERE id = ?", [req.user.id]);
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) return res.status(400).json({ message: "Current password is incorrect." });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await query("UPDATE users SET password = ? WHERE id = ?", [hashed, req.user.id]);
+
+    return res.json({ message: "Password changed successfully." });
+  } catch (err) {
+    console.error("changePassword error:", err);
+    return res.status(500).json({ message: "Server error." });
+  }
 };

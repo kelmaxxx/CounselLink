@@ -12,7 +12,6 @@ import {
   Save,
   X,
   Hash,
-  Info,
   Lock,
   ClipboardList,
 } from "lucide-react";
@@ -22,30 +21,39 @@ import {
   BTN,
   INPUT,
   LABEL,
-  formatDate,
   Modal,
 } from "../../components/ui";
-import { useAppointments } from "../../context/AppointmentsContext";
+import { COLLEGES } from "../../data/mockData";
+import { getDepartments, getPrograms, getCollegeName } from "../../data/msuColleges";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import InventoryForm from "../../components/records/InventoryForm";
 import ProfileHero from "../../components/ProfileHero";
+import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
+const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+
+const emptyForm = (u) => ({
+  name: u?.name || "",
+  email: u?.email || "",
+  phone: u?.phone || "",
+  bio: u?.bio || "",
+  college: u?.college || "",
+  department: u?.department || "",
+  program: u?.program || "",
+  yearLevel: u?.yearLevel || "",
+});
+
 export default function StudentProfile() {
   const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
-  const { appointments, fetchAppointments } = useAppointments();
   const { getInventory, upsertInventory, uploadInventoryScan, deleteInventoryScan, getConsent } = useStudentRecords();
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: myRecord?.name || "",
-    email: myRecord?.email || "",
-    phone: myRecord?.phone || "",
-    bio: myRecord?.bio || "",
-  });
+  const [changePwOpen, setChangePwOpen] = useState(false);
+  const [formData, setFormData] = useState(emptyForm(myRecord));
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -55,19 +63,19 @@ export default function StudentProfile() {
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [consent, setConsent] = useState(null);
 
-  const handleSaveInventory = async (formData) => {
-    const res = await upsertInventory(currentUser?.id, formData);
-    if (res.success) {
-      setInventory(res.inventory);
-    }
+  // Cascading dropdown options derived from current form state
+  const departments = getDepartments(formData.college);
+  const programs = getPrograms(formData.college, formData.department);
+
+  const handleSaveInventory = async (fd) => {
+    const res = await upsertInventory(currentUser?.id, fd);
+    if (res.success) setInventory(res.inventory);
     return res;
   };
 
   const handleUploadInventoryScan = async (file) => {
     const res = await uploadInventoryScan(currentUser?.id, file);
-    if (res.success) {
-      setInventory(res.inventory);
-    }
+    if (res.success) setInventory(res.inventory);
     return res;
   };
 
@@ -110,15 +118,8 @@ export default function StudentProfile() {
   useEffect(() => {
     refreshCurrentUser?.().then((fresh) => {
       if (!fresh) return;
-      setFormData((f) => ({
-        ...f,
-        name: fresh.name || "",
-        email: fresh.email || "",
-        phone: fresh.phone || "",
-        bio: fresh.bio || "",
-      }));
+      setFormData(emptyForm(fresh));
     });
-    fetchAppointments?.().catch(() => undefined);
 
     if (currentUser?.id) {
       getInventory(currentUser.id)
@@ -148,6 +149,10 @@ export default function StudentProfile() {
         email: formData.email,
         phone: formData.phone,
         bio: formData.bio,
+        college: formData.college,
+        department: formData.department,
+        program: formData.program,
+        yearLevel: formData.yearLevel,
       });
       setIsEditing(false);
       setMessage({ type: "success", text: "Profile updated successfully" });
@@ -160,14 +165,11 @@ export default function StudentProfile() {
   };
 
   const handleCancel = () => {
-    setFormData({
-      name: myRecord?.name || "",
-      email: myRecord?.email || "",
-      phone: myRecord?.phone || "",
-      bio: myRecord?.bio || "",
-    });
+    setFormData(emptyForm(myRecord));
     setIsEditing(false);
   };
+
+  const setField = (key, value) => setFormData((prev) => ({ ...prev, [key]: value }));
 
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto">
@@ -178,6 +180,9 @@ export default function StudentProfile() {
         actions={
           !isEditing ? (
             <div className="flex items-center gap-2">
+              <button onClick={() => setChangePwOpen(true)} className={BTN.secondary}>
+                <Lock size={15} /> Change password
+              </button>
               <button onClick={() => setShowInventoryModal(true)} className={BTN.secondary}>
                 <ClipboardList size={15} /> My Inventory
               </button>
@@ -210,6 +215,8 @@ export default function StudentProfile() {
         </div>
       )}
 
+      <ChangePasswordModal open={changePwOpen} onClose={() => setChangePwOpen(false)} />
+
       <ProfileHero
         theme="student"
         name={myRecord?.name}
@@ -238,7 +245,7 @@ export default function StudentProfile() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => setField("name", e.target.value)}
                   className={INPUT}
                   placeholder="Enter your name"
                 />
@@ -247,7 +254,7 @@ export default function StudentProfile() {
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => setField("email", e.target.value)}
                   className={INPUT}
                   placeholder="Enter your email"
                 />
@@ -258,7 +265,7 @@ export default function StudentProfile() {
                   inputMode="numeric"
                   maxLength={11}
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: sanitizePhoneDigits(e.target.value) })}
+                  onChange={(e) => setField("phone", sanitizePhoneDigits(e.target.value))}
                   className={INPUT}
                   placeholder="09XXXXXXXXX"
                 />
@@ -277,93 +284,108 @@ export default function StudentProfile() {
           )}
         </SectionCard>
 
-        {/* Academic info (read-only) */}
-        <SectionCard
-          title="Academic information"
-          subtitle="Verified by the admin office"
-          action={
-            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
-              <Lock size={10} /> Read-only
-            </span>
-          }
-        >
-          <dl className="space-y-2.5 text-sm">
-            <Readout
-              icon={GraduationCap}
-              label="College"
-              value={myRecord?.college || "Not set"}
-            />
-            <Readout
-              icon={Building2}
-              label="Department"
-              value={myRecord?.department || "Not set"}
-            />
-            <Readout
-              icon={BookOpen}
-              label="Program / course"
-              value={myRecord?.program || "Not set"}
-            />
-            <Readout icon={Calendar} label="Year level" value={myRecord?.yearLevel || "Not set"} />
-          </dl>
-          <div className="mt-3 flex items-start gap-2 p-3 rounded-md bg-blue-50 border border-blue-200 text-xs text-blue-800">
-            <Info size={14} className="flex-shrink-0 mt-0.5" />
-            <p>
-              Academic information is verified by the admin from your Certificate of Registration.
-              Contact the admin office if it needs to be corrected.
-            </p>
-          </div>
+        {/* Academic info */}
+        <SectionCard title="Academic information" subtitle="Your college, course, and year level">
+          {isEditing ? (
+            <div className="space-y-3">
+              <Field icon={GraduationCap} label="College">
+                <select
+                  className={INPUT}
+                  value={formData.college}
+                  onChange={(e) => setFormData((prev) => ({
+                    ...prev,
+                    college: e.target.value,
+                    department: "",
+                    program: "",
+                  }))}
+                >
+                  <option value="">Select college</option>
+                  {COLLEGES.map((c) => (
+                    <option key={c} value={c}>{c} — {getCollegeName(c)}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field icon={Building2} label="Department">
+                <select
+                  className={INPUT}
+                  value={formData.department}
+                  onChange={(e) => setFormData((prev) => ({
+                    ...prev,
+                    department: e.target.value,
+                    program: "",
+                  }))}
+                  disabled={!formData.college}
+                >
+                  <option value="">
+                    {formData.college ? "Select department" : "Select a college first"}
+                  </option>
+                  {formData.department && !departments.some((d) => d.name === formData.department) && (
+                    <option value={formData.department}>{formData.department}</option>
+                  )}
+                  {departments.map((d) => (
+                    <option key={d.code} value={d.name}>{d.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field icon={BookOpen} label="Program / course">
+                <select
+                  className={INPUT}
+                  value={formData.program}
+                  onChange={(e) => setField("program", e.target.value)}
+                  disabled={!formData.department}
+                >
+                  <option value="">
+                    {formData.department ? "Select program" : "Select a department first"}
+                  </option>
+                  {formData.program && !programs.includes(formData.program) && (
+                    <option value={formData.program}>{formData.program}</option>
+                  )}
+                  {programs.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field icon={Calendar} label="Year level">
+                <select
+                  className={INPUT}
+                  value={formData.yearLevel}
+                  onChange={(e) => setField("yearLevel", e.target.value)}
+                >
+                  <option value="">Select year level</option>
+                  {YEAR_LEVELS.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          ) : (
+            <dl className="space-y-2.5 text-sm">
+              <Readout icon={GraduationCap} label="College" value={myRecord?.college || "Not set"} />
+              <Readout icon={Building2} label="Department" value={myRecord?.department || "Not set"} />
+              <Readout icon={BookOpen} label="Program / course" value={myRecord?.program || "Not set"} />
+              <Readout icon={Calendar} label="Year level" value={myRecord?.yearLevel || "Not set"} />
+            </dl>
+          )}
         </SectionCard>
       </div>
 
       {/* About */}
-      <SectionCard
-        title="About me"
-        subtitle="A short bio your counselor can see"
-        className="mb-6"
-      >
+      <SectionCard title="About me" subtitle="A short bio your counselor can see" className="mb-6">
         {isEditing ? (
           <textarea
             value={formData.bio}
-            onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+            onChange={(e) => setField("bio", e.target.value)}
             className={`${INPUT} resize-none`}
             rows={5}
             placeholder="Tell us a bit about yourself…"
           />
         ) : myRecord?.bio ? (
-          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-            {myRecord.bio}
-          </p>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{myRecord.bio}</p>
         ) : (
           <p className="text-sm text-gray-500 italic">
             No bio yet. Click <span className="font-medium">Edit profile</span> to add one.
           </p>
         )}
-      </SectionCard>
-
-      {/* Counseling history */}
-      <SectionCard title="Counseling history" subtitle="Your recent sessions" noBodyPadding>
-        {(() => {
-          const completed = (appointments || []).filter((a) => a.status === "completed");
-          if (completed.length === 0) {
-            return (
-              <div className="px-4 py-6 text-center text-sm text-gray-500 italic">
-                No completed counseling sessions recorded yet.
-              </div>
-            );
-          }
-          return (
-            <ul className="divide-y divide-gray-100">
-              {completed.map((a) => (
-                <li key={a.id} className="px-4 py-3 hover:bg-gray-50/60 transition">
-                  <p className="text-sm font-medium text-gray-900">{a.reason || "Counseling Session"}</p>
-                  <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
-                    {formatDate(a.scheduledDate || a.preferredDate)} · with {a.counselorName || "Counselor"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          );
-        })()}
       </SectionCard>
 
       {showInventoryModal && (

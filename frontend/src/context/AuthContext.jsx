@@ -295,6 +295,32 @@ export function AuthProvider({ children }) {
     return { success: true, user: data };
   };
 
+  const changePassword = async ({ currentPassword, newPassword }) => {
+    const response = await authFetch(`${apiBase}/api/auth/change-password`, {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await parseResponseJson(response);
+    if (!response.ok) return { success: false, message: data.message || "Failed to change password" };
+    return { success: true };
+  };
+
+  const banUser = async (id) => {
+    const response = await authFetch(`${apiBase}/api/users/${id}/ban`, { method: "PATCH" });
+    const data = await parseResponseJson(response);
+    if (!response.ok) return { success: false, message: data.message || "Failed to ban user" };
+    setUsers((prev) => prev.map((u) => (u.id === data.id ? data : u)));
+    return { success: true, user: data };
+  };
+
+  const unbanUser = async (id) => {
+    const response = await authFetch(`${apiBase}/api/users/${id}/unban`, { method: "PATCH" });
+    const data = await parseResponseJson(response);
+    if (!response.ok) return { success: false, message: data.message || "Failed to restore user" };
+    setUsers((prev) => prev.map((u) => (u.id === data.id ? data : u)));
+    return { success: true, user: data };
+  };
+
   const deleteUser = async (id) => {
     const response = await authFetch(`${apiBase}/api/users/${id}`, { method: "DELETE" });
     const data = await parseResponseJson(response);
@@ -316,8 +342,9 @@ export function AuthProvider({ children }) {
         fetchUsersByRole("student"),
         fetchUsersByRole("counselor"),
         fetchUsersByRole("college_rep"),
+        fetchUsersByRole("admin"),
       ])
-        .then(([students, counselors, reps]) => setUsers([...students, ...counselors, ...reps]))
+        .then(([students, counselors, reps, admins]) => setUsers([...students, ...counselors, ...reps, ...admins]))
         .catch((err) => console.error("Failed to load users:", err));
     } else if (currentUser?.role === "college_rep") {
       Promise.all([
@@ -352,6 +379,9 @@ export function AuthProvider({ children }) {
       createUser,
       updateUser,
       deleteUser,
+      banUser,
+      unbanUser,
+      changePassword,
     }}>
       {children}
     </AuthContext.Provider>

@@ -23,12 +23,6 @@ import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../utils/phone
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-const ROLE_OPTIONS = [
-  { value: "student", label: "Student" },
-  { value: "counselor", label: "Counselor" },
-  { value: "college_rep", label: "College" },
-  { value: "admin", label: "Admin" },
-];
 
 // Mirrors the backend password policy (backend/utils/password.js)
 const isStrongPassword = (pw) =>
@@ -53,8 +47,8 @@ export default function Login() {
   const { login, signup } = useAuth();
   const navigate = useNavigate();
   const [isSignup, setIsSignup] = useState(false);
+  const [signupStep, setSignupStep] = useState(1);
   const [showSignupSuccess, setShowSignupSuccess] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("student");
   const [loginLoading, setLoginLoading] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -83,11 +77,6 @@ export default function Login() {
   const [signupErrors, setSignupErrors] = useState(emptySignupErrors);
   const [corPreview, setCorPreview] = useState(null);
 
-  const identifierLabel = useMemo(
-    () => (selectedRole === "student" ? "Student ID" : "Email address"),
-    [selectedRole]
-  );
-
   const resetLoginErrors = () => setLoginErrors(emptyLoginErrors);
   const resetSignupErrors = () => setSignupErrors(emptySignupErrors);
 
@@ -111,7 +100,13 @@ export default function Login() {
       setSignupForm((p) => ({ ...p, department: value, program: "" }));
       return;
     }
-    setSignupForm((p) => ({ ...p, [name]: name === "phone" ? sanitizePhoneDigits(value) : value }));
+    setSignupForm((p) => ({
+      ...p,
+      [name]:
+        name === "phone" ? sanitizePhoneDigits(value) :
+          name === "studentId" ? value.replace(/\D/g, "").slice(0, 9) :
+            value,
+    }));
   };
 
   const handleCorUpload = (e) => {
@@ -162,7 +157,7 @@ export default function Login() {
   const validateLogin = () => {
     const nextErrors = { ...emptyLoginErrors };
     if (!loginForm.identifier.trim()) {
-      nextErrors.identifier = `${identifierLabel} is required.`;
+      nextErrors.identifier = "Student ID or email is required.";
     }
     if (!loginForm.password) {
       nextErrors.password = "Password is required.";
@@ -170,37 +165,47 @@ export default function Login() {
     return nextErrors;
   };
 
-  const validateSignup = () => {
-    const nextErrors = { ...emptySignupErrors };
-    if (!signupForm.name.trim()) nextErrors.name = "Full name is required.";
-    if (!signupForm.email.trim()) nextErrors.email = "Email is required.";
-    if (!signupForm.studentId.trim()) nextErrors.studentId = "Student ID is required.";
-    if (!signupForm.department) nextErrors.department = "Please select your department.";
-    if (!signupForm.program) nextErrors.program = "Please select your program / course.";
-    if (signupForm.phone && !isValidPhMobile(signupForm.phone)) {
-      nextErrors.phone = PHONE_HINT;
+
+  const validateStep = (step) => {
+    const next = { ...emptySignupErrors };
+    if (step === 1) {
+      if (!signupForm.name.trim()) next.name = "Full name is required.";
+      if (!/^\d{9}$/.test(signupForm.studentId)) next.studentId = "Student ID must be exactly 9 digits.";
+      if (!signupForm.email.trim()) next.email = "Email is required.";
+      else {
+        const emailLower = signupForm.email.toLowerCase();
+        const allowed = ["@msu.edu.ph", "@s.msumain.edu.ph", "@msumain.edu.ph"];
+        if (!allowed.some((d) => emailLower.endsWith(d)))
+          next.email = "Use your MSU institutional email (e.g., name@s.msumain.edu.ph).";
+      }
+      if (signupForm.phone && !isValidPhMobile(signupForm.phone)) next.phone = PHONE_HINT;
     }
-    if (!signupForm.password) nextErrors.password = "Password is required.";
-    if (signupForm.password && !isStrongPassword(signupForm.password)) {
-      nextErrors.password = "Use at least 8 characters with a letter and a number.";
+    if (step === 2) {
+      if (!signupForm.department) next.department = "Please select your department.";
+      if (!signupForm.program) next.program = "Please select your program / course.";
     }
-    if (!signupForm.confirmPassword) nextErrors.confirmPassword = "Confirm your password.";
-    if (
-      signupForm.password &&
-      signupForm.confirmPassword &&
-      signupForm.password !== signupForm.confirmPassword
-    ) {
-      nextErrors.confirmPassword = "Passwords do not match.";
+    if (step === 3) {
+      if (!signupForm.corImage) next.cor = "Please upload your Certificate of Registration (COR).";
     }
-    if (!signupForm.corImage) {
-      nextErrors.cor = "Please upload your Certificate of Registration (COR).";
+    if (step === 4) {
+      if (!signupForm.password) next.password = "Password is required.";
+      else if (!isStrongPassword(signupForm.password))
+        next.password = "Use at least 8 characters with a letter and a number.";
+      if (!signupForm.confirmPassword) next.confirmPassword = "Confirm your password.";
+      else if (signupForm.password !== signupForm.confirmPassword)
+        next.confirmPassword = "Passwords do not match.";
     }
-    const emailLower = signupForm.email.toLowerCase();
-    const allowedDomains = ["@msu.edu.ph", "@s.msumain.edu.ph", "@msumain.edu.ph"];
-    if (signupForm.email && !allowedDomains.some((d) => emailLower.endsWith(d))) {
-      nextErrors.email = "Use your MSU institutional email (e.g., name@s.msumain.edu.ph).";
+    return next;
+  };
+
+  const handleNextStep = () => {
+    resetSignupErrors();
+    const errors = validateStep(signupStep);
+    if (Object.values(errors).some(Boolean)) {
+      setSignupErrors(errors);
+      return;
     }
-    return nextErrors;
+    setSignupStep((s) => s + 1);
   };
 
   const handleLoginSubmit = async (e) => {
@@ -215,7 +220,6 @@ export default function Login() {
     const res = await login({
       identifier: loginForm.identifier,
       password: loginForm.password,
-      role: selectedRole,
     });
     if (!res.success) {
       setLoginErrors((prev) => ({ ...prev, form: res.message || "Invalid credentials." }));
@@ -228,7 +232,7 @@ export default function Login() {
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
     resetSignupErrors();
-    const validation = validateSignup();
+    const validation = validateStep(4);
     if (Object.values(validation).some(Boolean)) {
       setSignupErrors(validation);
       return;
@@ -286,44 +290,29 @@ export default function Login() {
   }
 
   if (isSignup) {
+    const stepTitles = ["Create your account", "Academic information", "Upload documents", "Set your password"];
+
     return (
       <AuthShell>
         <div className="bg-white rounded-2xl shadow-xl ring-1 ring-gray-950/5 w-full max-w-md p-8">
           <h1 className="text-2xl font-semibold text-gray-900 tracking-tight mb-6">
-            Create your account
+            {stepTitles[signupStep - 1]}
           </h1>
 
-          <form onSubmit={handleSignupSubmit} className="space-y-4">
-            <FieldRow label="Full name" error={signupErrors.name}>
-              <input
-                name="name"
-                value={signupForm.name}
-                onChange={handleSignupChange}
-                className={INPUT}
-                placeholder="Juan Dela Cruz"
-                required
-              />
-            </FieldRow>
-
-            <FieldRow
-              label="Institutional email"
-
-              error={signupErrors.email}
-            >
-              <InputWithIcon icon={Mail}>
+          {/* Step 1 — Personal info */}
+          {signupStep === 1 && (
+            <div className="space-y-4">
+              <FieldRow label="Full name" error={signupErrors.name}>
                 <input
-                  name="email"
-                  type="email"
-                  value={signupForm.email}
+                  name="name"
+                  value={signupForm.name}
                   onChange={handleSignupChange}
-                  className={`${INPUT} pl-9`}
-                  placeholder="name@s.msumain.edu.ph"
-                  required
+                  className={INPUT}
+                  placeholder="Juan Dela Cruz"
+                  autoFocus
                 />
-              </InputWithIcon>
-            </FieldRow>
+              </FieldRow>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FieldRow label="Student ID" error={signupErrors.studentId}>
                 <InputWithIcon icon={Hash}>
                   <input
@@ -331,12 +320,27 @@ export default function Login() {
                     value={signupForm.studentId}
                     onChange={handleSignupChange}
                     className={`${INPUT} pl-9`}
-                    placeholder="202329207"
-                    required
+                    inputMode="numeric"
+                    maxLength={9}
+                    placeholder="9-digit ID"
                   />
                 </InputWithIcon>
               </FieldRow>
-              <FieldRow label="Phone Number" error={signupErrors.phone}>
+
+              <FieldRow label="Institutional email" error={signupErrors.email}>
+                <InputWithIcon icon={Mail}>
+                  <input
+                    name="email"
+                    type="email"
+                    value={signupForm.email}
+                    onChange={handleSignupChange}
+                    className={`${INPUT} pl-9`}
+                    placeholder="name@s.msumain.edu.ph"
+                  />
+                </InputWithIcon>
+              </FieldRow>
+
+              <FieldRow label="Phone number" error={signupErrors.phone}>
                 <InputWithIcon icon={Phone}>
                   <input
                     name="phone"
@@ -350,171 +354,212 @@ export default function Login() {
                   />
                 </InputWithIcon>
               </FieldRow>
-            </div>
 
-            <FieldRow label="College">
-              <select
-                name="college"
-                value={signupForm.college}
-                onChange={handleSignupChange}
-                className={INPUT}
-              >
-                {COLLEGES.map((c) => (
-                  <option key={c} value={c}>
-                    {c} — {getCollegeName(c)}
-                  </option>
-                ))}
-              </select>
-            </FieldRow>
-
-            <FieldRow label="Department" error={signupErrors.department}>
-              <select
-                name="department"
-                value={signupForm.department}
-                onChange={handleSignupChange}
-                className={INPUT}
-              >
-                <option value="">Select department</option>
-                {getDepartments(signupForm.college).map((d) => (
-                  <option key={d.code} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </FieldRow>
-
-            <FieldRow label="Program / Course" error={signupErrors.program}>
-              <select
-                name="program"
-                value={signupForm.program}
-                onChange={handleSignupChange}
-                className={INPUT}
-                disabled={!signupForm.department}
-              >
-                <option value="">
-                  {signupForm.department ? "Select program / course" : "Select a department first"}
-                </option>
-                {getPrograms(signupForm.college, signupForm.department).map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </FieldRow>
-
-            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
-              <div className="flex items-baseline justify-between gap-2 mb-2">
-                <p className="text-sm font-medium text-gray-800">
-                  Certificate of Registration
-                </p>
-                <p className="text-xs text-gray-400">JPG, PNG or PDF · max 5 MB</p>
-              </div>
-
-              <input
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,application/pdf"
-                onChange={handleCorUpload}
-                className="hidden"
-                id="cor-upload"
-              />
-
-              {!corPreview ? (
-                <label
-                  htmlFor="cor-upload"
-                  className={`${BTN.secondary} w-full cursor-pointer`}
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsSignup(false); resetSignupErrors(); }}
+                  className="text-sm text-maroon-700 hover:text-maroon-800 font-medium inline-flex items-center gap-1"
                 >
-                  <Upload size={14} /> Choose file
-                </label>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-medium">
-                    <CheckCircle2 size={14} /> File uploaded
-                  </div>
-                  {signupForm.corImage?.startsWith("data:image") && (
-                    <img
-                      src={corPreview}
-                      alt="COR preview"
-                      className="w-full h-32 object-contain border border-gray-200 rounded-md bg-white"
-                    />
-                  )}
-                  {signupForm.corImage?.startsWith("data:application/pdf") && (
-                    <div className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded-md">
-                      <FileText size={18} className="text-red-500" />
-                      <span className="text-xs text-gray-700">PDF file uploaded</span>
+                  <ArrowLeft size={14} /> Back to login
+                </button>
+                <button type="button" onClick={handleNextStep} className={BTN.primary}>
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2 — Academic info */}
+          {signupStep === 2 && (
+            <div className="space-y-4">
+              <FieldRow label="College">
+                <select
+                  name="college"
+                  value={signupForm.college}
+                  onChange={handleSignupChange}
+                  className={INPUT}
+                >
+                  {COLLEGES.map((c) => (
+                    <option key={c} value={c}>
+                      {c} — {getCollegeName(c)}
+                    </option>
+                  ))}
+                </select>
+              </FieldRow>
+
+              <FieldRow label="Department" error={signupErrors.department}>
+                <select
+                  name="department"
+                  value={signupForm.department}
+                  onChange={handleSignupChange}
+                  className={INPUT}
+                >
+                  <option value="">Select department</option>
+                  {getDepartments(signupForm.college).map((d) => (
+                    <option key={d.code} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </FieldRow>
+
+              <FieldRow label="Program / Course" error={signupErrors.program}>
+                <select
+                  name="program"
+                  value={signupForm.program}
+                  onChange={handleSignupChange}
+                  className={INPUT}
+                  disabled={!signupForm.department}
+                >
+                  <option value="">
+                    {signupForm.department ? "Select program / course" : "Select a department first"}
+                  </option>
+                  {getPrograms(signupForm.college, signupForm.department).map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </FieldRow>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setSignupStep(1); resetSignupErrors(); }}
+                  className="text-sm text-maroon-700 hover:text-maroon-800 font-medium inline-flex items-center gap-1"
+                >
+                  <ArrowLeft size={14} /> Back
+                </button>
+                <button type="button" onClick={handleNextStep} className={BTN.primary}>
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3 — Documents */}
+          {signupStep === 3 && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
+                <div className="flex items-baseline justify-between gap-2 mb-2">
+                  <p className="text-sm font-medium text-gray-800">Certificate of Registration</p>
+                  <p className="text-xs text-gray-400">JPG, PNG or PDF · max 5 MB</p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,application/pdf"
+                  onChange={handleCorUpload}
+                  className="hidden"
+                  id="cor-upload"
+                />
+                {!corPreview ? (
+                  <label htmlFor="cor-upload" className={`${BTN.secondary} w-full cursor-pointer`}>
+                    <Upload size={14} /> Choose file
+                  </label>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-medium">
+                      <CheckCircle2 size={14} /> File uploaded
                     </div>
-                  )}
-                  <label
-                    htmlFor="cor-upload"
-                    className="inline-block text-xs text-maroon-700 hover:text-maroon-800 cursor-pointer font-medium"
-                  >
-                    Change file
-                  </label>
-                </div>
-              )}
-              {signupErrors.cor && (
-                <p className="text-xs text-red-600 mt-2">{signupErrors.cor}</p>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
-              <div className="flex items-baseline justify-between gap-2 mb-2">
-                <p className="text-sm font-medium text-gray-800">
-                  1x1 Picture
-                </p>
-                <p className="text-xs text-gray-400">JPG or PNG · max 2 MB</p>
+                    {signupForm.corImage?.startsWith("data:image") && (
+                      <img
+                        src={corPreview}
+                        alt="COR preview"
+                        className="w-full h-32 object-contain border border-gray-200 rounded-md bg-white"
+                      />
+                    )}
+                    {signupForm.corImage?.startsWith("data:application/pdf") && (
+                      <div className="flex items-center gap-2 p-2.5 bg-white border border-gray-200 rounded-md">
+                        <FileText size={18} className="text-red-500" />
+                        <span className="text-xs text-gray-700">PDF file uploaded</span>
+                      </div>
+                    )}
+                    <label
+                      htmlFor="cor-upload"
+                      className="inline-block text-xs text-maroon-700 hover:text-maroon-800 cursor-pointer font-medium"
+                    >
+                      Change file
+                    </label>
+                  </div>
+                )}
+                {signupErrors.cor && (
+                  <p className="text-xs text-red-600 mt-2">{signupErrors.cor}</p>
+                )}
               </div>
 
-              <input
-                type="file"
-                accept="image/jpeg,image/jpg,image/png"
-                onChange={handleAvatarUpload}
-                className="hidden"
-                id="avatar-upload"
-              />
-
-              {!signupForm.avatarImage ? (
-                <label
-                  htmlFor="avatar-upload"
-                  className={`${BTN.secondary} w-full cursor-pointer`}
-                >
-                  <Upload size={14} /> Choose 1x1 picture
-                </label>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-medium">
-                    <CheckCircle2 size={14} /> Picture uploaded
-                  </div>
-                  <img
-                    src={signupForm.avatarImage}
-                    alt="1x1 preview"
-                    className="w-24 h-24 object-cover border border-gray-200 rounded-md bg-white mx-auto"
-                  />
-                  <label
-                    htmlFor="avatar-upload"
-                    className="block text-center text-xs text-maroon-700 hover:text-maroon-800 cursor-pointer font-medium"
-                  >
-                    Change picture
-                  </label>
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
+                <div className="flex items-baseline justify-between gap-2 mb-2">
+                  <p className="text-sm font-medium text-gray-800">1x1 Picture</p>
+                  <p className="text-xs text-gray-400">JPG or PNG · max 2 MB</p>
                 </div>
-              )}
-              {signupErrors.avatar && (
-                <p className="text-xs text-red-600 mt-2">{signupErrors.avatar}</p>
-              )}
-            </div>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                  id="avatar-upload"
+                />
+                {!signupForm.avatarImage ? (
+                  <label htmlFor="avatar-upload" className={`${BTN.secondary} w-full cursor-pointer`}>
+                    <Upload size={14} /> Choose 1x1 picture
+                  </label>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 text-emerald-700 text-xs font-medium">
+                      <CheckCircle2 size={14} /> Picture uploaded
+                    </div>
+                    <img
+                      src={signupForm.avatarImage}
+                      alt="1x1 preview"
+                      className="w-24 h-24 object-cover border border-gray-200 rounded-md bg-white mx-auto"
+                    />
+                    <label
+                      htmlFor="avatar-upload"
+                      className="block text-center text-xs text-maroon-700 hover:text-maroon-800 cursor-pointer font-medium"
+                    >
+                      Change picture
+                    </label>
+                  </div>
+                )}
+                {signupErrors.avatar && (
+                  <p className="text-xs text-red-600 mt-2">{signupErrors.avatar}</p>
+                )}
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setSignupStep(2); resetSignupErrors(); }}
+                  className="text-sm text-maroon-700 hover:text-maroon-800 font-medium inline-flex items-center gap-1"
+                >
+                  <ArrowLeft size={14} /> Back
+                </button>
+                <button type="button" onClick={handleNextStep} className={BTN.primary}>
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4 — Password */}
+          {signupStep === 4 && (
+            <form onSubmit={handleSignupSubmit} className="space-y-4">
               <FieldRow label="Password" error={signupErrors.password}>
-                <InputWithIcon icon={Lock} trailing={
-                  <button
-                    type="button"
-                    onClick={() => setShowSignupPassword((s) => !s)}
-                    className="text-gray-400 hover:text-gray-600"
-                    tabIndex={-1}
-                    aria-label="Toggle password visibility"
-                  >
-                    {showSignupPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                }>
+                <InputWithIcon
+                  icon={Lock}
+                  trailing={
+                    <button
+                      type="button"
+                      onClick={() => setShowSignupPassword((s) => !s)}
+                      className="text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                      aria-label="Toggle password visibility"
+                    >
+                      {showSignupPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  }
+                >
                   <input
                     name="password"
                     type={showSignupPassword ? "text" : "password"}
@@ -522,10 +567,11 @@ export default function Login() {
                     onChange={handleSignupChange}
                     className={`${INPUT} pl-9 pr-9`}
                     placeholder="At least 8 characters"
-                    required
+                    autoFocus
                   />
                 </InputWithIcon>
               </FieldRow>
+
               <FieldRow label="Confirm password" error={signupErrors.confirmPassword}>
                 <InputWithIcon icon={Lock}>
                   <input
@@ -535,31 +581,30 @@ export default function Login() {
                     onChange={handleSignupChange}
                     className={`${INPUT} pl-9`}
                     placeholder="Repeat password"
-                    required
                   />
                 </InputWithIcon>
               </FieldRow>
-            </div>
 
-            {signupErrors.form && (
-              <div className="px-3 py-2 rounded-md border border-red-200 bg-red-50 text-sm text-red-700">
-                {signupErrors.form}
+              {signupErrors.form && (
+                <div className="px-3 py-2 rounded-md border border-red-200 bg-red-50 text-sm text-red-700">
+                  {signupErrors.form}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setSignupStep(3); resetSignupErrors(); }}
+                  className="text-sm text-maroon-700 hover:text-maroon-800 font-medium inline-flex items-center gap-1"
+                >
+                  <ArrowLeft size={14} /> Back
+                </button>
+                <button type="submit" disabled={signupLoading} className={BTN.primary}>
+                  {signupLoading ? "Creating account…" : "Create account"}
+                </button>
               </div>
-            )}
-
-            <div className="flex items-center justify-between gap-4 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsSignup(false)}
-                className="text-sm text-maroon-700 hover:text-maroon-800 font-medium inline-flex items-center gap-1"
-              >
-                <ArrowLeft size={14} /> Back to login
-              </button>
-              <button type="submit" disabled={signupLoading} className={BTN.primary}>
-                {signupLoading ? "Creating account…" : "Create account"}
-              </button>
-            </div>
-          </form>
+            </form>
+          )}
         </div>
       </AuthShell>
     );
@@ -577,26 +622,16 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleLoginSubmit} className="space-y-4">
-          <RoleSelector
-            value={selectedRole}
-            onChange={(value) => {
-              setSelectedRole(value);
-              resetLoginErrors();
-            }}
-          />
-
-          <FieldRow label={identifierLabel} error={loginErrors.identifier}>
-            <InputWithIcon icon={selectedRole === "student" ? UserRound : Mail}>
+          <FieldRow label="Student ID / I-Email" error={loginErrors.identifier}>
+            <InputWithIcon icon={UserRound}>
               <input
                 name="identifier"
                 value={loginForm.identifier}
                 onChange={handleLoginChange}
-                type={selectedRole === "student" ? "text" : "email"}
+                type="text"
                 required
                 className={`${INPUT} pl-9`}
-                placeholder={
-                  selectedRole === "student" ? "" : `${selectedRole}@msu.edu.ph`
-                }
+                placeholder="name@s.msumain.edu.ph"
               />
             </InputWithIcon>
           </FieldRow>
@@ -634,12 +669,6 @@ export default function Login() {
             </div>
           )}
 
-          {(selectedRole === "counselor" || selectedRole === "college_rep") && (
-            <p className="text-xs text-gray-500 -mt-1 text-center">
-              Accounts are created by the DSA admin.
-            </p>
-          )}
-
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -651,18 +680,17 @@ export default function Login() {
             >
               Forgot password?
             </button>
-            {selectedRole === "student" && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignup(true);
-                  resetSignupErrors();
-                }}
-                className="text-sm text-gray-600 hover:text-gray-900 font-medium"
-              >
-                Create an account
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignup(true);
+                setSignupStep(1);
+                resetSignupErrors();
+              }}
+              className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+            >
+              Create an account
+            </button>
           </div>
 
           <button
@@ -682,22 +710,10 @@ export default function Login() {
   );
 }
 
-const NATURE_OF_CONCERN_OPTIONS = [
-  "Mental Health Crisis",
-  "Academic Distress",
-  "Family Problem",
-  "Harassment or Bullying",
-  "Personal Emergency",
-  "Other",
-];
-
 const EMPTY_URGENT_FORM = {
   fullName: "",
   studentIdNumber: "",
-  college: "",
-  contactNumber: "",
-  natureOfConcern: "",
-  natureOfConcernOther: "",
+  institutionalEmail: "",
   description: "",
 };
 
@@ -707,11 +723,15 @@ function AuthShell({ children }) {
   const [urgentFormErrors, setUrgentFormErrors] = useState({});
   const [urgentLoading, setUrgentLoading] = useState(false);
   const [urgentError, setUrgentError] = useState("");
+  const [urgentQueueNumber, setUrgentQueueNumber] = useState(null);
+  const [urgentSubmittedAt, setUrgentSubmittedAt] = useState(null);
 
   const openUrgentFlow = () => {
     setUrgentForm(EMPTY_URGENT_FORM);
     setUrgentFormErrors({});
     setUrgentError("");
+    setUrgentQueueNumber(null);
+    setUrgentSubmittedAt(null);
     setUrgentModal("notice");
   };
 
@@ -723,12 +743,14 @@ function AuthShell({ children }) {
   const validateUrgentForm = () => {
     const errors = {};
     if (!urgentForm.fullName.trim()) errors.fullName = "Required";
-    if (!urgentForm.studentIdNumber.trim()) errors.studentIdNumber = "Required";
-    if (!urgentForm.college.trim()) errors.college = "Required";
-    if (!urgentForm.contactNumber.trim()) errors.contactNumber = "Required";
-    if (!urgentForm.natureOfConcern.trim()) errors.natureOfConcern = "Required";
-    if (urgentForm.natureOfConcern === "Other" && !urgentForm.natureOfConcernOther.trim()) {
-      errors.natureOfConcernOther = "Please specify";
+    if (!/^\d{9}$/.test(urgentForm.studentIdNumber)) errors.studentIdNumber = "Must be exactly 9 digits.";
+    if (!urgentForm.institutionalEmail.trim()) {
+      errors.institutionalEmail = "Required";
+    } else {
+      const emailLower = urgentForm.institutionalEmail.toLowerCase();
+      const allowed = ["@msu.edu.ph", "@s.msumain.edu.ph", "@msumain.edu.ph"];
+      if (!allowed.some((d) => emailLower.endsWith(d)))
+        errors.institutionalEmail = "Use your MSU institutional email (e.g., name@s.msumain.edu.ph).";
     }
     if (!urgentForm.description.trim()) errors.description = "Required";
     return errors;
@@ -751,14 +773,25 @@ function AuthShell({ children }) {
       const res = await fetch(`${API_BASE}/api/urgent-counseling-requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(urgentForm),
+        body: JSON.stringify({
+          fullName: urgentForm.fullName,
+          studentIdNumber: urgentForm.studentIdNumber,
+          institutionalEmail: urgentForm.institutionalEmail,
+          description: urgentForm.description,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setUrgentError(data.message || "Unable to submit request. Please try again.");
         return;
       }
-      setUrgentModal(data.alreadyPending ? "duplicate" : "success");
+      if (data.alreadyPending) {
+        setUrgentModal("duplicate");
+      } else {
+        setUrgentQueueNumber(data.queueNumber ?? null);
+        setUrgentSubmittedAt(new Date());
+        setUrgentModal("success");
+      }
     } catch {
       setUrgentError("Network error. Please try again or visit the office directly.");
     } finally {
@@ -824,7 +857,7 @@ function AuthShell({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-maroon-600 via-maroon-700 to-maroon-800 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-maroon-600 via-maroon-700 to-maroon-800 flex items-center justify-center p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <button
         type="button"
         onClick={openUrgentFlow}
@@ -859,6 +892,8 @@ function AuthShell({ children }) {
           onConfirm={submitUrgentRequest}
           loading={urgentLoading}
           error={urgentError}
+          queueNumber={urgentQueueNumber}
+          submittedAt={urgentSubmittedAt}
         />
       )}
     </div>
@@ -877,6 +912,8 @@ function UrgentCounselingModal({
   onConfirm,
   loading,
   error,
+  queueNumber,
+  submittedAt,
 }) {
   if (step === "notice") {
     return (
@@ -910,7 +947,7 @@ function UrgentCounselingModal({
         onClose={onClose}
         title="Urgent Counseling Request"
         subtitle="Please provide the following information."
-        size="lg"
+        size="md"
       >
         <div className="space-y-4">
           <FieldRow label="Full Name" error={formErrors.fullName}>
@@ -918,6 +955,7 @@ function UrgentCounselingModal({
               <input
                 className={`${INPUT} pl-9`}
                 value={form.fullName}
+                placeholder="Juan Dela Cruz"
                 onChange={(e) => onFormChange("fullName", e.target.value)}
               />
             </InputWithIcon>
@@ -927,64 +965,34 @@ function UrgentCounselingModal({
             <InputWithIcon icon={Hash}>
               <input
                 className={`${INPUT} pl-9`}
+                inputMode="numeric"
+                maxLength={9}
+                placeholder="202647532"
                 value={form.studentIdNumber}
-                onChange={(e) => onFormChange("studentIdNumber", e.target.value)}
+                onChange={(e) => onFormChange("studentIdNumber", e.target.value.replace(/\D/g, "").slice(0, 9))}
               />
             </InputWithIcon>
           </FieldRow>
 
-          <FieldRow label="College/Department" error={formErrors.college}>
-            <select
-              className={INPUT}
-              value={form.college}
-              onChange={(e) => onFormChange("college", e.target.value)}
-            >
-              <option value="">Select college/department</option>
-              {COLLEGES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </FieldRow>
-
-          <FieldRow label="Contact Number" error={formErrors.contactNumber}>
-            <InputWithIcon icon={Phone}>
+          <FieldRow label="Institutional Email" error={formErrors.institutionalEmail}>
+            <InputWithIcon icon={Mail}>
               <input
                 className={`${INPUT} pl-9`}
-                value={form.contactNumber}
-                onChange={(e) => onFormChange("contactNumber", e.target.value)}
+                type="email"
+                placeholder="name@s.msumain.edu.ph"
+                value={form.institutionalEmail}
+                onChange={(e) => onFormChange("institutionalEmail", e.target.value)}
               />
             </InputWithIcon>
           </FieldRow>
 
-          <FieldRow label="Nature of Concern" error={formErrors.natureOfConcern}>
-            <select
-              className={INPUT}
-              value={form.natureOfConcern}
-              onChange={(e) => onFormChange("natureOfConcern", e.target.value)}
-            >
-              <option value="">Select nature of concern</option>
-              {NATURE_OF_CONCERN_OPTIONS.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
-          </FieldRow>
-
-          {form.natureOfConcern === "Other" && (
-            <FieldRow label="Please specify" error={formErrors.natureOfConcernOther}>
-              <input
-                className={INPUT}
-                value={form.natureOfConcernOther}
-                onChange={(e) => onFormChange("natureOfConcernOther", e.target.value)}
-              />
-            </FieldRow>
-          )}
-
-          <FieldRow label="Brief Description of Emergency" error={formErrors.description}>
+          <FieldRow label="Description of Emergency" error={formErrors.description}>
             <textarea
-              rows={3}
+              rows={4}
               className={INPUT}
               value={form.description}
               onChange={(e) => onFormChange("description", e.target.value)}
+              placeholder="Briefly describe your emergency or concern"
             />
           </FieldRow>
         </div>
@@ -1042,6 +1050,24 @@ function UrgentCounselingModal({
   // step === "success"
   return (
     <Modal open onClose={onClose} title="Request Submitted" size="md">
+      {queueNumber != null && (
+        <div className="flex flex-col items-center py-4 mb-4 bg-red-50 rounded-xl border border-red-100">
+          <p className="text-xs font-medium text-red-600 uppercase tracking-wide mb-1">Your Queue Number</p>
+          <span className="text-5xl font-bold text-red-700 tabular-nums">{queueNumber}</span>
+          {submittedAt && (
+            <p className="text-xs text-red-500 mt-1">
+              {submittedAt.toLocaleString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })}
+            </p>
+          )}
+        </div>
+      )}
       <p className="text-sm text-gray-700 leading-relaxed">
         Your urgent counseling request has been recorded and all available counselors
         have been notified. Please proceed to the Division of Student Affairs Office –
@@ -1054,27 +1080,6 @@ function UrgentCounselingModal({
   );
 }
 
-function RoleSelector({ value, onChange }) {
-  return (
-    <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-xl" role="tablist">
-      {ROLE_OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          role="tab"
-          aria-selected={opt.value === value}
-          onClick={() => onChange(opt.value)}
-          className={`py-2 rounded-lg text-xs font-medium transition-colors ${opt.value === value
-            ? "bg-white shadow-sm text-gray-900"
-            : "text-gray-500 hover:text-gray-700"
-            }`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function FieldRow({ label, hint, error, children }) {
   return (
