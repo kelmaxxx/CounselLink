@@ -303,6 +303,21 @@ CREATE TABLE IF NOT EXISTS password_resets (
   INDEX idx_pwreset_email_lookup (user_id, used_at, expires_at)
 );
 
+-- Signup email-mailbox verification. Keyed by email (no user row exists yet at
+-- verify time): a student must confirm an emailed 6-digit code before their
+-- registration is accepted, proving they control the MSU email they gave.
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  email VARCHAR(120) NOT NULL,
+  otp_code VARCHAR(8) NULL,
+  otp_attempts INT NOT NULL DEFAULT 0,
+  verified_at DATETIME NULL,
+  expires_at DATETIME NOT NULL,
+  consumed_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_emailverif_lookup (email, consumed_at, expires_at)
+);
+
 -- Whether the student allows a referral session's report to be shared with
 -- the referring College Representative. Separate from the primary informed
 -- consent (student_consents.e_consent_signed_at) — this is decided per
