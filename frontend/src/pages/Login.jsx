@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL } from "../components/ui";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../utils/phone";
+import { compressImage } from "../utils/compressImage";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -114,16 +115,21 @@ export default function Login() {
     setSignupForm((p) => ({ ...p, [name]: name === "phone" ? sanitizePhoneDigits(value) : value }));
   };
 
-  const handleCorUpload = (e) => {
+  const handleCorUpload = async (e) => {
     resetSignupErrors();
-    const file = e.target.files[0];
-    if (!file) return;
+    const original = e.target.files[0];
+    if (!original) return;
 
     const validTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
-    if (!validTypes.includes(file.type)) {
+    if (!validTypes.includes(original.type)) {
       setSignupErrors((prev) => ({ ...prev, cor: "Upload a JPG, PNG, or PDF file." }));
       return;
     }
+
+    // Shrink oversized phone photos (PDFs pass through) *before* the size check,
+    // so a large HD scan can still fit under the 5MB limit.
+    const file = await compressImage(original, { maxDimension: 2200, quality: 0.82 });
+
     if (file.size > 5 * 1024 * 1024) {
       setSignupErrors((prev) => ({ ...prev, cor: "File size must be under 5MB." }));
       return;
@@ -137,16 +143,20 @@ export default function Login() {
     reader.readAsDataURL(file);
   };
 
-  const handleAvatarUpload = (e) => {
+  const handleAvatarUpload = async (e) => {
     resetSignupErrors();
-    const file = e.target.files[0];
-    if (!file) return;
+    const original = e.target.files[0];
+    if (!original) return;
 
     const validTypes = ["image/jpeg", "image/jpg", "image/png"];
-    if (!validTypes.includes(file.type)) {
+    if (!validTypes.includes(original.type)) {
       setSignupErrors((prev) => ({ ...prev, avatar: "Upload a JPG or PNG file." }));
       return;
     }
+
+    // A 2x2 photo only needs to be ~1000px; compress the HD original down first.
+    const file = await compressImage(original, { maxDimension: 1000, quality: 0.85 });
+
     if (file.size > 2 * 1024 * 1024) {
       setSignupErrors((prev) => ({ ...prev, avatar: "File size must be under 2MB." }));
       return;
