@@ -5,6 +5,8 @@ export const listAuditLogs = async (req, res) => {
   const offset = parseInt(req.query.offset, 10) || 0;
   const filterAction = req.query.action;
   const filterActorRole = req.query.actorRole;
+  const dateFrom = req.query.dateFrom;
+  const dateTo = req.query.dateTo;
 
   const where = [];
   const params = [];
@@ -15,6 +17,14 @@ export const listAuditLogs = async (req, res) => {
   if (filterActorRole) {
     where.push("a.actor_role = ?");
     params.push(filterActorRole);
+  }
+  if (dateFrom) {
+    where.push("DATE(a.created_at) >= ?");
+    params.push(dateFrom);
+  }
+  if (dateTo) {
+    where.push("DATE(a.created_at) <= ?");
+    params.push(dateTo);
   }
   const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 

@@ -3,28 +3,22 @@ import { useAuth } from "../context/AuthContext";
 import { useMessages } from "../context/MessagesContext";
 import { MessageCircle, Search } from "lucide-react";
 import ChatModal from "../components/ChatModal";
-
-const ROLE_LABELS = {
-  student: "Student",
-  counselor: "Counselor",
-  college_rep: "College",
-  admin: "Admin",
-};
+import { initialsOf } from "../components/ui";
 
 export default function Messages() {
-  const { currentUser, lookupUser } = useAuth();
-  const { conversations, fetchConversations, getUnreadCount } = useMessages();
+  const { currentUser, users, lookupUser } = useAuth();
+  const { conversations, fetchConversations } = useMessages();
   const [chatRecipient, setChatRecipient] = useState(null);
   const [search, setSearch] = useState("");
   const [resolved, setResolved] = useState({});
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     fetchConversations().catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Each conversation row is the LATEST message between currentUser and other.
-  // Build a deduped list of "other users" with the latest message preview.
+  // Build deduped conversation list
   const items = useMemo(() => {
     const byOther = new Map();
     for (const m of conversations) {
@@ -49,6 +43,50 @@ export default function Messages() {
   const filtered = items.filter(it =>
     !search.trim() || it.otherName?.toLowerCase().includes(search.trim().toLowerCase())
   );
+
+  // People this user can start a new conversation with, based on role:
+  //   admin     → counselors only
+  //   counselor → other counselors + admins (admins listed first)
+  //   student   → counselors only
+  const suggestionPool = useMemo(() => {
+    const role = currentUser?.role;
+    const all = users || [];
+    if (role === "admin") {
+      return all
+        .filter((u) => u.role === "counselor" && u.status !== "banned")
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (role === "counselor") {
+      return all
+        .filter((u) => u.status !== "banned" && u.id !== currentUser?.id && (u.role === "counselor" || u.role === "admin"))
+        .sort((a, b) => {
+          if (a.role !== b.role) return a.role === "admin" ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+    }
+    if (role === "student" || role === "college_rep") {
+      return all
+        .filter((u) => u.role === "counselor" && u.status !== "banned")
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return [];
+  }, [users, currentUser?.role, currentUser?.id]);
+
+  const searchSuggestions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return suggestionPool.slice(0, 6);
+    return suggestionPool
+      .filter(
+        (u) =>
+          u.name.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q) ||
+          u.position?.toLowerCase().includes(q)
+      )
+      .slice(0, 6);
+  }, [suggestionPool, search]);
+
+  const canSuggest = suggestionPool.length > 0;
+  const suggestionLabel = currentUser?.role === "counselor" ? "Counselors & Admin" : "Counselors";
 
   const handleOpen = async (item) => {
     let user = resolved[item.otherId];
@@ -79,7 +117,11 @@ export default function Messages() {
         </div>
       </div>
 
-      <div className="mb-4 relative">
+      <div
+        className="mb-4 relative"
+        onMouseEnter={() => canSuggest && setShowSuggestions(true)}
+        onMouseLeave={() => setShowSuggestions(false)}
+      >
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
         <input
           type="text"
@@ -88,14 +130,41 @@ export default function Messages() {
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-maroon-500"
         />
+        {canSuggest && showSuggestions && searchSuggestions.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden">
+            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100">
+              {suggestionLabel}
+            </div>
+            <ul>
+              {searchSuggestions.map((u) => (
+                <li key={u.id}>
+                  <button
+                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 text-left transition"
+                    onMouseDown={(e) => { e.preventDefault(); setChatRecipient(u); setShowSuggestions(false); }}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                      {initialsOf(u.name)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {u.role === "admin" ? "Admin" : u.position || "Counselor"}
+                      </p>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <MessageCircle className="mx-auto mb-3 text-gray-300" size={48} />
             <p className="font-medium">No conversations yet</p>
-            <p className="text-sm mt-1">Start a conversation from an appointment or profile.</p>
+            <p className="text-sm mt-1">Hover over the search bar to find someone to message.</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200">
@@ -105,7 +174,7 @@ export default function Messages() {
                   onClick={() => handleOpen(item)}
                   className="w-full text-left px-4 py-4 hover:bg-gray-50 transition flex items-start gap-3"
                 >
-                  <div className="w-12 h-12 bg-maroon-600 text-white rounded-full flex items-center justify-center font-semibold flex-shrink-0">
+                  <div className="w-12 h-12 bg-maroon-600 text-white rounded-full flex items-center justify-center font-semibold flex-shrink-0 text-sm">
                     {item.otherName?.charAt(0).toUpperCase() || "?"}
                   </div>
                   <div className="flex-1 min-w-0">

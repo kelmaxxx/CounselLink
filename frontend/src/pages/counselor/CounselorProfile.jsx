@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   ThumbsUp,
   ClipboardList,
+  Lock,
 } from "lucide-react";
 import {
   PageHeader,
@@ -28,6 +29,7 @@ import {
   LABEL,
 } from "../../components/ui";
 import ProfileHero from "../../components/ProfileHero";
+import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { CounselorRatingBadge } from "../../components/RatingStars";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
@@ -41,6 +43,7 @@ export default function CounselorProfile() {
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
+  const [changePwOpen, setChangePwOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
     email: myRecord?.email || "",
@@ -156,10 +159,15 @@ export default function CounselorProfile() {
               Feedback Summary
             </button>
             {!isEditing ? (
-              <button onClick={() => setIsEditing(true)} className={BTN.primary}>
-                <Edit2 size={15} />
-                Edit profile
-              </button>
+              <>
+                <button onClick={() => setChangePwOpen(true)} className={BTN.secondary}>
+                  <Lock size={15} /> Change password
+                </button>
+                <button onClick={() => setIsEditing(true)} className={BTN.primary}>
+                  <Edit2 size={15} />
+                  Edit profile
+                </button>
+              </>
             ) : (
               <>
                 <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
@@ -187,6 +195,8 @@ export default function CounselorProfile() {
           {message.text}
         </div>
       )}
+
+      <ChangePasswordModal open={changePwOpen} onClose={() => setChangePwOpen(false)} />
 
       <ProfileHero
         theme="counselor"
