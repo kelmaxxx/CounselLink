@@ -137,14 +137,14 @@ export const getAdminReport = async (_req, res) => {
 // Aggregate counseling activity for one college, matching the figures the rep
 // dashboard used to compute client-side: every appointment for students in the
 // college, split by status.
-const computeCollegeTotals = async (college) => {
+const computeCollegeTotals = async (college, department = null) => {
   const rows = await query(
     `SELECT a.status, COUNT(*) AS count
      FROM appointments a
      JOIN users u ON a.student_id = u.id
-     WHERE u.college = ?
+     WHERE u.college = ?${department ? " AND u.department = ?" : ""}
      GROUP BY a.status`,
-    [college]
+    department ? [college, department] : [college]
   );
   const sumWhere = (statuses) =>
     rows
@@ -157,10 +157,12 @@ const computeCollegeTotals = async (college) => {
   };
 };
 
-const getCollegeStudentCount = async (college) => {
+const getCollegeStudentCount = async (college, department = null) => {
   const [row] = await query(
-    "SELECT COUNT(*) AS count FROM users WHERE role = 'student' AND college = ?",
-    [college]
+    `SELECT COUNT(*) AS count FROM users WHERE role = 'student' AND college = ?${
+      department ? " AND department = ?" : ""
+    }`,
+    department ? [college, department] : [college]
   );
   return Number(row?.count || 0);
 };
@@ -168,15 +170,15 @@ const getCollegeStudentCount = async (college) => {
 // Per-session breakdown for a college summary — deliberately omits student
 // name/number/id so the rep sees real session detail without identifying
 // which student it belongs to.
-const getCollegeAnonymizedSessions = async (college) => {
+const getCollegeAnonymizedSessions = async (college, department = null) => {
   const rows = await query(
     `SELECT cs.session_date AS sessionDate, cs.presenting_concern AS presentingConcern,
             cs.summary, cs.plan, cs.next_session AS nextSession
      FROM counseling_sessions cs
      JOIN users s ON cs.student_id = s.id
-     WHERE s.college = ? AND cs.finalized_at IS NOT NULL
+     WHERE s.college = ?${department ? " AND s.department = ?" : ""} AND cs.finalized_at IS NOT NULL
      ORDER BY cs.session_date DESC`,
-    [college]
+    department ? [college, department] : [college]
   );
   return rows;
 };
@@ -184,11 +186,12 @@ const getCollegeAnonymizedSessions = async (college) => {
 // Counselor-facing: the auto-computed totals for a college, used to prefill the
 // "generate college summary" form before the counselor adds their notes.
 export const getCollegeTotals = async (req, res) => {
-  const { college } = req.query;
+  const { college, department } = req.query;
   if (!college) return res.status(400).json({ message: "college is required" });
-  const totals = await computeCollegeTotals(college);
-  const studentCount = await getCollegeStudentCount(college);
-  return res.json({ college, totals, studentCount });
+  const dept = department?.trim() || null;
+  const totals = await computeCollegeTotals(college, dept);
+  const studentCount = await getCollegeStudentCount(college, dept);
+  return res.json({ college, department: dept, totals, studentCount });
 };
 
 // Counselor fulfills a college-wide summary request: the system computes the
@@ -204,15 +207,15 @@ export const createCollegeSummary = async (req, res) => {
   }
 
   const [request] = await query(
-    "SELECT id, requester_id, counselor_id, request_type, status FROM report_requests WHERE id = ?",
+    "SELECT id, requester_id, counselor_id, request_type, department, status FROM report_requests WHERE id = ?",
     [requestId]
   );
   if (!request) return res.status(404).json({ message: "Report request not found" });
   if (request.counselor_id !== counselorId) {
     return res.status(403).json({ message: "Only the assigned counselor can respond" });
   }
-  if (request.request_type !== "college") {
-    return res.status(400).json({ message: "This request is not a college-wide summary request" });
+  if (!["college", "department"].includes(request.request_type)) {
+    return res.status(400).json({ message: "This request is not a college or department summary request" });
   }
   if (request.status !== "pending") {
     return res.status(409).json({ message: `Request is already ${request.status}` });
@@ -221,18 +224,23 @@ export const createCollegeSummary = async (req, res) => {
   const [rep] = await query("SELECT id, name, college FROM users WHERE id = ?", [
     request.requester_id,
   ]);
-  if (!rep) return res.status(404).json({ message: "Requesting representative not found" });
+  if (!rep) return res.status(404).json({ message: "Requesting College not found" });
   if (!rep.college) {
-    return res.status(400).json({ message: "The representative has no college assigned" });
+    return res.status(400).json({ message: "No college is assigned to this account" });
   }
 
-  const totals = await computeCollegeTotals(rep.college);
-  const studentCount = await getCollegeStudentCount(rep.college);
-  const sessions = await getCollegeAnonymizedSessions(rep.college);
+  // A department request scopes the aggregation to that department; a plain
+  // college request leaves it null (whole-college figures).
+  const dept = request.request_type === "department" ? request.department : null;
+
+  const totals = await computeCollegeTotals(rep.college, dept);
+  const studentCount = await getCollegeStudentCount(rep.college, dept);
+  const sessions = await getCollegeAnonymizedSessions(rep.college, dept);
 
   const payload = {
     type: "college_summary",
     college: rep.college,
+    department: dept,
     totals,
     studentCount,
     sessions,
@@ -240,7 +248,9 @@ export const createCollegeSummary = async (req, res) => {
     counselorName: req.user?.name || null,
     generatedAt: new Date().toISOString(),
   };
-  const title = `College Summary — ${rep.college}`;
+  const title = dept
+    ? `Department Summary — ${dept} (${rep.college})`
+    : `College Summary — ${rep.college}`;
 
   const result = await query(
     `INSERT INTO report_recipients (sender_id, recipient_id, title, summary, report_payload)
@@ -262,6 +272,7 @@ export const createCollegeSummary = async (req, res) => {
   await logAction(req, "create_college_summary", "report_recipient", result.insertId, {
     requestId,
     college: rep.college,
+    department: dept,
   });
 
   return res.status(201).json({ message: "College summary sent", id: result.insertId });
@@ -339,7 +350,7 @@ export const sendReportToRecipient = async (req, res) => {
     [recipientId]
   );
   if (!recipient.length) {
-    return res.status(404).json({ message: "Recipient must be a College Representative (college_rep)" });
+    return res.status(404).json({ message: "Recipient must be a College (college_rep)" });
   }
 
   const payloadJson = typeof payload === "string" ? payload : JSON.stringify(payload);

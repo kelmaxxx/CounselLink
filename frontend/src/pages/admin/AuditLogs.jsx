@@ -37,7 +37,7 @@ const ROLE_LABELS = {
   admin: "Admin",
   counselor: "Counselor",
   student: "Student",
-  college_rep: "College Rep",
+  college_rep: "College",
 };
 
 const PAGE_SIZE = 25;
@@ -187,7 +187,7 @@ export default function AuditLogs() {
               <option value="admin">Admin</option>
               <option value="counselor">Counselor</option>
               <option value="student">Student</option>
-              <option value="college_rep">College Rep</option>
+              <option value="college_rep">College</option>
             </select>
           </div>
         </div>

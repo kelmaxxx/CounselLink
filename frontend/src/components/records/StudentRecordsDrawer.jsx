@@ -177,7 +177,7 @@ function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadS
         <h4 className="font-semibold text-gray-900 mb-2">Referral data sharing</h4>
         <p className="text-sm text-gray-600">
           Whether the student allows a referral session's report to be shared with the
-          requesting College Representative. This is the student's own choice and cannot be
+          requesting College. This is the student's own choice and cannot be
           overridden here.
         </p>
         <div className="mt-2">

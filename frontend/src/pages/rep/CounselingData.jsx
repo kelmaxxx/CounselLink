@@ -60,7 +60,7 @@ export default function CounselingData() {
   return (
     <div className="px-6 py-6 max-w-6xl mx-auto">
       <PageHeader
-        eyebrow="College Representative"
+        eyebrow="College"
         title="Counseling data"
         subtitle={`Counseling reports and college-wide summaries prepared for ${
           currentUser?.college || "your college"
