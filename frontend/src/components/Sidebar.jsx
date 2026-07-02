@@ -164,10 +164,13 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
 
   const navGroups = getNavGroups();
 
-  // On phones the sidebar is an off-canvas drawer (fixed + translate); from
-  // the `lg` breakpoint up it becomes a normal static column that's always
-  // visible. `open` only drives the mobile drawer state.
-  const drawerClasses = `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 lg:static lg:translate-x-0 lg:z-auto ${
+  // On phones the sidebar is an off-canvas drawer (fixed + translate). From the
+  // `lg` breakpoint up it becomes a detached, sticky floating panel: it pins to
+  // the top of the viewport (so the nav stays visible no matter how long the
+  // page content is) and floats with a gutter around it so it reads as a
+  // separate card rather than being fused to the content. `open` only drives
+  // the mobile drawer state.
+  const drawerClasses = `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 lg:z-auto lg:translate-x-0 lg:sticky lg:top-3 lg:my-3 lg:ml-3 lg:mr-3 lg:h-[calc(100vh-1.5rem)] ${
     open ? "translate-x-0" : "-translate-x-full"
   }`;
 
@@ -181,7 +184,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
         }`}
         aria-hidden="true"
       />
-    <aside className={`${drawerClasses} bg-maroon-700 text-maroon-50 flex flex-col border-r border-maroon-800/60`}>
+    <aside className={`${drawerClasses} bg-maroon-700 text-maroon-50 flex flex-col border-r border-maroon-800/60 lg:border-r-0 lg:rounded-2xl lg:shadow-xl lg:overflow-hidden`}>
       {/* Brand */}
       <div className="px-5 py-4 border-b border-maroon-800/60">
         <div className="flex items-center gap-2">
