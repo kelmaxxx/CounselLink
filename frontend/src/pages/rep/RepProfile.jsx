@@ -11,6 +11,7 @@ import {
   Hash,
   Dot,
   Briefcase,
+  Lock,
 } from "lucide-react";
 import {
   PageHeader,
@@ -20,6 +21,7 @@ import {
   LABEL,
 } from "../../components/ui";
 import ProfileHero from "../../components/ProfileHero";
+import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const COLLEGES = [
@@ -46,6 +48,7 @@ export default function RepProfile() {
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
+  const [changePwOpen, setChangePwOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
     email: myRecord?.email || "",
@@ -145,9 +148,14 @@ export default function RepProfile() {
         subtitle="Manage your college representative account."
         actions={
           !isEditing ? (
-            <button onClick={() => setIsEditing(true)} className={BTN.primary}>
-              <Edit2 size={15} /> Edit profile
-            </button>
+            <>
+              <button onClick={() => setChangePwOpen(true)} className={BTN.secondary}>
+                <Lock size={15} /> Change password
+              </button>
+              <button onClick={() => setIsEditing(true)} className={BTN.primary}>
+                <Edit2 size={15} /> Edit profile
+              </button>
+            </>
           ) : (
             <>
               <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
@@ -172,6 +180,8 @@ export default function RepProfile() {
           {message.text}
         </div>
       )}
+
+      <ChangePasswordModal open={changePwOpen} onClose={() => setChangePwOpen(false)} />
 
       <ProfileHero
         theme="rep"

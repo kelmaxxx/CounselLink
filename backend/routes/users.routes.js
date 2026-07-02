@@ -10,6 +10,8 @@ import {
   adminCreateUser,
   adminUpdateUser,
   adminDeleteUser,
+  banUser,
+  unbanUser,
 } from "../controllers/users.controller.js";
 
 const router = Router();
@@ -25,5 +27,7 @@ router.get("/", listUsers);
 router.post("/", requireRole("admin"), adminCreateUser);
 router.put("/:id", requireRole("admin"), adminUpdateUser);
 router.delete("/:id", requireRole("admin"), adminDeleteUser);
+router.patch("/:id/ban", requireRole("admin"), banUser);
+router.patch("/:id/unban", requireRole("admin"), unbanUser);
 
 export default router;

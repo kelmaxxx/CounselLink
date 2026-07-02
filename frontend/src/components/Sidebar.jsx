@@ -54,8 +54,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     "pending-registrations": "/admin/pending-registrations",
     "manage-users": "/admin/manage-users",
     announcements: "/admin/announcements",
-    reports: "/admin/reports",
-    "audit-logs": "/admin/audit-logs",
+    "system-logs": "/admin/system-logs",
 
     // Shared
     messages: "/messages",
@@ -81,7 +80,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
               { id: "counselor-directory", label: "Counselors", icon: Users },
               { id: "profile", label: "My Profile", icon: User },
               { id: "messages", label: "Messages", icon: MessageCircle },
-              { id: "notifications", label: "Notifications", icon: Bell },
             ],
           },
         ];
@@ -102,7 +100,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
             items: [
               { id: "messages", label: "Messages", icon: MessageCircle },
               { id: "profile", label: "My Profile", icon: User },
-              { id: "notifications", label: "Notifications", icon: Bell },
             ],
           },
         ];
@@ -122,7 +119,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
             items: [
               { id: "messages", label: "Messages", icon: MessageCircle },
               { id: "profile", label: "My Profile", icon: User },
-              { id: "notifications", label: "Notifications", icon: Bell },
             ],
           },
         ];
@@ -135,15 +131,14 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
               { id: "pending-registrations", label: "Pending Registrations", icon: UserCheck },
               { id: "manage-users", label: "Manage Users", icon: Settings },
               { id: "announcements", label: "Announcements", icon: AlertCircle },
-              { id: "reports", label: "System Reports", icon: FileText },
-              { id: "audit-logs", label: "Audit Logs", icon: Shield },
+              { id: "system-logs", label: "System Logs", icon: Shield },
             ],
           },
           {
             label: "Account",
             items: [
+              { id: "messages", label: "Messages", icon: MessageCircle },
               { id: "profile", label: "My Profile", icon: User },
-              { id: "notifications", label: "Notifications", icon: Bell },
             ],
           },
         ];
@@ -167,7 +162,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
   // On phones the sidebar is an off-canvas drawer (fixed + translate); from
   // the `lg` breakpoint up it becomes a normal static column that's always
   // visible. `open` only drives the mobile drawer state.
-  const drawerClasses = `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 lg:static lg:translate-x-0 lg:z-auto ${
+  const drawerClasses = `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:z-auto ${
     open ? "translate-x-0" : "-translate-x-full"
   }`;
 
@@ -222,7 +217,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       </Link>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+      <nav className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-3 py-3 space-y-4">
         {navGroups.map((group) => (
           <div key={group.label}>
             <div className="px-2 mb-2 text-[11px] font-semibold uppercase tracking-wider text-maroon-300">

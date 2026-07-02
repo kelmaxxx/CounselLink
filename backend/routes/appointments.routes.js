@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createAppointment, listAppointmentsForUser } from "../controllers/appointments.controller.js";
+import { createAppointment, listAppointmentsForUser, getAppointmentStats } from "../controllers/appointments.controller.js";
 import { acceptAppointment, rejectAppointment, rescheduleAppointment, completeAppointment } from "../controllers/appointments.actions.js";
 import { auth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/rbac.js";
@@ -8,6 +8,7 @@ const router = Router();
 
 router.use(auth);
 
+router.get("/stats", requireRole("admin"), getAppointmentStats);
 router.post("/", requireRole("student", "counselor"), createAppointment);
 router.get("/", listAppointmentsForUser);
 router.put("/:id/accept", requireRole("counselor"), acceptAppointment);

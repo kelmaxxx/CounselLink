@@ -173,7 +173,24 @@ export default function CounselorAppointments() {
     else if (fallbackName) setChatRecipient({ id, name: fallbackName });
   };
 
-  const pendingAppointments = myAppointments.filter((a) => a.status === "pending");
+  const pendingAppointments = useMemo(() => {
+    const all = myAppointments.filter((a) => a.status === "pending");
+    // Urgent requests sorted oldest-first (highest priority), regular requests after
+    const urgents = all
+      .filter((a) => a.is_urgent || a.isUrgent)
+      .sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
+    const regulars = all.filter((a) => !(a.is_urgent || a.isUrgent));
+    return [...urgents, ...regulars];
+  }, [myAppointments]);
+
+  // Map each urgent pending appointment id -> its 1-based queue position
+  const urgentQueueMap = useMemo(() => {
+    const map = {};
+    pendingAppointments
+      .filter((a) => a.is_urgent || a.isUrgent)
+      .forEach((a, i) => { map[a.id] = i + 1; });
+    return map;
+  }, [pendingAppointments]);
   const upcomingAppointments = myAppointments.filter(
     (a) => a.status === "approved" || a.status === "rescheduled"
   );
@@ -291,9 +308,16 @@ export default function CounselorAppointments() {
                         <span className="text-xs text-gray-500">{a.college || "—"}</span>
                         <StatusPill status={a.status} />
                         {(a.is_urgent || a.isUrgent) && (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
-                            <AlertTriangle size={11} /> Urgent
-                          </span>
+                          <>
+                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                              <AlertTriangle size={11} /> Urgent
+                            </span>
+                            {urgentQueueMap[a.id] != null && (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-red-600 text-white">
+                                Queue #{urgentQueueMap[a.id]}
+                              </span>
+                            )}
+                          </>
                         )}
                         {a.controlNo && (
                           <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">

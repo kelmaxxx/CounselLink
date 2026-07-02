@@ -27,32 +27,6 @@ import {
   initialsOf,
 } from "../../components/ui";
 
-const PROGRAMS = [
-  "BS Computer Science",
-  "BS Information Technology",
-  "BS Mathematics",
-  "BS Biology",
-  "BS Chemistry",
-  "BS Physics",
-  "BS Psychology",
-  "AB English",
-  "AB History",
-  "AB Political Science",
-  "BS Civil Engineering",
-  "BS Electrical Engineering",
-  "BS Mechanical Engineering",
-  "BS Architecture",
-  "BS Business Administration",
-  "BS Accountancy",
-  "BS Economics",
-  "BS Education",
-  "BS Elementary Education",
-  "BS Secondary Education",
-  "LLB",
-  "Doctor of Medicine",
-];
-
-const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
 
 export default function PendingRegistrations() {
   const { fetchPendingRegistrations, fetchApprovedThisWeek, approveRegistration, rejectRegistration } =
@@ -60,10 +34,10 @@ export default function PendingRegistrations() {
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
   const [selectedUser, setSelectedUser] = useState(null);
+  const [rejectingUserId, setRejectingUserId] = useState(null);
   const [showCorModal, setShowCorModal] = useState(false);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [emailPreviewData, setEmailPreviewData] = useState(null);
-  const [approvalForm, setApprovalForm] = useState({ program: "", yearLevel: "" });
   const [rejectionReason, setRejectionReason] = useState("");
   const [message, setMessage] = useState(null);
 
@@ -96,15 +70,10 @@ export default function PendingRegistrations() {
   }, [fetchPendingRegistrations, fetchApprovedThisWeek]);
 
   const handleApprove = async (user) => {
-    if (!approvalForm.program || !approvalForm.yearLevel) {
-      setMessage({ type: "error", text: "Please select program and year level" });
-      return;
-    }
-
     try {
       await approveRegistration(user.id, {
-        program: approvalForm.program,
-        yearLevel: approvalForm.yearLevel,
+        program: user.program || "",
+        yearLevel: user.yearLevel || "",
       });
       setPendingUsers((prev) => prev.filter((item) => item.id !== user.id));
       setApprovedThisWeek((prev) => prev + 1);
@@ -119,8 +88,8 @@ export default function PendingRegistrations() {
       name: user.name,
       studentId: user.studentId,
       college: user.college,
-      program: approvalForm.program,
-      yearLevel: approvalForm.yearLevel,
+      program: user.program || "",
+      yearLevel: user.yearLevel || "",
     });
 
     setMessage({
@@ -129,7 +98,6 @@ export default function PendingRegistrations() {
     });
 
     setSelectedUser(null);
-    setApprovalForm({ program: "", yearLevel: "" });
     setTimeout(() => setMessage(null), 5000);
   };
 
@@ -161,6 +129,7 @@ export default function PendingRegistrations() {
     });
 
     setSelectedUser(null);
+    setRejectingUserId(null);
     setRejectionReason("");
     setTimeout(() => setMessage(null), 5000);
   };
@@ -255,9 +224,20 @@ export default function PendingRegistrations() {
               <div className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                      {initialsOf(user.name)}
-                    </div>
+                    {(user.avatarUrl || user.avatar_url) ? (
+                      <img
+                        src={(() => {
+                          const url = user.avatarUrl || user.avatar_url;
+                          return url.startsWith("http") ? url : `${apiBase}${url}`;
+                        })()}
+                        alt={user.name}
+                        className="w-12 h-12 rounded-full object-cover flex-shrink-0 ring-1 ring-gray-200"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                        {initialsOf(user.name)}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <h3 className="text-base font-semibold text-gray-900 truncate">
                         {user.name}
@@ -283,10 +263,22 @@ export default function PendingRegistrations() {
                           <GraduationCap size={11} className="text-maroon-600" />
                           {user.college}
                         </span>
-                        <span className="inline-flex items-center gap-1 text-gray-500 tabular-nums">
-                          <Calendar size={11} className="text-gray-400" />
-                          Submitted {formatDate(user.submittedAt)}
-                        </span>
+                        {user.department && (
+                          <span className="inline-flex items-center gap-1 text-gray-600">
+                            {user.department}
+                          </span>
+                        )}
+                        {user.program && (
+                          <span className="inline-flex items-center gap-1 text-gray-500 italic">
+                            {user.program}
+                          </span>
+                        )}
+                        {user.submittedAt && (
+                          <span className="inline-flex items-center gap-1 text-gray-500 tabular-nums">
+                            <Calendar size={11} className="text-gray-400" />
+                            Submitted {formatDate(user.submittedAt)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -332,80 +324,70 @@ export default function PendingRegistrations() {
                 {/* Inline review form */}
                 {selectedUser?.id === user.id && !showCorModal ? (
                   <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className={LABEL}>Program / course *</label>
-                        <select
-                          value={approvalForm.program}
-                          onChange={(e) =>
-                            setApprovalForm({ ...approvalForm, program: e.target.value })
-                          }
-                          className={INPUT}
+                    {rejectingUserId === user.id ? (
+                      <>
+                        <div>
+                          <label className={LABEL}>Reason for rejection</label>
+                          <textarea
+                            value={rejectionReason}
+                            onChange={(e) => setRejectionReason(e.target.value)}
+                            placeholder="e.g. COR image is unclear, please resubmit"
+                            className={INPUT}
+                            rows={2}
+                            autoFocus
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleReject(user)}
+                            className={`${BTN.danger} flex-1`}
+                          >
+                            <XCircle size={14} /> Confirm rejection
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRejectingUserId(null);
+                              setRejectionReason("");
+                            }}
+                            className={BTN.secondary}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleApprove(user)}
+                          className={`${BTN.success} flex-1`}
                         >
-                          <option value="">Select from COR</option>
-                          {PROGRAMS.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={LABEL}>Year level *</label>
-                        <select
-                          value={approvalForm.yearLevel}
-                          onChange={(e) =>
-                            setApprovalForm({ ...approvalForm, yearLevel: e.target.value })
-                          }
-                          className={INPUT}
+                          <CheckCircle size={14} /> Approve
+                        </button>
+                        <button
+                          onClick={() => setRejectingUserId(user.id)}
+                          className={`${BTN.danger} flex-1`}
                         >
-                          <option value="">Select from COR</option>
-                          {YEAR_LEVELS.map((y) => (
-                            <option key={y} value={y}>
-                              {y}
-                            </option>
-                          ))}
-                        </select>
+                          <XCircle size={14} /> Reject
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedUser(null);
+                            setRejectingUserId(null);
+                            setRejectionReason("");
+                          }}
+                          className={BTN.secondary}
+                        >
+                          Cancel
+                        </button>
                       </div>
-                    </div>
-                    <div>
-                      <label className={LABEL}>Reason for rejection (if rejecting)</label>
-                      <textarea
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        placeholder="e.g. COR image is unclear, please resubmit"
-                        className={INPUT}
-                        rows={2}
-                      />
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleApprove(user)}
-                        className={`${BTN.success} flex-1`}
-                      >
-                        <CheckCircle size={14} /> Approve registration
-                      </button>
-                      <button onClick={() => handleReject(user)} className={`${BTN.danger} flex-1`}>
-                        <XCircle size={14} /> Reject
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedUser(null);
-                          setApprovalForm({ program: "", yearLevel: "" });
-                          setRejectionReason("");
-                        }}
-                        className={BTN.secondary}
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <button
                       onClick={() => {
                         setSelectedUser(user);
-                        setApprovalForm({ program: "", yearLevel: "" });
+                        setRejectingUserId(null);
                         setRejectionReason("");
                       }}
                       className={`${BTN.primary} w-full`}

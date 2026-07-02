@@ -42,11 +42,10 @@ import RepNotifications from "./pages/rep/RepNotifications";
 // Admin pages
 import ManageUsers from "./pages/admin/ManageUsers";
 import CreateAnnouncement from "./pages/admin/CreateAnnouncement";
-import AdminReports from "./pages/admin/AdminReports";
+import SystemLogs from "./pages/admin/SystemLogs";
 import AdminProfile from "./pages/admin/AdminProfile";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import PendingRegistrations from "./pages/admin/PendingRegistrations";
-import AuditLogs from "./pages/admin/AuditLogs";
 
 function NotificationsRedirect() {
   const { currentUser } = useAuth();
@@ -355,15 +354,16 @@ export default function App() {
           }
         />
         <Route
-          path="/admin/reports"
+          path="/admin/system-logs"
           element={
             <ProtectedRoute>
               <Layout>
-                <AdminReports />
+                <SystemLogs />
               </Layout>
             </ProtectedRoute>
           }
         />
+        <Route path="/admin/reports" element={<Navigate to="/admin/system-logs" replace />} />
         <Route
           path="/admin/profile"
           element={
@@ -384,16 +384,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/admin/audit-logs"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <AuditLogs />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/admin/audit-logs" element={<Navigate to="/admin/system-logs" replace />} />
 
         {/* Wildcard catch-all route */}
         <Route path="*" element={<NotFound />} />

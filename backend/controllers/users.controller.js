@@ -33,7 +33,7 @@ const FIELD_TO_COLUMN = {
 const AVATAR_FIELDS = ["avatarUrl", "avatarFileName", "avatarFileType"];
 
 const SELF_UPDATABLE = {
-  student: ["name", "email", "phone", "bio", ...AVATAR_FIELDS],
+  student: ["name", "email", "phone", "bio", "college", "department", "program", "yearLevel", ...AVATAR_FIELDS],
   counselor: ["name", "email", "phone", "bio", "department", "specialization", "position", ...AVATAR_FIELDS],
   college_rep: ["name", "email", "phone", "college", ...AVATAR_FIELDS],
   admin: ["name", "email", "phone", ...AVATAR_FIELDS],
@@ -139,10 +139,11 @@ export const listUsers = async (req, res) => {
     // admin can list anything
   } else if (
     requesterRole === "counselor" &&
-    ["student", "counselor", "college_rep"].includes(role)
+    ["student", "counselor", "college_rep", "admin"].includes(role)
   ) {
     // counselors can list students (session/appointment pickers),
-    // other counselors (referral targets), and college_rep (report recipients)
+    // other counselors (referral targets), college_rep (report recipients),
+    // and admins (messaging)
   } else if (
     requesterRole === "college_rep" &&
     ["student", "counselor"].includes(role)
@@ -243,4 +244,38 @@ export const adminDeleteUser = async (req, res) => {
   await query("DELETE FROM announcements WHERE admin_id = ?", [id]);
   await query("DELETE FROM users WHERE id = ?", [id]);
   return res.json({ message: "User deleted" });
+};
+
+export const banUser = async (req, res) => {
+  const { id } = req.params;
+  if (Number(id) === Number(req.user.id)) {
+    return res.status(400).json({ message: "You cannot ban your own account" });
+  }
+  const target = await query("SELECT id, name, email, role FROM users WHERE id = ?", [id]);
+  if (!target.length) return res.status(404).json({ message: "User not found" });
+  if (target[0].role === "admin") {
+    return res.status(400).json({ message: "Admin accounts cannot be banned" });
+  }
+  await query("UPDATE users SET status = 'banned' WHERE id = ?", [id]);
+  await logAction(req, "ban_user", "user", id, {
+    name: target[0].name,
+    email: target[0].email,
+    role: target[0].role,
+  });
+  const rows = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [id]);
+  return res.json(rows[0]);
+};
+
+export const unbanUser = async (req, res) => {
+  const { id } = req.params;
+  const target = await query("SELECT id, name, email, role FROM users WHERE id = ?", [id]);
+  if (!target.length) return res.status(404).json({ message: "User not found" });
+  await query("UPDATE users SET status = 'approved' WHERE id = ?", [id]);
+  await logAction(req, "unban_user", "user", id, {
+    name: target[0].name,
+    email: target[0].email,
+    role: target[0].role,
+  });
+  const rows = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [id]);
+  return res.json(rows[0]);
 };
