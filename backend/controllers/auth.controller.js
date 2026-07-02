@@ -92,6 +92,7 @@ export const login = async (req, res) => {
       studentId: user.student_id,
       employeeId: user.employee_id,
       avatarUrl: user.avatar_url,
+      signatureUrl: user.signature_url,
       phone: user.phone,
       bio: user.bio,
       position: user.position,

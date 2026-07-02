@@ -30,6 +30,7 @@ import { useStudentRecords } from "../../context/StudentRecordsContext";
 import InventoryForm from "../../components/records/InventoryForm";
 import ProfileHero from "../../components/ProfileHero";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
+import SignatureUploadCard from "../../components/SignatureUploadCard";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -426,6 +427,11 @@ export default function StudentProfile() {
           </p>
         )}
       </SectionCard>
+
+      <SignatureUploadCard
+        className="mt-4"
+        subtitle="Applied to your Inventory, Consent, and other forms when printed"
+      />
 
       {showInventoryModal && (
         <Modal

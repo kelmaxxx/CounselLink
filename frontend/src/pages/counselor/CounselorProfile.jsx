@@ -31,6 +31,7 @@ import {
 } from "../../components/ui";
 import ProfileHero from "../../components/ProfileHero";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
+import SignatureUploadCard from "../../components/SignatureUploadCard";
 import { CounselorRatingBadge } from "../../components/RatingStars";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
@@ -355,6 +356,11 @@ export default function CounselorProfile() {
           </p>
         )}
       </SectionCard>
+
+      <SignatureUploadCard
+        className="mb-6"
+        subtitle="Applied to Session Reports and other documents you generate"
+      />
 
       <FeedbackTallyBar />
     </div>
