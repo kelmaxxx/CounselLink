@@ -70,6 +70,29 @@ export const avatarUpload = multer({
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 
+const signaturesDir = path.join(uploadsDir, "signatures");
+if (!fs.existsSync(signaturesDir)) {
+  fs.mkdirSync(signaturesDir, { recursive: true });
+}
+
+const signatureStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, signaturesDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const userId = req.user?.id || "anon";
+    cb(null, `signature-${userId}-${Date.now()}${ext}`);
+  },
+});
+
+// Digital signatures are transparent PNGs (ideally) or JPGs — same image
+// constraints as avatars, capped a little smaller since a signature is a
+// simple line drawing.
+export const signatureUpload = multer({
+  storage: signatureStorage,
+  fileFilter: avatarFileFilter,
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
+
 const pubmatsDir = path.join(uploadsDir, "pubmats");
 if (!fs.existsSync(pubmatsDir)) {
   fs.mkdirSync(pubmatsDir, { recursive: true });

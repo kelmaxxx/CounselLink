@@ -9,6 +9,8 @@ const SELECT_FIELDS = `
   employee_id AS employeeId, cor_url AS corUrl, cor_file_name AS corFileName,
   cor_file_type AS corFileType, avatar_url AS avatarUrl,
   avatar_file_name AS avatarFileName, avatar_file_type AS avatarFileType,
+  signature_url AS signatureUrl, signature_file_name AS signatureFileName,
+  signature_file_type AS signatureFileType,
   created_at, updated_at
 `;
 
@@ -28,21 +30,25 @@ const FIELD_TO_COLUMN = {
   avatarUrl: "avatar_url",
   avatarFileName: "avatar_file_name",
   avatarFileType: "avatar_file_type",
+  signatureUrl: "signature_url",
+  signatureFileName: "signature_file_name",
+  signatureFileType: "signature_file_type",
 };
 
 const AVATAR_FIELDS = ["avatarUrl", "avatarFileName", "avatarFileType"];
+const SIGNATURE_FIELDS = ["signatureUrl", "signatureFileName", "signatureFileType"];
 
 const SELF_UPDATABLE = {
-  student: ["name", "email", "phone", "bio", ...AVATAR_FIELDS],
-  counselor: ["name", "email", "phone", "bio", "department", "specialization", "position", ...AVATAR_FIELDS],
-  college_rep: ["name", "email", "phone", "college", ...AVATAR_FIELDS],
-  admin: ["name", "email", "phone", ...AVATAR_FIELDS],
+  student: ["name", "email", "phone", "bio", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
+  counselor: ["name", "email", "phone", "bio", "department", "specialization", "position", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
+  college_rep: ["name", "email", "phone", "college", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
+  admin: ["name", "email", "phone", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
 };
 
 const ADMIN_UPDATABLE = [
   "name", "email", "phone", "bio", "college", "program", "studentId",
   "department", "specialization", "position", "employeeId",
-  ...AVATAR_FIELDS,
+  ...AVATAR_FIELDS, ...SIGNATURE_FIELDS,
 ];
 
 const buildUpdate = (allowedFields, body) => {
@@ -100,7 +106,8 @@ export const lookupUser = async (req, res) => {
   const rows = await query(
     `SELECT id, name, role, college, student_id AS studentId, program, year_level AS yearLevel,
             department, specialization, position, bio, employee_id AS employeeId, email, phone,
-            avatar_url AS avatarUrl
+            avatar_url AS avatarUrl, signature_url AS signatureUrl,
+            signature_file_name AS signatureFileName, signature_file_type AS signatureFileType
      FROM users WHERE id = ?`,
     [id]
   );

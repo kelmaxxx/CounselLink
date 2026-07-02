@@ -94,6 +94,7 @@ const LETTERHEAD_STYLES = `
     .signature-block { margin-top: 40px; }
     .signature-line { border-top: 1px solid #111; width: 280px; margin: 28px 0 2px; }
     .signature-caption { font-size: 9.5pt; }
+    .signature-img { height: 46px; display: block; margin: 0 0 -6px; }
     @media print { body { padding: 0 18px; } }
 `;
 
@@ -188,7 +189,8 @@ function renderDocControl({ dateLabel = "—" } = {}) {
 
 // A college-wide summary payload (type: "college_summary") has a different
 // shape than a per-student session report, so it renders its own document.
-function buildCollegeSummaryHTML(report, { title } = {}) {
+function buildCollegeSummaryHTML(report, opts = {}) {
+  const { title, signatureImageUrl } = opts;
   const t = report.totals || {};
   const generated = report.generatedAt
     ? new Date(report.generatedAt).toLocaleDateString()
@@ -249,6 +251,7 @@ function buildCollegeSummaryHTML(report, { title } = {}) {
   <p class="section-body">${formatLine(report.narrative)}</p>
 
   <div class="signature-block">
+    ${signatureImageUrl ? `<img class="signature-img" src="${signatureImageUrl}" alt="Counselor signature" />` : ""}
     <div class="signature-line"></div>
     <div class="signature-caption">${formatLine(report.counselorName)}<br/>Signature of Counselor</div>
   </div>
@@ -258,7 +261,7 @@ function buildCollegeSummaryHTML(report, { title } = {}) {
 
 export function buildReportHTML(report, opts = {}) {
   if (report?.type === "college_summary") return buildCollegeSummaryHTML(report, opts);
-  const { title = "Student Counseling Form" } = opts;
+  const { title = "Student Counseling Form", signatureImageUrl } = opts;
   const r = normalizeSessionReport(report);
   const date =
     r.sessionDate && typeof r.sessionDate === "string"
@@ -292,6 +295,7 @@ export function buildReportHTML(report, opts = {}) {
     .routine-boxes { font-size: 9.5pt; white-space: nowrap; }
     .signature-block { margin-top: 36px; text-align: right; }
     .signature-line { border-top: 1px solid #000; width: 240px; margin: 0 0 0 auto; padding-top: 2px; }
+    .signature-img { height: 46px; display: block; margin: 0 0 -6px auto; }
   </style>
 </head>
 <body>
@@ -335,6 +339,7 @@ export function buildReportHTML(report, opts = {}) {
   <p class="section-label">6. Next Counseling Session (${cb(isFollowup)} Follow-up &nbsp; ${cb(!isFollowup)} Termination):</p>
 
   <div class="signature-block">
+    ${signatureImageUrl ? `<img class="signature-img" src="${signatureImageUrl}" alt="Counselor signature" />` : ""}
     <div class="signature-line">Signature of Counselor</div>
   </div>
   </div>
