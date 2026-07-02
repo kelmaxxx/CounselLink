@@ -4,6 +4,7 @@ import {
   User,
   Mail,
   GraduationCap,
+  Building2,
   BookOpen,
   Calendar,
   Phone,
@@ -293,6 +294,11 @@ export default function StudentProfile() {
               value={myRecord?.college || "Not set"}
             />
             <Readout
+              icon={Building2}
+              label="Department"
+              value={myRecord?.department || "Not set"}
+            />
+            <Readout
               icon={BookOpen}
               label="Program / course"
               value={myRecord?.program || "Not set"}
@@ -384,6 +390,7 @@ export default function StudentProfile() {
                 onUploadScan={handleUploadInventoryScan}
                 onDeleteScan={handleDeleteInventoryScan}
                 readOnly={false}
+                isStudentView={true}
               />
             )}
           </div>

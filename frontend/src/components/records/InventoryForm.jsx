@@ -99,6 +99,8 @@ export const blankInventory = () => ({
   acknowledgment: {
     studentPrintedName: "",
     dateAcknowledged: "",
+    disclaimerAgreed: false,
+    disclaimerRevokedAt: null,
   },
 });
 
@@ -199,6 +201,7 @@ export default function InventoryForm({
   onUploadScan,
   onDeleteScan,
   readOnly = false,
+  isStudentView = false,
 }) {
   const { downloadInventoryDocx, fetchInventoryDocxBlob } = useStudentRecords();
   const [data, setData] = useState(() => mergeInventory(inventory?.formData));
@@ -630,12 +633,30 @@ export default function InventoryForm({
 
       {/* DISCLAIMER (Form 1 signature block) */}
       <SectionHeader>Disclaimer</SectionHeader>
-      <p className="text-xs text-gray-600">
-        I hereby authorize the Guidance and Counseling Section of Division of Student Affairs to collect data
-        indicated herein for Individual Inventory and documentation purposes only. I understand that my personal
-        information is protected by RA 10173, Data Privacy Act of 2012 and that the data collected will not be
-        shared to other entities other than the purpose stated.
-      </p>
+      {isStudentView ? (
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-maroon-600 cursor-pointer disabled:cursor-not-allowed"
+            disabled={readOnly}
+            checked={!!data.acknowledgment.disclaimerAgreed}
+            onChange={(e) => updateSection("acknowledgment", { disclaimerAgreed: e.target.checked })}
+          />
+          <span className="text-xs text-gray-600">
+            I hereby authorize the Guidance and Counseling Section of Division of Student Affairs to collect data
+            indicated herein for Individual Inventory and documentation purposes only. I understand that my personal
+            information is protected by RA 10173, Data Privacy Act of 2012 and that the data collected will not be
+            shared to other entities other than the purpose stated.
+          </span>
+        </label>
+      ) : (
+        <p className="text-xs text-gray-600">
+          I hereby authorize the Guidance and Counseling Section of Division of Student Affairs to collect data
+          indicated herein for Individual Inventory and documentation purposes only. I understand that my personal
+          information is protected by RA 10173, Data Privacy Act of 2012 and that the data collected will not be
+          shared to other entities other than the purpose stated.
+        </p>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
         <Field label="Student's Printed Name"><TextInput value={data.acknowledgment.studentPrintedName} onChange={(v) => updateSection("acknowledgment", { studentPrintedName: v })} placeholder={studentName || ""} disabled={readOnly} /></Field>
         <Field label="Date Acknowledged"><TextInput type="date" value={data.acknowledgment.dateAcknowledged} onChange={(v) => updateSection("acknowledgment", { dateAcknowledged: v })} disabled={readOnly} /></Field>
