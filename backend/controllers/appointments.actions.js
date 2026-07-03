@@ -14,12 +14,19 @@ const normalizeDate = (value) => {
   return value;
 };
 
+const getQueueSlot = (slot) => {
+  const s = (slot || "").toLowerCase();
+  if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:")) return "PM";
+  if (!s) return null;
+  return "AM";
+};
+
 export const acceptAppointment = async (req, res) => {
   const { id } = req.params;
   const { date, timeSlot, note } = req.body;
   const counselorId = req.user?.id;
 
-  const [appt] = await query("SELECT is_urgent FROM appointments WHERE id = ?", [id]);
+  const [appt] = await query("SELECT is_urgent, queue_number FROM appointments WHERE id = ?", [id]);
   const isUrgent = appt?.is_urgent;
 
   if (!isUrgent && (!date || !timeSlot)) {
@@ -29,18 +36,45 @@ export const acceptAppointment = async (req, res) => {
   const normalizedDate = isUrgent ? null : normalizeDate(date);
   const normalizedSlot = isUrgent ? null : timeSlot;
 
+  let queueNumber = appt?.queue_number ?? null; // preserve urgent queue numbers
+  let queueDate = null;
+  let queueSlot = null;
+
+  if (!isUrgent && normalizedDate && normalizedSlot) {
+    queueSlot = getQueueSlot(normalizedSlot);
+    queueDate = normalizedDate;
+
+    const [{ cnt }] = await query(
+      `SELECT COUNT(*) AS cnt FROM appointments
+       WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+      [queueDate, queueSlot]
+    );
+
+    if (cnt >= 10) {
+      return res.status(409).json({
+        message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue for ${queueDate} is full (10 appointments). Please reschedule to a different date or time slot.`,
+      });
+    }
+
+    queueNumber = cnt + 1;
+  }
+
   await query(
-    "UPDATE appointments SET status='approved', counselor_id=?, scheduled_date=?, scheduled_time=?, counselor_action_note=?, updated_at=NOW() WHERE id=?",
-    [counselorId, normalizedDate, normalizedSlot, note || null, id]
+    `UPDATE appointments
+     SET status='approved', counselor_id=?, scheduled_date=?, scheduled_time=?, counselor_action_note=?,
+         queue_number=?, queue_date=?, queue_slot=?, updated_at=NOW()
+     WHERE id=?`,
+    [counselorId, normalizedDate, normalizedSlot, note || null, queueNumber, queueDate, queueSlot, id]
   );
 
   await logAction(req, "accept_appointment", "appointment", id, { date: normalizedDate, timeSlot: normalizedSlot });
 
   const rows = await query("SELECT student_id FROM appointments WHERE id = ?", [id]);
   if (rows.length) {
+    const queueInfo = !isUrgent && queueNumber ? ` Your queue number is ${queueSlot} #${queueNumber}.` : "";
     const notifMsg = isUrgent
       ? "Your urgent appointment request has been approved. Please proceed to the counselor's office."
-      : `Your appointment is approved for ${normalizedDate} at ${normalizedSlot}.`;
+      : `Your appointment is approved for ${normalizedDate} at ${normalizedSlot}.${queueInfo}`;
     await createNotification({
       userId: rows[0].student_id,
       title: "Appointment Approved",
@@ -161,4 +195,39 @@ export const rescheduleAppointment = async (req, res) => {
   }
 
   return res.json({ message: "Appointment rescheduled" });
+};
+
+export const removeNoShows = async (req, res) => {
+  const toRemove = await query(
+    `SELECT id, student_id, scheduled_date
+     FROM appointments
+     WHERE status IN ('approved', 'rescheduled')
+       AND scheduled_date IS NOT NULL
+       AND scheduled_date < CURDATE()`,
+    []
+  );
+
+  if (!toRemove.length) return res.json({ removed: 0 });
+
+  const ids = toRemove.map((r) => r.id);
+  await query(
+    `UPDATE appointments SET status = 'no_show', updated_at = NOW() WHERE id IN (${ids.map(() => "?").join(",")})`,
+    ids
+  );
+
+  for (const row of toRemove) {
+    await createNotification({
+      userId: row.student_id,
+      title: "Appointment Closed — No Show",
+      message: `Your appointment scheduled for ${row.scheduled_date} was automatically closed because the scheduled date has passed without a completed session.`,
+      link: "/student/appointments",
+      type: "warning",
+    });
+    notifyUser(row.student_id, { type: "appointments" });
+  }
+
+  await logAction(req, "remove_no_shows", "appointment", null, { count: toRemove.length });
+  notifyRole("counselor", { type: "appointments" });
+
+  return res.json({ removed: toRemove.length });
 };

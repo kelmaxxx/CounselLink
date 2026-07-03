@@ -102,17 +102,32 @@ export const createUrgentCounselingRequest = async (req, res) => {
     placeholderCreated = true;
   }
 
-  // Compute queue position before inserting (count of currently pending urgent requests + 1)
-  const queueRows = await query(
-    "SELECT COUNT(*) AS cnt FROM appointments WHERE is_urgent = 1 AND status = 'pending'"
-  );
-  const queueNumber = (queueRows[0]?.cnt ?? 0) + 1;
+  // Assign queue number using the AM/PM daily queue system
+  const now = new Date();
+  const queueSlot = now.getHours() < 12 ? "AM" : "PM";
+  const queueDate = now.toISOString().split("T")[0];
 
+  const [{ cnt }] = await query(
+    `SELECT COUNT(*) AS cnt FROM appointments
+     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+    [queueDate, queueSlot]
+  );
+
+  if (cnt >= 10) {
+    return res.status(429).json({
+      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue is full (10 appointments) for today. Please proceed to the counseling office directly.`,
+    });
+  }
+
+  const queueNumber = cnt + 1;
+
+  // Urgent walk-in requests are auto-approved — they go directly to the
+  // counseling sessions queue, not to the pending tab.
   const result = await query(
     `INSERT INTO appointments
-      (student_id, counselor_id, appointment_type, status, reason, is_urgent)
-     VALUES (?, NULL, 'counseling', 'pending', ?, 1)`,
-    [studentUserId, trimmed.description]
+      (student_id, counselor_id, appointment_type, status, reason, is_urgent, queue_number, queue_date, queue_slot)
+     VALUES (?, NULL, 'counseling', 'approved', ?, 1, ?, ?, ?)`,
+    [studentUserId, trimmed.description, queueNumber, queueDate, queueSlot]
   );
 
   const counselors = await query(
@@ -152,10 +167,10 @@ export const createUrgentCounselingRequest = async (req, res) => {
       await sendEmail({
         to: counselor.email,
         subject: "URGENT: Counseling Request Submitted",
-        text: `${message}\n\n${detailLines.join("\n")}\n\nPlease check your Pending requests as soon as possible.`,
+        text: `${message}\n\n${detailLines.join("\n")}\n\nThe student is in the ${queueSlot === "AM" ? "morning" : "afternoon"} queue (${queueSlot} #${queueNumber}). Please attend to them as soon as possible.`,
         html: `<p>${message}</p><ul>${detailLines
           .map((line) => `<li>${line}</li>`)
-          .join("")}</ul><p>Please check your Pending requests as soon as possible.</p>`,
+          .join("")}</ul><p>The student is in the <strong>${queueSlot === "AM" ? "morning" : "afternoon"} queue (${queueSlot} #${queueNumber})</strong>. Please attend to them as soon as possible.</p>`,
       });
     } catch (err) {
       console.warn(`[urgent-counseling] Failed to email ${counselor.email}:`, err.message);

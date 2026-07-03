@@ -91,10 +91,22 @@ export default function StudentDashboard() {
     else if (fallbackName) setChatRecipient({ id, name: fallbackName });
   };
 
-  const upcoming = myAppointments.filter((a) => a.status === "approved" || a.status === "rescheduled");
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  // Only show approved/rescheduled appointments whose scheduled date hasn't passed.
+  // Urgent appointments have no scheduledDate so they always remain visible until completed.
+  const upcoming = myAppointments.filter(
+    (a) =>
+      (a.status === "approved" || a.status === "rescheduled") &&
+      (!a.scheduledDate || a.scheduledDate >= todayStr)
+  );
   const pending = myAppointments.filter((a) => a.status === "pending");
   const completedAppointments = myAppointments.filter((a) => a.status === "completed");
-  const upcomingTests = myTests.filter((t) => t.status === "approved" || t.status === "rescheduled");
+  const upcomingTests = myTests.filter(
+    (t) =>
+      (t.status === "approved" || t.status === "rescheduled") &&
+      (!t.scheduledDate || t.scheduledDate >= todayStr)
+  );
   const pendingTests = myTests.filter((t) => t.status === "pending");
 
   const upcomingCount = upcoming.length + upcomingTests.length;
@@ -112,8 +124,13 @@ export default function StudentDashboard() {
   const pendingCount = pending.length + pendingTests.length;
   const testResultsCount = myTestResults.length;
 
+  // Upcoming tests card: pending (not yet scheduled) + approved/rescheduled with future dates
   const unfinishedTests = myTests.filter(
-    (t) => t.status !== "completed" && t.status !== "rejected"
+    (t) =>
+      t.status !== "completed" &&
+      t.status !== "rejected" &&
+      t.status !== "no_show" &&
+      (t.status === "pending" || !t.scheduledDate || t.scheduledDate >= todayStr)
   );
 
   const sortByDateTime = (a, b) => {
