@@ -2,7 +2,18 @@
 // Shared primitives for the minimalist / professional design system.
 import React from "react";
 import { Inbox, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
 
 export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }) {
   return (
@@ -72,6 +83,7 @@ const STAT_TONES = {
   amber: "bg-amber-100 text-amber-600",
   emerald: "bg-emerald-100 text-emerald-600",
   blue: "bg-blue-100 text-blue-600",
+  sky: "bg-sky-100 text-sky-600",
   purple: "bg-purple-100 text-purple-600",
   maroon: "bg-maroon-100 text-maroon-700",
 };
@@ -156,6 +168,82 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+// ── Horizontal ranked bars (pure CSS, no chart lib) ──────────────────────
+// A clean alternative to a pie for "X by category" — reads top-to-bottom.
+// `data` items: { name, value, color }.
+export function BarStat({ data, total, emptyIcon, emptyTitle }) {
+  if (!data.length) {
+    return <EmptyState icon={emptyIcon} title={emptyTitle} />;
+  }
+  const max = Math.max(...data.map((d) => d.value), 1);
+  return (
+    <ul className="space-y-3.5 py-1.5">
+      {data.map((d) => (
+        <li key={d.name}>
+          <div className="flex items-center justify-between text-sm mb-1.5">
+            <span className="text-gray-600 truncate pr-2">{d.name}</span>
+            <span className="text-gray-900 font-medium tabular-nums flex-shrink-0">
+              {d.value}
+              {total ? (
+                <span className="text-gray-400 ml-1.5 font-normal">
+                  {Math.round((d.value / total) * 100)}%
+                </span>
+              ) : null}
+            </span>
+          </div>
+          <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${(d.value / max) * 100}%`, background: d.color }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ── Vertical columns (recharts) with rounded tops ────────────────────────
+// `data` items: { name, value, color }.
+export function ColumnStat({ data, emptyIcon, emptyTitle, tooltipFormatter }) {
+  if (!data.length) {
+    return <EmptyState icon={emptyIcon} title={emptyTitle} />;
+  }
+  return (
+    <div style={{ width: "100%", height: 240 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 10, right: 8, left: -14, bottom: 0 }}>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis
+            dataKey="name"
+            tick={{ fontSize: 11, fill: "#6b7280" }}
+            tickLine={false}
+            axisLine={false}
+            interval={0}
+          />
+          <YAxis
+            tick={{ fontSize: 11, fill: "#9ca3af" }}
+            tickLine={false}
+            axisLine={false}
+            allowDecimals={false}
+            width={30}
+          />
+          <Tooltip
+            formatter={tooltipFormatter}
+            cursor={{ fill: "#f8fafc" }}
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+          />
+          <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={46}>
+            {data.map((d) => (
+              <Cell key={d.name} fill={d.color} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

@@ -23,6 +23,8 @@ import {
   PageHeader,
   BigStat,
   DonutStat,
+  BarStat,
+  ColumnStat,
   SectionCard,
   EmptyState,
   Modal,
@@ -169,14 +171,13 @@ export default function AdminDashboard() {
             title="Students by college"
             subtitle="Distribution of enrolled students"
           >
-            <DonutStat
+            <BarStat
               data={topColleges.map(([name, value], i) => ({
                 name,
                 value,
                 color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
               }))}
               total={students.length}
-              centerLabel="students"
               emptyIcon={Users}
               emptyTitle="No students yet"
             />
@@ -186,14 +187,12 @@ export default function AdminDashboard() {
             title="Appointments by college"
             subtitle="Completed sessions per college"
           >
-            <DonutStat
+            <ColumnStat
               data={apptStats.byCollege.map((r, i) => ({
                 name: r.college,
                 value: Number(r.total),
                 color: APPT_COLORS[i % APPT_COLORS.length],
               }))}
-              total={apptStats.totalCompleted}
-              centerLabel="sessions"
               emptyIcon={CalendarCheck}
               emptyTitle="No completed appointments yet"
             />

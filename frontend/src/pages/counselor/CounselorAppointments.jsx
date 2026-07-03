@@ -23,7 +23,7 @@ import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
 import {
   PageHeader,
-  StatCard,
+  BigStat,
   SectionCard,
   EmptyState,
   StatusPill,
@@ -232,34 +232,34 @@ export default function CounselorAppointments() {
       />
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <BigStat
           label="Pending requests"
           value={pendingAppointments.length}
           hint="Awaiting your response"
           icon={Clock3}
-          accent="bg-amber-500"
+          tone="amber"
         />
-        <StatCard
+        <BigStat
           label="Counseling sessions"
           value={notCompletedAppointments.length}
           hint="Not yet completed"
           icon={CalendarClock}
-          accent="bg-sky-500"
+          tone="sky"
         />
-        <StatCard
+        <BigStat
           label="Psych tests"
           value={upcomingTests.length}
           hint="Confirmed tests"
           icon={ClipboardList}
-          accent="bg-blue-500"
+          tone="blue"
         />
-        <StatCard
+        <BigStat
           label="Completed appointments"
           value={completedAppointments.length + completedTests.length}
           hint="Sessions & tests"
           icon={CheckCircle2}
-          accent="bg-gray-400"
+          tone="gray"
         />
       </div>
 
