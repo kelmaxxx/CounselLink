@@ -13,7 +13,7 @@ import { useAuth } from "../context/AuthContext";
 import { useCounselingSessions } from "../context/CounselingSessionsContext";
 import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
-import { Modal, BTN, INPUT, LABEL, formatDate } from "../components/ui";
+import { Modal, BTN, INPUT, LABEL, formatDate, BigStat } from "../components/ui";
 import { downloadReportAsPdf } from "../utils/sessionReport";
 import { getDepartments, getCollegeName } from "../data/msuColleges";
 
@@ -542,34 +542,30 @@ export default function ManageStudents() {
         {activeTab === "overview" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <FileText className="text-blue-600" size={24} />
-                </div>
-                <p className="text-3xl font-bold text-gray-900">{analytics.total}</p>
-                <p className="text-sm text-gray-600">Total session records</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <Users className="text-green-600" size={24} />
-                </div>
-                <p className="text-3xl font-bold text-gray-900">{analytics.distinctStudents}</p>
-                <p className="text-sm text-gray-600">Distinct students</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <Calendar className="text-purple-600" size={24} />
-                </div>
-                <p className="text-3xl font-bold text-gray-900">{analytics.last30}</p>
-                <p className="text-sm text-gray-600">Sessions in last 30 days</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <Activity className="text-orange-600" size={24} />
-                </div>
-                <p className="text-3xl font-bold text-gray-900">{analytics.followups}</p>
-                <p className="text-sm text-gray-600">Pending follow-ups</p>
-              </div>
+              <BigStat
+                label="Total session records"
+                value={analytics.total}
+                icon={FileText}
+                tone="blue"
+              />
+              <BigStat
+                label="Distinct students"
+                value={analytics.distinctStudents}
+                icon={Users}
+                tone="emerald"
+              />
+              <BigStat
+                label="Sessions in last 30 days"
+                value={analytics.last30}
+                icon={Calendar}
+                tone="purple"
+              />
+              <BigStat
+                label="Pending follow-ups"
+                value={analytics.followups}
+                icon={Activity}
+                tone="amber"
+              />
             </div>
 
             <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-6 shadow-sm">
