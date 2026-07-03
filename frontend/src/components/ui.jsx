@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  LabelList,
 } from "recharts";
 
 export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }) {
@@ -172,78 +173,63 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
   );
 }
 
-// ── Horizontal ranked bars (pure CSS, no chart lib) ──────────────────────
-// A clean alternative to a pie for "X by category" — reads top-to-bottom.
-// `data` items: { name, value, color }.
-export function BarStat({ data, total, emptyIcon, emptyTitle }) {
+// ── Horizontal ranked bar chart (recharts) ───────────────────────────────
+// Built for "X by category" data with many categories (e.g. 12+ colleges):
+// sorts high→low, labels sit on the left so they never overlap, and the whole
+// thing scrolls internally past `maxHeight` so the card never stretches the
+// page. `data` items: { name, value, color }.
+export function RankedBarChart({
+  data,
+  emptyIcon,
+  emptyTitle,
+  maxHeight = 300,
+  rowHeight = 40,
+  labelWidth = 68,
+  tooltipFormatter,
+}) {
   if (!data.length) {
     return <EmptyState icon={emptyIcon} title={emptyTitle} />;
   }
-  const max = Math.max(...data.map((d) => d.value), 1);
+  const sorted = [...data].sort((a, b) => b.value - a.value);
+  const chartHeight = Math.max(sorted.length * rowHeight, rowHeight);
   return (
-    <ul className="space-y-3.5 py-1.5">
-      {data.map((d) => (
-        <li key={d.name}>
-          <div className="flex items-center justify-between text-sm mb-1.5">
-            <span className="text-gray-600 truncate pr-2">{d.name}</span>
-            <span className="text-gray-900 font-medium tabular-nums flex-shrink-0">
-              {d.value}
-              {total ? (
-                <span className="text-gray-400 ml-1.5 font-normal">
-                  {Math.round((d.value / total) * 100)}%
-                </span>
-              ) : null}
-            </span>
-          </div>
-          <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${(d.value / max) * 100}%`, background: d.color }}
+    <div className="overflow-y-auto pr-1" style={{ maxHeight }}>
+      <div style={{ width: "100%", height: chartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={sorted}
+            layout="vertical"
+            margin={{ top: 4, right: 34, left: 4, bottom: 4 }}
+            barCategoryGap="22%"
+          >
+            <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis type="number" hide allowDecimals={false} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={labelWidth}
+              tick={{ fontSize: 12, fill: "#4b5563" }}
+              tickLine={false}
+              axisLine={false}
             />
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-// ── Vertical columns (recharts) with rounded tops ────────────────────────
-// `data` items: { name, value, color }.
-export function ColumnStat({ data, emptyIcon, emptyTitle, tooltipFormatter }) {
-  if (!data.length) {
-    return <EmptyState icon={emptyIcon} title={emptyTitle} />;
-  }
-  return (
-    <div style={{ width: "100%", height: 240 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 10, right: 8, left: -14, bottom: 0 }}>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
-          <XAxis
-            dataKey="name"
-            tick={{ fontSize: 11, fill: "#6b7280" }}
-            tickLine={false}
-            axisLine={false}
-            interval={0}
-          />
-          <YAxis
-            tick={{ fontSize: 11, fill: "#9ca3af" }}
-            tickLine={false}
-            axisLine={false}
-            allowDecimals={false}
-            width={30}
-          />
-          <Tooltip
-            formatter={tooltipFormatter}
-            cursor={{ fill: "#f8fafc" }}
-            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
-          />
-          <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={46}>
-            {data.map((d) => (
-              <Cell key={d.name} fill={d.color} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+            <Tooltip
+              formatter={tooltipFormatter}
+              cursor={{ fill: "#f8fafc" }}
+              contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+            />
+            <Bar dataKey="value" radius={[4, 4, 4, 4]} maxBarSize={22}>
+              {sorted.map((d) => (
+                <Cell key={d.name} fill={d.color} />
+              ))}
+              <LabelList
+                dataKey="value"
+                position="right"
+                style={{ fontSize: 12, fill: "#374151", fontWeight: 600 }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
