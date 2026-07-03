@@ -25,8 +25,7 @@ import ProfileViewModal from "../../components/ProfileViewModal";
 import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
 import { useNotifications } from "../../context/NotificationsContext";
-import { PageHeader, StatCard, SectionCard, EmptyState, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { SectionCard, EmptyState, BigStat, DonutStat, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
 
 const COLLEGE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce", "#0e7490", "#9f1239"];
 const STATUS_COLORS = {
@@ -372,34 +371,34 @@ export default function CounselorDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <BigStat
           label="Total students"
           value={totalStudents}
           hint="Active caseload"
           icon={Users}
-          accent="bg-gray-400"
+          tone="maroon"
         />
-        <StatCard
+        <BigStat
           label="Pending requests"
           value={pendingAppointments.length + pendingTests.length}
           hint="Awaiting response"
           icon={Clock3}
-          accent="bg-amber-500"
+          tone="amber"
         />
-        <StatCard
+        <BigStat
           label="Today's appointments"
           value={todayAppointments}
           hint="Scheduled for today"
           icon={Calendar}
-          accent="bg-emerald-500"
+          tone="emerald"
         />
-        <StatCard
+        <BigStat
           label="Incoming appointments"
           value={incomingAppointments}
           hint="Approved, rescheduled & follow-up"
           icon={Inbox}
-          accent="bg-blue-500"
+          tone="blue"
         />
       </div>
 
@@ -547,114 +546,37 @@ export default function CounselorDashboard() {
         <SectionCard
           title="Students by college"
           subtitle="Distribution of your caseload"
-          action={
-            <span className="text-xs text-gray-500 tabular-nums">
-              Total <span className="font-semibold text-gray-900">{totalStudents}</span>
-            </span>
-          }
         >
-          <div>
-            {topColleges.filter(([, c]) => c > 0).length === 0 ? (
-              <EmptyState icon={Users} title="No students yet" />
-            ) : (
-              <div style={{ width: "100%", height: 260 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={topColleges
-                        .filter(([, c]) => c > 0)
-                        .map(([name, value]) => ({ name, value }))}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={85}
-                      paddingAngle={2}
-                      stroke="#fff"
-                      strokeWidth={2}
-                    >
-                      {topColleges
-                        .filter(([, c]) => c > 0)
-                        .map((_, i) => (
-                          <Cell key={i} fill={COLLEGE_COLORS[i % COLLEGE_COLORS.length]} />
-                        ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        fontSize: 12,
-                        borderRadius: 6,
-                        border: "1px solid #e5e7eb",
-                      }}
-                    />
-                    <Legend
-                      verticalAlign="bottom"
-                      height={32}
-                      iconType="circle"
-                      iconSize={8}
-                      wrapperStyle={{ fontSize: 11, color: "#4b5563" }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
+          <DonutStat
+            data={topColleges
+              .filter(([, c]) => c > 0)
+              .map(([name, value], i) => ({
+                name,
+                value,
+                color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
+              }))}
+            total={totalStudents}
+            centerLabel="students"
+            emptyIcon={Users}
+            emptyTitle="No students yet"
+          />
         </SectionCard>
 
         <SectionCard
           title="Appointment status"
           subtitle="Breakdown of your appointments by current status"
-          action={
-            <span className="text-xs text-gray-500 tabular-nums">
-              Total <span className="font-semibold text-gray-900">{myAppointments.length}</span>
-            </span>
-          }
         >
-          <div>
-            {appointmentStatusBreakdown.length === 0 ? (
-              <EmptyState icon={Calendar} title="No appointments yet" />
-            ) : (
-              <div style={{ width: "100%", height: 260 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={appointmentStatusBreakdown}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={85}
-                      paddingAngle={2}
-                      stroke="#fff"
-                      strokeWidth={2}
-                    >
-                      {appointmentStatusBreakdown.map((entry) => (
-                        <Cell
-                          key={entry.name}
-                          fill={STATUS_COLORS[entry.name.toLowerCase()] || "#94a3b8"}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        fontSize: 12,
-                        borderRadius: 6,
-                        border: "1px solid #e5e7eb",
-                      }}
-                    />
-                    <Legend
-                      verticalAlign="bottom"
-                      height={32}
-                      iconType="circle"
-                      iconSize={8}
-                      wrapperStyle={{ fontSize: 11, color: "#4b5563" }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
+          <DonutStat
+            data={appointmentStatusBreakdown.map((entry) => ({
+              name: entry.name,
+              value: entry.value,
+              color: STATUS_COLORS[entry.name.toLowerCase()] || "#94a3b8",
+            }))}
+            total={myAppointments.length}
+            centerLabel="appointments"
+            emptyIcon={Calendar}
+            emptyTitle="No appointments yet"
+          />
         </SectionCard>
       </div>
 

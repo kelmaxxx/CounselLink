@@ -22,7 +22,7 @@ import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
 import {
   PageHeader,
-  StatCard,
+  BigStat,
   SectionCard,
   EmptyState,
   StatusPill,
@@ -187,34 +187,34 @@ export default function StudentDashboard() {
         />
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <StatCard
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <BigStat
             label="Upcoming"
             value={upcomingCount}
             hint={nextAppt ? `Next: ${nextAppt.date}` : "None scheduled"}
             icon={CalendarDays}
-            accent="bg-emerald-500"
+            tone="emerald"
           />
-          <StatCard
+          <BigStat
             label="Appointment completed"
             value={completedCount}
             hint="This semester"
             icon={CheckCircle2}
-            accent="bg-blue-500"
+            tone="blue"
           />
-          <StatCard
+          <BigStat
             label="Pending requests"
             value={pendingCount}
             hint={pendingCount === 0 ? "All caught up" : "Awaiting decision"}
             icon={Clock3}
-            accent="bg-amber-500"
+            tone="amber"
           />
-          <StatCard
+          <BigStat
             label="Test results"
             value={testResultsCount}
             hint="Available to view"
             icon={FileText}
-            accent="bg-gray-400"
+            tone="maroon"
           />
         </div>
 

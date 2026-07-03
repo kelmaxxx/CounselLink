@@ -2,6 +2,19 @@
 // Shared primitives for the minimalist / professional design system.
 import React from "react";
 import { Inbox, X, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  LabelList,
+} from "recharts";
 
 export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }) {
   return (
@@ -59,6 +72,183 @@ export function EmptyState({ icon: Icon = Inbox, title, hint, action, className 
       <p className="text-base font-medium text-gray-700">{title}</p>
       {hint && <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">{hint}</p>}
       {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+// ── Big-number stat card (minimalist dashboard style) ────────────────────
+// Airy card with an oversized number and a soft tinted icon chip. Use `tone`
+// to pick the chip color; falls back to a neutral gray.
+const STAT_TONES = {
+  gray: "bg-gray-100 text-gray-500",
+  amber: "bg-amber-100 text-amber-600",
+  emerald: "bg-emerald-100 text-emerald-600",
+  blue: "bg-blue-100 text-blue-600",
+  sky: "bg-sky-100 text-sky-600",
+  purple: "bg-purple-100 text-purple-600",
+  maroon: "bg-maroon-100 text-maroon-700",
+};
+
+export function BigStat({ label, value, hint, icon: Icon, tone = "gray" }) {
+  return (
+    <div className="bg-white rounded-3xl p-6 ring-1 ring-gray-950/5 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <span className="text-sm font-medium text-gray-500">{label}</span>
+        {Icon && (
+          <span
+            className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${STAT_TONES[tone] || STAT_TONES.gray}`}
+          >
+            <Icon size={18} />
+          </span>
+        )}
+      </div>
+      <div className="mt-5 text-5xl font-semibold text-gray-900 tabular-nums leading-none tracking-tight">
+        {value}
+      </div>
+      {hint && <p className="mt-3 text-xs text-gray-400">{hint}</p>}
+    </div>
+  );
+}
+
+// ── Center-label donut with a clean custom legend ────────────────────────
+// Thin ring with a big total in the middle. `data` items: { name, value, color }.
+export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter, stack = false }) {
+  if (!data.length) {
+    return <EmptyState icon={emptyIcon} title={emptyTitle} />;
+  }
+  // `stack` keeps the donut on top and the legend below at full width — better
+  // for narrow cards where a side-by-side legend would get cramped/truncated.
+  return (
+    <div
+      className={`flex items-center gap-8 py-2 ${stack ? "flex-col" : "flex-col sm:flex-row"}`}
+    >
+      <div className="relative flex-shrink-0" style={{ width: 190, height: 190 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={70}
+              outerRadius={92}
+              paddingAngle={3}
+              cornerRadius={8}
+              stroke="none"
+            >
+              {data.map((d) => (
+                <Cell key={d.name} fill={d.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={tooltipFormatter}
+              contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-4xl font-semibold text-gray-900 tabular-nums leading-none">
+            {total}
+          </span>
+          <span className="text-xs text-gray-400 mt-1">{centerLabel}</span>
+        </div>
+      </div>
+      <ul className="flex-1 w-full space-y-2.5">
+        {data.map((d) => (
+          <li
+            key={d.name}
+            className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 text-sm"
+          >
+            <span className="flex items-center gap-2.5">
+              <span
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                style={{ background: d.color }}
+              />
+              <span className="text-gray-600 whitespace-nowrap">{d.name}</span>
+            </span>
+            <span className="w-8 text-right font-medium text-gray-900 tabular-nums">
+              {d.value}
+            </span>
+            <span className="w-9 text-right font-normal text-gray-400 tabular-nums">
+              {total ? Math.round((d.value / total) * 100) : 0}%
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ── Horizontal ranked bar chart (recharts) ───────────────────────────────
+// Built for "X by category" data with many categories (e.g. 12+ colleges):
+// sorts high→low, labels sit on the left in a fixed-width column so the bars
+// start at the same x across charts and never overlap. The chart height grows
+// to fit every row natively (no scrolling). `data` items: { name, value, color }.
+export function RankedBarChart({
+  data,
+  emptyIcon,
+  emptyTitle,
+  rowHeight = 40,
+  labelWidth = 60,
+  tooltipFormatter,
+  maxRows,
+  othersColor = "#94a3b8",
+}) {
+  if (!data.length) {
+    return <EmptyState icon={emptyIcon} title={emptyTitle} />;
+  }
+  const ranked = [...data].sort((a, b) => b.value - a.value);
+  // Keep overview tiles compact and grid-balanced: show the top (maxRows-1)
+  // categories and roll the long tail into a single "Others" bar rather than
+  // letting the panel grow to dozens of rows.
+  let sorted = ranked;
+  if (maxRows && ranked.length > maxRows) {
+    const head = ranked.slice(0, maxRows - 1);
+    const tail = ranked.slice(maxRows - 1);
+    const othersValue = tail.reduce((sum, d) => sum + d.value, 0);
+    sorted = [
+      ...head,
+      { name: `Others (${tail.length})`, value: othersValue, color: othersColor },
+    ];
+  }
+  const chartHeight = Math.max(sorted.length * rowHeight, rowHeight);
+  return (
+    <div style={{ width: "100%", height: chartHeight }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={sorted}
+          layout="vertical"
+          margin={{ top: 4, right: 34, left: 4, bottom: 4 }}
+          barCategoryGap="22%"
+        >
+          <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis type="number" hide allowDecimals={false} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={labelWidth}
+            tick={{ fontSize: 12, fill: "#4b5563" }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <Tooltip
+            formatter={tooltipFormatter}
+            cursor={{ fill: "#f8fafc" }}
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+          />
+          <Bar dataKey="value" radius={[4, 4, 4, 4]} maxBarSize={22}>
+            {sorted.map((d) => (
+              <Cell key={d.name} fill={d.color} />
+            ))}
+            <LabelList
+              dataKey="value"
+              position="right"
+              style={{ fontSize: 12, fill: "#374151", fontWeight: 600 }}
+            />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
