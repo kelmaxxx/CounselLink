@@ -19,25 +19,32 @@ export const acceptAppointment = async (req, res) => {
   const { date, timeSlot, note } = req.body;
   const counselorId = req.user?.id;
 
-  if (!date || !timeSlot) {
+  const [appt] = await query("SELECT is_urgent FROM appointments WHERE id = ?", [id]);
+  const isUrgent = appt?.is_urgent;
+
+  if (!isUrgent && (!date || !timeSlot)) {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
 
-  const normalizedDate = normalizeDate(date);
+  const normalizedDate = isUrgent ? null : normalizeDate(date);
+  const normalizedSlot = isUrgent ? null : timeSlot;
 
   await query(
     "UPDATE appointments SET status='approved', counselor_id=?, scheduled_date=?, scheduled_time=?, counselor_action_note=?, updated_at=NOW() WHERE id=?",
-    [counselorId, normalizedDate, timeSlot, note || null, id]
+    [counselorId, normalizedDate, normalizedSlot, note || null, id]
   );
 
-  await logAction(req, "accept_appointment", "appointment", id, { date: normalizedDate, timeSlot });
+  await logAction(req, "accept_appointment", "appointment", id, { date: normalizedDate, timeSlot: normalizedSlot });
 
   const rows = await query("SELECT student_id FROM appointments WHERE id = ?", [id]);
   if (rows.length) {
+    const notifMsg = isUrgent
+      ? "Your urgent appointment request has been approved. Please proceed to the counselor's office."
+      : `Your appointment is approved for ${normalizedDate} at ${normalizedSlot}.`;
     await createNotification({
       userId: rows[0].student_id,
       title: "Appointment Approved",
-      message: `Your appointment is approved for ${normalizedDate} at ${timeSlot}.`,
+      message: notifMsg,
       link: "/student/appointments",
     });
     notifyUser(rows[0].student_id, { type: "appointments" });

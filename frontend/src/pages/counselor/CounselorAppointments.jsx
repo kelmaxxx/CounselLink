@@ -8,7 +8,6 @@ import {
   MessageCircle,
   Calendar,
   ClipboardList,
-  ArrowRight,
   FileText,
   Hash,
   CalendarClock,
@@ -17,8 +16,8 @@ import {
   X,
   Clock3,
   AlertTriangle,
+  Search,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
 import {
@@ -33,9 +32,12 @@ import {
   LABEL,
   initialsOf,
   formatDate,
+  Pagination,
 } from "../../components/ui";
 
 const TIME_LABEL = {
+  morning: "9:00 AM – 12:00 PM",
+  afternoon: "1:00 PM – 5:00 PM",
   "9:00-10:00": "9:00 – 10:00 AM",
   "10:00-11:00": "10:00 – 11:00 AM",
   "11:00-12:00": "11:00 – 12:00 PM",
@@ -54,7 +56,7 @@ export default function CounselorAppointments() {
     rejectAppointment,
     rescheduleAppointment,
   } = useAppointments();
-  const { getTestsForCurrentUser, fetchTests } = useTests();
+  const { getTestsForCurrentUser, fetchTests, acceptTest } = useTests();
   const { sessions } = useCounselingSessions();
   const [busyId, setBusyId] = useState(null);
 
@@ -75,6 +77,15 @@ export default function CounselorAppointments() {
   });
 
   const [actionErrorModal, setActionErrorModal] = useState({ open: false, message: "" });
+  const [activeTab, setActiveTab] = useState("pending");
+  const [search, setSearch] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const PAGE_SIZE = 10;
+  const [pendingPage, setPendingPage] = useState(1);
+  const [sessionsPage, setSessionsPage] = useState(1);
+  const [testsPage, setTestsPage] = useState(1);
+  const [completedPage, setCompletedPage] = useState(1);
 
   const handleMarkDone = (id, type = "counseling") => {
     setCompleteConfirmModal({ open: true, id, type });
@@ -114,6 +125,20 @@ export default function CounselorAppointments() {
     if (!res.success) alert(res.message || "Failed to accept request");
   };
 
+  const handleAcceptTest = async (t) => {
+    const slot = Array.isArray(t.preferredSlots)
+      ? t.preferredSlots[0]
+      : t.timeSlot || (t.preferred_slots ? t.preferred_slots.split(",")[0] : null);
+    setBusyId(t.id);
+    const res = await acceptTest({
+      id: t.id,
+      date: t.preferredDate || t.preferred_date,
+      timeSlot: slot,
+    });
+    setBusyId(null);
+    if (!res.success) alert(res.message || "Failed to approve test request");
+  };
+
   const submitReject = async () => {
     const note = rejectModal.note.trim() || null;
     setBusyId(rejectModal.id);
@@ -145,6 +170,7 @@ export default function CounselorAppointments() {
     [getAppointmentsForCurrentUser]
   );
   const myTests = useMemo(() => getTestsForCurrentUser(), [getTestsForCurrentUser]);
+  const pendingTests = useMemo(() => myTests.filter((t) => t.status === "pending"), [myTests]);
 
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [chatRecipient, setChatRecipient] = useState(null);
@@ -183,12 +209,25 @@ export default function CounselorAppointments() {
     return [...urgents, ...regulars];
   }, [myAppointments]);
 
-  // Map each urgent pending appointment id -> its 1-based queue position
-  const urgentQueueMap = useMemo(() => {
+  // Queue number per appointment: position within same preferred-date + time-block group
+  const queueMap = useMemo(() => {
     const map = {};
-    pendingAppointments
-      .filter((a) => a.is_urgent || a.isUrgent)
-      .forEach((a, i) => { map[a.id] = i + 1; });
+    const getBlock = (slot) =>
+      slot === "morning" || !slot || slot.startsWith("9:") || slot.startsWith("10:") || slot.startsWith("11:")
+        ? "morning"
+        : "afternoon";
+    const groups = {};
+    pendingAppointments.forEach((a) => {
+      const slot = Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : a.timeSlot || "";
+      const date = a.preferredDate || a.preferred_date || "";
+      const key = `${date}|${getBlock(slot)}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(a);
+    });
+    Object.values(groups).forEach((group) => {
+      group.sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
+      group.forEach((a, i) => { map[a.id] = i + 1; });
+    });
     return map;
   }, [pendingAppointments]);
   const upcomingAppointments = myAppointments.filter(
@@ -222,6 +261,102 @@ export default function CounselorAppointments() {
   const notCompletedAppointments = myAppointments.filter(
     (a) => a.status !== "completed" && a.status !== "rejected"
   );
+
+  // ── Search / suggestions ──────────────────────────────────────────
+  const allNames = useMemo(() => {
+    const names = new Set();
+    myAppointments.forEach((a) => { if (a.studentName) names.add(a.studentName); });
+    myTests.forEach((t) => { if (t.studentName) names.add(t.studentName); });
+    return [...names].sort();
+  }, [myAppointments, myTests]);
+
+  const suggestions = useMemo(() => {
+    if (!search.trim()) return [];
+    const q = search.toLowerCase();
+    return allNames
+      .filter((n) => {
+        const lower = n.toLowerCase();
+        return lower.startsWith(q) || lower.split(/\s+/).some((w) => w.startsWith(q));
+      })
+      .slice(0, 6);
+  }, [allNames, search]);
+
+  const matchesSearch = (name) =>
+    !search.trim() || (name || "").toLowerCase().includes(search.toLowerCase());
+
+  const filteredPendingAppts = pendingAppointments.filter((a) => matchesSearch(a.studentName));
+  const filteredPendingTests = pendingTests.filter((t) => matchesSearch(t.studentName));
+  const filteredSessions = upcomingAppointments.filter((a) => matchesSearch(a.studentName));
+  const filteredTests = upcomingTests.filter((t) => matchesSearch(t.studentName));
+  const filteredCompleted = recentlyCompleted.filter((item) => matchesSearch(item.studentName));
+
+  // Combined pending list for unified pagination
+  const filteredPending = useMemo(
+    () => [
+      ...filteredPendingAppts.map((a) => ({ ...a, _kind: "appt" })),
+      ...filteredPendingTests.map((t) => ({ ...t, _kind: "test" })),
+    ],
+    [filteredPendingAppts, filteredPendingTests]
+  );
+
+  const pagedPending = useMemo(
+    () => filteredPending.slice((pendingPage - 1) * PAGE_SIZE, pendingPage * PAGE_SIZE),
+    [filteredPending, pendingPage]
+  );
+  const pagedSessions = useMemo(
+    () => filteredSessions.slice((sessionsPage - 1) * PAGE_SIZE, sessionsPage * PAGE_SIZE),
+    [filteredSessions, sessionsPage]
+  );
+  const pagedTests = useMemo(
+    () => filteredTests.slice((testsPage - 1) * PAGE_SIZE, testsPage * PAGE_SIZE),
+    [filteredTests, testsPage]
+  );
+  const pagedCompleted = useMemo(
+    () => filteredCompleted.slice((completedPage - 1) * PAGE_SIZE, completedPage * PAGE_SIZE),
+    [filteredCompleted, completedPage]
+  );
+
+  // Queue maps for approved sessions and tests: group by scheduled date + AM/PM block
+  const _getBlock = (slot) =>
+    !slot || slot === "morning" || slot.startsWith("9:") || slot.startsWith("10:") || slot.startsWith("11:")
+      ? "AM" : "PM";
+
+  const sessionQueueMap = useMemo(() => {
+    const map = {};
+    const groups = {};
+    upcomingAppointments.forEach((a) => {
+      const date = (a.scheduledDate || a.preferredDate || "").split("T")[0];
+      const key = `${date}|${_getBlock(a.scheduledTimeSlot || "")}`;
+      (groups[key] = groups[key] || []).push(a);
+    });
+    Object.values(groups).forEach((g) => {
+      g.sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
+      g.forEach((a, i) => { map[a.id] = i + 1; });
+    });
+    return map;
+  }, [upcomingAppointments]);
+
+  const testQueueMap = useMemo(() => {
+    const map = {};
+    const groups = {};
+    upcomingTests.forEach((t) => {
+      const date = (t.scheduledDate || t.preferredDate || "").split("T")[0];
+      const key = `${date}|${_getBlock(t.scheduledTimeSlot || "")}`;
+      (groups[key] = groups[key] || []).push(t);
+    });
+    Object.values(groups).forEach((g) => {
+      g.sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
+      g.forEach((t, i) => { map[t.id] = i + 1; });
+    });
+    return map;
+  }, [upcomingTests]);
+
+  const TABS = [
+    { id: "pending", label: "Pending", count: pendingAppointments.length + pendingTests.length },
+    { id: "sessions", label: "Counseling Sessions", count: upcomingAppointments.length },
+    { id: "tests", label: "Psychological Tests", count: upcomingTests.length },
+    { id: "completed", label: "Completed", count: recentlyCompleted.length },
+  ];
 
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto">
@@ -263,22 +398,78 @@ export default function CounselorAppointments() {
         />
       </div>
 
-      {/* Pending requests — student-submitted, awaiting accept/reschedule/reject */}
+      {/* ── Tabs + Search ──────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id); setSearch(""); setPendingPage(1); setSessionsPage(1); setTestsPage(1); setCompletedPage(1); }}
+              className={[
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap",
+                activeTab === tab.id
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700",
+              ].join(" ")}
+            >
+              {tab.label}
+              <span
+                className={[
+                  "inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[11px] font-bold px-1",
+                  activeTab === tab.id ? "bg-maroon-600 text-white" : "bg-gray-200 text-gray-600",
+                ].join(" ")}
+              >
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Search with suggestions */}
+        <div className="relative flex-shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <input
+            className="pl-9 pr-3 h-9 w-full sm:w-56 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-maroon-400 bg-white"
+            placeholder="Search student name…"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-20 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden text-sm">
+              {suggestions.map((name) => (
+                <li
+                  key={name}
+                  onMouseDown={() => { setSearch(name); setShowSuggestions(false); }}
+                  className="px-3 py-2 hover:bg-maroon-50 cursor-pointer text-gray-800"
+                >
+                  {name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* ── Pending tab ─────────────────────────────────────────────── */}
+      {activeTab === "pending" && (
       <SectionCard
         className="mb-6"
         title="Pending requests"
-        subtitle={`${pendingAppointments.length} awaiting your response`}
+        subtitle={`${filteredPending.length} awaiting your response`}
         noBodyPadding
       >
-        {pendingAppointments.length === 0 ? (
+        {filteredPending.length === 0 ? (
           <EmptyState
             icon={Clock3}
-            title="No pending requests"
-            hint="New counseling requests from students will appear here for you to accept, reschedule, or decline."
+            title={search ? "No results" : "No pending requests"}
+            hint={search ? `No pending requests match "${search}".` : "New counseling requests from students will appear here."}
           />
         ) : (
+          <>
           <ul className="divide-y divide-gray-100">
-            {pendingAppointments.map((a) => {
+            {pagedPending.filter((item) => item._kind === "appt").map((a) => {
               const studentId = a.student_id || a.studentUserId;
               const requested = a.preferredDate
                 ? `${formatDate(a.preferredDate)} · ${timeLabel(
@@ -308,16 +499,14 @@ export default function CounselorAppointments() {
                         <span className="text-xs text-gray-500">{a.college || "—"}</span>
                         <StatusPill status={a.status} />
                         {(a.is_urgent || a.isUrgent) && (
-                          <>
-                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
-                              <AlertTriangle size={11} /> Urgent
-                            </span>
-                            {urgentQueueMap[a.id] != null && (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-red-600 text-white">
-                                Queue #{urgentQueueMap[a.id]}
-                              </span>
-                            )}
-                          </>
+                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                            <AlertTriangle size={11} /> Urgent
+                          </span>
+                        )}
+                        {queueMap[a.id] != null && (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-maroon-600 text-white">
+                            Queue #{queueMap[a.id]}
+                          </span>
                         )}
                         {a.controlNo && (
                           <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
@@ -346,22 +535,21 @@ export default function CounselorAppointments() {
                       >
                         <MessageCircle size={15} />
                       </button>
-                      {(a.is_urgent || a.isUrgent) && (
-                        <a
-                          href={`/counselor/appointments/${a.id}/form`}
-                          className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
-                        >
-                          <FileText size={13} />
-                          Open form
-                        </a>
-                      )}
+                      <a
+                        href={`/counselor/appointments/${a.id}/form`}
+                        className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
+                        title="Open form"
+                      >
+                        <FileText size={13} />
+                        Open form
+                      </a>
                       <button
                         onClick={() => handleAccept(a)}
                         disabled={busyId === a.id}
                         className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition disabled:opacity-50"
-                        title="Accept"
+                        title="Approve"
                       >
-                        <Check size={13} /> Accept
+                        <Check size={13} /> {busyId === a.id ? "Approving…" : "Approve"}
                       </button>
                       {!(a.is_urgent || a.isUrgent) && (
                         <button
@@ -388,34 +576,89 @@ export default function CounselorAppointments() {
                 </li>
               );
             })}
+            {/* Pending test requests in the same tab */}
+            {pagedPending.filter((item) => item._kind === "test").map((t) => {
+              const studentId = t.student_id || t.studentUserId;
+              return (
+                <li key={`test-${t.id}`} className="px-4 py-3 hover:bg-gray-50/70 transition">
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => openProfile(studentId, t.studentName)}
+                      className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center justify-center text-xs font-semibold flex-shrink-0 transition"
+                      title="View profile"
+                    >
+                      {initialsOf(t.studentName)}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button onClick={() => openProfile(studentId, t.studentName)} className="text-sm font-semibold text-gray-900 hover:underline">
+                          {t.studentName}
+                        </button>
+                        <span className="text-xs text-gray-500">{t.college || "—"}</span>
+                        <StatusPill status={t.status} />
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                          <ClipboardList size={11} /> {t.testType || "Psychological Test"}
+                        </span>
+                        {t.controlNo && (
+                          <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
+                            <Hash size={10} />{t.controlNo}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 flex items-baseline gap-1.5 text-xs">
+                        <span className="text-gray-500">Requested</span>
+                        <span className="text-gray-700 tabular-nums">
+                          {t.preferredDate ? formatDate(t.preferredDate) : "—"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button onClick={() => openChat(studentId, t.studentName)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="Message">
+                        <MessageCircle size={15} />
+                      </button>
+                      <a href={`/counselor/tests/${t.id}/form`} className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition" title="Open form">
+                        <FileText size={13} /> Open form
+                      </a>
+                      <button onClick={() => handleAcceptTest(t)} disabled={busyId === t.id} className="inline-flex items-center gap-1 h-8 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition disabled:opacity-50">
+                        <Check size={13} /> {busyId === t.id ? "Approving…" : "Approve"}
+                      </button>
+                      <button onClick={() => setRejectModal({ open: true, id: t.id, note: "" })} disabled={busyId === t.id} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-red-600 hover:bg-red-50 transition disabled:opacity-50">
+                        <X size={15} />
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
+          <Pagination
+            page={pendingPage}
+            totalPages={Math.ceil(filteredPending.length / PAGE_SIZE)}
+            onPageChange={setPendingPage}
+          />
+          </>
         )}
       </SectionCard>
+      )}
 
-      {/* Counseling sessions */}
+      {/* ── Sessions tab ─────────────────────────────────────────────── */}
+      {activeTab === "sessions" && (
       <SectionCard
         className="mb-6"
         title="Counseling sessions"
-        subtitle={`${upcomingAppointments.length} scheduled`}
+        subtitle={`${filteredSessions.length} scheduled`}
         noBodyPadding
-        action={
-          <Link
-            to="/"
-            className="text-xs font-medium text-gray-600 hover:text-gray-900 inline-flex items-center gap-1"
-          >
-            Pending requests <ArrowRight size={12} />
-          </Link>
-        }
       >
-        {upcomingAppointments.length === 0 ? (
+        {filteredSessions.length === 0 ? (
           <EmptyState
             icon={Calendar}
-            title="No upcoming counseling sessions"
-            hint="Pending appointment requests can be reviewed from the dashboard."
+            title={search ? "No results" : "No upcoming counseling sessions"}
+            hint={search ? `No sessions match "${search}".` : "Accepted appointments will appear here."}
           />
         ) : (
+          <>
           <ul className="divide-y divide-gray-100">
-            {upcomingAppointments.map((a) => {
+            {pagedSessions.map((a) => {
               const studentId = a.student_id || a.studentUserId;
               // Follow-up appointments are created with this fixed reason by
               // executeSubmitReport (StudentCounselingForm.jsx) — there's no
@@ -454,6 +697,11 @@ export default function CounselorAppointments() {
                           <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
                             <Hash size={10} />
                             {a.controlNo}
+                          </span>
+                        )}
+                        {sessionQueueMap[a.id] != null && (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-sky-600 text-white">
+                            {_getBlock(a.scheduledTimeSlot || "")} Queue #{sessionQueueMap[a.id]}
                           </span>
                         )}
                       </div>
@@ -521,25 +769,34 @@ export default function CounselorAppointments() {
               );
             })}
           </ul>
+          <Pagination
+            page={sessionsPage}
+            totalPages={Math.ceil(filteredSessions.length / PAGE_SIZE)}
+            onPageChange={setSessionsPage}
+          />
+          </>
         )}
       </SectionCard>
+      )}
 
-      {/* Psychological tests */}
+      {/* ── Tests tab ────────────────────────────────────────────────── */}
+      {activeTab === "tests" && (
       <SectionCard
         className="mb-6"
         title="Psychological tests"
-        subtitle={`${upcomingTests.length} scheduled`}
+        subtitle={`${filteredTests.length} scheduled`}
         noBodyPadding
       >
-        {upcomingTests.length === 0 ? (
+        {filteredTests.length === 0 ? (
           <EmptyState
             icon={ClipboardList}
-            title="No scheduled tests"
-            hint="Pending test requests can be reviewed from the dashboard."
+            title={search ? "No results" : "No scheduled tests"}
+            hint={search ? `No tests match "${search}".` : "Accepted test requests will appear here."}
           />
         ) : (
+          <>
           <ul className="divide-y divide-gray-100">
-            {upcomingTests.map((t) => {
+            {pagedTests.map((t) => {
               const studentId = t.student_id || t.studentUserId;
               const original = t.preferredDate
                 ? `${formatDate(t.preferredDate)} · ${
@@ -577,6 +834,11 @@ export default function CounselorAppointments() {
                           <span className="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
                             <Hash size={10} />
                             {t.controlNo}
+                          </span>
+                        )}
+                        {testQueueMap[t.id] != null && (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                            {_getBlock(t.scheduledTimeSlot || "")} Queue #{testQueueMap[t.id]}
                           </span>
                         )}
                       </div>
@@ -646,53 +908,70 @@ export default function CounselorAppointments() {
               );
             })}
           </ul>
+          <Pagination
+            page={testsPage}
+            totalPages={Math.ceil(filteredTests.length / PAGE_SIZE)}
+            onPageChange={setTestsPage}
+          />
+          </>
         )}
       </SectionCard>
+      )}
 
-      {recentlyCompleted.length > 0 && (
+      {/* ── Completed tab ────────────────────────────────────────────── */}
+      {activeTab === "completed" && (
         <SectionCard
           className="mb-6"
           title="Completed Appointments"
-          subtitle={`${recentlyCompleted.length} completed appointment${
-            recentlyCompleted.length === 1 ? "" : "s"
-          } — counseling sessions and psychological tests.`}
+          subtitle={`${filteredCompleted.length} completed — counseling sessions and psychological tests`}
           noBodyPadding
         >
-          <ul className="divide-y divide-gray-100">
-            {recentlyCompleted.slice(0, 10).map((item) => (
-              <li key={`${item._type}-${item.id}`} className="px-4 py-3 hover:bg-gray-50/70 transition">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                    {initialsOf(item.studentName)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-gray-900">
-                        {item.studentName}
-                      </span>
-                      <span className="text-xs text-gray-500">{item.college || "—"}</span>
-                      <StatusPill status="completed" />
-                      {item._type === "test" ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
-                          <ClipboardList size={11} />
-                          {item.testType || "Psychological test"}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-maroon-50 text-maroon-700 border-maroon-200">
-                          <FileText size={11} />
-                          Counseling
-                        </span>
-                      )}
+          {filteredCompleted.length === 0 ? (
+            <EmptyState
+              icon={CheckCircle2}
+              title={search ? "No results" : "No completed appointments yet"}
+              hint={search ? `No completed records match "${search}".` : "Finished sessions and tests will appear here."}
+            />
+          ) : (
+            <>
+            <ul className="divide-y divide-gray-100">
+              {pagedCompleted.map((item) => (
+                <li key={`${item._type}-${item.id}`} className="px-4 py-3 hover:bg-gray-50/70 transition">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                      {initialsOf(item.studentName)}
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
-                      {formatDate(item.scheduledDate || item.preferredDate)}
-                      {item.scheduledTimeSlot ? ` · ${timeLabel(item.scheduledTimeSlot)}` : ""}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-gray-900">{item.studentName}</span>
+                        <span className="text-xs text-gray-500">{item.college || "—"}</span>
+                        <StatusPill status="completed" />
+                        {item._type === "test" ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                            <ClipboardList size={11} /> {item.testType || "Psychological test"}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-maroon-50 text-maroon-700 border-maroon-200">
+                            <FileText size={11} /> Counseling
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
+                        {formatDate(item.scheduledDate || item.preferredDate)}
+                        {item.scheduledTimeSlot ? ` · ${timeLabel(item.scheduledTimeSlot)}` : ""}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+            <Pagination
+              page={completedPage}
+              totalPages={Math.ceil(filteredCompleted.length / PAGE_SIZE)}
+              onPageChange={setCompletedPage}
+            />
+            </>
+          )}
         </SectionCard>
       )}
 

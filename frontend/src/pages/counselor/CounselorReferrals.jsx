@@ -13,6 +13,7 @@ import {
   INPUT,
   LABEL,
   initialsOf,
+  Pagination,
 } from "../../components/ui";
 
 const TIME_LABEL = {
@@ -29,6 +30,8 @@ export default function CounselorReferrals() {
   const { referrals, loading, error, fetchReferrals, decideReferral } = useReferrals();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("incoming");
+  const [incomingPage, setIncomingPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
   const [decisionModal, setDecisionModal] = useState({ open: false, referral: null, status: null });
   const [decisionNote, setDecisionNote] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
@@ -52,7 +55,11 @@ export default function CounselorReferrals() {
     [referrals]
   );
 
+  const REFERRALS_PER_PAGE = 10;
   const filtered = activeTab === "incoming" ? incomingPending : history;
+  const currentPage = activeTab === "incoming" ? incomingPage : historyPage;
+  const setCurrentPage = activeTab === "incoming" ? setIncomingPage : setHistoryPage;
+  const pagedReferrals = filtered.slice((currentPage - 1) * REFERRALS_PER_PAGE, currentPage * REFERRALS_PER_PAGE);
 
   const openDecision = (referral, status) => {
     setDecisionModal({ open: true, referral, status });
@@ -101,7 +108,7 @@ export default function CounselorReferrals() {
       <div className="flex items-center gap-1 border-b border-gray-200 mb-4">
         <TabBtn
           active={activeTab === "incoming"}
-          onClick={() => setActiveTab("incoming")}
+          onClick={() => { setActiveTab("incoming"); setIncomingPage(1); }}
           icon={<Inbox size={14} />}
           count={incomingPending.length}
         >
@@ -109,7 +116,7 @@ export default function CounselorReferrals() {
         </TabBtn>
         <TabBtn
           active={activeTab === "history"}
-          onClick={() => setActiveTab("history")}
+          onClick={() => { setActiveTab("history"); setHistoryPage(1); }}
           icon={<History size={14} />}
           count={history.length}
         >
@@ -145,6 +152,7 @@ export default function CounselorReferrals() {
             }
           />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
@@ -158,7 +166,7 @@ export default function CounselorReferrals() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((r) => (
+                {pagedReferrals.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50/70 transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
@@ -224,6 +232,12 @@ export default function CounselorReferrals() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={currentPage}
+            totalPages={Math.ceil(filtered.length / REFERRALS_PER_PAGE)}
+            onPageChange={setCurrentPage}
+          />
+          </>
         )}
       </SectionCard>
 

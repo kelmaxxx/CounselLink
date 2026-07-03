@@ -11,6 +11,7 @@ import {
   StatusPill,
   Modal,
   BTN,
+  Pagination,
 } from "../../components/ui";
 
 const TABS = [
@@ -36,6 +37,8 @@ export default function StudentAppointments() {
   const { tests, fetchTests } = useTests();
   const [activeTab, setActiveTab] = useState("all");
   const [selected, setSelected] = useState(null);
+  const [page, setPage] = useState(1);
+  const APPTS_PER_PAGE = 10;
 
   useEffect(() => {
     fetchAppointments?.().catch(() => undefined);
@@ -83,7 +86,7 @@ export default function StudentAppointments() {
           return (
             <button
               key={t.id}
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => { setActiveTab(t.id); setPage(1); }}
               className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${activeTab === t.id
                 ? "text-maroon-700 border-maroon-600"
                 : "text-gray-500 border-transparent hover:text-gray-900"
@@ -111,6 +114,7 @@ export default function StudentAppointments() {
             hint="Try a different tab or request a new appointment."
           />
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
@@ -123,7 +127,7 @@ export default function StudentAppointments() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {visible.map((a) => (
+                {visible.slice((page - 1) * APPTS_PER_PAGE, page * APPTS_PER_PAGE).map((a) => (
                   <tr key={a.isTest ? `test-${a.id}` : `apt-${a.id}`} className="hover:bg-gray-50/70 transition">
                     <td className="px-4 py-3">
                       <div className="text-sm font-medium text-gray-900 tabular-nums">
@@ -156,6 +160,12 @@ export default function StudentAppointments() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={page}
+            totalPages={Math.ceil(visible.length / APPTS_PER_PAGE)}
+            onPageChange={setPage}
+          />
+          </>
         )}
       </SectionCard>
 
