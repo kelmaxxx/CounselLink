@@ -17,29 +17,32 @@ const parseResponses = (raw) => {
   }
 };
 
+// Returns session IDs and test IDs for which the student already submitted feedback.
+// Used by the student's My Records page to hide the feedback button once submitted.
+export const getMySubmittedSessions = async (req, res) => {
+  const studentId = req.user?.id;
+  const rows = await query(
+    "SELECT session_id, test_id FROM client_feedback_forms WHERE student_id = ? AND (session_id IS NOT NULL OR test_id IS NOT NULL)",
+    [studentId]
+  );
+  return res.json({
+    submittedSessionIds: rows.filter((r) => r.session_id).map((r) => r.session_id),
+    submittedTestIds: rows.filter((r) => r.test_id).map((r) => r.test_id),
+  });
+};
+
 // Lightweight, role-agnostic lookup so students can show a counselor's
-// average star rating on their public profile. Deliberately returns only
-// the average + count — never individual entries — same aggregate-only
-// contract as the tally endpoint.
+// average star rating on their public profile. Returns only average + count —
+// never individual entries. All sessions count (no per-student dedup).
 export const getCounselorRating = async (req, res) => {
   const { counselorId } = req.query;
   if (!counselorId) {
     return res.status(400).json({ message: "counselorId is required" });
   }
 
-  // Join to a subquery that picks only the latest row per student
-  // so a student who re-submitted is counted exactly once.
   const rows = await query(
-    `SELECT f.rating
-     FROM client_feedback_forms f
-     INNER JOIN (
-       SELECT MAX(id) AS max_id
-       FROM client_feedback_forms
-       WHERE counselor_id = ?
-       GROUP BY student_id
-     ) latest ON f.id = latest.max_id
-     WHERE f.counselor_id = ?`,
-    [counselorId, counselorId]
+    "SELECT rating FROM client_feedback_forms WHERE counselor_id = ?",
+    [counselorId]
   );
   const valid = rows.map((r) => Number(r.rating)).filter((v) => isValidScore(v));
   const average = valid.length ? valid.reduce((sum, v) => sum + v, 0) / valid.length : null;
@@ -48,12 +51,15 @@ export const getCounselorRating = async (req, res) => {
 };
 
 export const submitClientFeedback = async (req, res) => {
-  const { counselorId, appointmentId, responses, overallSatisfaction, wouldRecommend, rating, comments } =
+  const { counselorId, sessionId, testId, appointmentId, responses, overallSatisfaction, wouldRecommend, rating, comments } =
     req.body || {};
   const studentId = req.user?.id;
 
   if (!counselorId) {
     return res.status(400).json({ message: "counselorId is required" });
+  }
+  if (!sessionId && !testId) {
+    return res.status(400).json({ message: "Either sessionId or testId is required" });
   }
 
   if (!responses || typeof responses !== "object") {
@@ -80,11 +86,29 @@ export const submitClientFeedback = async (req, res) => {
     return res.status(400).json({ message: "rating (1-5) is required" });
   }
 
-  const counselor = await query("SELECT id FROM users WHERE id = ? AND role = 'counselor'", [
-    counselorId,
-  ]);
+  const counselor = await query("SELECT id FROM users WHERE id = ? AND role = 'counselor'", [counselorId]);
   if (!counselor.length) {
     return res.status(404).json({ message: "Counselor not found" });
+  }
+
+  // One feedback per session/test — reject if already submitted
+  if (sessionId) {
+    const existing = await query(
+      "SELECT id FROM client_feedback_forms WHERE student_id = ? AND session_id = ?",
+      [studentId, sessionId]
+    );
+    if (existing.length) {
+      return res.status(409).json({ message: "You have already submitted feedback for this session" });
+    }
+  }
+  if (testId) {
+    const existing = await query(
+      "SELECT id FROM client_feedback_forms WHERE student_id = ? AND test_id = ?",
+      [studentId, testId]
+    );
+    if (existing.length) {
+      return res.status(409).json({ message: "You have already submitted feedback for this test result" });
+    }
   }
 
   const normalizedResponses = {};
@@ -94,18 +118,13 @@ export const submitClientFeedback = async (req, res) => {
 
   const result = await query(
     `INSERT INTO client_feedback_forms
-       (student_id, counselor_id, appointment_id, responses, overall_satisfaction, would_recommend, rating, comments)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       appointment_id         = VALUES(appointment_id),
-       responses              = VALUES(responses),
-       overall_satisfaction   = VALUES(overall_satisfaction),
-       would_recommend        = VALUES(would_recommend),
-       rating                 = VALUES(rating),
-       comments               = VALUES(comments)`,
+       (student_id, counselor_id, session_id, test_id, appointment_id, responses, overall_satisfaction, would_recommend, rating, comments)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       studentId,
       counselorId,
+      sessionId || null,
+      testId || null,
       appointmentId || null,
       JSON.stringify(normalizedResponses),
       satisfactionNum,
@@ -125,6 +144,8 @@ export const submitClientFeedback = async (req, res) => {
 
   await logAction(req, "submit_client_feedback", "client_feedback_form", result.insertId, {
     counselorId,
+    sessionId: sessionId || null,
+    testId: testId || null,
   });
 
   return res.status(201).json({ message: "Feedback submitted", id: result.insertId });
@@ -147,32 +168,24 @@ export const getClientFeedbackTally = async (req, res) => {
     return res.status(403).json({ message: "Forbidden" });
   }
 
-  // Build outer-query conditions (counselor + optional date range).
-  const outerWhere = ["f.counselor_id = ?"];
-  const outerParams = [counselorId];
+  // Build query — each row is one session's feedback; no per-student dedup needed.
+  const where = ["counselor_id = ?"];
+  const params = [counselorId];
   if (from) {
-    outerWhere.push("f.created_at >= ?");
-    outerParams.push(from);
+    where.push("created_at >= ?");
+    params.push(from);
   }
   if (to) {
-    outerWhere.push("f.created_at < DATE_ADD(?, INTERVAL 1 DAY)");
-    outerParams.push(to);
+    where.push("created_at < DATE_ADD(?, INTERVAL 1 DAY)");
+    params.push(to);
   }
 
-  // The subquery selects the latest row id per student for this counselor.
-  // That way a student who re-submitted is counted exactly once (latest answer only).
   const rows = await query(
-    `SELECT f.responses, f.overall_satisfaction, f.would_recommend, f.rating, f.comments, f.created_at
-     FROM client_feedback_forms f
-     INNER JOIN (
-       SELECT MAX(id) AS max_id
-       FROM client_feedback_forms
-       WHERE counselor_id = ?
-       GROUP BY student_id
-     ) latest ON f.id = latest.max_id
-     WHERE ${outerWhere.join(" AND ")}
-     ORDER BY f.created_at DESC`,
-    [counselorId, ...outerParams]
+    `SELECT responses, overall_satisfaction, would_recommend, rating, comments, created_at
+     FROM client_feedback_forms
+     WHERE ${where.join(" AND ")}
+     ORDER BY created_at DESC`,
+    params
   );
 
   const perQuestion = {};
@@ -185,15 +198,15 @@ export const getClientFeedbackTally = async (req, res) => {
   const comments = [];
 
   for (const row of rows) {
-    const responses = parseResponses(row.responses) || {};
+    const r = parseResponses(row.responses) || {};
     RESPONSE_KEYS.forEach((k) => {
-      const v = Number(responses[k]);
+      const v = Number(r[k]);
       if (isValidScore(v)) perQuestion[k][v] += 1;
     });
     const sat = Number(row.overall_satisfaction);
     if (isValidScore(sat)) overallSatisfaction[sat] += 1;
-    const ratingVal = Number(row.rating);
-    if (isValidScore(ratingVal)) rating[ratingVal] += 1;
+    const rv = Number(row.rating);
+    if (isValidScore(rv)) rating[rv] += 1;
     if (RECOMMEND_VALUES.includes(row.would_recommend)) recommend[row.would_recommend] += 1;
     if (row.comments && row.comments.trim()) comments.push(row.comments.trim());
   }
@@ -205,9 +218,7 @@ export const getClientFeedbackTally = async (req, res) => {
     return weighted / total;
   };
 
-  RESPONSE_KEYS.forEach((k) => {
-    perQuestion[k].average = averageOf(perQuestion[k]);
-  });
+  RESPONSE_KEYS.forEach((k) => { perQuestion[k].average = averageOf(perQuestion[k]); });
   overallSatisfaction.average = averageOf(overallSatisfaction);
   rating.average = averageOf(rating);
 

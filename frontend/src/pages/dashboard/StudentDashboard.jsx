@@ -29,6 +29,7 @@ import {
   BTN,
   initialsOf,
   formatDate,
+  Pagination,
 } from "../../components/ui";
 
 export default function StudentDashboard() {
@@ -42,6 +43,10 @@ export default function StudentDashboard() {
   const [myAppointments, setMyAppointments] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [chatRecipient, setChatRecipient] = useState(null);
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [testsPage, setTestsPage] = useState(1);
+  const [recentPage, setRecentPage] = useState(1);
+  const DASH_PAGE_SIZE = 10;
 
   React.useEffect(() => {
     let mounted = true;
@@ -322,6 +327,7 @@ export default function StudentDashboard() {
                 hint="Approved appointments will show up here."
               />
             ) : (
+              <>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
@@ -333,7 +339,7 @@ export default function StudentDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {upcoming.slice(0, 5).map((appt) => {
+                    {upcoming.slice((upcomingPage - 1) * DASH_PAGE_SIZE, upcomingPage * DASH_PAGE_SIZE).map((appt) => {
                       const counselor = users?.find((u) => u.id === appt.counselor_id);
                       const counselorDisplay = counselor?.name || appt.counselorName || "TBD";
                       return (
@@ -354,6 +360,12 @@ export default function StudentDashboard() {
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                page={upcomingPage}
+                totalPages={Math.ceil(upcoming.length / DASH_PAGE_SIZE)}
+                onPageChange={setUpcomingPage}
+              />
+              </>
             )}
           </SectionCard>
 
@@ -377,6 +389,7 @@ export default function StudentDashboard() {
                 hint="Request a psychological assessment when you're ready."
               />
             ) : (
+              <>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
@@ -388,7 +401,7 @@ export default function StudentDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {unfinishedTests.slice(0, 5).map((test) => {
+                    {unfinishedTests.slice((testsPage - 1) * DASH_PAGE_SIZE, testsPage * DASH_PAGE_SIZE).map((test) => {
                       const counselorId = test.counselor_id || test.counselorId;
                       const cName =
                         test.counselorName ||
@@ -419,6 +432,12 @@ export default function StudentDashboard() {
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                page={testsPage}
+                totalPages={Math.ceil(unfinishedTests.length / DASH_PAGE_SIZE)}
+                onPageChange={setTestsPage}
+              />
+              </>
             )}
           </SectionCard>
         </div>
@@ -444,6 +463,7 @@ export default function StudentDashboard() {
               hint="Conducted and follow-up sessions will show up here."
             />
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
@@ -455,7 +475,7 @@ export default function StudentDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {completedAppointments.slice(0, 5).map((appt) => {
+                  {completedAppointments.slice((recentPage - 1) * DASH_PAGE_SIZE, recentPage * DASH_PAGE_SIZE).map((appt) => {
                     const session = getSessionForAppt(appt.id);
                     const counselor = users?.find((u) => u.id === appt.counselor_id);
                     const counselorDisplay = counselor?.name || session?.counselorName || "TBD";
@@ -492,6 +512,12 @@ export default function StudentDashboard() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              page={recentPage}
+              totalPages={Math.ceil(completedAppointments.length / DASH_PAGE_SIZE)}
+              onPageChange={setRecentPage}
+            />
+            </>
           )}
         </SectionCard>
 

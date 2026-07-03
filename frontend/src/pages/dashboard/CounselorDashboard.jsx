@@ -39,6 +39,8 @@ const STATUS_COLORS = {
 };
 
 const TIME_LABEL = {
+  morning: "9:00 AM – 12:00 PM",
+  afternoon: "1:00 PM – 5:00 PM",
   "9:00-10:00": "9:00 – 10:00 AM",
   "10:00-11:00": "10:00 – 11:00 AM",
   "11:00-12:00": "11:00 – 12:00 PM",
@@ -304,6 +306,7 @@ export default function CounselorDashboard() {
       date: x.preferredDate,
       slot: Array.isArray(x.preferredSlots) ? x.preferredSlots[0] : x.timeSlot,
       isUrgent: Boolean(x.is_urgent || x.isUrgent),
+      createdAt: x.createdAt || x.created_at,
     }));
     const t = pendingTests.map((x) => ({
       key: `t-${x.id}`,
@@ -315,6 +318,7 @@ export default function CounselorDashboard() {
       detail: x.testType || "Psychological Test",
       date: x.preferredDate,
       slot: Array.isArray(x.preferredSlots) ? x.preferredSlots[0] : null,
+      createdAt: x.createdAt || x.created_at,
     }));
     return [...a, ...t];
   }, [pendingAppointments, pendingTests]);
@@ -322,6 +326,31 @@ export default function CounselorDashboard() {
   const onAccept = (row) => (row.type === "test" ? handleAcceptTest(row.id) : handleAccept(row.id));
   const onReschedule = (row) => (row.type === "test" ? openRescheduleTest(row.id) : openReschedule(row.id));
   const onReject = (row) => (row.type === "test" ? handleRejectTest(row.id) : handleReject(row.id));
+
+  // Only requests submitted today — regardless of when the appointment is for
+  const todayPendingQueue = useMemo(
+    () => pendingQueue.filter((row) => isSameDay(row.createdAt)),
+    [pendingQueue]
+  );
+
+  // Queue number per time block for today's requests
+  const todayQueueMap = useMemo(() => {
+    const map = {};
+    const getBlock = (slot) =>
+      slot === "morning" || !slot || slot.startsWith("9:") || slot.startsWith("10:") || slot.startsWith("11:")
+        ? "morning"
+        : "afternoon";
+    const groups = { morning: [], afternoon: [] };
+    todayPendingQueue.forEach((row) => {
+      groups[getBlock(row.slot)].push(row);
+    });
+    ["morning", "afternoon"].forEach((block) => {
+      groups[block].forEach((row, i) => {
+        map[row.key] = i + 1;
+      });
+    });
+    return map;
+  }, [todayPendingQueue]);
 
   const firstName = currentUser?.name?.split(" ")[0] || "Counselor";
   const today = new Date();
@@ -359,7 +388,7 @@ export default function CounselorDashboard() {
             Good morning, {firstName}
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            {dateLabel} · {pendingQueue.length} pending request{pendingQueue.length === 1 ? "" : "s"}
+            {dateLabel}
           </p>
         </div>
         <Link
@@ -403,11 +432,15 @@ export default function CounselorDashboard() {
         />
       </div>
 
-      {/* Pending queue */}
+      {/* Pending queue — today only */}
       <SectionCard
         className="mb-6"
         title="Pending queue"
-        subtitle={`${pendingQueue.length} item${pendingQueue.length === 1 ? "" : "s"} awaiting action`}
+        subtitle={
+          todayPendingQueue.length === 0 && pendingQueue.length > 0
+            ? `${pendingQueue.length} pending on other days — open queue to review`
+            : `${todayPendingQueue.length} item${todayPendingQueue.length === 1 ? "" : "s"} for today`
+        }
         noBodyPadding
         action={
           <Link
@@ -418,11 +451,15 @@ export default function CounselorDashboard() {
           </Link>
         }
       >
-        {pendingQueue.length === 0 ? (
+        {todayPendingQueue.length === 0 ? (
           <EmptyState
             icon={Inbox}
-            title="Inbox zero"
-            hint="No appointment or test requests waiting for your review."
+            title={pendingQueue.length > 0 ? "No requests for today" : "Inbox zero"}
+            hint={
+              pendingQueue.length > 0
+                ? "Open the queue to see all pending requests."
+                : "No appointment or test requests waiting for your review."
+            }
           />
         ) : (
           <div className="divide-y divide-gray-100">
@@ -433,7 +470,7 @@ export default function CounselorDashboard() {
               <div className="col-span-3">Preferred</div>
               <div className="col-span-3 text-right">Actions</div>
             </div>
-            {pendingQueue.slice(0, 6).map((row) => {
+            {todayPendingQueue.slice(0, 6).map((row) => {
               const isTest = row.type === "test";
               return (
                 <div
@@ -476,7 +513,11 @@ export default function CounselorDashboard() {
                       {isTest ? <ClipboardList size={11} /> : <Calendar size={11} />}
                       {isTest ? "Test" : "Appointment"}
                     </span>
-                    <p className="text-xs text-gray-500 mt-1 truncate">{row.detail}</p>
+                    {todayQueueMap[row.key] != null && (
+                      <p className="text-xs font-bold text-maroon-700 mt-1">
+                        Queue #{todayQueueMap[row.key]}
+                      </p>
+                    )}
                   </div>
 
                   {/* Preferred */}
@@ -502,10 +543,10 @@ export default function CounselorDashboard() {
                     >
                       <MessageCircle size={14} />
                     </button>
-                    {row.isUrgent && row.type === "appointment" && (
+                    {row.type === "appointment" && (
                       <Link
                         to={`/counselor/appointments/${row.id}/form`}
-                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"
+                        className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition whitespace-nowrap flex-shrink-0"
                         title="Open form"
                       >
                         <FileText size={13} /> Open form

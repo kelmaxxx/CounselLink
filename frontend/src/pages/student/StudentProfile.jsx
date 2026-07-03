@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
   User,
@@ -14,6 +14,7 @@ import {
   Hash,
   Lock,
   ClipboardList,
+  ChevronDown,
 } from "lucide-react";
 import {
   PageHeader,
@@ -53,6 +54,18 @@ export default function StudentProfile() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [changePwOpen, setChangePwOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const close = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+        setDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [dropdownOpen]);
   const [formData, setFormData] = useState(emptyForm(myRecord));
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -178,19 +191,7 @@ export default function StudentProfile() {
         title="My profile"
         subtitle="Manage your personal information and bio."
         actions={
-          !isEditing ? (
-            <div className="flex items-center gap-2">
-              <button onClick={() => setChangePwOpen(true)} className={BTN.secondary}>
-                <Lock size={15} /> Change password
-              </button>
-              <button onClick={() => setShowInventoryModal(true)} className={BTN.secondary}>
-                <ClipboardList size={15} /> My Inventory
-              </button>
-              <button onClick={() => setIsEditing(true)} className={BTN.primary}>
-                <Edit2 size={15} /> Edit profile
-              </button>
-            </div>
-          ) : (
+          isEditing ? (
             <>
               <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
                 <X size={15} /> Cancel
@@ -199,6 +200,44 @@ export default function StudentProfile() {
                 <Save size={15} /> {saving ? "Saving…" : "Save changes"}
               </button>
             </>
+          ) : (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setDropdownOpen((o) => !o)}
+                className={`${BTN.secondary} gap-1.5`}
+              >
+                Profile actions
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-1.5 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden py-1">
+                  <button
+                    onClick={() => { setIsEditing(true); setDropdownOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                  >
+                    <Edit2 size={14} className="text-maroon-600 flex-shrink-0" />
+                    Edit profile
+                  </button>
+                  <button
+                    onClick={() => { setChangePwOpen(true); setDropdownOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                  >
+                    <Lock size={14} className="text-maroon-600 flex-shrink-0" />
+                    Change password
+                  </button>
+                  <button
+                    onClick={() => { setShowInventoryModal(true); setDropdownOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                  >
+                    <ClipboardList size={14} className="text-maroon-600 flex-shrink-0" />
+                    My Inventory
+                  </button>
+                </div>
+              )}
+            </div>
           )
         }
       />
