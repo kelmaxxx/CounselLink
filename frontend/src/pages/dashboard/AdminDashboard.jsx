@@ -2,7 +2,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { COLLEGES } from "../../data/mockData";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import {
   Pencil,
   Trash2,
@@ -22,7 +21,8 @@ import { Link } from "react-router-dom";
 import WelcomeHero from "../../components/WelcomeHero";
 import {
   PageHeader,
-  StatCard,
+  BigStat,
+  DonutStat,
   SectionCard,
   EmptyState,
   Modal,
@@ -105,29 +105,29 @@ export default function AdminDashboard() {
         />
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-          <StatCard
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <BigStat
             label="Total users"
             value={visibleUsers.length}
             hint="All active accounts"
             icon={Users}
-            accent="bg-gray-400"
+            tone="gray"
           />
-          <StatCard
+          <BigStat
             label="Counselors"
             value={counselors.length}
             hint="On staff"
             icon={Shield}
-            accent="bg-emerald-500"
+            tone="emerald"
           />
-          <StatCard
+          <BigStat
             label="Colleges"
             value={reps.length}
             hint="Across colleges"
             icon={GraduationCap}
-            accent="bg-blue-500"
+            tone="blue"
           />
-          <StatCard
+          <BigStat
             label="Students"
             value={students.length}
             hint={
@@ -136,14 +136,14 @@ export default function AdminDashboard() {
                 : "Enrolled & active"
             }
             icon={UserCheck}
-            accent={pendingApprovals > 0 ? "bg-amber-500" : "bg-maroon-500"}
+            tone={pendingApprovals > 0 ? "amber" : "maroon"}
           />
-          <StatCard
+          <BigStat
             label="Appointments"
             value={apptStats.totalCompleted}
             hint="Completed sessions"
             icon={CalendarCheck}
-            accent="bg-purple-500"
+            tone="purple"
           />
         </div>
 
@@ -151,152 +151,52 @@ export default function AdminDashboard() {
           <SectionCard
             title="User role distribution"
             subtitle="System breakdown by role"
-            action={
-              <span className="text-xs text-gray-500 tabular-nums">
-                Total <span className="font-semibold text-gray-900">{visibleUsers.length}</span>
-              </span>
-            }
           >
-            {pieData.length === 0 ? (
-              <EmptyState icon={Users} title="No users yet" />
-            ) : (
-              <div style={{ width: "100%", height: 260 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={45}
-                      outerRadius={75}
-                      paddingAngle={2}
-                      stroke="#fff"
-                      strokeWidth={2}
-                    >
-                      {pieData.map((entry, idx) => (
-                        <Cell key={entry.name} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e7eb" }}
-                    />
-                    <Legend
-                      verticalAlign="bottom"
-                      height={32}
-                      iconType="circle"
-                      iconSize={8}
-                      wrapperStyle={{ fontSize: 11, color: "#4b5563" }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            <DonutStat
+              data={pieData.map((entry, idx) => ({
+                name: entry.name,
+                value: entry.value,
+                color: PIE_COLORS[idx % PIE_COLORS.length],
+              }))}
+              total={visibleUsers.length}
+              centerLabel="users"
+              emptyIcon={Users}
+              emptyTitle="No users yet"
+            />
           </SectionCard>
 
           <SectionCard
             title="Students by college"
             subtitle="Distribution of enrolled students"
-            action={
-              <span className="text-xs text-gray-500 tabular-nums">
-                Total <span className="font-semibold text-gray-900">{students.length}</span>
-              </span>
-            }
           >
-            {topColleges.length === 0 ? (
-              <EmptyState icon={Users} title="No students yet" />
-            ) : (
-              <div style={{ width: "100%", height: 260 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={topColleges.map(([name, value]) => ({ name, value }))}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={45}
-                      outerRadius={75}
-                      paddingAngle={2}
-                      stroke="#fff"
-                      strokeWidth={2}
-                    >
-                      {topColleges.map((_, i) => (
-                        <Cell key={i} fill={COLLEGE_COLORS[i % COLLEGE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e7eb" }}
-                    />
-                    <Legend
-                      verticalAlign="bottom"
-                      height={32}
-                      iconType="circle"
-                      iconSize={8}
-                      wrapperStyle={{ fontSize: 11, color: "#4b5563" }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            <DonutStat
+              data={topColleges.map(([name, value], i) => ({
+                name,
+                value,
+                color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
+              }))}
+              total={students.length}
+              centerLabel="students"
+              emptyIcon={Users}
+              emptyTitle="No students yet"
+            />
           </SectionCard>
 
           <SectionCard
             title="Appointments by college"
             subtitle="Completed sessions per college"
-            action={
-              <span className="text-xs text-gray-500 tabular-nums">
-                Total <span className="font-semibold text-gray-900">{apptStats.totalCompleted}</span>
-              </span>
-            }
           >
-            {apptStats.byCollege.length === 0 ? (
-              <EmptyState icon={CalendarCheck} title="No completed appointments yet" />
-            ) : (() => {
-              const apptTotal = apptStats.byCollege.reduce((s, r) => s + Number(r.total), 0);
-              const apptPieData = apptStats.byCollege.map((r) => ({
+            <DonutStat
+              data={apptStats.byCollege.map((r, i) => ({
                 name: r.college,
                 value: Number(r.total),
-                pct: apptTotal > 0 ? ((Number(r.total) / apptTotal) * 100).toFixed(1) : "0.0",
-              }));
-              return (
-                <div style={{ width: "100%", height: 260 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={apptPieData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={75}
-                        paddingAngle={2}
-                        stroke="#fff"
-                        strokeWidth={2}
-
-                      >
-                        {apptPieData.map((_, i) => (
-                          <Cell key={i} fill={APPT_COLORS[i % APPT_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e7eb" }}
-                        formatter={(value, name, props) => [`${props.payload.pct}% (${value})`, name]}
-                      />
-                      <Legend
-                        verticalAlign="bottom"
-                        height={32}
-                        iconType="circle"
-                        iconSize={8}
-                        wrapperStyle={{ fontSize: 11, color: "#4b5563" }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              );
-            })()}
+                color: APPT_COLORS[i % APPT_COLORS.length],
+              }))}
+              total={apptStats.totalCompleted}
+              centerLabel="sessions"
+              emptyIcon={CalendarCheck}
+              emptyTitle="No completed appointments yet"
+            />
           </SectionCard>
         </div>
 

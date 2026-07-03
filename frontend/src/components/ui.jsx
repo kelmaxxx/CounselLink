@@ -2,6 +2,7 @@
 // Shared primitives for the minimalist / professional design system.
 import React from "react";
 import { Inbox, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }) {
   return (
@@ -59,6 +60,102 @@ export function EmptyState({ icon: Icon = Inbox, title, hint, action, className 
       <p className="text-base font-medium text-gray-700">{title}</p>
       {hint && <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">{hint}</p>}
       {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+// ── Big-number stat card (minimalist dashboard style) ────────────────────
+// Airy card with an oversized number and a soft tinted icon chip. Use `tone`
+// to pick the chip color; falls back to a neutral gray.
+const STAT_TONES = {
+  gray: "bg-gray-100 text-gray-500",
+  amber: "bg-amber-100 text-amber-600",
+  emerald: "bg-emerald-100 text-emerald-600",
+  blue: "bg-blue-100 text-blue-600",
+  purple: "bg-purple-100 text-purple-600",
+  maroon: "bg-maroon-100 text-maroon-700",
+};
+
+export function BigStat({ label, value, hint, icon: Icon, tone = "gray" }) {
+  return (
+    <div className="bg-white rounded-3xl p-6 ring-1 ring-gray-950/5 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <span className="text-sm font-medium text-gray-500">{label}</span>
+        {Icon && (
+          <span
+            className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${STAT_TONES[tone] || STAT_TONES.gray}`}
+          >
+            <Icon size={18} />
+          </span>
+        )}
+      </div>
+      <div className="mt-5 text-5xl font-semibold text-gray-900 tabular-nums leading-none tracking-tight">
+        {value}
+      </div>
+      {hint && <p className="mt-3 text-xs text-gray-400">{hint}</p>}
+    </div>
+  );
+}
+
+// ── Center-label donut with a clean custom legend ────────────────────────
+// Thin ring with a big total in the middle. `data` items: { name, value, color }.
+export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter }) {
+  if (!data.length) {
+    return <EmptyState icon={emptyIcon} title={emptyTitle} />;
+  }
+  return (
+    <div className="flex flex-col sm:flex-row items-center gap-8 py-2">
+      <div className="relative flex-shrink-0" style={{ width: 190, height: 190 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={70}
+              outerRadius={92}
+              paddingAngle={3}
+              cornerRadius={8}
+              stroke="none"
+            >
+              {data.map((d) => (
+                <Cell key={d.name} fill={d.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={tooltipFormatter}
+              contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-4xl font-semibold text-gray-900 tabular-nums leading-none">
+            {total}
+          </span>
+          <span className="text-xs text-gray-400 mt-1">{centerLabel}</span>
+        </div>
+      </div>
+      <ul className="flex-1 w-full space-y-2.5">
+        {data.map((d) => (
+          <li key={d.name} className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2.5 min-w-0">
+              <span
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                style={{ background: d.color }}
+              />
+              <span className="text-sm text-gray-600 truncate">{d.name}</span>
+            </span>
+            <span className="text-sm font-medium text-gray-900 tabular-nums flex-shrink-0">
+              {d.value}
+              <span className="text-gray-400 ml-1.5 font-normal">
+                {total ? Math.round((d.value / total) * 100) : 0}%
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
