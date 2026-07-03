@@ -11,7 +11,7 @@ import {
   ArrowRight,
   ArrowRightLeft,
 } from "lucide-react";
-import { PageHeader, StatCard, SectionCard, BTN } from "../../components/ui";
+import { PageHeader, BigStat, SectionCard, BTN } from "../../components/ui";
 import WelcomeHero from "../../components/WelcomeHero";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -51,28 +51,28 @@ export default function RepresentativeDashboard() {
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        <StatCard
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <BigStat
           label="College"
           value={myCollege ? myCollege.split(" ")[0] : "—"}
           hint={myCollege || "No college assigned"}
           icon={GraduationCap}
-          accent="bg-maroon-500"
+          tone="maroon"
         />
-        <StatCard
+        <BigStat
           label="Students"
           value={studentsInCollege.length}
           hint="In your college"
           icon={Users}
-          accent="bg-emerald-500"
+          tone="emerald"
         />
         <Link to="/rep/counseling-data" className="block">
-          <StatCard
+          <BigStat
             label="Received reports"
             value={receivedReportsCount}
             hint="Submitted by counselors"
             icon={FileText}
-            accent="bg-blue-500"
+            tone="blue"
           />
         </Link>
       </div>

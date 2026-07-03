@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import {
   PageHeader,
-  StatCard,
+  BigStat,
   SectionCard,
   EmptyState,
   Modal,
@@ -306,34 +306,34 @@ export default function CounselorReports() {
         subtitle="Individual student counseling reports — sent to the College who referred each student."
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <BigStat
           label="Pending requests"
           value={pendingRequests}
           hint="From Colleges"
           icon={ClipboardList}
-          accent="bg-maroon-500"
+          tone="maroon"
         />
-        <StatCard
+        <BigStat
           label="Reports sent"
           value={stats.sent}
           hint="To Colleges"
           icon={Send}
-          accent="bg-emerald-500"
+          tone="emerald"
         />
-        <StatCard
+        <BigStat
           label="Finalized sessions"
           value={stats.finalized}
           hint="Per-student records on file"
           icon={CheckCircle2}
-          accent="bg-blue-500"
+          tone="blue"
         />
-        <StatCard
+        <BigStat
           label="Awaiting send"
           value={stats.pending}
           hint="Finalized but not referred to a College"
           icon={Clock3}
-          accent="bg-amber-500"
+          tone="amber"
         />
       </div>
 
