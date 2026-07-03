@@ -68,17 +68,18 @@ const STATUS_PALETTE = {
   approved: "bg-emerald-50 text-emerald-700",
   accepted: "bg-emerald-50 text-emerald-700",
   rescheduled: "bg-sky-50 text-sky-700",
-  followup: "bg-violet-50 text-violet-700",
+  followup: "bg-indigo-50 text-indigo-700",
+  urgent: "bg-red-50 text-red-700",
   rejected: "bg-red-50 text-red-700",
   cancelled: "bg-gray-100 text-gray-600",
   canceled: "bg-gray-100 text-gray-600",
   fulfilled: "bg-emerald-50 text-emerald-700",
   declined: "bg-red-50 text-red-700",
   completed: "bg-emerald-50 text-emerald-700",
+  no_show: "bg-orange-50 text-orange-600",
   active: "bg-emerald-50 text-emerald-700",
   inactive: "bg-gray-100 text-gray-600",
   confirmed: "bg-emerald-50 text-emerald-700",
-  followup: "bg-indigo-50 text-indigo-700",
 };
 
 // User-facing label overrides for stored enum values. The DB still stores
@@ -90,6 +91,8 @@ const STATUS_PALETTE = {
 const STATUS_LABEL_OVERRIDES = {
   rejected: "Declined",
   followup: "Follow-up",
+  no_show: "Missed",
+  urgent: "Urgent",
 };
 
 export function StatusPill({ status, children, className = "" }) {

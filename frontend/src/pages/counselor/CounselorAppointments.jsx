@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useRef, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
@@ -55,6 +55,7 @@ export default function CounselorAppointments() {
     acceptAppointment,
     rejectAppointment,
     rescheduleAppointment,
+    removeNoShows,
   } = useAppointments();
   const { getTestsForCurrentUser, fetchTests, acceptTest } = useTests();
   const { sessions } = useCounselingSessions();
@@ -78,6 +79,7 @@ export default function CounselorAppointments() {
 
   const [actionErrorModal, setActionErrorModal] = useState({ open: false, message: "" });
   const [activeTab, setActiveTab] = useState("pending");
+  const [sessionSubTab, setSessionSubTab] = useState("all");
   const [search, setSearch] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -86,6 +88,15 @@ export default function CounselorAppointments() {
   const [sessionsPage, setSessionsPage] = useState(1);
   const [testsPage, setTestsPage] = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
+
+  // Run no-show cleanup once on mount
+  const cleanupDone = useRef(false);
+  useEffect(() => {
+    if (!cleanupDone.current && removeNoShows) {
+      cleanupDone.current = true;
+      removeNoShows().catch(() => undefined);
+    }
+  }, [removeNoShows]);
 
   const handleMarkDone = (id, type = "counseling") => {
     setCompleteConfirmModal({ open: true, id, type });
@@ -230,8 +241,12 @@ export default function CounselorAppointments() {
     });
     return map;
   }, [pendingAppointments]);
+  const today = new Date().toISOString().split("T")[0];
   const upcomingAppointments = myAppointments.filter(
-    (a) => a.status === "approved" || a.status === "rescheduled"
+    (a) =>
+      (a.status === "approved" || a.status === "rescheduled") &&
+      // Urgent appointments have no scheduledDate — always show them
+      (!a.scheduledDate || a.scheduledDate >= today)
   );
   // Only show in "Recently completed" if session was finalized with termination (not follow-up)
   const completedAppointments = myAppointments.filter((a) => {
@@ -243,13 +258,17 @@ export default function CounselorAppointments() {
     return true;
   });
   const upcomingTests = myTests.filter(
-    (t) => t.status === "approved" || t.status === "rescheduled"
+    (t) =>
+      (t.status === "approved" || t.status === "rescheduled") &&
+      (!t.scheduledDate || t.scheduledDate >= today)
   );
   const completedTests = myTests.filter((t) => t.status === "completed");
-  // Unified "Completed Appointments" list — counseling sessions and
+  const noShowAppointments = myAppointments.filter((a) => a.status === "no_show");
+  // Unified "Completed Appointments" list — counseling sessions, no-shows, and
   // psychological tests both shown together, newest first.
   const recentlyCompleted = [
     ...completedAppointments.map((a) => ({ ...a, _type: "counseling" })),
+    ...noShowAppointments.map((a) => ({ ...a, _type: "counseling", _noShow: true })),
     ...completedTests.map((t) => ({ ...t, _type: "test" })),
   ].sort((x, y) => {
     const dx = new Date(x.scheduledDate || x.preferredDate || 0).getTime();
@@ -259,7 +278,7 @@ export default function CounselorAppointments() {
   // All counseling appointments that aren't finished yet — approved, rescheduled,
   // pending, follow-up, or urgent/emergency requests all carry one of these statuses.
   const notCompletedAppointments = myAppointments.filter(
-    (a) => a.status !== "completed" && a.status !== "rejected"
+    (a) => a.status !== "completed" && a.status !== "rejected" && a.status !== "no_show"
   );
 
   // ── Search / suggestions ──────────────────────────────────────────
@@ -303,9 +322,34 @@ export default function CounselorAppointments() {
     () => filteredPending.slice((pendingPage - 1) * PAGE_SIZE, pendingPage * PAGE_SIZE),
     [filteredPending, pendingPage]
   );
+  const SESSION_SUB_TABS = [
+    { id: "all", label: "All" },
+    { id: "approved", label: "Approved" },
+    { id: "rescheduled", label: "Rescheduled" },
+    { id: "follow_up", label: "Follow-up" },
+    { id: "urgent", label: "Urgent" },
+  ];
+
+  const sessionSubFiltered = useMemo(() => {
+    switch (sessionSubTab) {
+      case "approved":
+        return filteredSessions.filter(
+          (a) => a.status === "approved" && a.reason !== "Follow-up Session" && !a.is_urgent && !a.isUrgent
+        );
+      case "rescheduled":
+        return filteredSessions.filter((a) => a.status === "rescheduled");
+      case "follow_up":
+        return filteredSessions.filter((a) => a.reason === "Follow-up Session");
+      case "urgent":
+        return filteredSessions.filter((a) => a.is_urgent || a.isUrgent);
+      default:
+        return filteredSessions;
+    }
+  }, [filteredSessions, sessionSubTab]);
+
   const pagedSessions = useMemo(
-    () => filteredSessions.slice((sessionsPage - 1) * PAGE_SIZE, sessionsPage * PAGE_SIZE),
-    [filteredSessions, sessionsPage]
+    () => sessionSubFiltered.slice((sessionsPage - 1) * PAGE_SIZE, sessionsPage * PAGE_SIZE),
+    [sessionSubFiltered, sessionsPage]
   );
   const pagedTests = useMemo(
     () => filteredTests.slice((testsPage - 1) * PAGE_SIZE, testsPage * PAGE_SIZE),
@@ -316,40 +360,9 @@ export default function CounselorAppointments() {
     [filteredCompleted, completedPage]
   );
 
-  // Queue maps for approved sessions and tests: group by scheduled date + AM/PM block
   const _getBlock = (slot) =>
     !slot || slot === "morning" || slot.startsWith("9:") || slot.startsWith("10:") || slot.startsWith("11:")
       ? "AM" : "PM";
-
-  const sessionQueueMap = useMemo(() => {
-    const map = {};
-    const groups = {};
-    upcomingAppointments.forEach((a) => {
-      const date = (a.scheduledDate || a.preferredDate || "").split("T")[0];
-      const key = `${date}|${_getBlock(a.scheduledTimeSlot || "")}`;
-      (groups[key] = groups[key] || []).push(a);
-    });
-    Object.values(groups).forEach((g) => {
-      g.sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
-      g.forEach((a, i) => { map[a.id] = i + 1; });
-    });
-    return map;
-  }, [upcomingAppointments]);
-
-  const testQueueMap = useMemo(() => {
-    const map = {};
-    const groups = {};
-    upcomingTests.forEach((t) => {
-      const date = (t.scheduledDate || t.preferredDate || "").split("T")[0];
-      const key = `${date}|${_getBlock(t.scheduledTimeSlot || "")}`;
-      (groups[key] = groups[key] || []).push(t);
-    });
-    Object.values(groups).forEach((g) => {
-      g.sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
-      g.forEach((t, i) => { map[t.id] = i + 1; });
-    });
-    return map;
-  }, [upcomingTests]);
 
   const TABS = [
     { id: "pending", label: "Pending", count: pendingAppointments.length + pendingTests.length },
@@ -404,7 +417,7 @@ export default function CounselorAppointments() {
           {TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSearch(""); setPendingPage(1); setSessionsPage(1); setTestsPage(1); setCompletedPage(1); }}
+              onClick={() => { setActiveTab(tab.id); setSearch(""); setPendingPage(1); setSessionsPage(1); setTestsPage(1); setCompletedPage(1); setSessionSubTab("all"); }}
               className={[
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap",
                 activeTab === tab.id
@@ -649,11 +662,43 @@ export default function CounselorAppointments() {
         subtitle={`${filteredSessions.length} scheduled`}
         noBodyPadding
       >
-        {filteredSessions.length === 0 ? (
+        {/* Session status sub-tabs */}
+        <div className="flex items-center gap-1 border-b border-gray-100 px-4 pt-3 overflow-x-auto">
+          {SESSION_SUB_TABS.map((st) => {
+            let cnt;
+            switch (st.id) {
+              case "approved": cnt = filteredSessions.filter(a => a.status === "approved" && a.reason !== "Follow-up Session" && !a.is_urgent && !a.isUrgent).length; break;
+              case "rescheduled": cnt = filteredSessions.filter(a => a.status === "rescheduled").length; break;
+              case "follow_up": cnt = filteredSessions.filter(a => a.reason === "Follow-up Session").length; break;
+              case "urgent": cnt = filteredSessions.filter(a => a.is_urgent || a.isUrgent).length; break;
+              default: cnt = filteredSessions.length;
+            }
+            return (
+              <button
+                key={st.id}
+                onClick={() => { setSessionSubTab(st.id); setSessionsPage(1); }}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 -mb-px transition whitespace-nowrap ${
+                  sessionSubTab === st.id
+                    ? "text-maroon-700 border-maroon-600"
+                    : "text-gray-500 border-transparent hover:text-gray-700"
+                }`}
+              >
+                {st.label}
+                <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold tabular-nums ${
+                  sessionSubTab === st.id ? "bg-maroon-100 text-maroon-700" : "bg-gray-100 text-gray-600"
+                }`}>
+                  {cnt}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {sessionSubFiltered.length === 0 ? (
           <EmptyState
             icon={Calendar}
-            title={search ? "No results" : "No upcoming counseling sessions"}
-            hint={search ? `No sessions match "${search}".` : "Accepted appointments will appear here."}
+            title={search ? "No results" : "No sessions in this category"}
+            hint={search ? `No sessions match "${search}".` : "Sessions matching this filter will appear here."}
           />
         ) : (
           <>
@@ -665,7 +710,8 @@ export default function CounselorAppointments() {
               // dedicated "follow-up" appointment status, so this is how we
               // tell a fresh approval apart from a scheduled follow-up.
               const isFollowup = a.status === "approved" && a.reason === "Follow-up Session";
-              const displayStatus = isFollowup ? "followup" : a.status;
+              const isUrgentSession = !!(a.is_urgent || a.isUrgent);
+              const displayStatus = isFollowup ? "followup" : isUrgentSession ? "urgent" : a.status;
               const original = a.preferredDate
                 ? `${formatDate(a.preferredDate)} · ${timeLabel(
                     a.timeSlot ||
@@ -699,9 +745,9 @@ export default function CounselorAppointments() {
                             {a.controlNo}
                           </span>
                         )}
-                        {sessionQueueMap[a.id] != null && (
+                        {(a.queueNumber != null || a.queue_number != null) && (
                           <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-sky-600 text-white">
-                            {_getBlock(a.scheduledTimeSlot || "")} Queue #{sessionQueueMap[a.id]}
+                            {(a.queueSlot || _getBlock(a.scheduledTimeSlot || ""))} Queue #{a.queueNumber ?? a.queue_number}
                           </span>
                         )}
                       </div>
@@ -771,7 +817,7 @@ export default function CounselorAppointments() {
           </ul>
           <Pagination
             page={sessionsPage}
-            totalPages={Math.ceil(filteredSessions.length / PAGE_SIZE)}
+            totalPages={Math.ceil(sessionSubFiltered.length / PAGE_SIZE)}
             onPageChange={setSessionsPage}
           />
           </>
@@ -836,9 +882,9 @@ export default function CounselorAppointments() {
                             {t.controlNo}
                           </span>
                         )}
-                        {testQueueMap[t.id] != null && (
+                        {(t.queue_number != null) && (
                           <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">
-                            {_getBlock(t.scheduledTimeSlot || "")} Queue #{testQueueMap[t.id]}
+                            {(t.queue_slot || _getBlock(t.scheduledTimeSlot || ""))} Queue #{t.queue_number}
                           </span>
                         )}
                       </div>
@@ -893,15 +939,6 @@ export default function CounselorAppointments() {
                         <FileText size={13} />
                         Open form
                       </a>
-                      <button
-                        onClick={() => handleMarkDone(t.id, "test")}
-                        disabled={busyId === t.id}
-                        className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition disabled:opacity-50"
-                        title="Mark this test as completed"
-                      >
-                        <CheckCircle2 size={13} />
-                        {busyId === t.id ? "Saving…" : "Mark done"}
-                      </button>
                     </div>
                   </div>
                 </li>
@@ -945,7 +982,7 @@ export default function CounselorAppointments() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold text-gray-900">{item.studentName}</span>
                         <span className="text-xs text-gray-500">{item.college || "—"}</span>
-                        <StatusPill status="completed" />
+                        <StatusPill status={item._noShow ? "no_show" : "completed"} />
                         {item._type === "test" ? (
                           <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
                             <ClipboardList size={11} /> {item.testType || "Psychological test"}

@@ -15,6 +15,13 @@ const normalizeDate = (value) => {
   return value;
 };
 
+const getQueueSlot = (slot) => {
+  const s = (slot || "").toLowerCase();
+  if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:")) return "PM";
+  if (!s) return null;
+  return "AM";
+};
+
 export const createTestRequest = async (req, res) => {
   const { preferredDate, preferredSlots, phoneNumber, reason, testType } = req.body;
   const studentId = req.user?.id;
@@ -127,20 +134,39 @@ export const acceptTest = async (req, res) => {
   }
 
   const normalizedDate = normalizeDate(date);
+  const queueSlot = getQueueSlot(timeSlot);
+  const queueDate = normalizedDate;
 
-  await query(
-    "UPDATE appointments SET status='approved', counselor_id=?, scheduled_date=?, scheduled_time=?, counselor_action_note=?, updated_at=NOW() WHERE id=?",
-    [counselorId, normalizedDate, timeSlot, note || null, id]
+  const [{ cnt }] = await query(
+    `SELECT COUNT(*) AS cnt FROM appointments
+     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'psychological_test'`,
+    [queueDate, queueSlot]
   );
 
-  await logAction(req, "accept_test", "appointment", id, { date: normalizedDate, timeSlot });
+  if (cnt >= 10) {
+    return res.status(409).json({
+      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} test queue for ${queueDate} is full (10 appointments). Please reschedule to a different date or time slot.`,
+    });
+  }
+
+  const queueNumber = cnt + 1;
+
+  await query(
+    `UPDATE appointments
+     SET status='approved', counselor_id=?, scheduled_date=?, scheduled_time=?, counselor_action_note=?,
+         queue_number=?, queue_date=?, queue_slot=?, updated_at=NOW()
+     WHERE id=?`,
+    [counselorId, normalizedDate, timeSlot, note || null, queueNumber, queueDate, queueSlot, id]
+  );
+
+  await logAction(req, "accept_test", "appointment", id, { date: normalizedDate, timeSlot, queueNumber });
 
   const rows = await query("SELECT student_id FROM appointments WHERE id = ?", [id]);
   if (rows.length) {
     await createNotification({
       userId: rows[0].student_id,
       title: "Test Request Approved",
-      message: `Your test request is approved for ${normalizedDate} at ${timeSlot}.`,
+      message: `Your test request is approved for ${normalizedDate} at ${timeSlot}. Your queue number is ${queueSlot} #${queueNumber}.`,
       link: "/student/tests",
     });
     notifyUser(rows[0].student_id, { type: "tests" });

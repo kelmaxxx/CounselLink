@@ -122,6 +122,7 @@ export default function StudentAppointments() {
                   <th className="px-4 py-2.5">Date</th>
                   <th className="px-4 py-2.5">Type</th>
                   <th className="px-4 py-2.5">Counselor</th>
+                  <th className="px-4 py-2.5">Queue</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5 text-right">Action</th>
                 </tr>
@@ -144,6 +145,15 @@ export default function StudentAppointments() {
                       {a.isTest ? "Psychological" : "counseling"}
                     </td>
                     <td className="px-4 py-3 text-gray-700">{a.counselorName || "TBD"}</td>
+                    <td className="px-4 py-3">
+                      {(a.queueNumber || a.queue_number) ? (
+                        <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${a.isTest ? "bg-blue-100 text-blue-700" : "bg-sky-100 text-sky-700"}`}>
+                          {(a.queueSlot || a.queue_slot) || ""} #{a.queueNumber || a.queue_number}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <StatusPill status={a.status} />
                     </td>
@@ -246,6 +256,12 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
             <DetailRow
               label="Scheduled"
               value={`${formatDate(appointment.scheduledDate)} ${appointment.scheduledTimeSlot || ""}`}
+            />
+          )}
+          {!appointment.isTest && (appointment.queueNumber || appointment.queue_number) && (
+            <DetailRow
+              label="Queue no."
+              value={`${appointment.queueSlot || appointment.queue_slot || ""} #${appointment.queueNumber || appointment.queue_number}`}
             />
           )}
           <DetailRow label="Counselor" value={appointment.counselorName || "TBD"} />

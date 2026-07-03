@@ -3,9 +3,16 @@ import { notifyRole } from "../events.js";
 import { notifyUsers } from "../utils/notify.js";
 import { isValidPhMobile } from "../utils/validators.js";
 
+const getQueueSlot = (slot) => {
+  const s = (slot || "").toLowerCase();
+  if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:")) return "PM";
+  if (!s) return null;
+  return "AM";
+};
+
 export const createAppointment = async (req, res) => {
   const { preferredDate, preferredSlots, isUrgent, phoneNumber, reason, studentId: bodyStudentId } = req.body;
-  
+
   let studentId = req.user?.id;
   const isCounselor = req.user?.role === "counselor";
 
@@ -26,15 +33,55 @@ export const createAppointment = async (req, res) => {
   }
 
   const slots = Array.isArray(preferredSlots) ? preferredSlots.join(",") : preferredSlots;
-  const status = isCounselor ? "approved" : "pending";
+  // Urgent appointments are auto-approved so they go directly to the sessions queue
+  const status = (isCounselor || isUrgent) ? "approved" : "pending";
   const counselorId = isCounselor ? req.user?.id : null;
+
+  let queueNumber = null;
+  let queueDate = null;
+  let queueSlot = null;
+
+  if (isUrgent) {
+    // Urgent requests: assign queue immediately at request time (today's date + current AM/PM)
+    const now = new Date();
+    queueSlot = now.getHours() < 12 ? "AM" : "PM";
+    queueDate = now.toISOString().split("T")[0];
+
+    const [{ cnt }] = await query(
+      `SELECT COUNT(*) AS cnt FROM appointments
+       WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+      [queueDate, queueSlot]
+    );
+
+    if (cnt >= 10) {
+      return res.status(409).json({
+        message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue is full (10 appointments) for today. Please contact the counseling office directly for urgent matters.`,
+      });
+    }
+
+    queueNumber = cnt + 1;
+  } else if (isCounselor && preferredDate && preferredSlots?.length) {
+    // Counselor-created follow-ups are immediately approved, so assign queue now
+    const firstSlot = Array.isArray(preferredSlots) ? preferredSlots[0] : preferredSlots.split(",")[0];
+    queueSlot = getQueueSlot(firstSlot);
+    queueDate = preferredDate;
+
+    if (queueSlot) {
+      const [{ cnt }] = await query(
+        `SELECT COUNT(*) AS cnt FROM appointments
+         WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+        [queueDate, queueSlot]
+      );
+      if (cnt < 10) queueNumber = cnt + 1;
+    }
+  }
 
   const result = await query(
     `INSERT INTO appointments
-      (student_id, counselor_id, appointment_type, preferred_date, preferred_time, status, reason, phone_number, is_urgent, preferred_slots)
+      (student_id, counselor_id, appointment_type, preferred_date, preferred_time, status, reason, phone_number, is_urgent, preferred_slots, queue_number, queue_date, queue_slot)
      VALUES
-      (?, ?, 'counseling', ?, NULL, ?, ?, ?, ?, ?)` ,
-    [studentId, counselorId, preferredDate, status, finalReason, finalPhoneNumber, isUrgent ? 1 : 0, slots]
+      (?, ?, 'counseling', ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [studentId, counselorId, preferredDate, status, finalReason, finalPhoneNumber, isUrgent ? 1 : 0, slots, queueNumber, queueDate, queueSlot]
   );
 
   // Insert a DB notification for every counselor so their bell shows this request,
@@ -44,10 +91,12 @@ export const createAppointment = async (req, res) => {
     const counselorIds = counselorRows.map((r) => r.id);
     if (counselorIds.length) {
       await notifyUsers(counselorIds, {
-        title: "New Appointment Request",
-        message: "A student has submitted a counseling appointment request.",
+        title: isUrgent ? "Urgent Appointment — Immediate Attention" : "New Appointment Request",
+        message: isUrgent
+          ? "A student has submitted an urgent appointment and is awaiting immediate counseling."
+          : "A student has submitted a counseling appointment request.",
         link: "/counselor/appointments",
-        type: "info",
+        type: isUrgent ? "warning" : "info",
       });
     }
     notifyRole("counselor", { type: "notification" });
