@@ -112,12 +112,16 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray" }) {
 
 // ── Center-label donut with a clean custom legend ────────────────────────
 // Thin ring with a big total in the middle. `data` items: { name, value, color }.
-export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter }) {
+export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter, stack = false }) {
   if (!data.length) {
     return <EmptyState icon={emptyIcon} title={emptyTitle} />;
   }
+  // `stack` keeps the donut on top and the legend below at full width — better
+  // for narrow cards where a side-by-side legend would get cramped/truncated.
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-8 py-2">
+    <div
+      className={`flex items-center gap-8 py-2 ${stack ? "flex-col" : "flex-col sm:flex-row"}`}
+    >
       <div className="relative flex-shrink-0" style={{ width: 190, height: 190 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -152,19 +156,22 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
       </div>
       <ul className="flex-1 w-full space-y-2.5">
         {data.map((d) => (
-          <li key={d.name} className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2.5 min-w-0">
+          <li
+            key={d.name}
+            className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 text-sm"
+          >
+            <span className="flex items-center gap-2.5">
               <span
                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                 style={{ background: d.color }}
               />
-              <span className="text-sm text-gray-600 truncate">{d.name}</span>
+              <span className="text-gray-600 whitespace-nowrap">{d.name}</span>
             </span>
-            <span className="text-sm font-medium text-gray-900 tabular-nums flex-shrink-0">
+            <span className="w-8 text-right font-medium text-gray-900 tabular-nums">
               {d.value}
-              <span className="text-gray-400 ml-1.5 font-normal">
-                {total ? Math.round((d.value / total) * 100) : 0}%
-              </span>
+            </span>
+            <span className="w-9 text-right font-normal text-gray-400 tabular-nums">
+              {total ? Math.round((d.value / total) * 100) : 0}%
             </span>
           </li>
         ))}
@@ -175,61 +182,73 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
 
 // ── Horizontal ranked bar chart (recharts) ───────────────────────────────
 // Built for "X by category" data with many categories (e.g. 12+ colleges):
-// sorts high→low, labels sit on the left so they never overlap, and the whole
-// thing scrolls internally past `maxHeight` so the card never stretches the
-// page. `data` items: { name, value, color }.
+// sorts high→low, labels sit on the left in a fixed-width column so the bars
+// start at the same x across charts and never overlap. The chart height grows
+// to fit every row natively (no scrolling). `data` items: { name, value, color }.
 export function RankedBarChart({
   data,
   emptyIcon,
   emptyTitle,
-  maxHeight = 300,
   rowHeight = 40,
-  labelWidth = 68,
+  labelWidth = 60,
   tooltipFormatter,
+  maxRows,
+  othersColor = "#94a3b8",
 }) {
   if (!data.length) {
     return <EmptyState icon={emptyIcon} title={emptyTitle} />;
   }
-  const sorted = [...data].sort((a, b) => b.value - a.value);
+  const ranked = [...data].sort((a, b) => b.value - a.value);
+  // Keep overview tiles compact and grid-balanced: show the top (maxRows-1)
+  // categories and roll the long tail into a single "Others" bar rather than
+  // letting the panel grow to dozens of rows.
+  let sorted = ranked;
+  if (maxRows && ranked.length > maxRows) {
+    const head = ranked.slice(0, maxRows - 1);
+    const tail = ranked.slice(maxRows - 1);
+    const othersValue = tail.reduce((sum, d) => sum + d.value, 0);
+    sorted = [
+      ...head,
+      { name: `Others (${tail.length})`, value: othersValue, color: othersColor },
+    ];
+  }
   const chartHeight = Math.max(sorted.length * rowHeight, rowHeight);
   return (
-    <div className="overflow-y-auto pr-1" style={{ maxHeight }}>
-      <div style={{ width: "100%", height: chartHeight }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={sorted}
-            layout="vertical"
-            margin={{ top: 4, right: 34, left: 4, bottom: 4 }}
-            barCategoryGap="22%"
-          >
-            <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis type="number" hide allowDecimals={false} />
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={labelWidth}
-              tick={{ fontSize: 12, fill: "#4b5563" }}
-              tickLine={false}
-              axisLine={false}
+    <div style={{ width: "100%", height: chartHeight }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={sorted}
+          layout="vertical"
+          margin={{ top: 4, right: 34, left: 4, bottom: 4 }}
+          barCategoryGap="22%"
+        >
+          <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis type="number" hide allowDecimals={false} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={labelWidth}
+            tick={{ fontSize: 12, fill: "#4b5563" }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <Tooltip
+            formatter={tooltipFormatter}
+            cursor={{ fill: "#f8fafc" }}
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+          />
+          <Bar dataKey="value" radius={[4, 4, 4, 4]} maxBarSize={22}>
+            {sorted.map((d) => (
+              <Cell key={d.name} fill={d.color} />
+            ))}
+            <LabelList
+              dataKey="value"
+              position="right"
+              style={{ fontSize: 12, fill: "#374151", fontWeight: 600 }}
             />
-            <Tooltip
-              formatter={tooltipFormatter}
-              cursor={{ fill: "#f8fafc" }}
-              contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
-            />
-            <Bar dataKey="value" radius={[4, 4, 4, 4]} maxBarSize={22}>
-              {sorted.map((d) => (
-                <Cell key={d.name} fill={d.color} />
-              ))}
-              <LabelList
-                dataKey="value"
-                position="right"
-                style={{ fontSize: 12, fill: "#374151", fontWeight: 600 }}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

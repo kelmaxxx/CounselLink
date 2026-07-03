@@ -154,6 +154,7 @@ export default function AdminDashboard() {
             subtitle="System breakdown by role"
           >
             <DonutStat
+              stack
               data={pieData.map((entry, idx) => ({
                 name: entry.name,
                 value: entry.value,
@@ -176,6 +177,7 @@ export default function AdminDashboard() {
                 value,
                 color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
               }))}
+              maxRows={7}
               emptyIcon={Users}
               emptyTitle="No students yet"
             />
@@ -191,6 +193,7 @@ export default function AdminDashboard() {
                 value: Number(r.total),
                 color: APPT_COLORS[i % APPT_COLORS.length],
               }))}
+              maxRows={7}
               emptyIcon={CalendarCheck}
               emptyTitle="No completed appointments yet"
             />
