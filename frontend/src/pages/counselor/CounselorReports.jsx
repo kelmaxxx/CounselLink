@@ -15,6 +15,7 @@ import {
   User,
   Check,
   X,
+  Search,
 } from "lucide-react";
 import {
   PageHeader,
@@ -40,7 +41,7 @@ const parsePayload = (raw) => {
   try { return JSON.parse(raw); } catch { return null; }
 };
 
-const REQUESTS_PER_PAGE = 5;
+const REPORTS_PER_PAGE = 10;
 
 export default function CounselorReports() {
   const { token, currentUser } = useAuth();
@@ -60,6 +61,12 @@ export default function CounselorReports() {
   const [respondNote, setRespondNote] = useState("");
   const [respondError, setRespondError] = useState("");
   const [responding, setResponding] = useState(false);
+
+  const [activeTab, setActiveTab] = useState("requests");
+  const [search, setSearch] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [sentPage, setSentPage] = useState(1);
+  const [sessionsReportPage, setSessionsReportPage] = useState(1);
 
   // Sending an individual request that's pending manual review.
   const [sendingId, setSendingId] = useState(null);
@@ -286,17 +293,91 @@ export default function CounselorReports() {
     [requests]
   );
 
-  const requestsTotalPages = Math.max(1, Math.ceil(requests.length / REQUESTS_PER_PAGE));
+  const filteredRequests = useMemo(() => {
+    if (!search.trim()) return requests;
+    const q = search.toLowerCase();
+    return requests.filter(
+      (r) =>
+        (r.student_name || "").toLowerCase().includes(q) ||
+        (r.requesterName || "").toLowerCase().includes(q) ||
+        (r.requesterCollege || "").toLowerCase().includes(q) ||
+        (r.department || "").toLowerCase().includes(q)
+    );
+  }, [requests, search]);
+
+  const filteredSentReports = useMemo(() => {
+    if (!search.trim()) return sentReports;
+    const q = search.toLowerCase();
+    return sentReports.filter((r) => {
+      const payload = parsePayload(r.report_payload);
+      return (
+        (payload?.studentName || "").toLowerCase().includes(q) ||
+        (r.recipientName || "").toLowerCase().includes(q) ||
+        (r.recipientCollege || "").toLowerCase().includes(q) ||
+        (r.title || "").toLowerCase().includes(q)
+      );
+    });
+  }, [sentReports, search]);
+
+  const filteredFinalizedSessions = useMemo(() => {
+    if (!search.trim()) return finalizedSessions;
+    const q = search.toLowerCase();
+    return finalizedSessions.filter(
+      (s) =>
+        (s.studentName || "").toLowerCase().includes(q) ||
+        (s.studentCollege || "").toLowerCase().includes(q)
+    );
+  }, [finalizedSessions, search]);
+
+  const allNames = useMemo(() => {
+    const names = new Set();
+    finalizedSessions.forEach((s) => { if (s.studentName) names.add(s.studentName); });
+    sentReports.forEach((r) => {
+      const p = parsePayload(r.report_payload);
+      if (p?.studentName) names.add(p.studentName);
+    });
+    requests.forEach((r) => { if (r.student_name) names.add(r.student_name); });
+    return [...names].sort();
+  }, [finalizedSessions, sentReports, requests]);
+
+  const suggestions = useMemo(() => {
+    if (!search.trim()) return [];
+    const q = search.toLowerCase();
+    return allNames
+      .filter((n) => {
+        const lower = n.toLowerCase();
+        return lower.startsWith(q) || lower.split(/\s+/).some((w) => w.startsWith(q));
+      })
+      .slice(0, 6);
+  }, [allNames, search]);
+
+  const TABS = [
+    { id: "requests", label: "Report Requests", count: requests.length },
+    { id: "sent", label: "Sent Reports", count: sentReports.length },
+    { id: "sessions", label: "Session Reports", count: finalizedSessions.length },
+  ];
+
+  const requestsTotalPages = Math.max(1, Math.ceil(filteredRequests.length / REPORTS_PER_PAGE));
 
   // Keep the current page valid as the list shrinks (e.g. after responding).
   useEffect(() => {
-    if (requestsPage > requestsTotalPages) setRequestsPage(requestsTotalPages);
+    if (requestsPage > requestsTotalPages) setRequestsPage(1);
   }, [requestsPage, requestsTotalPages]);
 
   const pagedRequests = useMemo(() => {
-    const start = (requestsPage - 1) * REQUESTS_PER_PAGE;
-    return requests.slice(start, start + REQUESTS_PER_PAGE);
-  }, [requests, requestsPage]);
+    const start = (requestsPage - 1) * REPORTS_PER_PAGE;
+    return filteredRequests.slice(start, start + REPORTS_PER_PAGE);
+  }, [filteredRequests, requestsPage]);
+
+  const pagedSentReports = useMemo(
+    () => filteredSentReports.slice((sentPage - 1) * REPORTS_PER_PAGE, sentPage * REPORTS_PER_PAGE),
+    [filteredSentReports, sentPage]
+  );
+
+  const pagedFinalizedSessions = useMemo(
+    () => filteredFinalizedSessions.slice((sessionsReportPage - 1) * REPORTS_PER_PAGE, sessionsReportPage * REPORTS_PER_PAGE),
+    [filteredFinalizedSessions, sessionsReportPage]
+  );
 
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto">
@@ -348,124 +429,357 @@ export default function CounselorReports() {
         </div>
       )}
 
-      <SectionCard
-        className="mb-6"
-        title={
-          <span className="inline-flex items-center gap-1.5">
-            <ClipboardList size={14} className="text-maroon-600" /> Report requests from Colleges
-          </span>
-        }
-        subtitle="College-wide summary requests are fulfilled here. Individual student requests resolve automatically when consented and tied to this College's referral — otherwise, with consent, you can send the latest finalized session manually."
-        noBodyPadding
-      >
-        {loadingRequests ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
-        ) : requests.length === 0 ? (
-          <EmptyState
-            icon={Inbox}
-            title="No report requests"
-            hint="When a College requests a report, it appears here for you to fulfill or decline."
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id); setSearch(""); setRequestsPage(1); setSentPage(1); setSessionsReportPage(1); }}
+              className={[
+                activeTab === tab.id
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap",
+              ].join(" ")}
+            >
+              {tab.label}
+              <span
+                className={[
+                  activeTab === tab.id
+                    ? "bg-maroon-600 text-white"
+                    : "bg-gray-200 text-gray-600",
+                  "inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[11px] font-bold px-1",
+                ].join(" ")}
+              >
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <input
+            className="pl-9 pr-3 h-9 w-full sm:w-56 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-maroon-400 bg-white"
+            placeholder="Search by name…"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
           />
-        ) : (
-          <>
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-20 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden text-sm">
+              {suggestions.map((name) => (
+                <li
+                  key={name}
+                  onMouseDown={() => { setSearch(name); setShowSuggestions(false); }}
+                  className="px-3 py-2 hover:bg-maroon-50 cursor-pointer text-gray-800"
+                >
+                  {name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {activeTab === "requests" && (
+        <SectionCard
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              <ClipboardList size={14} className="text-maroon-600" /> Report requests from Colleges
+            </span>
+          }
+          subtitle="College-wide summary requests are fulfilled here. Individual student requests resolve automatically when consented and tied to this College's referral — otherwise, with consent, you can send the latest finalized session manually."
+          noBodyPadding
+        >
+          {loadingRequests ? (
+            <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
+          ) : filteredRequests.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title={search.trim() ? "No matching requests" : "No report requests"}
+              hint={search.trim() ? "Try a different name or clear the search." : "When a College requests a report, it appears here for you to fulfill or decline."}
+            />
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                      <th className="px-4 py-2.5">Subject</th>
+                      <th className="px-4 py-2.5">From</th>
+                      <th className="px-4 py-2.5">Reason</th>
+                      <th className="px-4 py-2.5">Status</th>
+                      <th className="px-4 py-2.5">Submitted</th>
+                      <th className="px-4 py-2.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {pagedRequests.map((r) => (
+                      <tr key={r.id} className="hover:bg-gray-50/70 transition align-top">
+                        <td className="px-4 py-3">
+                          {r.request_type === "college" ? (
+                            <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
+                              <Building2 size={13} className="text-maroon-600" />
+                              College-wide summary
+                            </div>
+                          ) : r.request_type === "department" ? (
+                            <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
+                              <ClipboardList size={13} className="text-maroon-600" />
+                              {r.department || "Department"} summary
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-start gap-1.5">
+                              <User size={13} className="text-gray-400 mt-0.5" />
+                              <span>
+                                <span className="block font-medium text-gray-900">
+                                  {r.student_name}
+                                </span>
+                                {r.student_identifier && (
+                                  <span className="block text-xs text-gray-500 tabular-nums">
+                                    {r.student_identifier}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">
+                          <div>{r.requesterName || "—"}</div>
+                          {r.requesterCollege && (
+                            <div className="text-xs text-gray-500">{r.requesterCollege}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 max-w-sm">
+                          <p className="text-gray-700 line-clamp-2">{r.reason}</p>
+                          {r.response_note && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              <span className="font-medium">Your note:</span> {r.response_note}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusPill status={r.status} />
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                          {new Date(r.created_at).toLocaleString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {r.status === "pending" && (r.request_type === "college" || r.request_type === "department") ? (
+                            <div className="inline-flex gap-1">
+                              <button
+                                onClick={() => openGenerate(r)}
+                                className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
+                                title="Generate & send summary"
+                              >
+                                <Check size={13} /> Generate
+                              </button>
+                              <button
+                                onClick={() => openRespond(r, "declined")}
+                                className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                                title="Decline request"
+                              >
+                                <X size={13} /> Decline
+                              </button>
+                            </div>
+                          ) : r.status === "pending" && r.request_type === "individual" ? (
+                            <button
+                              onClick={() => handleSendIndividual(r)}
+                              disabled={sendingId === r.id}
+                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition disabled:opacity-60"
+                              title="Send this student's finalized session report"
+                            >
+                              <Send size={13} /> {sendingId === r.id ? "Sending…" : "Send"}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400">No action</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                page={requestsPage}
+                totalPages={Math.ceil(filteredRequests.length / REPORTS_PER_PAGE)}
+                onPageChange={setRequestsPage}
+              />
+            </>
+          )}
+        </SectionCard>
+      )}
+
+      {activeTab === "sent" && (
+        <SectionCard
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              <Mail size={14} className="text-maroon-600" /> Reports sent to Colleges
+            </span>
+          }
+          subtitle="Individual student reports and college-wide summaries delivered to Colleges."
+          noBodyPadding
+        >
+          {loadingReports ? (
+            <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
+          ) : filteredSentReports.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title={search.trim() ? "No matching reports" : "No reports sent yet"}
+              hint={search.trim() ? "Try a different name or clear the search." : "When you mark a referred student's appointment as done and submit the Session Report, it appears here."}
+            />
+          ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
-                    <th className="px-4 py-2.5">Subject</th>
-                    <th className="px-4 py-2.5">From</th>
-                    <th className="px-4 py-2.5">Reason</th>
-                    <th className="px-4 py-2.5">Status</th>
-                    <th className="px-4 py-2.5">Submitted</th>
+                    <th className="px-4 py-2.5">Student</th>
+                    <th className="px-4 py-2.5">Delivered to</th>
+                    <th className="px-4 py-2.5">Title</th>
+                    <th className="px-4 py-2.5">Sent</th>
                     <th className="px-4 py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {pagedRequests.map((r) => (
-                    <tr key={r.id} className="hover:bg-gray-50/70 transition align-top">
+                  {pagedSentReports.map((r) => {
+                    const payload = parsePayload(r.report_payload);
+                    const isCollege = payload?.type === "college_summary";
+                    const student = payload?.studentName || "—";
+                    return (
+                      <tr key={r.id} className="hover:bg-gray-50/70 transition">
+                        <td className="px-4 py-3">
+                          {isCollege ? (
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center flex-shrink-0">
+                                <Building2 size={14} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-medium text-gray-900 text-sm truncate">
+                                  College summary
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {payload?.college || "—"}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                                {initialsOf(student)}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-medium text-gray-900 text-sm truncate">
+                                  {student}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {payload?.studentCollege || "—"}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">
+                          <div>{r.recipientName || "—"}</div>
+                          {r.recipientCollege && (
+                            <div className="text-xs text-gray-500">{r.recipientCollege}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-900">{r.title}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                          {new Date(r.sent_at).toLocaleString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <ReportActions report={r} onView={() => setActiveReport(r)} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={sentPage}
+              totalPages={Math.ceil(filteredSentReports.length / REPORTS_PER_PAGE)}
+              onPageChange={setSentPage}
+            />
+            </>
+          )}
+        </SectionCard>
+      )}
+
+      {activeTab === "sessions" && (
+        <SectionCard
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              <FileText size={14} className="text-blue-600" /> Finalized session reports
+            </span>
+          }
+          subtitle="Per-student records you've submitted. Download as DOCX or PDF anytime."
+          noBodyPadding
+        >
+          {filteredFinalizedSessions.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title={search.trim() ? "No matching session reports" : "No finalized session reports"}
+              hint={search.trim() ? "Try a different name or clear the search." : "Submit a session as the final report from the counseling form."}
+            />
+          ) : (
+            <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                    <th className="px-4 py-2.5">Student</th>
+                    <th className="px-4 py-2.5">Session date</th>
+                    <th className="px-4 py-2.5">Finalized</th>
+                    <th className="px-4 py-2.5 text-right">Download</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {pagedFinalizedSessions.map((s) => (
+                    <tr key={s.id} className="hover:bg-gray-50/70 transition">
                       <td className="px-4 py-3">
-                        {r.request_type === "college" ? (
-                          <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
-                            <Building2 size={13} className="text-maroon-600" />
-                            College-wide summary
-                          </div>
-                        ) : r.request_type === "department" ? (
-                          <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
-                            <ClipboardList size={13} className="text-maroon-600" />
-                            {r.department || "Department"} summary
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-start gap-1.5">
-                            <User size={13} className="text-gray-400 mt-0.5" />
-                            <span>
-                              <span className="block font-medium text-gray-900">
-                                {r.student_name}
-                              </span>
-                              {r.student_identifier && (
-                                <span className="block text-xs text-gray-500 tabular-nums">
-                                  {r.student_identifier}
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                        )}
+                        <div className="font-medium text-gray-900">{s.studentName}</div>
+                        <div className="text-xs text-gray-500">
+                          {s.studentCollege || s.studentNumber || "—"}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-700">
-                        <div>{r.requesterName || "—"}</div>
-                        {r.requesterCollege && (
-                          <div className="text-xs text-gray-500">{r.requesterCollege}</div>
-                        )}
+                      <td className="px-4 py-3 text-gray-700 tabular-nums">
+                        {(s.sessionDate || "").split("T")[0]}
                       </td>
-                      <td className="px-4 py-3 max-w-sm">
-                        <p className="text-gray-700 line-clamp-2">{r.reason}</p>
-                        {r.response_note && (
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            <span className="font-medium">Your note:</span> {r.response_note}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusPill status={r.status} />
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
-                        {new Date(r.created_at).toLocaleString(undefined, {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                      <td className="px-4 py-3 text-xs text-gray-500 tabular-nums">
+                        {s.finalizedAt
+                          ? new Date(s.finalizedAt).toLocaleString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {r.status === "pending" && (r.request_type === "college" || r.request_type === "department") ? (
-                          <div className="inline-flex gap-1">
-                            <button
-                              onClick={() => openGenerate(r)}
-                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
-                              title="Generate & send summary"
-                            >
-                              <Check size={13} /> Generate
-                            </button>
-                            <button
-                              onClick={() => openRespond(r, "declined")}
-                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                              title="Decline request"
-                            >
-                              <X size={13} /> Decline
-                            </button>
-                          </div>
-                        ) : r.status === "pending" && r.request_type === "individual" ? (
-                          <button
-                            onClick={() => handleSendIndividual(r)}
-                            disabled={sendingId === r.id}
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition disabled:opacity-60"
-                            title="Send this student's finalized session report"
-                          >
-                            <Send size={13} /> {sendingId === r.id ? "Sending…" : "Send"}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400">No action</span>
-                        )}
+                        <SessionDownloadButtons session={s} onView={() => setActiveReport({
+                          id: `session-${s.id}`,
+                          title: `Session Report — ${s.studentName} (${(s.sessionDate || "").split("T")[0]})`,
+                          sent_at: s.finalizedAt,
+                          recipientName: null,
+                          recipientCollege: null,
+                          report_payload: JSON.stringify(s),
+                        })} />
                       </td>
                     </tr>
                   ))}
@@ -473,176 +787,14 @@ export default function CounselorReports() {
               </table>
             </div>
             <Pagination
-              page={requestsPage}
-              totalPages={requestsTotalPages}
-              onPageChange={setRequestsPage}
+              page={sessionsReportPage}
+              totalPages={Math.ceil(filteredFinalizedSessions.length / REPORTS_PER_PAGE)}
+              onPageChange={setSessionsReportPage}
             />
-          </>
-        )}
-      </SectionCard>
-
-      <SectionCard
-        className="mb-6"
-        title={
-          <span className="inline-flex items-center gap-1.5">
-            <Mail size={14} className="text-maroon-600" /> Reports sent to Colleges
-          </span>
-        }
-        subtitle="Individual student reports and college-wide summaries delivered to Colleges."
-        noBodyPadding
-      >
-        {loadingReports ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
-        ) : sentReports.length === 0 ? (
-          <EmptyState
-            icon={Inbox}
-            title="No reports sent yet"
-            hint="When you mark a referred student's appointment as done and submit the Session Report, it appears here."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
-                  <th className="px-4 py-2.5">Student</th>
-                  <th className="px-4 py-2.5">Delivered to</th>
-                  <th className="px-4 py-2.5">Title</th>
-                  <th className="px-4 py-2.5">Sent</th>
-                  <th className="px-4 py-2.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {sentReports.map((r) => {
-                  const payload = parsePayload(r.report_payload);
-                  const isCollege = payload?.type === "college_summary";
-                  const student = payload?.studentName || "—";
-                  return (
-                    <tr key={r.id} className="hover:bg-gray-50/70 transition">
-                      <td className="px-4 py-3">
-                        {isCollege ? (
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center flex-shrink-0">
-                              <Building2 size={14} />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-medium text-gray-900 text-sm truncate">
-                                College summary
-                              </div>
-                              <div className="text-xs text-gray-500 truncate">
-                                {payload?.college || "—"}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                              {initialsOf(student)}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-medium text-gray-900 text-sm truncate">
-                                {student}
-                              </div>
-                              <div className="text-xs text-gray-500 truncate">
-                                {payload?.studentCollege || "—"}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">
-                        <div>{r.recipientName || "—"}</div>
-                        {r.recipientCollege && (
-                          <div className="text-xs text-gray-500">{r.recipientCollege}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900">{r.title}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
-                        {new Date(r.sent_at).toLocaleString(undefined, {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <ReportActions report={r} onView={() => setActiveReport(r)} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
-
-      <SectionCard
-        title={
-          <span className="inline-flex items-center gap-1.5">
-            <FileText size={14} className="text-blue-600" /> Finalized session reports
-          </span>
-        }
-        subtitle="Per-student records you've submitted. Download as DOCX or PDF anytime."
-        noBodyPadding
-      >
-        {finalizedSessions.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title="No finalized session reports"
-            hint="Submit a session as the final report from the counseling form."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
-                  <th className="px-4 py-2.5">Student</th>
-                  <th className="px-4 py-2.5">Session date</th>
-                  <th className="px-4 py-2.5">Finalized</th>
-                  <th className="px-4 py-2.5 text-right">Download</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {finalizedSessions.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50/70 transition">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{s.studentName}</div>
-                      <div className="text-xs text-gray-500">
-                        {s.studentCollege || s.studentNumber || "—"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700 tabular-nums">
-                      {(s.sessionDate || "").split("T")[0]}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 tabular-nums">
-                      {s.finalizedAt
-                        ? new Date(s.finalizedAt).toLocaleString(undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <SessionDownloadButtons session={s} onView={() => setActiveReport({
-                        id: `session-${s.id}`,
-                        title: `Session Report — ${s.studentName} (${(s.sessionDate || "").split("T")[0]})`,
-                        sent_at: s.finalizedAt,
-                        recipientName: null,
-                        recipientCollege: null,
-                        report_payload: JSON.stringify(s),
-                      })} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
+            </>
+          )}
+        </SectionCard>
+      )}
 
       <Modal
         open={!!activeReport}

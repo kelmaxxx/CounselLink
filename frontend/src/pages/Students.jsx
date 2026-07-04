@@ -64,6 +64,9 @@ export default function ManageStudents() {
   const [viewSession, setViewSession] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [selectedDept, setSelectedDept] = useState(null);
+  // Session Records tab folder navigation
+  const [selectedRecordsFolder, setSelectedRecordsFolder] = useState(null);
+  const [selectedRecordsDept, setSelectedRecordsDept] = useState(null);
 
   const reportTitleFor = (s) =>
     `Session Report — ${s.studentName} (${(s.sessionDate || "").split("T")[0]})`;
@@ -594,29 +597,156 @@ export default function ManageStudents() {
           </div>
         )}
 
-        {activeTab === "records" && (
-          <>
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-start mb-4">
-              <div className="flex gap-2 flex-1 items-center">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <input
-                    className="pl-10 pr-3 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-maroon-500"
-                    placeholder="Search by student, concern, or summary..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </div>
-                <select
-                  className="px-3 py-2 rounded border bg-white"
-                  value={studentFilter}
-                  onChange={(e) => setStudentFilter(e.target.value)}
-                >
-                  <option value="all">All students</option>
-                  {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+        {activeTab === "records" && (() => {
+          // Build college → department groups from sessions (resolved via studentsById)
+          const sessionsByCollege = {};
+          sessions.forEach((s) => {
+            const st = studentsById[s.studentId];
+            const college = st?.college || s.studentCollege || "Unassigned";
+            if (!sessionsByCollege[college]) sessionsByCollege[college] = [];
+            sessionsByCollege[college].push(s);
+          });
+
+          // Level 1 — college folders
+          if (!selectedRecordsFolder) {
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {Object.keys(sessionsByCollege).sort().map((college) => (
+                  <div
+                    key={college}
+                    onClick={() => { setSelectedRecordsFolder(college); setSelectedRecordsDept(null); }}
+                    className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                  >
+                    <Folder size={48} className="text-maroon-600 fill-maroon-100" />
+                    <div className="font-semibold text-gray-800 text-sm">{college}</div>
+                    <div className="text-[11px] text-gray-500 leading-tight">{getCollegeName(college)}</div>
+                    <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                      {sessionsByCollege[college].length} record{sessionsByCollege[college].length !== 1 && "s"}
+                    </div>
+                  </div>
+                ))}
+                {Object.keys(sessionsByCollege).length === 0 && (
+                  <div className="col-span-full py-8 text-center text-gray-500">
+                    {sessions.length === 0 ? "No session records yet." : "No records found."}
+                  </div>
+                )}
               </div>
-              <div className="flex gap-2">
+            );
+          }
+
+          // Build department sub-groups within the chosen college
+          const collegeSessions = sessionsByCollege[selectedRecordsFolder] || [];
+          const sessionsByDept = {};
+          collegeSessions.forEach((s) => {
+            const st = studentsById[s.studentId];
+            const dept = st?.department || "Unassigned";
+            if (!sessionsByDept[dept]) sessionsByDept[dept] = [];
+            sessionsByDept[dept].push(s);
+          });
+
+          // Level 2 — department sub-folders
+          if (!selectedRecordsDept) {
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => setSelectedRecordsFolder(null)}
+                    className="text-sm font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
+                  >
+                    <ArrowLeft size={16} /> Back to Folders
+                  </button>
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <Folder size={20} className="text-maroon-600 fill-maroon-100" />
+                    {selectedRecordsFolder}
+                    <span className="text-sm font-normal text-gray-500">· {getCollegeName(selectedRecordsFolder)}</span>
+                  </h3>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {Object.keys(sessionsByDept).sort().map((dept) => {
+                    const deptCode = getDepartments(selectedRecordsFolder).find((d) => d.name === dept)?.code;
+                    return (
+                      <div
+                        key={dept}
+                        onClick={() => setSelectedRecordsDept(dept)}
+                        className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                      >
+                        <Folder size={40} className="text-amber-600 fill-amber-100" />
+                        <div className="font-semibold text-gray-800 text-sm">{deptCode || dept}</div>
+                        {deptCode && <div className="text-[11px] text-gray-500 leading-tight">{dept}</div>}
+                        <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                          {sessionsByDept[dept].length} record{sessionsByDept[dept].length !== 1 && "s"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+
+          // Level 3 — session records table for the selected college + department
+          const deptSessions = sessionsByDept[selectedRecordsDept] || [];
+          const q = search.trim().toLowerCase();
+          const deptFiltered = deptSessions.filter((s) => {
+            const matchesQuery = !q
+              || (s.studentName || "").toLowerCase().includes(q)
+              || (s.presentingConcern || "").toLowerCase().includes(q)
+              || (s.summary || "").toLowerCase().includes(q);
+            const matchesStudent = studentFilter === "all" || s.studentId === Number(studentFilter);
+            return matchesQuery && matchesStudent;
+          });
+
+          return (
+            <div className="space-y-4">
+              {/* Breadcrumb */}
+              <div className="flex items-center gap-2 flex-wrap text-sm">
+                <button
+                  onClick={() => { setSelectedRecordsFolder(null); setSelectedRecordsDept(null); }}
+                  className="font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
+                >
+                  <ArrowLeft size={16} /> Folders
+                </button>
+                <span className="text-gray-400">/</span>
+                <button
+                  onClick={() => setSelectedRecordsDept(null)}
+                  className="font-medium text-maroon-700 hover:text-maroon-800"
+                >
+                  {selectedRecordsFolder}
+                </button>
+                <span className="text-gray-400">/</span>
+                <span className="font-semibold text-gray-800 flex items-center gap-1.5">
+                  <Folder size={16} className="text-amber-600 fill-amber-100" />
+                  {selectedRecordsDept}
+                </span>
+              </div>
+
+              {/* Toolbar */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-between items-start">
+                <div className="flex gap-2 flex-1 items-center">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      className="pl-10 pr-3 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-maroon-500"
+                      placeholder="Search by student, concern, or summary..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                  <select
+                    className="px-3 py-2 rounded border bg-white"
+                    value={studentFilter}
+                    onChange={(e) => setStudentFilter(e.target.value)}
+                  >
+                    <option value="all">All students</option>
+                    {deptSessions
+                      .reduce((acc, s) => {
+                        if (!acc.find((x) => x.id === s.studentId))
+                          acc.push({ id: s.studentId, name: s.studentName });
+                        return acc;
+                      }, [])
+                      .map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
                 {currentUser?.role === "counselor" && (
                   <button
                     onClick={openCreate}
@@ -626,84 +756,71 @@ export default function ManageStudents() {
                   </button>
                 )}
               </div>
-            </div>
 
-            <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 shadow overflow-x-auto">
-              <table className="min-w-full divide-y">
-                <thead className="bg-gray-50">
-                  <tr className="text-left text-xs text-gray-700">
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium">Student</th>
-                    <th className="px-4 py-3 font-medium">Concern</th>
-                    <th className="px-4 py-3 font-medium">Summary</th>
-                    <th className="px-4 py-3 font-medium">Next</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y text-sm">
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                        {sessions.length === 0 ? "No session records yet. Click \"Add Record\" to create one." : "No records match your filters."}
-                      </td>
+              {/* Table */}
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-x-auto">
+                <table className="min-w-full divide-y">
+                  <thead className="bg-gray-50">
+                    <tr className="text-left text-xs text-gray-700">
+                      <th className="px-4 py-3 font-medium">Date</th>
+                      <th className="px-4 py-3 font-medium">Student</th>
+                      <th className="px-4 py-3 font-medium">Concern</th>
+                      <th className="px-4 py-3 font-medium">Summary</th>
+                      <th className="px-4 py-3 font-medium">Next</th>
+                      <th className="px-4 py-3 font-medium text-right">Actions</th>
                     </tr>
-                  ) : filtered.map(s => (
-                    <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatDate(s.sessionDate)}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">{s.studentName}</div>
-                        <div className="text-xs text-gray-500">{s.studentNumber || "—"} • {s.studentCollege || "N/A"}</div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={s.presentingConcern}>{s.presentingConcern || "—"}</td>
-                      <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={s.summary}>{s.summary || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-1 rounded-full ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
-                          {NEXT_LABELS[s.nextSession] || s.nextSession}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-flex items-center gap-1 flex-wrap justify-end">
-                          <button
-                            onClick={() => setViewSession(s)}
-                            className="p-1.5 rounded hover:bg-gray-100"
-                            title="View report"
-                          >
-                            <Eye size={14} className="text-gray-700" />
-                          </button>
-                          <button
-                            onClick={() => downloadReportAsPdf(s, { title: reportTitleFor(s) })}
-                            className="p-1.5 rounded hover:bg-gray-100"
-                            title="Download / print as PDF"
-                          >
-                            <FileDown size={14} className="text-gray-700" />
-                          </button>
-                          {currentUser?.role === "counselor" && Number(s.counselorId) === Number(currentUser.id) && (
-                            <>
-                              <button
-                                onClick={() => openEdit(s)}
-                                className="p-1.5 rounded hover:bg-gray-100"
-                                title="Edit"
-                              >
-                                <Edit size={14} className="text-blue-600" />
-                              </button>
-                              <button
-                                onClick={() => setConfirmDelete(s)}
-                                className="p-1.5 rounded hover:bg-gray-100"
-                                title="Delete"
-                              >
-                                <Trash2 size={14} className="text-red-600" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y text-sm">
+                    {deptFiltered.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                          {deptSessions.length === 0
+                            ? "No session records for this department yet."
+                            : "No records match your filters."}
+                        </td>
+                      </tr>
+                    ) : deptFiltered.map((s) => (
+                      <tr key={s.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatDate(s.sessionDate)}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-900">{s.studentName}</div>
+                          <div className="text-xs text-gray-500">{s.studentNumber || "—"} • {s.studentCollege || "N/A"}</div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={s.presentingConcern}>{s.presentingConcern || "—"}</td>
+                        <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={s.summary}>{s.summary || "—"}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-1 rounded-full ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
+                            {NEXT_LABELS[s.nextSession] || s.nextSession}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center gap-1 flex-wrap justify-end">
+                            <button onClick={() => setViewSession(s)} className="p-1.5 rounded hover:bg-gray-100" title="View report">
+                              <Eye size={14} className="text-gray-700" />
+                            </button>
+                            <button onClick={() => downloadReportAsPdf(s, { title: reportTitleFor(s) })} className="p-1.5 rounded hover:bg-gray-100" title="Download / print as PDF">
+                              <FileDown size={14} className="text-gray-700" />
+                            </button>
+                            {currentUser?.role === "counselor" && Number(s.counselorId) === Number(currentUser.id) && (
+                              <>
+                                <button onClick={() => openEdit(s)} className="p-1.5 rounded hover:bg-gray-100" title="Edit">
+                                  <Edit size={14} className="text-blue-600" />
+                                </button>
+                                <button onClick={() => setConfirmDelete(s)} className="p-1.5 rounded hover:bg-gray-100" title="Delete">
+                                  <Trash2 size={14} className="text-red-600" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </>
-        )}
+          );
+        })()}
       </div>
 
       {/* Add / Edit Modal */}
