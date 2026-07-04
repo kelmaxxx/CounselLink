@@ -10,7 +10,8 @@
     "start": "node scripts/migrate.js && node server.js",
     "migrate": "node scripts/migrate.js",
     "db:setup": "node scripts/db-setup.js",
-    "seed:demo-students": "node scripts/seed-demo-students.js"
+    "seed:demo-students": "node scripts/seed-demo-students.js",
+    "seed:demo-activity": "node scripts/seed-demo-activity.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
