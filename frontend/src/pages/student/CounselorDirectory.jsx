@@ -3,14 +3,14 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { MessageCircle, User2, Search } from "lucide-react";
 import ChatModal from "../../components/ChatModal";
-import { CounselorRatingBadge } from "../../components/RatingStars";
+import Avatar from "../../components/Avatar";
+import { CounselorRatingRibbon } from "../../components/RatingStars";
 import {
   PageHeader,
   SectionCard,
   EmptyState,
   BTN,
   INPUT,
-  initialsOf,
 } from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -92,46 +92,57 @@ export default function CounselorDirectory() {
           />
         </SectionCard>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((c) => (
             <div
               key={c.id}
-              className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4 hover:border-gray-300 transition flex flex-col"
+              className="relative flex flex-col items-center text-center bg-white rounded-2xl shadow-sm ring-1 ring-gray-950/5 pt-12 px-5 pb-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
             >
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-11 h-11 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                  {initialsOf(c.name)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
-                    <CounselorRatingBadge counselorId={c.id} size={12} showLabel={false} className="flex-shrink-0" />
-                  </div>
-                  <p className="text-xs text-gray-500 truncate">{c.department || "Counseling"}</p>
-                  {c.specialization && (
-                    <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {c.specialization}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {c.bio && (
-                <p className="text-xs text-gray-600 line-clamp-3 mb-3 leading-relaxed flex-1">
-                  {c.bio}
-                </p>
+              {/* Rating ribbon / bookmark hanging from the top-left */}
+              <CounselorRatingRibbon
+                counselorId={c.id}
+                className="absolute top-0 left-5"
+              />
+
+              {/* Avatar — shows the uploaded photo, falls back to initials.
+                  theme="student" is used only for its maroon fallback palette
+                  so the card stays cohesive when a counselor has no photo. */}
+              <Avatar
+                name={c.name}
+                url={c.avatarUrl}
+                size="2xl"
+                theme="student"
+                ringClassName="ring-4 ring-maroon-50"
+              />
+
+              {/* Name + role */}
+              <p className="mt-4 text-base font-semibold text-gray-900 truncate max-w-full">
+                {c.name}
+              </p>
+              <p className="mt-1 text-xs text-gray-500 truncate max-w-full">
+                {c.position || c.department || "Counselor"}
+              </p>
+
+              {/* Specialization pill */}
+              {(c.specialization || c.department) && (
+                <span className="mt-4 inline-flex items-center max-w-full truncate px-3 py-1 rounded-full bg-maroon-50 text-maroon-700 text-[11px] font-semibold uppercase tracking-wide">
+                  {c.specialization || c.department}
+                </span>
               )}
-              <div className="flex gap-1.5 mt-auto">
+
+              {/* Actions */}
+              <div className="mt-auto pt-5 border-t border-gray-100 w-full flex gap-2">
                 <Link
                   to={`/student/counselors/${c.id}`}
-                  className={`${BTN.secondary} flex-1 h-8 text-xs`}
+                  className={`${BTN.secondary} flex-1 h-9 text-xs px-3`}
                 >
-                  <User2 size={13} /> Profile
+                  <User2 size={14} /> Profile
                 </Link>
                 <button
                   onClick={() => setChatWith(c)}
-                  className={`${BTN.primary} flex-1 h-8 text-xs`}
+                  className={`${BTN.primary} flex-1 h-9 text-xs px-3`}
                 >
-                  <MessageCircle size={13} /> Message
+                  <MessageCircle size={14} /> Message
                 </button>
               </div>
             </div>

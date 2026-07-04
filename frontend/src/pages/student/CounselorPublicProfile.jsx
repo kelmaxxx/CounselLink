@@ -8,15 +8,15 @@ import {
   Hash,
   Briefcase,
   Award,
-  User,
   Users,
   CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import ChatModal from "../../components/ChatModal";
+import Avatar from "../../components/Avatar";
 import { CounselorRatingBadge } from "../../components/RatingStars";
-import { PageHeader, SectionCard, StatCard, BTN, initialsOf } from "../../components/ui";
+import { PageHeader, SectionCard, StatCard, BTN } from "../../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -111,9 +111,12 @@ export default function CounselorPublicProfile() {
               <CounselorRatingBadge counselorId={user.id} size={16} />
             </div>
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-lg font-semibold flex-shrink-0">
-                {initialsOf(user.name) || <User size={24} />}
-              </div>
+              <Avatar
+                name={user.name}
+                url={user.avatarUrl}
+                size="lg"
+                theme="student"
+              />
               <div className="flex-1 min-w-0 pr-24">
                 <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
                 <p className="text-sm text-gray-500 capitalize">{user.role?.replace("_", " ")}</p>
