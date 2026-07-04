@@ -27,18 +27,11 @@ import { BTN, INPUT, LABEL, Modal, initialsOf } from "../../components/ui";
 import InformedConsentSection from "../../components/InformedConsent";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
-const TIME_SLOTS_MORNING = [
-  { label: "9:00 – 10:00 AM", value: "9:00-10:00" },
-  { label: "10:00 – 11:00 AM", value: "10:00-11:00" },
-  { label: "11:00 – 12:00 PM", value: "11:00-12:00" },
+const TIME_BLOCKS = [
+  { label: "9:00 AM – 12:00 PM", value: "morning", description: "Morning block" },
+  { label: "1:00 PM – 5:00 PM", value: "afternoon", description: "Afternoon block" },
 ];
-const TIME_SLOTS_AFTERNOON = [
-  { label: "1:00 – 2:00 PM", value: "1:00-2:00" },
-  { label: "2:00 – 3:00 PM", value: "2:00-3:00" },
-  { label: "3:00 – 4:00 PM", value: "3:00-4:00" },
-];
-const ALL_SLOTS = [...TIME_SLOTS_MORNING, ...TIME_SLOTS_AFTERNOON];
-const slotLabel = (value) => ALL_SLOTS.find((s) => s.value === value)?.label || value;
+const slotLabel = (value) => TIME_BLOCKS.find((s) => s.value === value)?.label || value;
 
 const STEPS = [
   { id: "details", title: "Your details" },
@@ -110,7 +103,7 @@ export default function RequestAppointment() {
 
   const firstAvail = useMemo(() => {
     const d = firstAvailableDate();
-    return { iso: toISO(d), slot: TIME_SLOTS_MORNING[0] };
+    return { iso: toISO(d), slot: TIME_BLOCKS[0] };
   }, []);
 
   const setField = (patch) => setForm((f) => ({ ...f, ...patch }));
@@ -234,36 +227,35 @@ export default function RequestAppointment() {
   return (
     <div className="px-4 sm:px-6 py-6 max-w-6xl mx-auto">
       {/* ── Wizard header ───────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={goBack}
-            className="flex-shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
-            aria-label="Go back"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-maroon-600 uppercase tracking-wide">
-              {isPsychological ? "Psychological test request" : "Counseling appointment"}
-            </p>
-            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight truncate">
-              {stepTitle}
-            </h2>
-          </div>
-        </div>
-
-        <div className="flex-shrink-0 text-right">
-          <p className="text-sm font-medium text-gray-700">
-            Step {visibleIndex + 1} <span className="text-gray-400">of {visibleSteps.length}</span>
+      <div className="flex items-center gap-3 min-w-0 mb-3">
+        <button
+          type="button"
+          onClick={goBack}
+          className="flex-shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+          aria-label="Go back"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-maroon-600 uppercase tracking-wide">
+            {isPsychological ? "Psychological test request" : "Counseling appointment"}
           </p>
-          <div className="mt-2 w-32 sm:w-44 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className="h-full bg-maroon-500 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight truncate">
+            {stepTitle}
+          </h2>
+        </div>
+      </div>
+
+      {/* Step indicator — above the white content card */}
+      <div className="flex items-center gap-3 mb-6">
+        <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+          Step {visibleIndex + 1} <span className="text-gray-400">of {visibleSteps.length}</span>
+        </span>
+        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className="h-full bg-maroon-500 rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </div>
 
@@ -611,29 +603,40 @@ function ScheduleStep({ form, setField, selectSlot, firstAvail, quickBook }) {
         <MonthGrid month={rightMonth} selected={form.date} onSelect={(iso) => setField({ date: iso })} />
       </div>
 
-      {/* Time slots */}
+      {/* Time blocks */}
       <div className="border-t border-gray-100 pt-4">
         <div className="flex items-center gap-2 mb-3">
           <Clock size={15} className="text-gray-400" />
-          <span className="text-sm font-medium text-gray-700">Preferred time slot</span>
+          <span className="text-sm font-medium text-gray-700">Preferred time block</span>
         </div>
         {!form.date && (
-          <p className="text-xs text-gray-400 mb-3">Select a date above to choose a time slot.</p>
+          <p className="text-xs text-gray-400 mb-3">Select a date above to choose a time block.</p>
         )}
-        <TimeGroup
-          label="Morning"
-          slots={TIME_SLOTS_MORNING}
-          selected={form.preferredSlots}
-          onSelect={selectSlot}
-          disabled={!form.date}
-        />
-        <TimeGroup
-          label="Afternoon"
-          slots={TIME_SLOTS_AFTERNOON}
-          selected={form.preferredSlots}
-          onSelect={selectSlot}
-          disabled={!form.date}
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {TIME_BLOCKS.map((block) => {
+            const active = form.preferredSlots.includes(block.value);
+            return (
+              <button
+                key={block.value}
+                type="button"
+                disabled={!form.date}
+                onClick={() => selectSlot(block.value)}
+                className={[
+                  "rounded-xl border p-4 text-left transition",
+                  active
+                    ? "bg-maroon-500 border-maroon-500 ring-2 ring-maroon-300"
+                    : "bg-white border-gray-200 hover:border-maroon-300 hover:bg-maroon-50",
+                  !form.date ? "opacity-50 cursor-not-allowed hover:bg-white hover:border-gray-200" : "",
+                ].join(" ")}
+              >
+                <p className={`text-sm font-semibold mb-0.5 ${active ? "text-white" : "text-gray-900"}`}>
+                  {block.value === "morning" ? "Morning" : "Afternoon"}
+                </p>
+                <p className={`text-xs ${active ? "text-maroon-100" : "text-gray-500"}`}>{block.label}</p>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </StepCard>
   );
@@ -681,36 +684,6 @@ function MonthGrid({ month, selected, onSelect }) {
               ].join(" ")}
             >
               {day}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function TimeGroup({ label, slots, selected, onSelect, disabled }) {
-  return (
-    <div className="mb-4 last:mb-0">
-      <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">{label}</p>
-      <div className="flex flex-wrap gap-2">
-        {slots.map((slot) => {
-          const active = selected.includes(slot.value);
-          return (
-            <button
-              key={slot.value}
-              type="button"
-              disabled={disabled}
-              onClick={() => onSelect(slot.value)}
-              className={[
-                "px-3.5 py-2 rounded-full text-sm tabular-nums border transition",
-                active
-                  ? "bg-maroon-500 border-maroon-500 text-white font-medium shadow-sm"
-                  : "bg-white border-gray-200 text-gray-700 hover:border-maroon-300 hover:bg-maroon-50",
-                disabled ? "opacity-50 cursor-not-allowed hover:bg-white hover:border-gray-200" : "",
-              ].join(" ")}
-            >
-              {slot.label}
             </button>
           );
         })}

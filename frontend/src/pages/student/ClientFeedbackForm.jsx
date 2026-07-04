@@ -77,7 +77,7 @@ function StarPicker({ value, onChange }) {
   );
 }
 
-export function ClientFeedbackFormModal({ token, context, onClose }) {
+export function ClientFeedbackFormModal({ token, context, onClose, onSubmitted }) {
   const [responses, setResponses] = useState({});
   const [satisfaction, setSatisfaction] = useState(null);
   const [recommend, setRecommend] = useState(null);
@@ -125,7 +125,9 @@ export function ClientFeedbackFormModal({ token, context, onClose }) {
         },
         body: JSON.stringify({
           counselorId: context.counselorId,
-          appointmentId: context.appointmentId,
+          sessionId: context.sessionId || null,
+          testId: context.testId || null,
+          appointmentId: context.appointmentId || null,
           responses,
           overallSatisfaction: satisfaction,
           wouldRecommend: recommend,
@@ -135,7 +137,7 @@ export function ClientFeedbackFormModal({ token, context, onClose }) {
       });
       const body = await res.json();
       if (!res.ok) setError(body.message || "Failed to submit");
-      else setDone(true);
+      else { setDone(true); onSubmitted?.(); }
     } catch (err) {
       setError(err.message);
     } finally {

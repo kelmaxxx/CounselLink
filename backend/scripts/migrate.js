@@ -14,7 +14,7 @@ import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { withRetries, describeDbConfig } from "../utils/dbRetry.js";
 
 dotenv.config();
@@ -63,7 +63,7 @@ const run = async () => {
 
     const files = fs
       .readdirSync(migrationsDir)
-      .filter((f) => f.endsWith(".sql"))
+      .filter((f) => f.endsWith(".sql") || f.endsWith(".js"))
       .sort();
 
     if (!tableExisted) {
@@ -86,9 +86,14 @@ const run = async () => {
     }
 
     for (const file of pending) {
-      const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8").trim();
       process.stdout.write(`Applying ${file}... `);
-      if (sql) await connection.query(sql);
+      if (file.endsWith(".js")) {
+        const { up } = await import(pathToFileURL(path.join(migrationsDir, file)).href);
+        await up(connection);
+      } else {
+        const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8").trim();
+        if (sql) await connection.query(sql);
+      }
       await connection.query("INSERT INTO schema_migrations (filename) VALUES (?)", [file]);
       console.log("done");
     }

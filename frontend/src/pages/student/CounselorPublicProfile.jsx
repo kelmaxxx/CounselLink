@@ -9,14 +9,12 @@ import {
   Briefcase,
   Award,
   User,
-  ClipboardList,
   Users,
   CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import ChatModal from "../../components/ChatModal";
-import { ClientFeedbackFormModal } from "./ClientFeedbackForm";
 import { CounselorRatingBadge } from "../../components/RatingStars";
 import { PageHeader, SectionCard, StatCard, BTN, initialsOf } from "../../components/ui";
 
@@ -30,7 +28,6 @@ export default function CounselorPublicProfile() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
-  const [clientFormOpen, setClientFormOpen] = useState(false);
   const [stats, setStats] = useState({ studentsCount: 0, sessionsCount: 0 });
 
   useEffect(() => {
@@ -46,16 +43,6 @@ export default function CounselorPublicProfile() {
       .then((body) => setStats({ studentsCount: body.studentsCount || 0, sessionsCount: body.sessionsCount || 0 }))
       .catch(() => undefined);
   }, [id, token]);
-
-  const latestCompletedApptId = React.useMemo(() => {
-    if (!appointments || !user) return null;
-    const match = appointments.find(
-      (a) =>
-        a.status === "completed" &&
-        (a.counselor_id === user.id || a.counselorId === user.id)
-    );
-    return match ? match.id : null;
-  }, [appointments, user]);
 
   useEffect(() => {
     if (!id || !token) return;
@@ -112,14 +99,9 @@ export default function CounselorPublicProfile() {
             title={user.name}
             subtitle={user.specialization || user.position || "Counselor"}
             actions={
-              <div className="flex gap-2">
-                <button onClick={() => setClientFormOpen(true)} className={BTN.secondary}>
-                  <ClipboardList size={15} className="mr-1.5 inline-block" /> Client Feedback Form
-                </button>
-                <button onClick={() => setChatOpen(true)} className={BTN.primary}>
-                  <MessageCircle size={15} /> Send message
-                </button>
-              </div>
+              <button onClick={() => setChatOpen(true)} className={BTN.primary}>
+                <MessageCircle size={15} /> Send message
+              </button>
             }
           />
 
@@ -179,17 +161,6 @@ export default function CounselorPublicProfile() {
       )}
 
       {chatOpen && user && <ChatModal recipientUser={user} onClose={() => setChatOpen(false)} />}
-      {clientFormOpen && user && (
-        <ClientFeedbackFormModal
-          token={token}
-          context={{
-            counselorId: user.id,
-            counselorName: user.name,
-            appointmentId: latestCompletedApptId,
-          }}
-          onClose={() => setClientFormOpen(false)}
-        />
-      )}
     </div>
   );
 }

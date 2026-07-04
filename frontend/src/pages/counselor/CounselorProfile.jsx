@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -19,6 +19,7 @@ import {
   ThumbsUp,
   ClipboardList,
   Lock,
+  ChevronDown,
 } from "lucide-react";
 import {
   PageHeader,
@@ -44,6 +45,18 @@ export default function CounselorProfile() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [changePwOpen, setChangePwOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const close = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+        setDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [dropdownOpen]);
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
     email: myRecord?.email || "",
@@ -150,37 +163,55 @@ export default function CounselorProfile() {
         title="My profile"
         subtitle="Manage your professional information and what students see."
         actions={
-          <>
-            <button
-              onClick={() => navigate("/counselor/feedback-tally")}
-              className={BTN.secondary}
-            >
-              <ClipboardCheck size={15} />
-              Feedback Summary
-            </button>
-            {!isEditing ? (
-              <>
-                <button onClick={() => setChangePwOpen(true)} className={BTN.secondary}>
-                  <Lock size={15} /> Change password
-                </button>
-                <button onClick={() => setIsEditing(true)} className={BTN.primary}>
-                  <Edit2 size={15} />
-                  Edit profile
-                </button>
-              </>
-            ) : (
-              <>
-                <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
-                  <X size={15} />
-                  Cancel
-                </button>
-                <button onClick={handleSave} className={BTN.primary} disabled={saving}>
-                  <Save size={15} />
-                  {saving ? "Saving…" : "Save changes"}
-                </button>
-              </>
-            )}
-          </>
+          isEditing ? (
+            <>
+              <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
+                <X size={15} /> Cancel
+              </button>
+              <button onClick={handleSave} className={BTN.primary} disabled={saving}>
+                <Save size={15} /> {saving ? "Saving…" : "Save changes"}
+              </button>
+            </>
+          ) : (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setDropdownOpen((o) => !o)}
+                className={`${BTN.secondary} gap-1.5`}
+              >
+                Profile actions
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-1.5 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden py-1">
+                  <button
+                    onClick={() => { setIsEditing(true); setDropdownOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                  >
+                    <Edit2 size={14} className="text-maroon-600 flex-shrink-0" />
+                    Edit profile
+                  </button>
+                  <button
+                    onClick={() => { setChangePwOpen(true); setDropdownOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                  >
+                    <Lock size={14} className="text-maroon-600 flex-shrink-0" />
+                    Change password
+                  </button>
+                  <div className="my-1 border-t border-gray-100" />
+                  <button
+                    onClick={() => { navigate("/counselor/feedback-tally"); setDropdownOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                  >
+                    <ClipboardCheck size={14} className="text-maroon-600 flex-shrink-0" />
+                    Feedback Summary
+                  </button>
+                </div>
+              )}
+            </div>
+          )
         }
       />
 

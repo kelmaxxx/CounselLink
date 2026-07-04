@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { useRealtime } from "./RealtimeContext";
 
@@ -24,6 +24,9 @@ const normalizeAppointment = (apt) => ({
   studentName: apt.studentName || apt.student_name || null,
   controlNo: apt.controlNo || `APT-${String(apt.id).padStart(6, "0")}`,
   note: apt.counselor_action_note || apt.note || null,
+  queueNumber: apt.queue_number ?? null,
+  queueSlot: apt.queue_slot || null,
+  queueDate: apt.queue_date || null,
 });
 
 export function AppointmentsProvider({ children }) {
@@ -138,6 +141,21 @@ export function AppointmentsProvider({ children }) {
     return { success: true };
   };
 
+  const removeNoShows = useCallback(async () => {
+    if (!token) return { success: false };
+    const response = await fetch(`${apiBase}/api/appointments/no-shows`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) return { success: false };
+    await fetchAppointments();
+    return { success: true, removed: data.removed };
+  }, [apiBase, token, fetchAppointments]);
+
   const rejectAppointment = async ({ id, note = null }) => {
     const response = await fetch(`${apiBase}/api/appointments/${id}/reject`, {
       method: "PUT",
@@ -188,6 +206,7 @@ export function AppointmentsProvider({ children }) {
       rescheduleAppointment,
       rejectAppointment,
       completeAppointment,
+      removeNoShows,
       getAppointmentsForCurrentUser,
       fetchAppointments,
       saveSessionForm,
