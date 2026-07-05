@@ -1,6 +1,7 @@
 import { query } from "../config/db.js";
-import { notifyRole } from "../events.js";
-import { notifyUsers } from "../utils/notify.js";
+import { notifyRole, notifyUser } from "../events.js";
+import { notifyUsers, createNotification } from "../utils/notify.js";
+import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { isValidPhMobile } from "../utils/validators.js";
 
 const getQueueSlot = (slot) => {
@@ -100,6 +101,27 @@ export const createAppointment = async (req, res) => {
       });
     }
     notifyRole("counselor", { type: "notification" });
+  } else {
+    // Counselor-created follow-up: the student isn't the one submitting, so
+    // notify them in-app + by email with the new schedule (the first preferred
+    // slot is the confirmed one).
+    const firstSlot = Array.isArray(preferredSlots) ? preferredSlots[0] : String(preferredSlots).split(",")[0];
+    await createNotification({
+      userId: studentId,
+      title: "Follow-up Session Scheduled",
+      message: `Your counselor scheduled a follow-up session for ${preferredDate}${
+        firstSlot ? ` at ${firstSlot}` : ""
+      }.`,
+      link: "/student/appointments",
+    });
+    notifyUser(studentId, { type: "appointments" });
+    sendAppointmentStatusEmail({
+      studentId,
+      status: "followup",
+      date: preferredDate,
+      timeSlot: firstSlot,
+      note: reason || null,
+    });
   }
   notifyRole("counselor", { type: "appointments" });
 
