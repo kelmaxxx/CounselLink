@@ -11,16 +11,57 @@ import path from "path";
 import { fileURLToPath } from "url";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import ImageModule from "docxtemplater-image-module-free";
+import { imageSize } from "image-size";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = path.join(__dirname, "..", "templates", "individual-inventory-template.docx");
+const UPLOADS_DIR = path.join(__dirname, "..", "uploads");
+
+// Fits a signature into the form's blank without distortion (px @ 96dpi).
+const SIG_MAX_W = 170;
+const SIG_MAX_H = 48;
+
+// Stand-in for "no signature": a 1x1 transparent PNG rendered at 1px, so the
+// image tag disappears and only the underline prints. (The free image module
+// cannot conditionally skip a {%tag}, so we always feed it something.)
+// Signature tag values are base64 STRINGS, not Buffers — the module mistakes
+// any object-typed scope value for its own pre-resolved {rId, sizePixel} shape.
+const TRANSPARENT_PX_B64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+const signatureSize = (buffer, tagValue) => {
+  if (tagValue === TRANSPARENT_PX_B64) return [1, 1];
+  try {
+    const { width, height } = imageSize(buffer);
+    const scale = Math.min(SIG_MAX_W / width, SIG_MAX_H / height, 1);
+    return [Math.round(width * scale), Math.round(height * scale)];
+  } catch {
+    return [SIG_MAX_W, SIG_MAX_H];
+  }
+};
+
+// Reads a stored signature image (users.signature_url, e.g.
+// "/uploads/signatures/signature-7-....png") from local disk. Returns null for
+// anything missing or outside the uploads directory.
+export function readSignatureFile(signatureUrl) {
+  if (!signatureUrl || typeof signatureUrl !== "string") return null;
+  if (!signatureUrl.startsWith("/uploads/")) return null;
+  const filePath = path.resolve(UPLOADS_DIR, signatureUrl.slice("/uploads/".length));
+  if (!filePath.startsWith(path.resolve(UPLOADS_DIR))) return null;
+  try {
+    return fs.readFileSync(filePath);
+  } catch {
+    return null;
+  }
+}
 
 // Checkbox glyph used everywhere a box/marker appears on the form.
 const box = (checked) => (checked ? "[ X ]" : "[   ]");
 // Plain text value: never emit null/undefined.
 const val = (v) => (v === null || v === undefined ? "" : String(v));
 
-export function mapInventoryToPlaceholders(formData = {}, profile = {}) {
+export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatures = {}) {
   const p = formData.personal || {};
   const e = formData.educational || {};
   const f = formData.family || {};
@@ -151,6 +192,17 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}) {
     dateAcknowledged: val(ack.dateAcknowledged),
   };
 
+  // Digital signatures (see generateInventoryDocx's `signatures` arg): the
+  // uploaded image is stamped above the blank; without one an invisible pixel
+  // renders instead and the underline stays free for wet signing.
+  data.studentSignature = signatures.studentSignature
+    ? signatures.studentSignature.toString("base64")
+    : TRANSPARENT_PX_B64;
+  data.counselorSignature = signatures.counselorSignature
+    ? signatures.counselorSignature.toString("base64")
+    : TRANSPARENT_PX_B64;
+  data.counselorPrintedName = val(signatures.counselorName);
+
   // Educational background table: 5 fixed levels x 5 columns.
   const bg = Array.isArray(e.background) ? e.background : [];
   for (let i = 0; i < 5; i++) {
@@ -174,14 +226,22 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}) {
   return data;
 }
 
-export function generateInventoryDocx(formData = {}, profile = {}) {
+// `signatures` (all optional): { studentSignature: Buffer, counselorSignature:
+// Buffer, counselorName: string } — see readSignatureFile above for loading.
+export function generateInventoryDocx(formData = {}, profile = {}, signatures = {}) {
   const content = fs.readFileSync(TEMPLATE_PATH, "binary");
   const zip = new PizZip(content);
+  const imageModule = new ImageModule({
+    centered: false,
+    getImage: (tagValue) => Buffer.from(tagValue, "base64"),
+    getSize: (img, tagValue) => signatureSize(img, tagValue),
+  });
   const doc = new Docxtemplater(zip, {
     paragraphLoop: true,
     linebreaks: true,
     nullGetter: () => "",
+    modules: [imageModule],
   });
-  doc.render(mapInventoryToPlaceholders(formData, profile));
+  doc.render(mapInventoryToPlaceholders(formData, profile, signatures));
   return doc.toBuffer();
 }

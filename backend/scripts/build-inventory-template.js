@@ -119,7 +119,10 @@ const TEXT_EDITS = {
   199: "{hnAcademic} Academic concerns",
   200: "{hnHealth} Health concerns",
 
-  // ACKNOWLEDGMENT (two signature blocks share the same printed-name line)
+  // ACKNOWLEDGMENT (two signature blocks share the same printed-name line).
+  // The signature underline always prints (so the form stays wet-signable);
+  // the uploaded signature image is stamped on its own line just above it —
+  // see the signature-paragraph injection in build() below.
   205: "{studentPrintedName}                                        ________________________________",
   234: "{studentPrintedName}                                        ________________________________",
   236: "Date Signed: {dateAcknowledged}",
@@ -185,6 +188,52 @@ function build() {
   });
   xml = xml.slice(0, eduStart) + region + xml.slice(eduEnd);
 
+  // 4) Insert a signature-image paragraph directly ABOVE each of the two
+  // student signature lines. {%tag} is the docxtemplater image-module tag; it
+  // must live in its own run (the module swaps the whole enclosing <w:t> for
+  // the picture), so the leading spacer that pushes it over the right-hand
+  // "Student's Signature" blank is a separate run. When the student has no
+  // uploaded signature the generator feeds a 1x1 transparent px, leaving the
+  // printed underline free for wet signing.
+  const SIG_SPACER = "                                                                                          ";
+  const makePara = (...texts) => `<w:p>${texts.map(makeRun).join("")}</w:p>`;
+  const sigPara = (tag) => makePara(SIG_SPACER, `{%${tag}}`);
+  let studentSigLines = 0;
+  let searchFrom = 0;
+  for (;;) {
+    const nameAt = xml.indexOf("{studentPrintedName}", searchFrom);
+    if (nameAt < 0) break;
+    const paraStart = xml.lastIndexOf("<w:p ", nameAt) >= xml.lastIndexOf("<w:p>", nameAt)
+      ? xml.lastIndexOf("<w:p ", nameAt)
+      : xml.lastIndexOf("<w:p>", nameAt);
+    if (paraStart < 0) break;
+    const inserted = sigPara("studentSignature");
+    xml = xml.slice(0, paraStart) + inserted + xml.slice(paraStart);
+    studentSigLines++;
+    searchFrom = nameAt + inserted.length + "{studentPrintedName}".length;
+  }
+
+  // 5) Append the counselor attestation block right after the "Date Signed"
+  // line of the Acknowledgment — the official form has no counselor line, but
+  // the Guidance Counselor certifies the record when it is printed/released.
+  const dateSignedAt = xml.indexOf("Date Signed: {dateAcknowledged}");
+  let counselorBlockAdded = 0;
+  if (dateSignedAt >= 0) {
+    const paraEnd = xml.indexOf("</w:p>", dateSignedAt);
+    if (paraEnd >= 0) {
+      const insertAt = paraEnd + "</w:p>".length;
+      const block =
+        makePara("") +
+        makePara("Attested by:") +
+        makePara("{%counselorSignature}") +
+        makePara("____________________________________________________") +
+        makePara("{counselorPrintedName}") +
+        makePara("Guidance Counselor's Signature over Printed Name");
+      xml = xml.slice(0, insertAt) + block + xml.slice(insertAt);
+      counselorBlockAdded = 1;
+    }
+  }
+
   zip.file("word/document.xml", xml);
   const out = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
   fs.writeFileSync(OUT, out);
@@ -193,6 +242,8 @@ function build() {
   console.log(`Text nodes edited: ${textEdited}/${Object.keys(TEXT_EDITS).length}`);
   console.log(`Civil-status symbols replaced: ${symIdx}/${SYM_TAGS.length}`);
   console.log(`Educational cells filled: ${eduIdx}/${EDU_TAGS.length}`);
+  console.log(`Student signature lines added: ${studentSigLines}/2`);
+  console.log(`Counselor attestation block added: ${counselorBlockAdded}/1`);
   console.log(`Template written: ${OUT}`);
 }
 

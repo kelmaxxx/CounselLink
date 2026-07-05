@@ -128,6 +128,7 @@ export default function StudentCounselingForm() {
         comments: form.comments,
         nextSession: form.nextSession,
         counselorSignature: form.counselorSignature,
+        counselorSignatureUrl: currentUser?.signatureUrl || null,
         finalizedAt,
         formData: { reason },
       },

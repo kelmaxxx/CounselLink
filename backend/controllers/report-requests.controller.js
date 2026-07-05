@@ -115,7 +115,7 @@ export const createReportRequest = async (req, res) => {
             cs.presenting_concern, cs.goals, cs.summary, cs.plan, cs.comments,
             cs.next_session, cs.counselor_signature, cs.form_data,
             s.name AS studentName, s.college AS studentCollege,
-            c.name AS counselorName
+            c.name AS counselorName, c.signature_url AS counselor_signature_url
      FROM referrals r
      JOIN appointments a ON a.referral_id = r.id
      JOIN counseling_sessions cs ON cs.appointment_id = a.id
@@ -246,7 +246,7 @@ export const sendIndividualReport = async (req, res) => {
             cs.presenting_concern, cs.goals, cs.summary, cs.plan, cs.comments,
             cs.next_session, cs.counselor_signature, cs.form_data,
             s.name AS studentName, s.college AS studentCollege,
-            c.name AS counselorName
+            c.name AS counselorName, c.signature_url AS counselor_signature_url
      FROM counseling_sessions cs
      JOIN users s ON cs.student_id = s.id
      JOIN users c ON cs.counselor_id = c.id
