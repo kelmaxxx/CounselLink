@@ -388,7 +388,7 @@ function AnnouncementsPanel({ token }) {
                         </p>
                         <p className="text-xs text-gray-500 tabular-nums">
                           {item.adminName ? `by ${item.adminName} · ` : ""}
-                          {item.date_posted ? new Date(item.date_posted).toLocaleString() : ""}
+                          {item.date_posted ? new Date(item.date_posted).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
                         </p>
                       </div>
                       <div className="flex gap-1 shrink-0">

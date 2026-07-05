@@ -471,7 +471,7 @@ export default function AdminReports() {
         open={detailsOpen}
         onClose={() => setDetailsOpen(false)}
         title="Report details"
-        subtitle={`Generated ${new Date(detailsPayload.generatedAt).toLocaleString()}`}
+        subtitle={`Generated ${new Date(detailsPayload.generatedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`}
         size="2xl"
         align="top"
         footer={

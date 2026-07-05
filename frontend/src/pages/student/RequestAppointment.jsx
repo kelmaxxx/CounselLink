@@ -139,11 +139,15 @@ export default function RequestAppointment() {
 
   const isPsychological = form.requestType === "psychological";
 
-  // Psychological requests skip the "Priority" step: details → schedule directly.
+  // Psychological requests skip "Priority". Urgent counseling skips "Schedule".
   const goBack = () => {
     if (step === 0) return navigate(-1);
     if (isPsychological && step === stepIndexOf("schedule")) {
       setStep(stepIndexOf("details"));
+      return;
+    }
+    if (!isPsychological && form.isUrgent && step === stepIndexOf("reason")) {
+      setStep(stepIndexOf("priority"));
       return;
     }
     setStep((s) => s - 1);
@@ -152,6 +156,10 @@ export default function RequestAppointment() {
     if (!stepValid()) return;
     if (isPsychological && step === stepIndexOf("details")) {
       setStep(stepIndexOf("schedule"));
+      return;
+    }
+    if (!isPsychological && form.isUrgent && step === stepIndexOf("priority")) {
+      setStep(stepIndexOf("reason"));
       return;
     }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
@@ -192,7 +200,7 @@ export default function RequestAppointment() {
       alert("Appointment system not initialized.");
       return;
     }
-    if (!form.date || !form.preferredSlots.length || !form.reason || !form.phoneNumber) {
+    if (!form.date || !form.reason || !form.phoneNumber || (!form.isUrgent && !form.preferredSlots.length)) {
       alert("Please complete all required fields before submitting.");
       return;
     }
@@ -217,7 +225,11 @@ export default function RequestAppointment() {
   };
 
   const current = STEPS[step];
-  const visibleSteps = isPsychological ? STEPS.filter((s) => s.id !== "priority") : STEPS;
+  const visibleSteps = isPsychological
+    ? STEPS.filter((s) => s.id !== "priority")
+    : form.isUrgent
+      ? STEPS.filter((s) => s.id !== "schedule")
+      : STEPS;
   const visibleIndex = visibleSteps.findIndex((s) => s.id === current.id);
   const progress = ((visibleIndex + 1) / visibleSteps.length) * 100;
   const isLast = step === STEPS.length - 1;
@@ -369,7 +381,7 @@ export default function RequestAppointment() {
             {successModal.data?.requestType === "psychological" ? (
               <SummaryRow label="Test Type:" value={successModal.data?.testType} />
             ) : null}
-            <SummaryRow label="Preferred Date:" value={formatLong(successModal.data?.date)} mono />
+            <SummaryRow label="Preferred Date:" value={successModal.data?.isUrgent ? "Today (Urgent)" : formatLong(successModal.data?.date)} mono />
             {successModal.data?.requestType !== "psychological" && (
               <div className="flex justify-between text-xs border-b border-gray-200/60 pb-1.5">
                 <span className="text-gray-500 font-medium">Priority:</span>
@@ -381,15 +393,17 @@ export default function RequestAppointment() {
                 </span>
               </div>
             )}
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500 font-medium">Preferred Times:</span>
-              <span
-                className="text-gray-900 font-semibold truncate max-w-[200px]"
-                title={successModal.data?.preferredSlots?.join(", ")}
-              >
-                {successModal.data?.preferredSlots?.join(", ")}
-              </span>
-            </div>
+            {!successModal.data?.isUrgent && (
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500 font-medium">Preferred Times:</span>
+                <span
+                  className="text-gray-900 font-semibold truncate max-w-[200px]"
+                  title={successModal.data?.preferredSlots?.join(", ")}
+                >
+                  {successModal.data?.preferredSlots?.join(", ")}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </Modal>
@@ -492,16 +506,16 @@ function PriorityStep({ form, setField }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <PriorityOption
           active={!form.isUrgent}
-          onClick={() => setField({ isUrgent: false })}
+          onClick={() => setField({ isUrgent: false, date: "", preferredSlots: [] })}
           title="Normal"
           desc="Standard scheduling within available slots."
           tone="emerald"
         />
         <PriorityOption
           active={form.isUrgent}
-          onClick={() => setField({ isUrgent: true })}
+          onClick={() => setField({ isUrgent: true, date: toISO(new Date()), preferredSlots: [] })}
           title="Urgent"
-          desc="Immediate attention required. Prioritized by DSA."
+          desc="Immediate attention required — attended today."
           tone="red"
         />
       </div>
@@ -780,14 +794,22 @@ function ReviewStep({ printRef, currentUser, myRecord, form, onJump }) {
           <ReviewLine label="Phone" value={form.phoneNumber} />
         </ReviewBlock>
 
-        <ReviewBlock title={form.requestType === "psychological" ? "Test request" : "Appointment"} onEdit={() => onJump(2)}>
+        <ReviewBlock
+          title={form.requestType === "psychological" ? "Test request" : "Appointment"}
+          onEdit={() => onJump(form.isUrgent ? stepIndexOf("priority") : stepIndexOf("schedule"))}
+        >
           {form.requestType === "psychological" ? (
             <ReviewLine label="Test type" value={form.testType} />
           ) : (
             <ReviewLine label="Priority" value={form.isUrgent ? "Urgent" : "Normal"} />
           )}
-          <ReviewLine label="Preferred date" value={formatLong(form.date)} />
-          <ReviewLine label="Preferred times" value={form.preferredSlots.map(slotLabel).join(", ")} />
+          <ReviewLine
+            label="Preferred date"
+            value={form.isUrgent ? "Today (urgent — same day)" : formatLong(form.date)}
+          />
+          {!form.isUrgent && (
+            <ReviewLine label="Preferred times" value={form.preferredSlots.map(slotLabel).join(", ")} />
+          )}
         </ReviewBlock>
 
         <ReviewBlock title={form.requestType === "psychological" ? "Additional notes" : "Reason"} onEdit={() => onJump(3)}>
@@ -849,7 +871,7 @@ function ReviewLine({ label, value }) {
    Right column: sticky booking summary
 ──────────────────────────────────────────────────────────────────── */
 function BookingSummary({ currentUser, myRecord, form }) {
-  const hasSchedule = form.date && form.preferredSlots.length > 0;
+  const hasSchedule = !form.isUrgent && form.date && form.preferredSlots.length > 0;
   return (
     <div className="lg:sticky lg:top-6 bg-white rounded-2xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-100">
@@ -907,7 +929,14 @@ function BookingSummary({ currentUser, myRecord, form }) {
 
         {/* Schedule status */}
         <div className="border-t border-gray-100 pt-3">
-          {hasSchedule ? (
+          {form.isUrgent ? (
+            <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2.5">
+              <p className="text-xs font-semibold text-red-700 flex items-center gap-1.5">
+                <AlertTriangle size={13} /> Urgent — attended today
+              </p>
+              <p className="text-[11px] text-red-500 mt-0.5">No advance scheduling needed.</p>
+            </div>
+          ) : hasSchedule ? (
             <div className="rounded-lg bg-maroon-50 border border-maroon-100 px-3 py-2.5">
               <p className="text-xs font-medium text-maroon-700 mb-1 flex items-center gap-1.5">
                 <CalendarDays size={13} /> {formatLong(form.date)}

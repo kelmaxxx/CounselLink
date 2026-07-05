@@ -804,10 +804,11 @@ export default function CounselorReports() {
           activeReport
             ? `${activeReport.recipientName ? `Sent to ${activeReport.recipientName} · ` : ""}${new Date(
                 activeReport.sent_at
-              ).toLocaleString()}`
+              ).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
             : ""
         }
         size="lg"
+        align="top"
         footer={
           activeReport && (
             <div className="flex items-center gap-2">

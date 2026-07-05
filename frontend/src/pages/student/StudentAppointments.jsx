@@ -272,7 +272,7 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
           <DetailRow
             label="Submitted"
             value={
-              appointment.created_at ? new Date(appointment.created_at).toLocaleString() : "—"
+              appointment.created_at ? new Date(appointment.created_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"
             }
           />
         </dl>

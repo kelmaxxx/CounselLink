@@ -8,6 +8,13 @@ import msuSeal from "../assets/officialForm/msuSealDataUri.js";
 import guidanceLogo from "../assets/officialForm/guidanceLogoDataUri.js";
 import { saveHtmlAsPdfFile } from "./htmlToPdf.js";
 
+// Supported paper sizes for printing/saving session reports.
+export const PAPER_SIZES = {
+  a4:   { label: "A4 (8.27 × 11.69 in)",               cssSize: "A4 portrait",           widthIn: 8.27, heightIn: 11.69 },
+  long: { label: "Long bond paper (8.5 × 13 in)",       cssSize: "8.5in 13in portrait",   widthIn: 8.5,  heightIn: 13   },
+  letter: { label: "Letter (8.5 × 11 in)",              cssSize: "letter portrait",        widthIn: 8.5,  heightIn: 11   },
+};
+
 const ESC_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const escapeHtml = (s) =>
   (s ?? "").toString().replace(/[&<>"']/g, (c) => ESC_MAP[c]);
@@ -258,7 +265,8 @@ function buildCollegeSummaryHTML(report, { title } = {}) {
 
 export function buildReportHTML(report, opts = {}) {
   if (report?.type === "college_summary") return buildCollegeSummaryHTML(report, opts);
-  const { title = "Student Counseling Form" } = opts;
+  const { title = "Student Counseling Form", paperSize = "a4" } = opts;
+  const paper = PAPER_SIZES[paperSize] || PAPER_SIZES.a4;
   const r = normalizeSessionReport(report);
   const date =
     r.sessionDate && typeof r.sessionDate === "string"
@@ -277,7 +285,7 @@ export function buildReportHTML(report, opts = {}) {
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
   <style>
-    @page { size: A4 portrait; margin: 0; }
+    @page { size: ${paper.cssSize}; margin: 0; }
     body { font-family: 'Times New Roman', Georgia, serif; color: #111; line-height: 1.35; padding: 0; margin: 0; font-size: 10.5pt; background: #fff; }
     /* Real padding (not @page margin) so a direct-save capture (html2canvas,
        which never invokes the print engine and so never honors @page) ends
@@ -375,5 +383,6 @@ const safeFileBase = (name) =>
 export async function saveReportAsPdfFile(report, opts = {}) {
   const html = buildReportHTML(report, opts);
   const r = normalizeSessionReport(report);
-  await saveHtmlAsPdfFile(html, `${safeFileBase(r.studentName)}.pdf`, { pageWidthIn: 8.27, pageHeightIn: 11.69 });
+  const paper = PAPER_SIZES[opts.paperSize] || PAPER_SIZES.a4;
+  await saveHtmlAsPdfFile(html, `${safeFileBase(r.studentName)}.pdf`, { pageWidthIn: paper.widthIn, pageHeightIn: paper.heightIn });
 }

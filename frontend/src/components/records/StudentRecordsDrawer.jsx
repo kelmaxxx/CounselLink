@@ -20,7 +20,7 @@ const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 function formatDateTime(value) {
   if (!value) return "";
-  try { return new Date(value).toLocaleString(); } catch { return value; }
+  try { return new Date(value).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return value; }
 }
 
 function ConsentStatusBadge({ consent }) {
@@ -433,7 +433,7 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
         title={viewing ? titleFor(viewing) : "Session report"}
         subtitle={
           viewing?.finalizedAt
-            ? `Finalized ${new Date(viewing.finalizedAt).toLocaleString()}`
+            ? `Finalized ${new Date(viewing.finalizedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
             : "Draft session record"
         }
         size="lg"

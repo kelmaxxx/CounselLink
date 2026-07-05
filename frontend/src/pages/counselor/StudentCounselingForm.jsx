@@ -4,7 +4,7 @@ import { useAppointments } from "../../context/AppointmentsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useAuth } from "../../context/AuthContext";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
-import { downloadReportAsPdf } from "../../utils/sessionReport";
+import { downloadReportAsPdf, PAPER_SIZES } from "../../utils/sessionReport";
 import {
   ArrowLeft,
   ArrowRight,
@@ -63,6 +63,7 @@ export default function StudentCounselingForm() {
   const [existingSessionId, setExistingSessionId] = useState(null);
   const [finalizedAt, setFinalizedAt] = useState(null);
   const [submittingReport, setSubmittingReport] = useState(false);
+  const [paperSize, setPaperSize] = useState("long");
   const [reason, setReason] = useState(blankReason());
   const [form, setForm] = useState(() => ({
     studentName: "",
@@ -131,7 +132,7 @@ export default function StudentCounselingForm() {
         finalizedAt,
         formData: { reason },
       },
-      { title: `Session Report — ${form.studentName || appt?.studentName || ""}` }
+      { title: `Session Report — ${form.studentName || appt?.studentName || ""}`, paperSize }
     );
   };
 
@@ -422,6 +423,16 @@ export default function StudentCounselingForm() {
 
             {isLast ? (
               <div className="flex items-center gap-2 flex-wrap justify-end">
+                <select
+                  value={paperSize}
+                  onChange={(e) => setPaperSize(e.target.value)}
+                  className="text-xs border border-gray-300 rounded px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-maroon-500"
+                  title="Paper size for print / PDF export"
+                >
+                  {Object.entries(PAPER_SIZES).map(([key, ps]) => (
+                    <option key={key} value={key}>{ps.label}</option>
+                  ))}
+                </select>
                 <button type="button" onClick={handlePrint} className={BTN.secondary}>
                   <Printer size={14} /> Print
                 </button>

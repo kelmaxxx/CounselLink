@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { COLLEGES } from "../../data/mockData";
 import { getDepartments, getCollegeName, getPrograms } from "../../data/msuColleges";
@@ -13,6 +13,9 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ArrowLeft,
+  ArrowRight,
   RotateCcw,
 } from "lucide-react";
 import {
@@ -37,7 +40,24 @@ const POSITIONS = [
   "Guidance Service Specialist V",
 ];
 
+const SPECIALIZATIONS = [
+  "Career Counseling",
+  "Personal / Social Counseling",
+  "Academic Counseling",
+  "Mental Health Counseling",
+  "Family Counseling",
+  "Crisis Counseling",
+  "Group Counseling",
+  "Rehabilitation Counseling",
+];
+
 const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
+const STAFF_EMAIL_DOMAINS = ["@s.msumain.edu.ph"];
+const isInstitutionalEmail = (email) => {
+  const lower = String(email || "").trim().toLowerCase();
+  return STAFF_EMAIL_DOMAINS.some((d) => lower.endsWith(d));
+};
 
 const buildCorUrl = (user) => {
   if (!user?.corUrl) return null;
@@ -168,9 +188,21 @@ export default function ManageUsers() {
   const [_busy, setBusy] = useState(false);
 
   const [createModal, setCreateModal] = useState({ open: false, role: "" });
+  const [createStep, setCreateStep] = useState(1);
+  const [createError, setCreateError] = useState("");
   const [editModal, setEditModal] = useState({ open: false, user: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, userId: null });
   const [corModalOpen, setCorModalOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (actionsRef.current && !actionsRef.current.contains(e.target)) setActionsOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -178,6 +210,9 @@ export default function ManageUsers() {
     password: "",
     college: COLLEGES[0],
     department: "",
+    employeeId: "",
+    position: "",
+    specialization: "",
   });
 
   const [editForm, setEditForm] = useState({
@@ -239,20 +274,42 @@ export default function ManageUsers() {
   const pagedRows = activeRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const openCreateModal = (role) => {
-    setCreateForm({ name: "", email: "", password: "password123", college: COLLEGES[0], department: "" });
+    setCreateForm({ name: "", email: "", password: "password123", college: COLLEGES[0], department: "", employeeId: "", position: "", specialization: "" });
+    setCreateStep(1);
+    setCreateError("");
     setCreateModal({ open: true, role });
   };
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
+  const handleCreateNext = () => {
+    if (createStep === 1) {
+      if (!createForm.name.trim()) return setCreateError("Full name is required.");
+      if (!createForm.email.trim()) return setCreateError("Institutional email is required.");
+      if (!isInstitutionalEmail(createForm.email)) return setCreateError(`Email must end with ${STAFF_EMAIL_DOMAINS.join(" or ")}.`);
+      if (!createForm.password.trim()) return setCreateError("Password is required.");
+    }
+    setCreateError("");
+    setCreateStep((s) => s + 1);
+  };
+
+  const closeCreateModal = () => {
+    setCreateModal({ open: false, role: "" });
+    setCreateStep(1);
+    setCreateError("");
+  };
+
+  const handleCreate = async () => {
     setBusy(true);
+    const isCounselor = createModal.role === "counselor";
     const res = await createUser({
       name: createForm.name,
       email: createForm.email,
       password: createForm.password,
       role: createModal.role,
-      college: createModal.role === "college_rep" ? createForm.college : null,
-      department: createModal.role === "college_rep" ? createForm.department : null,
+      college: isCounselor ? null : (createForm.college || null),
+      department: isCounselor ? null : (createForm.department || null),
+      employeeId: isCounselor ? createForm.employeeId : null,
+      position: isCounselor ? createForm.position : null,
+      specialization: isCounselor ? createForm.specialization : null,
     });
     setBusy(false);
     if (res.success) {
@@ -344,32 +401,51 @@ export default function ManageUsers() {
         title="Manage user accounts"
         subtitle="Create, edit, and delete accounts across all roles."
         actions={
-          <>
-            {bannedUsers.length > 0 && (
-              <button onClick={() => setRecoverOpen(true)} className={BTN.secondary}>
-                <RotateCcw size={14} /> Recover account
-                <span className="ml-1 bg-amber-400 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                  {bannedUsers.length}
-                </span>
-              </button>
+          <div className="relative" ref={actionsRef}>
+            <button
+              onClick={() => setActionsOpen((o) => !o)}
+              className={BTN.primary}
+            >
+              <UserPlus size={14} /> Actions <ChevronDown size={13} className={`transition-transform ${actionsOpen ? "rotate-180" : ""}`} />
+            </button>
+            {actionsOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                <button
+                  onClick={() => { openCreateModal("counselor"); setActionsOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                >
+                  <UserPlus size={14} className="text-gray-400" /> Create counselor
+                </button>
+                <button
+                  onClick={() => { openCreateModal("college_rep"); setActionsOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                >
+                  <UserPlus size={14} className="text-gray-400" /> Create college
+                </button>
+                <div className="border-t border-gray-100 my-1" />
+                <button
+                  onClick={() => { setRecoverOpen(true); setActionsOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                >
+                  <RotateCcw size={14} className="text-gray-400" /> Recover account
+                  {bannedUsers.length > 0 && (
+                    <span className="ml-auto bg-amber-400 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                      {bannedUsers.length}
+                    </span>
+                  )}
+                </button>
+              </div>
             )}
-            <button onClick={() => openCreateModal("counselor")} className={BTN.secondary}>
-              <UserPlus size={14} /> Create counselor
-            </button>
-            <button onClick={() => openCreateModal("college_rep")} className={BTN.primary}>
-              <UserPlus size={14} /> Create College
-            </button>
-          </>
+          </div>
         }
       />
 
       {message && (
         <div
-          className={`mb-4 px-3 py-2 rounded-md border text-sm inline-flex items-center gap-2 ${
-            message.type === "success"
+          className={`mb-4 px-3 py-2 rounded-md border text-sm inline-flex items-center gap-2 ${message.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-700"
               : "bg-red-50 border-red-200 text-red-700"
-          }`}
+            }`}
         >
           {message.type === "success" ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
           {message.text}
@@ -439,19 +515,17 @@ export default function ManageUsers() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition ${
-                activeTab === tab.id
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition ${activeTab === tab.id
                   ? "border-maroon-600 text-maroon-700"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
             >
               {tab.label}
               <span
-                className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${
-                  activeTab === tab.id
+                className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${activeTab === tab.id
                     ? "bg-maroon-100 text-maroon-700"
                     : "bg-gray-100 text-gray-500"
-                }`}
+                  }`}
               >
                 {tab.count}
               </span>
@@ -464,9 +538,9 @@ export default function ManageUsers() {
           rows={pagedRows}
           columns={
             activeTab === "student" ? STUDENT_COLUMNS
-            : activeTab === "counselor" ? COUNSELOR_COLUMNS
-            : activeTab === "college_rep" ? REP_COLUMNS
-            : ADMIN_COLUMNS
+              : activeTab === "counselor" ? COUNSELOR_COLUMNS
+                : activeTab === "college_rep" ? REP_COLUMNS
+                  : ADMIN_COLUMNS
           }
           onEdit={openEditModal}
           onDelete={openDeleteConfirm}
@@ -474,9 +548,9 @@ export default function ManageUsers() {
           hideDelete={activeTab === "admin"}
           emptyText={
             activeTab === "student" ? "No students match your search"
-            : activeTab === "counselor" ? "No counselors match your search"
-            : activeTab === "college_rep" ? "No college representatives match your search"
-            : "No administrators match your search"
+              : activeTab === "counselor" ? "No counselors match your search"
+                : activeTab === "college_rep" ? "No college representatives match your search"
+                  : "No administrators match your search"
           }
         />
 
@@ -509,76 +583,165 @@ export default function ManageUsers() {
         )}
       </SectionCard>
 
-      {/* Create modal */}
+      {/* Create modal — 3-step wizard */}
       <Modal
         open={createModal.open}
-        onClose={() => setCreateModal({ open: false, role: "" })}
-        title={`Create ${createModal.role === "counselor" ? "counselor" : "college dean"}`}
-        subtitle="Account credentials and basic details"
+        onClose={closeCreateModal}
+        title={`Create ${createModal.role === "counselor" ? "counselor" : "college"} account`}
         footer={
-          <>
+          <div className="flex justify-between w-full">
             <button
               type="button"
-              onClick={() => setCreateModal({ open: false, role: "" })}
+              onClick={() => {
+                if (createStep === 1) closeCreateModal();
+                else { setCreateStep((s) => s - 1); setCreateError(""); }
+              }}
               className={BTN.secondary}
             >
-              Cancel
+              {createStep === 1 ? "Cancel" : <><ArrowLeft size={14} /> Back</>}
             </button>
-            <button type="submit" form="create-user-form" className={BTN.primary}>
-              Create user
-            </button>
-          </>
+            {createStep < 3 ? (
+              <button type="button" onClick={handleCreateNext} className={BTN.primary}>
+                Next <ArrowRight size={14} />
+              </button>
+            ) : (
+              <button type="button" onClick={handleCreate} className={BTN.primary}>
+                Create account
+              </button>
+            )}
+          </div>
         }
       >
-        <form id="create-user-form" onSubmit={handleCreate} className="space-y-3">
-          <div>
-            <label className={LABEL}>Full name *</label>
-            <input
-              type="text"
-              required
-              className={INPUT}
-              value={createForm.name}
-              onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+        {/* Progress bar */}
+        <div className="flex items-center gap-3 mb-5">
+          <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+            Step {createStep} <span className="text-gray-400">of 3</span>
+          </span>
+          <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className="h-full bg-maroon-500 rounded-full transition-all duration-300"
+              style={{ width: `${(createStep / 3) * 100}%` }}
             />
           </div>
-          <div>
-            <label className={LABEL}>Email *</label>
-            <input
-              type="email"
-              required
-              className={INPUT}
-              value={createForm.email}
-              onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-            />
+        </div>
+
+        {/* Step label */}
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">
+          {createModal.role === "counselor"
+            ? ["Account credentials", "Professional details", "Review & confirm"][createStep - 1]
+            : ["Account credentials", "College assignment", "Review & confirm"][createStep - 1]}
+        </p>
+
+        {/* Inline error */}
+        {createError && (
+          <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">
+            <AlertCircle size={14} className="flex-shrink-0" /> {createError}
           </div>
-          <div>
-            <label className={LABEL}>Password *</label>
-            <input
-              type="text"
-              required
-              className={INPUT}
-              value={createForm.password}
-              onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-            />
-          </div>
-          {createModal.role === "college_rep" && (
+        )}
+
+        <form
+          id="create-user-form"
+          onSubmit={(e) => e.preventDefault()}
+          className="space-y-3"
+        >
+          {/* ── Step 1: Account credentials ── */}
+          {createStep === 1 && (
+            <>
+              <div>
+                <label className={LABEL}>Full name *</label>
+                <input
+                  type="text"
+                  autoFocus
+                  className={INPUT}
+                  value={createForm.name}
+                  onChange={(e) => { setCreateError(""); setCreateForm({ ...createForm, name: e.target.value }); }}
+                  placeholder="e.g. Maria Santos"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Institutional Email *</label>
+                <input
+                  type="email"
+                  className={INPUT}
+                  value={createForm.email}
+                  onChange={(e) => { setCreateError(""); setCreateForm({ ...createForm, email: e.target.value }); }}
+                  placeholder="username@msu.edu.ph"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Password *</label>
+                <input
+                  type="text"
+                  className={INPUT}
+                  value={createForm.password}
+                  onChange={(e) => { setCreateError(""); setCreateForm({ ...createForm, password: e.target.value }); }}
+                />
+                <p className="text-xs text-gray-400 mt-1">The user can change their password after first login.</p>
+              </div>
+            </>
+          )}
+
+          {/* ── Step 2 counselor: Professional details ── */}
+          {createStep === 2 && createModal.role === "counselor" && (
+            <>
+              <div>
+                <label className={LABEL}>Employee ID</label>
+                <input
+                  type="text"
+                  autoFocus
+                  className={INPUT}
+                  value={createForm.employeeId}
+                  onChange={(e) => setCreateForm({ ...createForm, employeeId: e.target.value })}
+                  placeholder="e.g. EMP-00123"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Position</label>
+                <select
+                  className={INPUT}
+                  value={createForm.position}
+                  onChange={(e) => setCreateForm({ ...createForm, position: e.target.value })}
+                >
+                  <option value="">Select position</option>
+                  {POSITIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={LABEL}>Specialization</label>
+                <select
+                  className={INPUT}
+                  value={createForm.specialization}
+                  onChange={(e) => setCreateForm({ ...createForm, specialization: e.target.value })}
+                >
+                  <option value="">Select specialization</option>
+                  {SPECIALIZATIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* ── Step 2 college_rep: College assignment ── */}
+          {createStep === 2 && createModal.role === "college_rep" && (
             <>
               <div>
                 <label className={LABEL}>College *</label>
                 <select
+                  autoFocus
                   className={INPUT}
                   value={createForm.college}
                   onChange={(e) => setCreateForm({ ...createForm, college: e.target.value, department: "" })}
                 >
                   {COLLEGES.map((c) => (
-                    <option key={c} value={c}>
-                      {c} — {getCollegeName(c)}
-                    </option>
+                    <option key={c} value={c}>{c} — {getCollegeName(c)}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className={LABEL}>Department *</label>
+                <label className={LABEL}>Department</label>
                 <select
                   className={INPUT}
                   value={createForm.department}
@@ -586,13 +749,33 @@ export default function ManageUsers() {
                 >
                   <option value="">Select department</option>
                   {getDepartments(createForm.college).map((d) => (
-                    <option key={d.code} value={d.name}>
-                      {d.name}
-                    </option>
+                    <option key={d.code} value={d.name}>{d.name}</option>
                   ))}
                 </select>
               </div>
             </>
+          )}
+
+          {/* ── Step 3: Review & confirm ── */}
+          {createStep === 3 && (
+            <div className="rounded-xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
+              <CreateReviewRow label="Full name" value={createForm.name} />
+              <CreateReviewRow label="Institutional Email" value={createForm.email} />
+              <CreateReviewRow label="Password" value={"•".repeat(Math.min(createForm.password.length, 12))} />
+              {createModal.role === "counselor" && (
+                <>
+                  <CreateReviewRow label="Employee ID" value={createForm.employeeId || "—"} />
+                  <CreateReviewRow label="Position" value={createForm.position || "—"} />
+                  <CreateReviewRow label="Specialization" value={createForm.specialization || "—"} />
+                </>
+              )}
+              {createModal.role === "college_rep" && (
+                <>
+                  <CreateReviewRow label="College" value={createForm.college} />
+                  <CreateReviewRow label="Department" value={createForm.department || "—"} />
+                </>
+              )}
+            </div>
           )}
         </form>
       </Modal>
@@ -969,6 +1152,15 @@ export default function ManageUsers() {
           </ul>
         )}
       </Modal>
+    </div>
+  );
+}
+
+function CreateReviewRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-2.5 text-sm bg-white">
+      <span className="text-gray-500 flex-shrink-0">{label}</span>
+      <span className="text-gray-900 font-medium text-right break-all">{value}</span>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Search, Plus, Edit, Trash2, Users, FileText, FileDown, Eye, Calendar,
   TrendingUp, Activity, AlertCircle, RefreshCw, UserRound, ClipboardList, Target,
-  ListChecks, ArrowLeft, ArrowRight, CheckCircle2, Folder
+  ListChecks, ArrowLeft, ArrowRight, CheckCircle2, Folder, MoreHorizontal
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCounselingSessions } from "../context/CounselingSessionsContext";
@@ -61,6 +61,7 @@ export default function ManageStudents() {
 
   // Drawer state
   const [drawerStudent, setDrawerStudent] = useState(null);
+  const [openPopoverId, setOpenPopoverId] = useState(null);
   const [viewSession, setViewSession] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [selectedDept, setSelectedDept] = useState(null);
@@ -336,13 +337,16 @@ export default function ManageStudents() {
                 } else if (ack?.disclaimerRevokedAt) {
                   authBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Revoked</span>;
                 } else {
-                  authBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">Authorized</span>;
+                  authBadge = <CheckCircle2 size={17} className="text-green-600" />;
                 }
+                const invFilled = !!(inv?.scanUrl || inv?.formData?.personal?.surname);
                 const invBadge = !rec?.loaded
                   ? <span className="text-xs text-gray-400">—</span>
-                  : inv
-                    ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">On file{inv.scanUrl ? " + scan" : ""}</span>
-                    : <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Missing</span>;
+                  : invFilled
+                    ? <CheckCircle2 size={17} className="text-green-600" />
+                    : inv
+                      ? <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Incomplete</span>
+                      : <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Missing</span>;
                 let conBadge;
                 if (!rec?.loaded) {
                   conBadge = <span className="text-xs text-gray-400">—</span>;
@@ -351,7 +355,7 @@ export default function ManageStudents() {
                 } else if (con.revokedAt) {
                   conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Revoked</span>;
                 } else if (con.eConsentSignedAt) {
-                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">E-signed</span>;
+                  conBadge = <CheckCircle2 size={17} className="text-green-600" />;
                 } else if (con.scanUrl) {
                   conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Paper</span>;
                 } else {
@@ -371,39 +375,50 @@ export default function ManageStudents() {
                     <td className="px-4 py-3">{authBadge}</td>
                     <td className="px-4 py-3">{conBadge}</td>
                     <td className="px-4 py-3 text-gray-700">{sessionCount}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                    <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="relative inline-block">
                         <button
-                          onClick={(e) => { e.stopPropagation(); setDrawerStudent(s); }}
-                          className="px-2.5 py-1 rounded border text-xs hover:bg-gray-50"
-                          title="View / Manage records"
+                          onClick={(e) => { e.stopPropagation(); setOpenPopoverId(openPopoverId === s.id ? null : s.id); }}
+                          className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800"
+                          title="Actions"
                         >
-                          View
+                          <MoreHorizontal size={16} />
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setForm({ ...blankForm(), studentId: String(s.id), sessionDate: new Date().toISOString().split("T")[0] });
-                            setRecordStep(0);
-                            setEditing({});
-                            setActiveTab("records");
-                          }}
-                          className="px-2.5 py-1 rounded bg-maroon-600 text-white text-xs hover:bg-maroon-700"
-                          title="Add new session record for this student"
-                        >
-                          + Add
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStudentSearch(s.name || s.studentId || "");
-                            setActiveTab("records");
-                          }}
-                          className="px-2.5 py-1 rounded border text-xs hover:bg-gray-50"
-                          title="Manage this student's session records"
-                        >
-                          Manage
-                        </button>
+                        {openPopoverId === s.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setOpenPopoverId(null)} />
+                            <div className="absolute right-0 z-20 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
+                              <button
+                                onClick={() => { setOpenPopoverId(null); setDrawerStudent(s); }}
+                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <Eye size={14} /> View
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenPopoverId(null);
+                                  setForm({ ...blankForm(), studentId: String(s.id), sessionDate: new Date().toISOString().split("T")[0] });
+                                  setRecordStep(0);
+                                  setEditing({});
+                                  setActiveTab("records");
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <Plus size={14} /> Add Record
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setOpenPopoverId(null);
+                                  setStudentSearch(s.name || s.studentId || "");
+                                  setActiveTab("records");
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <ClipboardList size={14} /> Manage
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1040,7 +1055,7 @@ export default function ManageStudents() {
           viewSession
             ? `${viewSession.studentCollege || ""}${
                 viewSession.finalizedAt
-                  ? ` · Finalized ${new Date(viewSession.finalizedAt).toLocaleString()}`
+                  ? ` · Finalized ${new Date(viewSession.finalizedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
                   : viewSession.counselorId === currentUser?.id
                   ? " · Draft (not finalized)"
                   : ""
@@ -1048,6 +1063,7 @@ export default function ManageStudents() {
             : ""
         }
         size="lg"
+        align="top"
         footer={
           viewSession && (
             <div className="flex items-center gap-2">

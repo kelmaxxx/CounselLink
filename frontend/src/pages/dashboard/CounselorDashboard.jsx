@@ -1,5 +1,5 @@
 // src/pages/dashboard/CounselorDashboard.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
@@ -18,7 +18,7 @@ import {
   Inbox,
   ClipboardList,
   AlertTriangle,
-  FileText,
+  MoreVertical,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
@@ -27,7 +27,11 @@ import ChatModal from "../../components/ChatModal";
 import { useNotifications } from "../../context/NotificationsContext";
 import { SectionCard, EmptyState, BigStat, DonutStat, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
 
-const COLLEGE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce", "#0e7490", "#9f1239"];
+const COLLEGE_COLORS = [
+  "#0B6623", "#1d4ed8", "#c2410c", "#7e22ce", "#0e7490", "#9f1239",
+  "#b45309", "#065f46", "#1e3a5f", "#6d28d9", "#be185d", "#0f766e",
+  "#92400e", "#1e40af", "#166534", "#7c3aed",
+];
 const STATUS_COLORS = {
   pending: "#f59e0b",
   approved: "#16a34a",
@@ -35,6 +39,7 @@ const STATUS_COLORS = {
   rejected: "#dc2626",
   completed: "#065f46",
   "follow-up": "#eab308",
+  urgent: "#ef4444",
 };
 
 const TIME_LABEL = {
@@ -113,6 +118,18 @@ export default function CounselorDashboard() {
   const [chatRecipient, setChatRecipient] = useState(null);
   const [rejectModal, setRejectModal] = useState({ open: false, kind: null, id: null, note: "" });
   const [rescheduleTestModal, setRescheduleTestModal] = useState({ open: false, testId: null, date: "", timeSlot: "", note: "" });
+  const [openQueuePopoverId, setOpenQueuePopoverId] = useState(null);
+  const queuePopoverRefs = useRef({});
+
+  useEffect(() => {
+    if (!openQueuePopoverId) return;
+    const handler = (e) => {
+      const node = queuePopoverRefs.current[openQueuePopoverId];
+      if (node && !node.contains(e.target)) setOpenQueuePopoverId(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openQueuePopoverId]);
 
   const students = users?.filter((u) => u.role === "student") || [];
 
@@ -147,23 +164,39 @@ export default function CounselorDashboard() {
     (a) => a.status === "approved" || a.status === "rescheduled"
   ).length;
 
-  const topColleges = Object.entries(studentsByCollege).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const topColleges = Object.entries(studentsByCollege).sort((a, b) => b[1] - a[1]);
 
   const appointmentStatusBreakdown = useMemo(() => {
-    const counts = myAppointments.reduce((acc, a) => {
-      // Follow-up appointments are plain "approved" rows with this fixed
-      // reason (set when a finalized session schedules its follow-up) — split
-      // them out so the breakdown reflects what's actually shown elsewhere.
+    const counts = {};
+    const myId = Number(currentUser?.id);
+    myAppointments.forEach((a) => {
+      const isPending = a.status === "pending";
       const isFollowup = a.status === "approved" && a.reason === "Follow-up Session";
+      const isActiveUrgent = !!(a.is_urgent || a.isUrgent) && !isFollowup && (isPending || a.status === "approved" || a.status === "rescheduled");
+
+      // Pending and urgent are global — every counselor sees the full pool
+      if (isPending) { counts["pending"] = (counts["pending"] || 0) + 1; return; }
+      if (isActiveUrgent) { counts["urgent"] = (counts["urgent"] || 0) + 1; return; }
+
+      // All other statuses (approved, rescheduled, follow-up, completed, no_show, rejected)
+      // only count if this counselor owns the appointment
+      if (Number(a.counselor_id ?? a.counselorId) !== myId) return;
+
       const key = isFollowup ? "followup" : a.status || "pending";
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    myTests.forEach((t) => {
+      // Pending tests are global; accepted/completed tests only for this counselor
+      if (t.status === "pending") { counts["pending"] = (counts["pending"] || 0) + 1; return; }
+      if (Number(t.counselor_id ?? t.counselorId) !== myId) return;
+      const key = t.status || "pending";
+      counts[key] = (counts[key] || 0) + 1;
+    });
     return Object.entries(counts).map(([name, value]) => ({
-      name: name === "followup" ? "Follow-up" : name.charAt(0).toUpperCase() + name.slice(1),
+      name: name === "followup" ? "Follow-up" : name === "urgent" ? "Urgent" : name.charAt(0).toUpperCase() + name.slice(1),
       value,
     }));
-  }, [myAppointments]);
+  }, [myAppointments, myTests, currentUser]);
 
   // ── Handlers ─────────────────────────────────────────────────────────
   const handleAccept = async (id) => {
@@ -512,11 +545,6 @@ export default function CounselorDashboard() {
                       {isTest ? <ClipboardList size={11} /> : <Calendar size={11} />}
                       {isTest ? "Test" : "Appointment"}
                     </span>
-                    {todayQueueMap[row.key] != null && (
-                      <p className="text-xs font-bold text-maroon-700 mt-1">
-                        Queue #{todayQueueMap[row.key]}
-                      </p>
-                    )}
                   </div>
 
                   {/* Preferred */}
@@ -542,38 +570,39 @@ export default function CounselorDashboard() {
                     >
                       <MessageCircle size={14} />
                     </button>
-                    {row.type === "appointment" && (
-                      <Link
-                        to={`/counselor/appointments/${row.id}/form`}
-                        className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition whitespace-nowrap flex-shrink-0"
-                        title="Open form"
-                      >
-                        <FileText size={13} /> Open form
-                      </Link>
-                    )}
-                    <button
-                      onClick={() => onAccept(row)}
-                      className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
-                      title="Accept"
-                    >
-                      <Check size={13} /> Accept
-                    </button>
-                    {!row.isUrgent && (
+                    <div ref={(el) => { queuePopoverRefs.current[row.key] = el; }} className="relative">
                       <button
-                        onClick={() => onReschedule(row)}
-                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-100 transition"
-                        title="Reschedule"
+                        onClick={() => setOpenQueuePopoverId(openQueuePopoverId === row.key ? null : row.key)}
+                        className="w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
+                        title="Actions"
                       >
-                        <CalendarClock size={13} /> Reschedule
+                        <MoreVertical size={15} />
                       </button>
-                    )}
-                    <button
-                      onClick={() => onReject(row)}
-                      className="w-7 h-7 inline-flex items-center justify-center rounded-md text-red-600 hover:bg-red-50 transition"
-                      title="Reject"
-                    >
-                      <X size={14} />
-                    </button>
+                      {openQueuePopoverId === row.key && (
+                        <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                          <button
+                            onClick={() => { onAccept(row); setOpenQueuePopoverId(null); }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition text-left"
+                          >
+                            <Check size={14} /> Accept
+                          </button>
+                          {!row.isUrgent && (
+                            <button
+                              onClick={() => { onReschedule(row); setOpenQueuePopoverId(null); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                            >
+                              <CalendarClock size={14} /> Reschedule
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { onReject(row); setOpenQueuePopoverId(null); }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition text-left"
+                          >
+                            <X size={14} /> Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -589,6 +618,7 @@ export default function CounselorDashboard() {
           subtitle="Distribution of your caseload"
         >
           <DonutStat
+            compact
             data={topColleges
               .filter(([, c]) => c > 0)
               .map(([name, value], i) => ({
@@ -613,7 +643,7 @@ export default function CounselorDashboard() {
               value: entry.value,
               color: STATUS_COLORS[entry.name.toLowerCase()] || "#94a3b8",
             }))}
-            total={myAppointments.length}
+            total={myAppointments.length + myTests.length}
             centerLabel="appointments"
             emptyIcon={Calendar}
             emptyTitle="No appointments yet"

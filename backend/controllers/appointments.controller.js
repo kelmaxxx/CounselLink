@@ -24,7 +24,7 @@ export const createAppointment = async (req, res) => {
   const finalPhoneNumber = phoneNumber || (isCounselor ? "—" : null);
   const finalReason = reason || (isCounselor ? "Follow-up Session" : null);
 
-  if (!preferredDate || !preferredSlots?.length || !finalPhoneNumber || !finalReason) {
+  if (!preferredDate || (!isUrgent && !preferredSlots?.length) || !finalPhoneNumber || !finalReason) {
     return res.status(400).json({ message: "Missing required appointment fields" });
   }
 
@@ -131,7 +131,7 @@ export const listAppointmentsForUser = async (req, res) => {
        FROM appointments a
        LEFT JOIN users s ON a.student_id = s.id
        LEFT JOIN users c ON a.counselor_id = c.id
-       WHERE (a.counselor_id = ? OR a.counselor_id IS NULL) AND a.appointment_type = 'counseling'
+       WHERE (a.counselor_id = ? OR a.counselor_id IS NULL OR a.is_urgent = 1) AND a.appointment_type = 'counseling'
        ORDER BY a.created_at DESC`,
       [userId]
     );

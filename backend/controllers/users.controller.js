@@ -34,9 +34,9 @@ const AVATAR_FIELDS = ["avatarUrl", "avatarFileName", "avatarFileType"];
 
 const SELF_UPDATABLE = {
   student: ["name", "email", "phone", "bio", "college", "department", "program", "yearLevel", ...AVATAR_FIELDS],
-  counselor: ["name", "email", "phone", "bio", "department", "specialization", "position", ...AVATAR_FIELDS],
-  college_rep: ["name", "email", "phone", "college", ...AVATAR_FIELDS],
-  admin: ["name", "email", "phone", ...AVATAR_FIELDS],
+  counselor: ["name", "email", "phone", "bio", "department", "specialization", "position", "employeeId", ...AVATAR_FIELDS],
+  college_rep: ["name", "email", "phone", "employeeId", "college", ...AVATAR_FIELDS],
+  admin: ["name", "email", "phone", "employeeId", ...AVATAR_FIELDS],
 };
 
 const ADMIN_UPDATABLE = [
@@ -179,7 +179,7 @@ export const listUsers = async (req, res) => {
 };
 
 export const adminCreateUser = async (req, res) => {
-  const { name, email, password, role, college, department } = req.body;
+  const { name, email, password, role, college, department, position, specialization, employeeId } = req.body;
   if (!name || !email || !password || !role) {
     return res.status(400).json({ message: "Missing required fields" });
   }
@@ -191,9 +191,19 @@ export const adminCreateUser = async (req, res) => {
   if (existing.length) return res.status(409).json({ message: "Email already in use" });
 
   const hashed = await bcrypt.hash(password, 10);
+
+  const isCounselor = role === "counselor";
   const result = await query(
-    "INSERT INTO users (name, email, password, role, status, college, department) VALUES (?, ?, ?, ?, 'approved', ?, ?)",
-    [name, email, hashed, role, college || null, department || null]
+    `INSERT INTO users (name, email, password, role, status, college, department, position, specialization, employee_id)
+     VALUES (?, ?, ?, ?, 'approved', ?, ?, ?, ?, ?)`,
+    [
+      name, email, hashed, role,
+      isCounselor ? null : (college || null),
+      isCounselor ? null : (department || null),
+      isCounselor ? (position || null) : null,
+      isCounselor ? (specialization || null) : null,
+      isCounselor ? (employeeId || null) : null,
+    ]
   );
   await logAction(req, "create_user", "user", result.insertId, { name, email, role, college: college || null, department: department || null });
   const rows = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [result.insertId]);

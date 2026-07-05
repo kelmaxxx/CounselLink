@@ -7,6 +7,8 @@ import {
   FileDown,
   Building2,
   User,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   PageHeader,
@@ -20,6 +22,7 @@ import { downloadReportAsPdf } from "../../utils/sessionReport";
 import ReportPreview from "../../components/records/ReportPreview";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const REPORTS_PAGE_SIZE = 10;
 
 const parsePayload = (raw) => {
   if (!raw) return null;
@@ -35,6 +38,7 @@ export default function CounselingData() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeReport, setActiveReport] = useState(null);
+  const [reportsPage, setReportsPage] = useState(1);
 
   useEffect(() => {
     if (!token) return;
@@ -55,6 +59,12 @@ export default function CounselingData() {
   const activePayload = useMemo(
     () => (activeReport ? parsePayload(activeReport.report_payload) : null),
     [activeReport]
+  );
+
+  const totalReportPages = Math.max(1, Math.ceil(reports.length / REPORTS_PAGE_SIZE));
+  const pagedReports = reports.slice(
+    (reportsPage - 1) * REPORTS_PAGE_SIZE,
+    reportsPage * REPORTS_PAGE_SIZE
   );
 
   return (
@@ -91,84 +101,104 @@ export default function CounselingData() {
             hint="When a counselor finalizes a session or generates a college-wide summary, it appears here."
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
-                  <th className="px-4 py-2.5">From</th>
-                  <th className="px-4 py-2.5">Type</th>
-                  <th className="px-4 py-2.5">Title</th>
-                  <th className="px-4 py-2.5">Summary</th>
-                  <th className="px-4 py-2.5">Received</th>
-                  <th className="px-4 py-2.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {reports.map((r) => {
-                  const payload = parsePayload(r.report_payload);
-                  const college = isCollegeSummary(payload);
-                  return (
-                    <tr key={r.id} className="hover:bg-gray-50/70 transition">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                            {initialsOf(r.senderName)}
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                    <th className="px-4 py-2.5">From</th>
+                    <th className="px-4 py-2.5">Type</th>
+                    <th className="px-4 py-2.5">Title</th>
+                    <th className="px-4 py-2.5">Received</th>
+                    <th className="px-4 py-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {pagedReports.map((r) => {
+                    const payload = parsePayload(r.report_payload);
+                    const college = isCollegeSummary(payload);
+                    return (
+                      <tr key={r.id} className="hover:bg-gray-50/70 transition">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                              {initialsOf(r.senderName)}
+                            </div>
+                            <div className="font-medium text-gray-900 text-sm truncate">
+                              {r.senderName}
+                            </div>
                           </div>
-                          <div className="font-medium text-gray-900 text-sm truncate">
-                            {r.senderName}
+                        </td>
+                        <td className="px-4 py-3">
+                          {college ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-maroon-50 text-maroon-700">
+                              <Building2 size={12} /> College summary
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                              <User size={12} /> Session report
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-900">{r.title}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                          {new Date(r.sent_at).toLocaleString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex gap-1">
+                            <button
+                              onClick={() => setActiveReport(r)}
+                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                              title="View report"
+                            >
+                              <Eye size={13} /> View
+                            </button>
+                            <button
+                              onClick={() => downloadReportAsPdf(payload, { title: r.title })}
+                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                              title="Download / print as PDF"
+                            >
+                              <FileDown size={13} /> PDF
+                            </button>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {college ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-maroon-50 text-maroon-700">
-                            <Building2 size={12} /> College summary
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                            <User size={12} /> Session report
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900">{r.title}</td>
-                      <td className="px-4 py-3 max-w-md text-gray-700 line-clamp-2">
-                        {r.summary || <span className="text-gray-400">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
-                        {new Date(r.sent_at).toLocaleString(undefined, {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-flex gap-1">
-                          <button
-                            onClick={() => setActiveReport(r)}
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                            title="View report"
-                          >
-                            <Eye size={13} /> View
-                          </button>
-                          <button
-                            onClick={() =>
-                              downloadReportAsPdf(payload, { title: r.title })
-                            }
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                            title="Download / print as PDF"
-                          >
-                            <FileDown size={13} /> PDF
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-xs text-gray-500">
+              <span>
+                {reports.length === 0
+                  ? "0 reports"
+                  : `${(reportsPage - 1) * REPORTS_PAGE_SIZE + 1}–${Math.min(reportsPage * REPORTS_PAGE_SIZE, reports.length)} of ${reports.length}`}
+              </span>
+              <div className="inline-flex gap-1">
+                <button
+                  onClick={() => setReportsPage((p) => Math.max(1, p - 1))}
+                  disabled={reportsPage === 1}
+                  className="h-7 w-7 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  onClick={() => setReportsPage((p) => Math.min(totalReportPages, p + 1))}
+                  disabled={reportsPage >= totalReportPages}
+                  className="h-7 w-7 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </SectionCard>
 
@@ -178,10 +208,11 @@ export default function CounselingData() {
         title={activeReport?.title || "Report"}
         subtitle={
           activeReport
-            ? `From ${activeReport.senderName} · ${new Date(activeReport.sent_at).toLocaleString()}`
+            ? `From ${activeReport.senderName} · ${new Date(activeReport.sent_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
             : ""
         }
         size="lg"
+        align="top"
         footer={
           activeReport && (
             <div className="flex items-center gap-2">

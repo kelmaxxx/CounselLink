@@ -4,7 +4,7 @@
 import React, { useMemo } from "react";
 import { buildReportHTML } from "../../utils/sessionReport";
 
-export default function ReportPreview({ report, title, height = 620 }) {
+export default function ReportPreview({ report, title, height = 480 }) {
   const html = useMemo(() => buildReportHTML(report || {}, { title }), [report, title]);
 
   return (
