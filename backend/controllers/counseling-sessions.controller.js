@@ -11,7 +11,7 @@ const SELECT_FIELDS = `
   cs.form_data AS formData, cs.finalized_at AS finalizedAt,
   cs.created_at AS createdAt, cs.updated_at AS updatedAt,
   s.name AS studentName, s.college AS studentCollege, s.student_id AS studentNumber,
-  c.name AS counselorName
+  c.name AS counselorName, c.signature_url AS counselorSignatureUrl
 `;
 
 const FROM_JOIN = `
@@ -55,6 +55,9 @@ export const buildSessionReportPayload = (session) => {
     comments: session.comments,
     nextSession: session.next_session,
     counselorSignature: session.counselor_signature,
+    // Frozen pointer to the counselor's uploaded signature image so the
+    // receiving College Rep prints the same signed document the counselor sees.
+    counselorSignatureUrl: session.counselor_signature_url || null,
     formData,
   };
 };
@@ -240,7 +243,7 @@ export const finalizeSession = async (req, res) => {
             cs.presenting_concern, cs.goals, cs.summary, cs.plan, cs.comments,
             cs.next_session, cs.counselor_signature, cs.form_data, cs.finalized_at,
             s.name AS studentName, s.college AS studentCollege,
-            c.name AS counselorName
+            c.name AS counselorName, c.signature_url AS counselor_signature_url
      FROM counseling_sessions cs
      JOIN users s ON cs.student_id = s.id
      JOIN users c ON cs.counselor_id = c.id

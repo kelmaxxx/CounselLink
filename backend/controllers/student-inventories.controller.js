@@ -1,6 +1,6 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
-import { generateInventoryDocx } from "../utils/inventory-docx.js";
+import { generateInventoryDocx, readSignatureFile } from "../utils/inventory-docx.js";
 
 const SELECT_FIELDS = `
   i.id, i.student_id AS studentId, i.counselor_id AS counselorId,
@@ -144,9 +144,12 @@ export const downloadInventoryDocx = async (req, res) => {
   if (!canAccess(req, studentId)) return res.status(403).json({ message: "Forbidden" });
 
   const rows = await query(
-    `SELECT i.form_data AS formData, s.name AS studentName, s.student_id AS studentNumber, s.email AS studentEmail
+    `SELECT i.form_data AS formData, s.name AS studentName, s.student_id AS studentNumber, s.email AS studentEmail,
+            s.signature_url AS studentSignatureUrl,
+            c.name AS counselorName, c.signature_url AS counselorSignatureUrl
        FROM student_inventories i
        JOIN users s ON i.student_id = s.id
+       LEFT JOIN users c ON i.counselor_id = c.id
       WHERE i.student_id = ? LIMIT 1`,
     [studentId]
   );
@@ -159,9 +162,25 @@ export const downloadInventoryDocx = async (req, res) => {
     email: row.studentEmail,
   };
 
+  // The attesting counselor is whoever handled the inventory; when none is on
+  // record yet and a counselor is the one printing, they attest it themselves.
+  let counselorName = row.counselorName;
+  let counselorSignatureUrl = row.counselorSignatureUrl;
+  if (!counselorName && req.user?.role === "counselor") {
+    const [me] = await query("SELECT name, signature_url FROM users WHERE id = ?", [req.user.id]);
+    counselorName = me?.name || null;
+    counselorSignatureUrl = me?.signature_url || null;
+  }
+
+  const signatures = {
+    studentSignature: readSignatureFile(row.studentSignatureUrl),
+    counselorSignature: readSignatureFile(counselorSignatureUrl),
+    counselorName,
+  };
+
   let buffer;
   try {
-    buffer = generateInventoryDocx(row.formData || {}, profile);
+    buffer = generateInventoryDocx(row.formData || {}, profile, signatures);
   } catch (err) {
     console.error("Inventory docx generation failed:", err);
     return res.status(500).json({ message: "Failed to generate the inventory document" });

@@ -8,6 +8,31 @@ import msuSeal from "../assets/officialForm/msuSealDataUri.js";
 import guidanceLogo from "../assets/officialForm/guidanceLogoDataUri.js";
 import { saveHtmlAsPdfFile } from "./htmlToPdf.js";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
+// Fetches a signature image (a relative /uploads path, an absolute URL, or an
+// already-inlined data URI) and returns it as a data URI. Inlining matters so
+// the stamped signature survives an html2canvas capture (which taints on a
+// cross-origin <img>) and renders even if the print window can't reach the API.
+export async function resolveSignatureDataUrl(signatureUrl) {
+  if (!signatureUrl) return null;
+  if (signatureUrl.startsWith("data:")) return signatureUrl;
+  try {
+    const url = /^https?:\/\//.test(signatureUrl) ? signatureUrl : `${API_BASE}${signatureUrl}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 const ESC_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const escapeHtml = (s) =>
   (s ?? "").toString().replace(/[&<>"']/g, (c) => ESC_MAP[c]);
@@ -350,13 +375,23 @@ export function buildReportHTML(report, opts = {}) {
 // Opens a print window pre-populated with the report HTML. The user picks
 // "Save as PDF" from the browser print dialog — works in Chrome, Edge,
 // Firefox, Safari without an external library.
-export function downloadReportAsPdf(report, opts = {}) {
-  const html = buildReportHTML(report, opts);
+export async function downloadReportAsPdf(report, opts = {}) {
+  // Open the window synchronously (still inside the click gesture) so resolving
+  // the signature afterwards doesn't trip the browser's pop-up blocker.
   const win = window.open("", "_blank", "width=820,height=1000");
   if (!win) {
     alert("Pop-up blocked. Please allow pop-ups for this site to download as PDF.");
     return;
   }
+  win.document.write("<p style='font-family:sans-serif;padding:24px;color:#555'>Preparing document…</p>");
+
+  const signatureImageUrl =
+    opts.signatureImageUrl ||
+    (await resolveSignatureDataUrl(
+      opts.signatureUrl || report?.counselorSignatureUrl || report?.counselor_signature_url
+    ));
+  const html = buildReportHTML(report, { ...opts, signatureImageUrl });
+
   win.document.open();
   win.document.write(html);
   win.document.close();
@@ -378,7 +413,12 @@ const safeFileBase = (name) =>
 // no pop-up window. Used wherever the action is meant to be "save", not
 // "print" (e.g. the student's own My Records page).
 export async function saveReportAsPdfFile(report, opts = {}) {
-  const html = buildReportHTML(report, opts);
+  const signatureImageUrl =
+    opts.signatureImageUrl ||
+    (await resolveSignatureDataUrl(
+      opts.signatureUrl || report?.counselorSignatureUrl || report?.counselor_signature_url
+    ));
+  const html = buildReportHTML(report, { ...opts, signatureImageUrl });
   const r = normalizeSessionReport(report);
   await saveHtmlAsPdfFile(html, `${safeFileBase(r.studentName)}.pdf`, { pageWidthIn: 8.27, pageHeightIn: 11.69 });
 }

@@ -237,6 +237,10 @@ export const createCollegeSummary = async (req, res) => {
   const studentCount = await getCollegeStudentCount(rep.college, dept);
   const sessions = await getCollegeAnonymizedSessions(rep.college, dept);
 
+  // Freeze the counselor's signature image into the payload so the College
+  // prints the same signed summary the counselor certified.
+  const [sender] = await query("SELECT signature_url FROM users WHERE id = ?", [counselorId]);
+
   const payload = {
     type: "college_summary",
     college: rep.college,
@@ -246,6 +250,7 @@ export const createCollegeSummary = async (req, res) => {
     sessions,
     narrative: narrative.trim(),
     counselorName: req.user?.name || null,
+    counselorSignatureUrl: sender?.signature_url || null,
     generatedAt: new Date().toISOString(),
   };
   const title = dept
@@ -353,7 +358,14 @@ export const sendReportToRecipient = async (req, res) => {
     return res.status(404).json({ message: "Recipient must be a College (college_rep)" });
   }
 
-  const payloadJson = typeof payload === "string" ? payload : JSON.stringify(payload);
+  // Stamp the sender's signature image into the payload (server-authoritative)
+  // so the College prints the counselor's signed report.
+  let payloadObj = typeof payload === "string" ? JSON.parse(payload) : payload;
+  if (payloadObj && typeof payloadObj === "object") {
+    const [sender] = await query("SELECT signature_url FROM users WHERE id = ?", [senderId]);
+    payloadObj = { ...payloadObj, counselorSignatureUrl: sender?.signature_url || null };
+  }
+  const payloadJson = JSON.stringify(payloadObj);
   const result = await query(
     `INSERT INTO report_recipients (sender_id, recipient_id, title, summary, report_payload)
      VALUES (?, ?, ?, ?, ?)`,
