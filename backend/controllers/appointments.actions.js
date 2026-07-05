@@ -1,6 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { createNotification } from "../utils/notify.js";
+import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { notifyUser, notifyRole } from "../events.js";
 
 const normalizeDate = (value) => {
@@ -82,6 +83,14 @@ export const acceptAppointment = async (req, res) => {
       link: "/student/appointments",
     });
     notifyUser(rows[0].student_id, { type: "appointments" });
+    sendAppointmentStatusEmail({
+      studentId: rows[0].student_id,
+      status: "approved",
+      date: normalizedDate,
+      timeSlot: normalizedSlot,
+      note: note || null,
+      isUrgent,
+    });
   }
 
   return res.json({ message: "Appointment approved" });
@@ -108,6 +117,11 @@ export const rejectAppointment = async (req, res) => {
       link: "/student/appointments",
     });
     notifyUser(rows[0].student_id, { type: "appointments" });
+    sendAppointmentStatusEmail({
+      studentId: rows[0].student_id,
+      status: "rejected",
+      note: note || null,
+    });
   }
 
   return res.json({ message: "Appointment rejected" });
@@ -154,6 +168,11 @@ export const completeAppointment = async (req, res) => {
     link: isTest ? "/student/tests" : "/student/appointments",
   });
   notifyUser(appt.student_id, { type: isTest ? "tests" : "appointments" });
+  sendAppointmentStatusEmail({
+    studentId: appt.student_id,
+    status: "completed",
+    isTest,
+  });
   if (isTest) {
     // Tests live in their own frontend context (TestsContext), separate from
     // AppointmentsContext, even though both read from the appointments table —
@@ -192,6 +211,13 @@ export const rescheduleAppointment = async (req, res) => {
       link: "/student/appointments",
     });
     notifyUser(rows[0].student_id, { type: "appointments" });
+    sendAppointmentStatusEmail({
+      studentId: rows[0].student_id,
+      status: "rescheduled",
+      date: normalizedDate,
+      timeSlot,
+      note: note || null,
+    });
   }
 
   return res.json({ message: "Appointment rescheduled" });
