@@ -112,17 +112,22 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray" }) {
 
 // ── Center-label donut with a clean custom legend ────────────────────────
 // Thin ring with a big total in the middle. `data` items: { name, value, color }.
-export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter, stack = false }) {
+export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter, stack = false, compact = false }) {
   if (!data.length) {
     return <EmptyState icon={emptyIcon} title={emptyTitle} />;
   }
   // `stack` keeps the donut on top and the legend below at full width — better
   // for narrow cards where a side-by-side legend would get cramped/truncated.
+  // `compact` shrinks text and spacing to fit many legend items (e.g. all colleges).
   return (
     <div
-      className={`flex items-center gap-8 py-2 ${stack ? "flex-col" : "flex-col sm:flex-row"}`}
+      className={`flex items-center gap-6 py-2 ${stack ? "flex-col" : "flex-col sm:flex-row"}`}
     >
-      <div className="relative flex-shrink-0" style={{ width: 190, height: 190 }}>
+      {/* In stack mode the donut fills card width (capped); in row mode it stays a fixed square */}
+      <div
+        className={`relative overflow-hidden ${stack ? "w-full" : "flex-shrink-0"}`}
+        style={stack ? { maxWidth: 180, height: 180, margin: "0 auto" } : { width: 170, height: 170 }}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -131,10 +136,10 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={70}
-              outerRadius={92}
+              innerRadius={compact ? 58 : 66}
+              outerRadius={compact ? 78 : 84}
               paddingAngle={3}
-              cornerRadius={8}
+              cornerRadius={6}
               stroke="none"
             >
               {data.map((d) => (
@@ -148,29 +153,29 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
           </PieChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-4xl font-semibold text-gray-900 tabular-nums leading-none">
+          <span className={`font-semibold text-gray-900 tabular-nums leading-none ${compact ? "text-3xl" : "text-4xl"}`}>
             {total}
           </span>
           <span className="text-xs text-gray-400 mt-1">{centerLabel}</span>
         </div>
       </div>
-      <ul className="flex-1 w-full space-y-2.5">
+      <ul className={`flex-1 w-full ${compact ? "grid grid-cols-2 gap-x-3 gap-y-0.5" : "space-y-2.5"}`}>
         {data.map((d) => (
           <li
             key={d.name}
-            className="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 text-sm"
+            className={`grid items-center gap-x-1.5 ${compact ? "grid-cols-[1fr_auto_auto]" : "grid-cols-[1fr_auto_auto] gap-x-4 text-sm"}`}
           >
-            <span className="flex items-center gap-2.5">
+            <span className="flex items-center gap-1 min-w-0">
               <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                className={`rounded-full flex-shrink-0 ${compact ? "w-1.5 h-1.5" : "w-2 h-2"}`}
                 style={{ background: d.color }}
               />
-              <span className="text-gray-600 whitespace-nowrap">{d.name}</span>
+              <span className={`text-gray-600 truncate ${compact ? "text-[10px]" : ""}`}>{d.name}</span>
             </span>
-            <span className="w-8 text-right font-medium text-gray-900 tabular-nums">
+            <span className={`text-right font-medium text-gray-900 tabular-nums ${compact ? "text-[10px] w-4" : "w-8"}`}>
               {d.value}
             </span>
-            <span className="w-9 text-right font-normal text-gray-400 tabular-nums">
+            <span className={`text-right font-normal text-gray-400 tabular-nums ${compact ? "text-[10px] w-6" : "w-9"}`}>
               {total ? Math.round((d.value / total) * 100) : 0}%
             </span>
           </li>

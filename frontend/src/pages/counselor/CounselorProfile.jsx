@@ -39,6 +39,15 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const DSA_OFFICE = "Division of Student Affairs (DSA)";
 
+const POSITIONS = [
+  "Section Chief",
+  "Guidance Service Specialist I",
+  "Guidance Service Specialist II",
+  "Guidance Service Specialist III",
+  "Guidance Service Specialist IV",
+  "Guidance Service Specialist V",
+];
+
 export default function CounselorProfile() {
   const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
   const navigate = useNavigate();
@@ -63,6 +72,7 @@ export default function CounselorProfile() {
     email: myRecord?.email || "",
     phone: myRecord?.phone || "",
     employeeId: myRecord?.employeeId || "",
+    position: myRecord?.position || "",
     department: myRecord?.department || "",
     specialization: myRecord?.specialization || "",
     bio: myRecord?.bio || "",
@@ -107,6 +117,7 @@ export default function CounselorProfile() {
         email: fresh.email || "",
         phone: fresh.phone || "",
         employeeId: fresh.employeeId || "",
+        position: fresh.position || "",
         department: fresh.department || "",
         specialization: fresh.specialization || "",
         bio: fresh.bio || "",
@@ -131,8 +142,10 @@ export default function CounselorProfile() {
         email: formData.email,
         phone: formData.phone,
         bio: formData.bio,
+        position: formData.position,
         department: formData.department,
         specialization: formData.specialization,
+        employeeId: formData.employeeId,
       });
       setIsEditing(false);
       setMessage({ type: "success", text: "Profile updated successfully" });
@@ -150,6 +163,7 @@ export default function CounselorProfile() {
       email: myRecord?.email || "",
       phone: myRecord?.phone || "",
       employeeId: myRecord?.employeeId || "",
+      position: myRecord?.position || "",
       department: myRecord?.department || "",
       specialization: myRecord?.specialization || "",
       bio: myRecord?.bio || "",
@@ -301,6 +315,18 @@ export default function CounselorProfile() {
               <Field icon={Building2} label="Office">
                 <input type="text" value={DSA_OFFICE} disabled className={INPUT} />
               </Field>
+              <Field icon={Briefcase} label="Position">
+                <select
+                  value={formData.position}
+                  onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                  className={INPUT}
+                >
+                  <option value="">Select position</option>
+                  {POSITIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </Field>
               <Field icon={Award} label="Specialization">
                 <input
                   type="text"
@@ -313,20 +339,18 @@ export default function CounselorProfile() {
               <Field icon={Hash} label="Employee ID">
                 <input
                   type="text"
-                  value={myRecord?.employeeId || ""}
-                  disabled
+                  value={formData.employeeId}
+                  onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
                   className={INPUT}
+                  placeholder="e.g. EMP-00123"
                 />
               </Field>
             </div>
           ) : (
             <dl className="space-y-2.5 text-sm">
               <Readout icon={Building2} label="Office" value={DSA_OFFICE} />
-              <Readout
-                icon={Award}
-                label="Specialization"
-                value={myRecord?.specialization || "Not provided"}
-              />
+              <Readout icon={Briefcase} label="Position" value={myRecord?.position || "Not assigned"} />
+              <Readout icon={Award} label="Specialization" value={myRecord?.specialization || "Not provided"} />
               <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
             </dl>
           )}

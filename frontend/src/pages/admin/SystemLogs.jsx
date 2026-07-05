@@ -116,7 +116,7 @@ export default function SystemLogs() {
 
   const page = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const formatTs = (iso) => (iso ? new Date(iso).toLocaleString() : "—");
+  const formatTs = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
 
   const exportCsv = () => {
     const rows = [

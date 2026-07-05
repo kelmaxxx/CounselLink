@@ -269,10 +269,10 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const createUser = async ({ name, email, password, role, college, department = null }) => {
+  const createUser = async ({ name, email, password, role, college, department = null, position = null, specialization = null, employeeId = null }) => {
     const response = await authFetch(`${apiBase}/api/users`, {
       method: "POST",
-      body: JSON.stringify({ name, email, password, role, college, department }),
+      body: JSON.stringify({ name, email, password, role, college, department, position, specialization, employeeId }),
     });
     const data = await parseResponseJson(response);
     if (!response.ok) {

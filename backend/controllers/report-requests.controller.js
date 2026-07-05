@@ -140,7 +140,8 @@ export const createReportRequest = async (req, res) => {
     const session = referralSessionRows[0];
     if (canShare) {
       const payload = buildSessionReportPayload(session);
-      const title = `Session Report — ${session.studentName} (${session.session_date})`;
+      const sessionDateStr = (session.session_date instanceof Date ? session.session_date.toISOString() : String(session.session_date || "")).split("T")[0];
+      const title = `Session Report — ${session.studentName} (${sessionDateStr})`;
       const summaryText = (session.summary || session.presenting_concern || "").slice(0, 200) || null;
       await query(
         `INSERT INTO report_recipients (sender_id, recipient_id, title, summary, report_payload)
@@ -261,7 +262,8 @@ export const sendIndividualReport = async (req, res) => {
   const session = sessionRows[0];
 
   const payload = buildSessionReportPayload(session);
-  const title = `Session Report — ${session.studentName} (${session.session_date})`;
+  const sessionDateStr2 = (session.session_date instanceof Date ? session.session_date.toISOString() : String(session.session_date || "")).split("T")[0];
+  const title = `Session Report — ${session.studentName} (${sessionDateStr2})`;
   const summaryText = (session.summary || session.presenting_concern || "").slice(0, 200) || null;
 
   const result = await query(

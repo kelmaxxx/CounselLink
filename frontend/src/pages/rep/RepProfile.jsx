@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
   User,
@@ -9,9 +9,10 @@ import {
   Save,
   X,
   Hash,
-  Dot,
+  Building2,
   Briefcase,
   Lock,
+  ChevronDown,
 } from "lucide-react";
 import {
   PageHeader,
@@ -24,22 +25,11 @@ import ProfileHero from "../../components/ProfileHero";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
-const COLLEGES = [
-  "CAS - College of Arts and Sciences",
-  "COE - College of Engineering",
-  "CICS - College of Information and Computing Sciences",
-  "COB - College of Business",
-  "CED - College of Education",
-  "COL - College of Law",
-  "COM - College of Medicine",
-];
-
-const RESPONSIBILITIES = [
-  "Access and review open counseling data for your college",
-  "Request detailed student counseling records from DSA",
-  "Generate and export reports for your college",
-  "Collaborate with counselors on student welfare",
-];
+const STAFF_EMAIL_DOMAINS = ["@msu.edu.ph", "@msumain.edu.ph"];
+const isInstitutionalEmail = (email) => {
+  const lower = String(email || "").trim().toLowerCase();
+  return STAFF_EMAIL_DOMAINS.some((d) => lower.endsWith(d));
+};
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -49,11 +39,22 @@ export default function RepProfile() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [changePwOpen, setChangePwOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) setProfileMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  const emailHint = `Must end with ${STAFF_EMAIL_DOMAINS.join(" or ")}`;
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
-    email: myRecord?.email || "",
     phone: myRecord?.phone || "",
-    college: myRecord?.college || "",
+    email: myRecord?.email || "",
     employeeId: myRecord?.employeeId || "",
   });
   const [message, setMessage] = useState(null);
@@ -93,9 +94,8 @@ export default function RepProfile() {
       setFormData((f) => ({
         ...f,
         name: fresh.name || "",
-        email: fresh.email || "",
         phone: fresh.phone || "",
-        college: fresh.college || "",
+        email: fresh.email || "",
         employeeId: fresh.employeeId || "",
       }));
     });
@@ -103,8 +103,12 @@ export default function RepProfile() {
   }, []);
 
   const handleSave = async () => {
-    if (!formData.name || !formData.email) {
-      setMessage({ type: "error", text: "Name and email are required" });
+    if (!formData.name) {
+      setMessage({ type: "error", text: "Name is required" });
+      return;
+    }
+    if (formData.email && !isInstitutionalEmail(formData.email)) {
+      setMessage({ type: "error", text: emailHint });
       return;
     }
     if (formData.phone && !isValidPhMobile(formData.phone)) {
@@ -115,9 +119,9 @@ export default function RepProfile() {
     try {
       await updateProfile({
         name: formData.name,
-        email: formData.email,
         phone: formData.phone,
-        college: formData.college,
+        email: formData.email,
+        employeeId: formData.employeeId,
       });
       setIsEditing(false);
       setMessage({ type: "success", text: "Profile updated successfully" });
@@ -132,9 +136,8 @@ export default function RepProfile() {
   const handleCancel = () => {
     setFormData({
       name: myRecord?.name || "",
-      email: myRecord?.email || "",
       phone: myRecord?.phone || "",
-      college: myRecord?.college || "",
+      email: myRecord?.email || "",
       employeeId: myRecord?.employeeId || "",
     });
     setIsEditing(false);
@@ -148,14 +151,30 @@ export default function RepProfile() {
         subtitle="Manage your college representative account."
         actions={
           !isEditing ? (
-            <>
-              <button onClick={() => setChangePwOpen(true)} className={BTN.secondary}>
-                <Lock size={15} /> Change password
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                onClick={() => setProfileMenuOpen((o) => !o)}
+                className={BTN.secondary}
+              >
+                <Edit2 size={15} /> Manage <ChevronDown size={13} className={`transition-transform ${profileMenuOpen ? "rotate-180" : ""}`} />
               </button>
-              <button onClick={() => setIsEditing(true)} className={BTN.primary}>
-                <Edit2 size={15} /> Edit profile
-              </button>
-            </>
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                  <button
+                    onClick={() => { setIsEditing(true); setProfileMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                  >
+                    <Edit2 size={14} className="text-gray-400" /> Edit profile
+                  </button>
+                  <button
+                    onClick={() => { setChangePwOpen(true); setProfileMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                  >
+                    <Lock size={14} className="text-gray-400" /> Change password
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <>
               <button onClick={handleCancel} className={BTN.secondary} disabled={saving}>
@@ -200,7 +219,7 @@ export default function RepProfile() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <SectionCard title="Personal information" subtitle="Contact and identity">
+        <SectionCard title="Personal information" subtitle="Name and contact details">
           {isEditing ? (
             <div className="space-y-3">
               <Field icon={User} label="Name *">
@@ -212,16 +231,7 @@ export default function RepProfile() {
                   placeholder="Enter your name"
                 />
               </Field>
-              <Field icon={Mail} label="Email *">
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className={INPUT}
-                  placeholder="Enter your email"
-                />
-              </Field>
-              <Field icon={Phone} label="Phone number">
+              <Field icon={Phone} label="Contact number">
                 <input
                   type="tel"
                   inputMode="numeric"
@@ -232,68 +242,52 @@ export default function RepProfile() {
                   placeholder="09XXXXXXXXX"
                 />
               </Field>
-              <Field icon={Hash} label="Employee ID">
-                <input type="text" value={myRecord?.employeeId || ""} disabled className={INPUT} />
-              </Field>
             </div>
           ) : (
             <dl className="space-y-2.5 text-sm">
               <Readout icon={User} label="Name" value={myRecord?.name} />
-              <Readout icon={Mail} label="Email" value={myRecord?.email} />
-              <Readout icon={Phone} label="Phone" value={myRecord?.phone || "Not provided"} />
-              <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
-              <Readout icon={Briefcase} label="Role" value="College" />
+              <Readout icon={Phone} label="Contact number" value={myRecord?.phone || "Not provided"} />
             </dl>
           )}
         </SectionCard>
 
-        <SectionCard title="College affiliation" subtitle="The college you represent">
+        <SectionCard title="Professional information" subtitle="College affiliation and role">
           {isEditing ? (
             <div className="space-y-3">
-              <Field icon={GraduationCap} label="College *">
-                <select
-                  value={formData.college}
-                  onChange={(e) => setFormData({ ...formData, college: e.target.value })}
+              <Field icon={Mail} label="Institutional Email *">
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className={INPUT}
-                >
-                  <option value="">Select college</option>
-                  {COLLEGES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="username@msu.edu.ph"
+                />
+                <p className="text-xs text-gray-400 mt-1">{emailHint}</p>
               </Field>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Program / course and year level do not apply to a College — those
-                are student-only fields.
-              </p>
+              <Field icon={Hash} label="Employee ID">
+                <input
+                  type="text"
+                  value={formData.employeeId}
+                  onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                  className={INPUT}
+                  placeholder="e.g. EMP-00123"
+                />
+              </Field>
+              <dl className="space-y-2.5 text-sm pt-1 border-t border-gray-100">
+                <Readout icon={GraduationCap} label="College" value={myRecord?.college || "Not assigned"} />
+                <Readout icon={Building2} label="Department" value={myRecord?.department || "Not assigned"} />
+                <Readout icon={Briefcase} label="Position" value="College Representative" />
+              </dl>
             </div>
           ) : (
             <dl className="space-y-2.5 text-sm">
-              <Readout
-                icon={GraduationCap}
-                label="College"
-                value={myRecord?.college || "Not assigned"}
-              />
-              <Readout icon={Briefcase} label="Position" value="College" />
+              <Readout icon={Mail} label="Institutional Email" value={myRecord?.email} />
+              <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
+              <Readout icon={GraduationCap} label="College" value={myRecord?.college || "Not assigned"} />
+              <Readout icon={Building2} label="Department" value={myRecord?.department || "Not assigned"} />
+              <Readout icon={Briefcase} label="Position" value="College Representative" />
             </dl>
           )}
-        </SectionCard>
-
-        <SectionCard
-          title="Responsibilities"
-          subtitle="Your role in CounseLink"
-          noBodyPadding
-        >
-          <ul className="divide-y divide-gray-100">
-            {RESPONSIBILITIES.map((r) => (
-              <li key={r} className="px-4 py-2.5 text-sm text-gray-700 flex items-start gap-2">
-                <Dot className="text-maroon-600 flex-shrink-0" size={20} />
-                <span className="-ml-1">{r}</span>
-              </li>
-            ))}
-          </ul>
         </SectionCard>
       </div>
     </div>

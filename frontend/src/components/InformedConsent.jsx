@@ -12,7 +12,7 @@ const CONSENT_SCOPE_DEFAULT =
 const formatDateTime = (value) => {
   if (!value) return "";
   try {
-    return new Date(value).toLocaleString();
+    return new Date(value).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   } catch {
     return value;
   }

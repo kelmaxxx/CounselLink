@@ -101,7 +101,7 @@ export default function AuditLogs() {
 
   const formatDate = (iso) => {
     if (!iso) return "—";
-    return new Date(iso).toLocaleString();
+    return new Date(iso).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
   const page = Math.floor(offset / PAGE_SIZE) + 1;

@@ -30,7 +30,7 @@ const isStrongPassword = (pw) =>
   typeof pw === "string" && pw.length >= 8 && /[a-zA-Z]/.test(pw) && /\d/.test(pw);
 
 // Mirrors the backend student-email allowlist (backend/controllers/auth.controller.js)
-const STUDENT_EMAIL_DOMAINS = ["@msu.edu.ph", "@s.msumain.edu.ph", "@msumain.edu.ph"];
+const STUDENT_EMAIL_DOMAINS = ["@s.msumain.edu.ph"];
 const isAllowedStudentEmail = (email) => {
   const lower = String(email || "").trim().toLowerCase();
   return STUDENT_EMAIL_DOMAINS.some((d) => lower.endsWith(d));
@@ -269,7 +269,7 @@ export default function Login() {
       if (!signupForm.email.trim()) next.email = "Email is required.";
       else {
         const emailLower = signupForm.email.toLowerCase();
-        const allowed = ["@msu.edu.ph", "@s.msumain.edu.ph", "@msumain.edu.ph"];
+        const allowed = ["@s.msumain.edu.ph"];
         if (!allowed.some((d) => emailLower.endsWith(d)))
           next.email = "Use your MSU institutional email (e.g., name@s.msumain.edu.ph).";
       }
@@ -765,7 +765,7 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleLoginSubmit} className="space-y-4">
-          <FieldRow label="Student ID / I-Email" error={loginErrors.identifier}>
+          <FieldRow label="Student ID/Institutional Email" error={loginErrors.identifier}>
             <InputWithIcon icon={UserRound}>
               <input
                 name="identifier"
@@ -895,7 +895,7 @@ function AuthShell({ children }) {
       errors.institutionalEmail = "Required";
     } else {
       const emailLower = urgentForm.institutionalEmail.toLowerCase();
-      const allowed = ["@msu.edu.ph", "@s.msumain.edu.ph", "@msumain.edu.ph"];
+      const allowed = ["@s.msumain.edu.ph"];
       if (!allowed.some((d) => emailLower.endsWith(d)))
         errors.institutionalEmail = "Use your MSU institutional email (e.g., name@s.msumain.edu.ph).";
     }
@@ -1066,7 +1066,7 @@ function UrgentCounselingModal({
     return (
       <Modal open onClose={onClose} title="URGENT COUNSELING NOTICE" danger size="md">
         <p className="text-sm text-gray-700 leading-relaxed">
-          This feature is intended only for students experiencing an emergency or
+          This feature is intended only for students experiencing an
           urgent concern that requires immediate counseling assistance.
         </p>
         <p className="text-sm text-gray-700 leading-relaxed mt-3">

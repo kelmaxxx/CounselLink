@@ -69,7 +69,7 @@ export default function ReferralConfirmation() {
               {referral.notes && <Row label="Notes" value={referral.notes} />}
               <Row label="Status" value={<span className="text-green-700 font-semibold">{referral.status}</span>} />
               {referral.decision_note && <Row label="Decision note" value={referral.decision_note} />}
-              <Row label="Decided at" value={referral.decided_at ? new Date(referral.decided_at).toLocaleString() : "—"} />
+              <Row label="Decided at" value={referral.decided_at ? new Date(referral.decided_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"} />
             </dl>
 
             <p className="text-xs text-gray-500 mt-4">
