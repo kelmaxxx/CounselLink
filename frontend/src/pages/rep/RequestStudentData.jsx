@@ -274,8 +274,7 @@ export default function RequestStudentData() {
                 <p className="text-xs text-emerald-600 mt-1">Student selected.</p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                A session report is only released if this student referred from your office and
-                consented to share it. Otherwise the request is automatically declined.
+                A student session data may only released if this student allowed it.
               </p>
             </div>
           )}
@@ -393,7 +392,15 @@ export default function RequestStudentData() {
                           </>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-700">{r.counselorName}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {r.status === "pending" ? (
+                          <span className="text-gray-400 italic text-xs">To Be Reviewed</span>
+                        ) : r.counselorName ? (
+                          r.counselorName
+                        ) : (
+                          <span className="text-gray-400 italic text-xs">No Data</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 max-w-sm">
                         <p className="text-gray-700 line-clamp-2">{r.reason}</p>
                         {r.response_note && (

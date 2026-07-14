@@ -76,6 +76,7 @@ export default function StudentProfile() {
   const [loadingInventory, setLoadingInventory] = useState(true);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [consent, setConsent] = useState(null);
+  const [hasFeedback, setHasFeedback] = useState(false);
 
   // Cascading dropdown options derived from current form state
   const departments = getDepartments(formData.college);
@@ -143,6 +144,15 @@ export default function StudentProfile() {
       getConsent(currentUser.id)
         .then((c) => setConsent(c))
         .catch((err) => console.error("Failed to load consent:", err));
+      fetch(`${API_BASE}/api/client-feedback/my-submitted-sessions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          const any = (data.submittedSessionIds?.length || 0) + (data.submittedTestIds?.length || 0) > 0;
+          setHasFeedback(any);
+        })
+        .catch(() => undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -458,6 +468,8 @@ export default function StudentProfile() {
                 onDeleteScan={handleDeleteInventoryScan}
                 readOnly={false}
                 isStudentView={true}
+                hasFeedback={hasFeedback}
+                hasSignature={!!currentUser?.signatureUrl}
               />
             )}
           </div>

@@ -4,6 +4,7 @@ import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
 import { Calendar, Clock, FileText, Download } from "lucide-react";
 import { saveAppointmentSlipAsPdfFile } from "../../utils/appointmentSlip";
+import { resolveSignatureDataUrl } from "../../utils/sessionReport";
 import {
   PageHeader,
   SectionCard,
@@ -192,10 +193,15 @@ export default function StudentAppointments() {
 
 function AppointmentDetailModal({ appointment, studentName, onClose }) {
   const [saving, setSaving] = useState(false);
-  // Saving (a real .pdf, evidence of the appointment) only makes sense once
-  // the counselor has acted on the request — while it's still pending there
-  // is nothing confirmed yet to save, so the student can only view it.
+  const [counselorSigDataUrl, setCounselorSigDataUrl] = useState(null);
+
   const canSave = ["approved", "accepted", "rescheduled"].includes(appointment.status);
+
+  useEffect(() => {
+    const url = appointment.counselorSignatureUrl || appointment.counselor_signature_url;
+    if (!url) return;
+    resolveSignatureDataUrl(url).then((d) => setCounselorSigDataUrl(d));
+  }, [appointment.counselorSignatureUrl, appointment.counselor_signature_url]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -208,82 +214,79 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
     }
   };
 
+  const preferredSlots = Array.isArray(appointment.preferredSlots)
+    ? appointment.preferredSlots.join(", ")
+    : appointment.timeSlot || "—";
+
   return (
     <Modal
       open
       onClose={onClose}
       title="Appointment details"
-      subtitle={canSave ? "You may save this slip as a PDF for your records." : "View-only — you can save a PDF once this request is approved or rescheduled."}
-      size="2xl"
+      size="lg"
       align="top"
       footer={
         <>
-          <button onClick={onClose} className={BTN.secondary}>
-            Close
-          </button>
+          <button onClick={onClose} className={BTN.secondary}>Close</button>
           {canSave && (
             <button onClick={handleSave} disabled={saving} className={BTN.primary}>
-              <Download size={14} /> {saving ? "Saving…" : "Save"}
+              <Download size={14} /> {saving ? "Saving…" : "Save PDF"}
             </button>
           )}
         </>
       }
     >
-      <div className="space-y-4">
-        <div className="text-center pb-3 border-b border-gray-200">
-          <h2 className="text-base font-bold text-gray-900">CounselLink · MSU Marawi</h2>
-          <p className="text-xs text-gray-600">
-            Division of Student Affairs · Appointment Slip
-          </p>
+      <div className="space-y-3">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">CounselLink · MSU Marawi</p>
+            <p className="text-xs text-gray-400">Division of Student Affairs</p>
+          </div>
+          <StatusPill status={appointment.status} />
         </div>
-        <dl className="divide-y divide-gray-100 text-sm">
-          <DetailRow label="Student" value={studentName || "—"} />
-          <DetailRow
-            label="Type"
-            value={appointment.isTest ? `Psychological (${appointment.testType})` : "counseling"}
-          />
-          <DetailRow label="Status" value={appointment.status} />
-          <DetailRow label="Preferred date" value={formatDate(appointment.preferredDate)} />
-          <DetailRow
-            label="Preferred slots"
-            value={
-              Array.isArray(appointment.preferredSlots)
-                ? appointment.preferredSlots.join(", ")
-                : appointment.timeSlot || "—"
-            }
-          />
+
+        {/* Details grid */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <InfoItem label="Student" value={studentName || "—"} />
+          <InfoItem label="Type" value={appointment.isTest ? `Psychological (${appointment.testType})` : "Counseling"} />
+          <InfoItem label="Preferred date" value={formatDate(appointment.preferredDate)} />
+          <InfoItem label="Preferred slots" value={preferredSlots} />
           {appointment.scheduledDate && (
-            <DetailRow
+            <InfoItem
               label="Scheduled"
-              value={`${formatDate(appointment.scheduledDate)} ${appointment.scheduledTimeSlot || ""}`}
+              value={`${formatDate(appointment.scheduledDate)}${appointment.scheduledTimeSlot ? ` · ${appointment.scheduledTimeSlot}` : ""}`}
             />
           )}
           {!appointment.isTest && (appointment.queueNumber || appointment.queue_number) && (
-            <DetailRow
-              label="Queue no."
+            <InfoItem
+              label="Queue"
               value={`${appointment.queueSlot || appointment.queue_slot || ""} #${appointment.queueNumber || appointment.queue_number}`}
             />
           )}
-          <DetailRow label="Counselor" value={appointment.counselorName || "TBD"} />
-          {appointment.reason && <DetailRow label="Reason" value={appointment.reason} />}
-          {appointment.counselor_action_note && (
-            <DetailRow label="Counselor note" value={appointment.counselor_action_note} />
-          )}
-          <DetailRow
+          <InfoItem label="Counselor" value={appointment.counselorName || "TBD"} />
+          <InfoItem
             label="Submitted"
-            value={
-              appointment.created_at ? new Date(appointment.created_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"
-            }
+            value={appointment.created_at ? new Date(appointment.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—"}
           />
-        </dl>
-        <div className="pt-6 mt-2 border-t border-gray-300 grid grid-cols-2 gap-8 text-sm">
-          <div>
-            <div className="border-b border-gray-400 h-12" />
-            <p className="text-xs text-gray-600 mt-1">Student signature</p>
-          </div>
-          <div>
-            <div className="border-b border-gray-400 h-12" />
-            <p className="text-xs text-gray-600 mt-1">Counselor signature</p>
+          {appointment.reason && <InfoItem label="Reason" value={appointment.reason} className="col-span-2" />}
+          {appointment.counselor_action_note && (
+            <InfoItem label="Counselor note" value={appointment.counselor_action_note} className="col-span-2" />
+          )}
+        </div>
+
+        {/* Counselor signature */}
+        <div className="pt-3 border-t border-gray-100">
+          <div className="inline-block text-right min-w-[200px]">
+            {counselorSigDataUrl ? (
+              <img src={counselorSigDataUrl} alt="Counselor signature" className="h-10 ml-auto mb-1 object-contain" />
+            ) : (
+              <div className="h-10" />
+            )}
+            <div className="border-t border-gray-400 pt-1">
+              <p className="text-xs font-medium text-gray-700">{appointment.counselorName || "—"}</p>
+              <p className="text-[10px] text-gray-400">Counselor</p>
+            </div>
           </div>
         </div>
       </div>
@@ -291,11 +294,11 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
   );
 }
 
-function DetailRow({ label, value }) {
+function InfoItem({ label, value, className = "" }) {
   return (
-    <div className="py-2 grid grid-cols-1 sm:grid-cols-4 gap-2">
-      <dt className="text-xs uppercase tracking-wider font-semibold text-gray-500">{label}</dt>
-      <dd className="sm:col-span-3 text-sm text-gray-900 capitalize">{value}</dd>
+    <div className={className}>
+      <dt className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 mb-0.5">{label}</dt>
+      <dd className="text-sm text-gray-800">{value}</dd>
     </div>
   );
 }

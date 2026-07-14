@@ -24,7 +24,7 @@ import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
-import { useNotifications } from "../../context/NotificationsContext";
+import { useReferrals } from "../../context/ReferralsContext";
 import { SectionCard, EmptyState, BigStat, DonutStat, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
 
 const COLLEGE_COLORS = [
@@ -40,6 +40,7 @@ const STATUS_COLORS = {
   completed: "#065f46",
   "follow-up": "#eab308",
   urgent: "#ef4444",
+  referral: "#8b5cf6",
 };
 
 const TIME_LABEL = {
@@ -63,11 +64,7 @@ export default function CounselorDashboard() {
     rejectAppointment,
   } = useAppointments?.() || {};
   const { getTestsForCurrentUser, acceptTest, rescheduleTest, rejectTest } = useTests?.() || {};
-  const { getNotificationsForCurrentUser } = useNotifications?.() || {};
-
-  const urgentNotifications = (getNotificationsForCurrentUser?.() || []).filter(
-    (n) => n.type === "urgent_counseling" && !n.read
-  );
+  const { referrals, fetchReferrals } = useReferrals?.() || {};
 
   const openProfile = async (id, fallbackName) => {
     if (!id) return;
@@ -111,6 +108,10 @@ export default function CounselorDashboard() {
     };
   }, [fetchAppointments]);
 
+  React.useEffect(() => {
+    if (fetchReferrals) fetchReferrals();
+  }, [fetchReferrals]);
+
   const myTests = getTestsForCurrentUser ? getTestsForCurrentUser() : [];
 
   const [rescheduleModal, setRescheduleModal] = useState({ open: false, apptId: null, date: "", timeSlot: "", note: "" });
@@ -143,6 +144,10 @@ export default function CounselorDashboard() {
   const totalStudents = students.length;
   const pendingAppointments = myAppointments.filter((a) => a.status === "pending");
   const pendingTests = myTests.filter((t) => t.status === "pending");
+  const pendingReferrals = (referrals || []).filter((r) => r.status === "pending");
+  const activeUrgentCount = myAppointments.filter(
+    (a) => (a.is_urgent || a.isUrgent) && (a.status === "approved" || a.status === "rescheduled")
+  ).length;
   const isSameDay = (value) => {
     if (!value) return false;
     const d = new Date(value);
@@ -178,10 +183,16 @@ export default function CounselorDashboard() {
       if (isPending) { counts["pending"] = (counts["pending"] || 0) + 1; return; }
       if (isActiveUrgent) { counts["urgent"] = (counts["urgent"] || 0) + 1; return; }
 
-      // All other statuses (approved, rescheduled, follow-up, completed, no_show, rejected)
-      // only count if this counselor owns the appointment
-      if (Number(a.counselor_id ?? a.counselorId) !== myId) return;
+      // Approved and rescheduled are also global — show all active appointments
+      if (a.status === "approved" || a.status === "rescheduled") {
+        const isReferral = !!(a.referral_id || a.referralId);
+        const key = isReferral ? "referral" : isFollowup ? "followup" : a.status;
+        counts[key] = (counts[key] || 0) + 1;
+        return;
+      }
 
+      // Completed, rejected, no_show only count for this counselor
+      if (Number(a.counselor_id ?? a.counselorId) !== myId) return;
       const key = isFollowup ? "followup" : a.status || "pending";
       counts[key] = (counts[key] || 0) + 1;
     });
@@ -192,11 +203,17 @@ export default function CounselorDashboard() {
       const key = t.status || "pending";
       counts[key] = (counts[key] || 0) + 1;
     });
+    // Incoming referrals (pending in the referrals table)
+    (referrals || []).forEach((r) => {
+      if (r.status === "pending") {
+        counts["referral"] = (counts["referral"] || 0) + 1;
+      }
+    });
     return Object.entries(counts).map(([name, value]) => ({
-      name: name === "followup" ? "Follow-up" : name === "urgent" ? "Urgent" : name.charAt(0).toUpperCase() + name.slice(1),
+      name: name === "followup" ? "Follow-up" : name === "urgent" ? "Urgent" : name === "referral" ? "Referral" : name.charAt(0).toUpperCase() + name.slice(1),
       value,
     }));
-  }, [myAppointments, myTests, currentUser]);
+  }, [myAppointments, myTests, referrals, currentUser]);
 
   // ── Handlers ─────────────────────────────────────────────────────────
   const handleAccept = async (id) => {
@@ -359,30 +376,25 @@ export default function CounselorDashboard() {
   const onReschedule = (row) => (row.type === "test" ? openRescheduleTest(row.id) : openReschedule(row.id));
   const onReject = (row) => (row.type === "test" ? handleRejectTest(row.id) : handleReject(row.id));
 
-  // Only requests submitted today — regardless of when the appointment is for
-  const todayPendingQueue = useMemo(
-    () => pendingQueue.filter((row) => isSameDay(row.createdAt)),
-    [pendingQueue]
-  );
-
-  // Queue number per time block for today's requests
-  const todayQueueMap = useMemo(() => {
-    const map = {};
-    const getBlock = (slot) =>
-      slot === "morning" || !slot || slot.startsWith("9:") || slot.startsWith("10:") || slot.startsWith("11:")
-        ? "morning"
-        : "afternoon";
-    const groups = { morning: [], afternoon: [] };
-    todayPendingQueue.forEach((row) => {
-      groups[getBlock(row.slot)].push(row);
-    });
-    ["morning", "afternoon"].forEach((block) => {
-      groups[block].forEach((row, i) => {
-        map[row.key] = i + 1;
-      });
-    });
-    return map;
-  }, [todayPendingQueue]);
+  // Pending requests scheduled within this Mon–Fri, sorted earliest first, capped at 10
+  const weekPendingQueue = useMemo(() => {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+    monday.setHours(0, 0, 0, 0);
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    friday.setHours(23, 59, 59, 999);
+    return pendingQueue
+      .filter((row) => {
+        if (!row.date) return false;
+        const d = new Date(row.date);
+        return d >= monday && d <= friday;
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, 10);
+  }, [pendingQueue]);
 
   const firstName = currentUser?.name?.split(" ")[0] || "Counselor";
   const today = new Date();
@@ -397,12 +409,12 @@ export default function CounselorDashboard() {
     <>
       <WelcomeHero userName={firstName} />
     <div className="px-6 py-6 max-w-7xl mx-auto">
-      {urgentNotifications.length > 0 && (
+      {activeUrgentCount > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
           <div className="flex items-center gap-2 text-red-800">
             <AlertTriangle size={18} />
             <p className="text-sm font-medium">
-              {urgentNotifications.length} urgent counseling request{urgentNotifications.length === 1 ? "" : "s"} need attention.
+              {activeUrgentCount} urgent counseling request{activeUrgentCount === 1 ? "" : "s"} need attention.
             </p>
           </div>
           <Link
@@ -443,7 +455,7 @@ export default function CounselorDashboard() {
         />
         <BigStat
           label="Pending requests"
-          value={pendingAppointments.length + pendingTests.length}
+          value={pendingAppointments.length + pendingTests.length + pendingReferrals.length}
           hint="Awaiting response"
           icon={Clock3}
           tone="amber"
@@ -464,15 +476,52 @@ export default function CounselorDashboard() {
         />
       </div>
 
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <SectionCard
+          title="Students by college"
+          subtitle="Distribution of your caseload"
+        >
+          <DonutStat
+            compact
+            data={topColleges
+              .filter(([, c]) => c > 0)
+              .map(([name, value], i) => ({
+                name,
+                value,
+                color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
+              }))}
+            total={totalStudents}
+            centerLabel="students"
+            emptyIcon={Users}
+            emptyTitle="No students yet"
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="Appointment status"
+          subtitle="Breakdown of your appointments by current status"
+        >
+          <DonutStat
+            compact
+            data={appointmentStatusBreakdown.map((entry) => ({
+              name: entry.name,
+              value: entry.value,
+              color: STATUS_COLORS[entry.name.toLowerCase()] || "#94a3b8",
+            }))}
+            total={myAppointments.length + myTests.length}
+            centerLabel="appointments"
+            emptyIcon={Calendar}
+            emptyTitle="No appointments yet"
+          />
+        </SectionCard>
+      </div>
+
       {/* Pending queue — today only */}
       <SectionCard
         className="mb-6"
         title="Pending queue"
-        subtitle={
-          todayPendingQueue.length === 0 && pendingQueue.length > 0
-            ? `${pendingQueue.length} pending on other days — open queue to review`
-            : `${todayPendingQueue.length} item${todayPendingQueue.length === 1 ? "" : "s"} for today`
-        }
+        subtitle={`${weekPendingQueue.length} request${weekPendingQueue.length === 1 ? "" : "s"} this week · sorted by earliest schedule`}
         noBodyPadding
         action={
           <Link
@@ -483,15 +532,11 @@ export default function CounselorDashboard() {
           </Link>
         }
       >
-        {todayPendingQueue.length === 0 ? (
+        {weekPendingQueue.length === 0 ? (
           <EmptyState
             icon={Inbox}
-            title={pendingQueue.length > 0 ? "No requests for today" : "Inbox zero"}
-            hint={
-              pendingQueue.length > 0
-                ? "Open the queue to see all pending requests."
-                : "No appointment or test requests waiting for your review."
-            }
+            title={pendingQueue.length === 0 ? "Inbox zero" : "No requests this week"}
+            hint={pendingQueue.length === 0 ? "No pending requests waiting for your review." : "No requests are scheduled for Mon–Fri this week."}
           />
         ) : (
           <div className="divide-y divide-gray-100">
@@ -502,7 +547,7 @@ export default function CounselorDashboard() {
               <div className="col-span-3">Preferred</div>
               <div className="col-span-3 text-right">Actions</div>
             </div>
-            {todayPendingQueue.slice(0, 6).map((row) => {
+            {weekPendingQueue.map((row) => {
               const isTest = row.type === "test";
               return (
                 <div
@@ -610,46 +655,6 @@ export default function CounselorDashboard() {
           </div>
         )}
       </SectionCard>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <SectionCard
-          title="Students by college"
-          subtitle="Distribution of your caseload"
-        >
-          <DonutStat
-            compact
-            data={topColleges
-              .filter(([, c]) => c > 0)
-              .map(([name, value], i) => ({
-                name,
-                value,
-                color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
-              }))}
-            total={totalStudents}
-            centerLabel="students"
-            emptyIcon={Users}
-            emptyTitle="No students yet"
-          />
-        </SectionCard>
-
-        <SectionCard
-          title="Appointment status"
-          subtitle="Breakdown of your appointments by current status"
-        >
-          <DonutStat
-            data={appointmentStatusBreakdown.map((entry) => ({
-              name: entry.name,
-              value: entry.value,
-              color: STATUS_COLORS[entry.name.toLowerCase()] || "#94a3b8",
-            }))}
-            total={myAppointments.length + myTests.length}
-            centerLabel="appointments"
-            emptyIcon={Calendar}
-            emptyTitle="No appointments yet"
-          />
-        </SectionCard>
-      </div>
 
       {/* Activity strip */}
       {recentlyRejected.length > 0 && (

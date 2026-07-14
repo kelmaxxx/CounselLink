@@ -202,6 +202,8 @@ export default function InventoryForm({
   onDeleteScan,
   readOnly = false,
   isStudentView = false,
+  hasFeedback = true,
+  hasSignature = true,
 }) {
   const { downloadInventoryDocx, fetchInventoryDocxBlob } = useStudentRecords();
   const [data, setData] = useState(() => mergeInventory(inventory?.formData));
@@ -664,6 +666,18 @@ export default function InventoryForm({
       <p className="text-xs text-gray-500 italic">Student's signature is captured separately on the uploaded scan or via the Informed Consent e-sign page.</p>
 
       {/* Save bar */}
+      {isStudentView && (!hasFeedback || !hasSignature) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+          <span className="text-amber-500 text-base leading-none mt-0.5">&#9888;</span>
+          <span>
+            To save your inventory you must:{" "}
+            {!hasFeedback && <span>submit a <strong>Client Feedback Form</strong> for at least one counseling session</span>}
+            {!hasFeedback && !hasSignature && <span> and </span>}
+            {!hasSignature && <span>upload your <strong>signature</strong> on your Profile page</span>}
+            .
+          </span>
+        </div>
+      )}
       <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-white border-t border-gray-200 mt-4 flex items-center justify-end gap-2">
         <button type="button" onClick={handlePrint} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50">
           <Printer size={16} /> Print Form
@@ -675,7 +689,19 @@ export default function InventoryForm({
           <FileText size={16} /> Download Word
         </button>
         {!readOnly && (
-          <button type="button" onClick={handleSave} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700 disabled:opacity-50">
+          <button
+            type="button"
+            onClick={isStudentView && (!hasFeedback || !hasSignature) ? undefined : handleSave}
+            disabled={busy || (isStudentView && (!hasFeedback || !hasSignature))}
+            title={
+              isStudentView && !hasFeedback
+                ? "Submit a Client Feedback Form first to enable saving"
+                : isStudentView && !hasSignature
+                ? "Upload your signature on your Profile page to enable saving"
+                : undefined
+            }
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white disabled:opacity-50 ${isStudentView && (!hasFeedback || !hasSignature) ? "bg-gray-400 cursor-not-allowed" : "bg-maroon-600 hover:bg-maroon-700"}`}
+          >
             <Save size={16} /> {busy ? "Saving..." : "Save inventory"}
           </button>
         )}

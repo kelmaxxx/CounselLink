@@ -123,10 +123,10 @@ const LETTERHEAD_STYLES = `
     table.data-table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 10pt; }
     table.data-table th, table.data-table td { border: 1px solid #999; padding: 5px 7px; text-align: left; vertical-align: top; }
     table.data-table th { background: #f2f2f2; font-weight: 700; }
-    .signature-block { margin-top: 40px; }
-    .signature-line { border-top: 1px solid #111; width: 280px; margin: 28px 0 2px; }
+    .signature-block { margin-top: 40px; text-align: right; }
+    .signature-line { border-top: 1px solid #111; width: 280px; margin: 0 0 2px auto; }
     .signature-caption { font-size: 9.5pt; }
-    .signature-img { height: 46px; display: block; margin: 0 0 -6px; }
+    .signature-img { height: 46px; display: block; margin: 0 0 0 auto; }
     @media print { body { padding: 0 18px; } }
 `;
 
@@ -285,7 +285,7 @@ function buildCollegeSummaryHTML(report, opts = {}) {
   <div class="signature-block">
     ${signatureImageUrl ? `<img class="signature-img" src="${signatureImageUrl}" alt="Counselor signature" />` : ""}
     <div class="signature-line"></div>
-    <div class="signature-caption">${formatLine(report.counselorName)}<br/>Signature of Counselor</div>
+    <div class="signature-caption"><strong>${formatLine(report.counselorName)}</strong><br/>Guidance Counselor</div>
   </div>
 </body>
 </html>`;
@@ -327,8 +327,10 @@ export function buildReportHTML(report, opts = {}) {
     .reason-line { margin: 2px 0 2px 16px; }
     .routine-boxes { font-size: 9.5pt; white-space: nowrap; }
     .signature-block { margin-top: 36px; text-align: right; }
-    .signature-line { border-top: 1px solid #000; width: 240px; margin: 0 0 0 auto; padding-top: 2px; }
-    .signature-img { height: 46px; display: block; margin: 0 0 -6px auto; }
+    .signature-line { border-top: 1px solid #000; width: 240px; margin: 0 0 0 auto; }
+    .signature-img { height: 46px; display: block; margin: 0 0 0 auto; }
+    .signature-printed-name { font-size: 10.5pt; font-weight: 700; padding-top: 3px; }
+    .signature-caption-lbl { font-size: 9pt; color: #444; }
   </style>
 </head>
 <body>
@@ -373,7 +375,9 @@ export function buildReportHTML(report, opts = {}) {
 
   <div class="signature-block">
     ${signatureImageUrl ? `<img class="signature-img" src="${signatureImageUrl}" alt="Counselor signature" />` : ""}
-    <div class="signature-line">Signature of Counselor</div>
+    <div class="signature-line"></div>
+    <div class="signature-printed-name">${formatLine(r.counselorName)}</div>
+    <div class="signature-caption-lbl">Guidance Counselor</div>
   </div>
   </div>
 </body>

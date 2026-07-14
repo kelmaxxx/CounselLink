@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { query, withTransaction } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { createNotification } from "../utils/notify.js";
-import { notifyUser } from "../events.js";
+import { notifyUser, notifyRole } from "../events.js";
 import { isValidPhMobile } from "../utils/validators.js";
 
 const NATURE_OF_CONCERN_OPTIONS = [
@@ -18,7 +18,7 @@ const NATURE_OF_CONCERN_OPTIONS = [
 const baseSelect = `
   SELECT r.id, r.student_id, r.referrer_id, r.receiving_counselor_id,
          r.reason, r.notes, r.status, r.decision_note, r.decided_at,
-         r.created_at, r.updated_at,
+         r.created_at, r.updated_at, r.student_department AS studentDepartment,
          stu.name AS studentName, stu.email AS studentEmail, stu.college AS studentCollege,
          ref.name AS referrerName, ref.role AS referrerRole, ref.college AS referrerCollege,
          rec.name AS receivingCounselorName
@@ -34,6 +34,7 @@ export const createReferral = async (req, res) => {
     fullName,
     studentIdNumber,
     college,
+    department,
     contactNumber,
     natureOfConcern,
     natureOfConcernOther,
@@ -44,7 +45,8 @@ export const createReferral = async (req, res) => {
   const trimmed = {
     fullName: (fullName || "").trim(),
     studentIdNumber: (studentIdNumber || "").trim(),
-    college: (college || "").trim(),
+    college: (college || req.user?.college || "").trim(),
+    department: (department || "").trim(),
     contactNumber: (contactNumber || "").trim(),
     natureOfConcern: (natureOfConcern || "").trim(),
     natureOfConcernOther: (natureOfConcernOther || "").trim(),
@@ -58,7 +60,6 @@ export const createReferral = async (req, res) => {
     trimmed.contactNumber &&
     trimmed.natureOfConcern &&
     trimmed.description &&
-    receivingCounselorId &&
     NATURE_OF_CONCERN_OPTIONS.includes(trimmed.natureOfConcern) &&
     (trimmed.natureOfConcern !== "Other" || trimmed.natureOfConcernOther);
 
@@ -75,12 +76,6 @@ export const createReferral = async (req, res) => {
       .status(403)
       .json({ message: "You can only refer students from your own college" });
   }
-
-  const [receiver] = await query(
-    "SELECT id, name FROM users WHERE id = ? AND role = 'counselor'",
-    [receivingCounselorId]
-  );
-  if (!receiver) return res.status(404).json({ message: "Receiving counselor not found" });
 
   // Match against an existing student record (registered or a previous
   // referral/walk-in placeholder) by Student ID so we don't create duplicates.
@@ -116,27 +111,30 @@ export const createReferral = async (req, res) => {
     trimmed.natureOfConcern === "Other"
       ? `Other - ${trimmed.natureOfConcernOther}`
       : trimmed.natureOfConcern;
-  const reason = `${concernLabel}\n\n${trimmed.description}\n\nContact number: ${trimmed.contactNumber}`;
+  const reason = `${concernLabel}\n\n${trimmed.description}`;
 
   const result = await query(
     `INSERT INTO referrals
-       (student_id, referrer_id, receiving_counselor_id, reason, notes, status)
-     VALUES (?, ?, ?, ?, NULL, 'pending')`,
-    [student.id, referrerId, receivingCounselorId, reason]
+       (student_id, referrer_id, receiving_counselor_id, reason, notes, status, student_department)
+     VALUES (?, ?, NULL, ?, NULL, 'pending', ?)`,
+    [student.id, referrerId, reason, trimmed.department || null]
   );
 
-  await createNotification({
-    userId: receivingCounselorId,
-    title: "New referral received",
-    message: `${req.user?.name || "A College"} referred ${student.name} to you.`,
-    link: `/counselor/referrals`,
-  });
-  notifyUser(receivingCounselorId, { type: "referrals" });
+  // Notify all counselors since the referral is not assigned to a specific one.
+  const allCounselors = await query("SELECT id FROM users WHERE role = 'counselor' AND status = 'approved'", []);
+  for (const c of allCounselors) {
+    await createNotification({
+      userId: c.id,
+      title: "New referral received",
+      message: `${req.user?.name || "A College"} referred ${student.name} for counseling.`,
+      link: `/counselor/referrals`,
+    });
+  }
+  notifyRole("counselor", { type: "referrals" });
 
   await logAction(req, "create_referral", "referral", result.insertId, {
     studentIdNumber: trimmed.studentIdNumber,
     studentId: student.id,
-    receivingCounselorId,
     placeholderCreated,
   });
 
@@ -156,7 +154,7 @@ export const listReferrals = async (req, res) => {
   const params = [];
 
   if (role === "counselor") {
-    conditions.push("r.receiving_counselor_id = ?");
+    conditions.push("(r.receiving_counselor_id IS NULL OR r.receiving_counselor_id = ?)");
     params.push(userId);
   } else if (role === "college_rep") {
     conditions.push("r.referrer_id = ?");
@@ -185,11 +183,10 @@ export const getReferral = async (req, res) => {
   const rows = await query(`${baseSelect} WHERE r.id = ?`, [id]);
   if (!rows.length) return res.status(404).json({ message: "Referral not found" });
   const r = rows[0];
-  if (
-    role !== "admin" &&
-    r.referrer_id !== userId &&
-    r.receiving_counselor_id !== userId
-  ) {
+  const isCounselorWithAccess =
+    role === "counselor" &&
+    (r.receiving_counselor_id === null || r.receiving_counselor_id === userId);
+  if (role !== "admin" && r.referrer_id !== userId && !isCounselorWithAccess) {
     return res.status(403).json({ message: "Forbidden" });
   }
   return res.json(r);
@@ -228,8 +225,8 @@ export const decideReferral = async (req, res) => {
     [id]
   );
   if (!referral) return res.status(404).json({ message: "Referral not found" });
-  if (referral.receiving_counselor_id !== userId) {
-    return res.status(403).json({ message: "Only the receiving counselor can decide" });
+  if (referral.receiving_counselor_id !== null && referral.receiving_counselor_id !== userId) {
+    return res.status(403).json({ message: "Only the assigned counselor can decide" });
   }
   if (referral.status !== "pending") {
     return res.status(409).json({ message: `Referral is already ${referral.status}` });
@@ -238,26 +235,47 @@ export const decideReferral = async (req, res) => {
   const normalizedDate = status === "accepted" ? normalizeDate(scheduledDate) : null;
   const trimmedTime = status === "accepted" ? String(scheduledTime).trim() : null;
 
+  const getQueueSlot = (slot) => {
+    const s = (slot || "").toLowerCase();
+    if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:")) return "PM";
+    if (!s) return null;
+    return "AM";
+  };
+
   const appointmentId = await withTransaction(async (q) => {
     await q(
-      "UPDATE referrals SET status = ?, decision_note = ?, decided_at = NOW() WHERE id = ?",
-      [status, decisionNote?.trim() || null, id]
+      "UPDATE referrals SET status = ?, decision_note = ?, decided_at = NOW(), receiving_counselor_id = ? WHERE id = ?",
+      [status, decisionNote?.trim() || null, userId, id]
     );
 
     if (status !== "accepted") return null;
 
+    const queueSlot = getQueueSlot(trimmedTime);
+    let queueNumber = null;
+    if (queueSlot && normalizedDate) {
+      const [{ cnt }] = await q(
+        `SELECT COUNT(*) AS cnt FROM appointments
+         WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+        [normalizedDate, queueSlot]
+      );
+      if (cnt < 10) queueNumber = cnt + 1;
+    }
+
     const insertResult = await q(
       `INSERT INTO appointments
          (student_id, counselor_id, referral_id, appointment_type, status, reason,
-          scheduled_date, scheduled_time)
-       VALUES (?, ?, ?, 'counseling', 'approved', ?, ?, ?)`,
+          scheduled_date, scheduled_time, queue_date, queue_slot, queue_number)
+       VALUES (?, ?, ?, 'counseling', 'approved', ?, ?, ?, ?, ?, ?)`,
       [
         referral.student_id,
-        referral.receiving_counselor_id,
+        userId,
         referral.id,
         referral.reason,
         normalizedDate,
         trimmedTime,
+        normalizedDate,
+        queueSlot,
+        queueNumber,
       ]
     );
     return insertResult.insertId;
@@ -278,6 +296,10 @@ export const decideReferral = async (req, res) => {
   });
   // Update the referring rep's referrals list live.
   notifyUser(referral.referrer_id, { type: "referrals" });
+  // Refresh all counselors' referral list (accepted referral leaves pending) and
+  // the acting counselor's appointments list (new appointment was created).
+  notifyRole("counselor", { type: "referrals" });
+  notifyUser(userId, { type: "appointments" });
 
   if (appointmentId) {
     await createNotification({
@@ -323,8 +345,11 @@ export const cancelReferral = async (req, res) => {
   }
 
   await query("UPDATE referrals SET status = 'cancelled' WHERE id = ?", [id]);
-  // The cancelled referral leaves the receiving counselor's pending list.
-  notifyUser(referral.receiving_counselor_id, { type: "referrals" });
+  if (referral.receiving_counselor_id) {
+    notifyUser(referral.receiving_counselor_id, { type: "referrals" });
+  } else {
+    notifyRole("counselor", { type: "referrals" });
+  }
   await logAction(req, "referral_cancelled", "referral", id, {});
   return res.json({ message: "Referral cancelled", id: Number(id) });
 };

@@ -229,7 +229,17 @@ export const removeNoShows = async (req, res) => {
      FROM appointments
      WHERE status IN ('approved', 'rescheduled')
        AND scheduled_date IS NOT NULL
-       AND scheduled_date < CURDATE()`,
+       AND (
+         scheduled_date < CURDATE()
+         OR (
+           scheduled_date = CURDATE()
+           AND (
+             (scheduled_time IN ('morning', '9:00-10:00', '10:00-11:00', '11:00-12:00') AND CURTIME() >= '12:00:00')
+             OR (scheduled_time IN ('afternoon', '1:00-2:00', '2:00-3:00', '3:00-4:00') AND CURTIME() >= '17:00:00')
+             OR (scheduled_time IS NULL AND CURTIME() >= '17:00:00')
+           )
+         )
+       )`,
     []
   );
 

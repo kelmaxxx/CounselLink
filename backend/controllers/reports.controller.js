@@ -211,7 +211,7 @@ export const createCollegeSummary = async (req, res) => {
     [requestId]
   );
   if (!request) return res.status(404).json({ message: "Report request not found" });
-  if (request.counselor_id !== counselorId) {
+  if (request.counselor_id !== null && request.counselor_id !== counselorId) {
     return res.status(403).json({ message: "Only the assigned counselor can respond" });
   }
   if (!["college", "department"].includes(request.request_type)) {
@@ -240,6 +240,9 @@ export const createCollegeSummary = async (req, res) => {
   // Freeze the counselor's signature image into the payload so the College
   // prints the same signed summary the counselor certified.
   const [sender] = await query("SELECT signature_url FROM users WHERE id = ?", [counselorId]);
+  if (!sender?.signature_url) {
+    return res.status(400).json({ message: "You must upload your signature in your Profile before sending a report." });
+  }
 
   const payload = {
     type: "college_summary",
@@ -264,8 +267,8 @@ export const createCollegeSummary = async (req, res) => {
   );
 
   await query(
-    "UPDATE report_requests SET status = 'fulfilled', response_note = ?, responded_at = NOW() WHERE id = ?",
-    [responseNote?.trim() || null, requestId]
+    "UPDATE report_requests SET status = 'fulfilled', response_note = ?, responded_at = NOW(), counselor_id = ? WHERE id = ?",
+    [responseNote?.trim() || null, counselorId, requestId]
   );
 
   await query(
@@ -363,7 +366,10 @@ export const sendReportToRecipient = async (req, res) => {
   let payloadObj = typeof payload === "string" ? JSON.parse(payload) : payload;
   if (payloadObj && typeof payloadObj === "object") {
     const [sender] = await query("SELECT signature_url FROM users WHERE id = ?", [senderId]);
-    payloadObj = { ...payloadObj, counselorSignatureUrl: sender?.signature_url || null };
+    if (!sender?.signature_url) {
+      return res.status(400).json({ message: "You must upload your signature in your Profile before sending a report." });
+    }
+    payloadObj = { ...payloadObj, counselorSignatureUrl: sender.signature_url };
   }
   const payloadJson = JSON.stringify(payloadObj);
   const result = await query(
