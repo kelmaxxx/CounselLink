@@ -46,7 +46,9 @@ export default function CounselorReferrals() {
   const incomingPending = useMemo(
     () =>
       referrals.filter(
-        (r) => r.receiving_counselor_id === currentUser?.id && r.status === "pending"
+        (r) =>
+          (r.receiving_counselor_id === null || r.receiving_counselor_id === currentUser?.id) &&
+          r.status === "pending"
       ),
     [referrals, currentUser?.id]
   );

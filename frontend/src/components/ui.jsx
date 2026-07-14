@@ -112,13 +112,15 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray" }) {
 
 // ── Center-label donut with a clean custom legend ────────────────────────
 // Thin ring with a big total in the middle. `data` items: { name, value, color }.
-export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter, stack = false, compact = false }) {
+export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter, stack = false, compact = false, twoCol = false }) {
   if (!data.length) {
     return <EmptyState icon={emptyIcon} title={emptyTitle} />;
   }
   // `stack` keeps the donut on top and the legend below at full width — better
   // for narrow cards where a side-by-side legend would get cramped/truncated.
   // `compact` shrinks text and spacing to fit many legend items (e.g. all colleges).
+  // `twoCol` uses the two-column grid layout but keeps normal text size.
+  const useGrid = compact || twoCol;
   return (
     <div
       className={`flex items-center gap-6 py-2 ${stack ? "flex-col" : "flex-col sm:flex-row"}`}
@@ -159,23 +161,23 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
           <span className="text-xs text-gray-400 mt-1">{centerLabel}</span>
         </div>
       </div>
-      <ul className={`flex-1 w-full ${compact ? "grid grid-cols-2 gap-x-3 gap-y-0.5" : "space-y-2.5"}`}>
+      <ul className={`flex-1 w-full ${useGrid ? "grid grid-cols-2 gap-x-3" : "space-y-2.5"} ${compact ? "gap-y-0.5" : "gap-y-1.5"}`}>
         {data.map((d) => (
           <li
             key={d.name}
-            className={`grid items-center gap-x-1.5 ${compact ? "grid-cols-[1fr_auto_auto]" : "grid-cols-[1fr_auto_auto] gap-x-4 text-sm"}`}
+            className={`grid items-center gap-x-1.5 grid-cols-[1fr_auto_auto] ${compact ? "" : "gap-x-4 text-sm"}`}
           >
-            <span className="flex items-center gap-1 min-w-0">
+            <span className="flex items-center gap-1.5 min-w-0">
               <span
                 className={`rounded-full flex-shrink-0 ${compact ? "w-1.5 h-1.5" : "w-2 h-2"}`}
                 style={{ background: d.color }}
               />
-              <span className={`text-gray-600 truncate ${compact ? "text-[10px]" : ""}`}>{d.name}</span>
+              <span className={`text-gray-600 truncate ${compact ? "text-[10px]" : "text-xs"}`}>{d.name}</span>
             </span>
-            <span className={`text-right font-medium text-gray-900 tabular-nums ${compact ? "text-[10px] w-4" : "w-8"}`}>
+            <span className={`text-right font-medium text-gray-900 tabular-nums ${compact ? "text-[10px] w-4" : "text-xs w-5"}`}>
               {d.value}
             </span>
-            <span className={`text-right font-normal text-gray-400 tabular-nums ${compact ? "text-[10px] w-6" : "w-9"}`}>
+            <span className={`text-right font-normal text-gray-400 tabular-nums ${compact ? "text-[10px] w-6" : "text-xs w-8"}`}>
               {total ? Math.round((d.value / total) * 100) : 0}%
             </span>
           </li>

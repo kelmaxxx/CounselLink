@@ -1,14 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useAuth } from "../../context/AuthContext";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
-import { downloadReportAsPdf, PAPER_SIZES } from "../../utils/sessionReport";
+import { downloadReportAsPdf } from "../../utils/sessionReport";
 import {
   ArrowLeft,
   ArrowRight,
-  Printer,
   FileDown,
   UserRound,
   ClipboardList,
@@ -19,6 +18,8 @@ import {
   CheckCircle2,
   Lock,
   Info,
+  MoreVertical,
+  Save,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL, initialsOf, formatDate, formatDateTime } from "../../components/ui";
 
@@ -63,7 +64,17 @@ export default function StudentCounselingForm() {
   const [existingSessionId, setExistingSessionId] = useState(null);
   const [finalizedAt, setFinalizedAt] = useState(null);
   const [submittingReport, setSubmittingReport] = useState(false);
-  const [paperSize, setPaperSize] = useState("long");
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsRef = useRef(null);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const handler = (e) => {
+      if (actionsRef.current && !actionsRef.current.contains(e.target)) setActionsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [actionsOpen]);
   const [reason, setReason] = useState(blankReason());
   const [form, setForm] = useState(() => ({
     studentName: "",
@@ -133,7 +144,7 @@ export default function StudentCounselingForm() {
         finalizedAt,
         formData: { reason },
       },
-      { title: `Session Report — ${form.studentName || appt?.studentName || ""}`, paperSize }
+      { title: `Session Report — ${form.studentName || appt?.studentName || ""}` }
     );
   };
 
@@ -423,43 +434,46 @@ export default function StudentCounselingForm() {
             </button>
 
             {isLast ? (
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                <select
-                  value={paperSize}
-                  onChange={(e) => setPaperSize(e.target.value)}
-                  className="text-xs border border-gray-300 rounded px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-maroon-500"
-                  title="Paper size for print / PDF export"
+              <div ref={actionsRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setActionsOpen((o) => !o)}
+                  className={BTN.secondary}
+                  title="Actions"
                 >
-                  {Object.entries(PAPER_SIZES).map(([key, ps]) => (
-                    <option key={key} value={key}>{ps.label}</option>
-                  ))}
-                </select>
-                <button type="button" onClick={handlePrint} className={BTN.secondary}>
-                  <Printer size={14} /> Print
+                  <MoreVertical size={15} /> Actions
                 </button>
-                <button type="button" onClick={handlePrint} className={BTN.secondary}>
-                  <FileDown size={14} /> Export PDF
-                </button>
-                {!isFinalized && (
-                  <>
+                {actionsOpen && (
+                  <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
                     <button
                       type="button"
-                      onClick={handleSave}
-                      disabled={saving}
-                      className={BTN.secondary}
+                      onClick={() => { handlePrint(); setActionsOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
                     >
-                      {saving ? "Saving…" : existingSessionId ? "Update record" : "Save record"}
+                      <FileDown size={14} /> Export PDF
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleSubmitReport}
-                      disabled={submittingReport || saving}
-                      className={BTN.success}
-                    >
-                      <CheckCircle2 size={14} />
-                      {submittingReport ? "Submitting…" : "Submit Report"}
-                    </button>
-                  </>
+                    {!isFinalized && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { handleSave(); setActionsOpen(false); }}
+                          disabled={saving}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left disabled:opacity-50"
+                        >
+                          <Save size={14} /> {saving ? "Saving…" : existingSessionId ? "Update record" : "Save record"}
+                        </button>
+                        <div className="my-1 border-t border-gray-100" />
+                        <button
+                          type="button"
+                          onClick={() => { handleSubmitReport(); setActionsOpen(false); }}
+                          disabled={submittingReport || saving}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition text-left disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={14} /> {submittingReport ? "Submitting…" : "Submit Report"}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             ) : (
@@ -502,7 +516,7 @@ export default function StudentCounselingForm() {
           }
         >
           <p className="text-sm text-gray-700 leading-relaxed">
-            Submit this session as the final Session Report? Once submitted the record becomes read-only and, if the appointment came from a referral, the report will be delivered to the referring College.
+            Submit this session as the final Session Report? Once submitted the record become visible to the student. If the appointment came from a referral, the report will be delivered to the referring College if allowed by the student.
           </p>
         </Modal>
       )}

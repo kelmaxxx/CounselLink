@@ -97,7 +97,7 @@ export const createAppointment = async (req, res) => {
           ? "A student has submitted an urgent appointment and is awaiting immediate counseling."
           : "A student has submitted a counseling appointment request.",
         link: "/counselor/appointments",
-        type: isUrgent ? "warning" : "info",
+        type: isUrgent ? "urgent_counseling" : "info",
       });
     }
     notifyRole("counselor", { type: "notification" });
@@ -137,7 +137,7 @@ export const listAppointmentsForUser = async (req, res) => {
 
   if (role === "student") {
     const rows = await query(
-      `SELECT a.*, u.name AS counselorName
+      `SELECT a.*, u.name AS counselorName, u.signature_url AS counselorSignatureUrl
        FROM appointments a
        LEFT JOIN users u ON a.counselor_id = u.id
        WHERE a.student_id = ? AND a.appointment_type = 'counseling'
@@ -153,7 +153,11 @@ export const listAppointmentsForUser = async (req, res) => {
        FROM appointments a
        LEFT JOIN users s ON a.student_id = s.id
        LEFT JOIN users c ON a.counselor_id = c.id
-       WHERE (a.counselor_id = ? OR a.counselor_id IS NULL OR a.is_urgent = 1) AND a.appointment_type = 'counseling'
+       WHERE (
+         a.status IN ('pending', 'approved', 'rescheduled')
+         OR a.counselor_id = ?
+         OR a.is_urgent = 1
+       ) AND a.appointment_type = 'counseling'
        ORDER BY a.created_at DESC`,
       [userId]
     );

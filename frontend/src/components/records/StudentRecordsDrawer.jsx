@@ -4,8 +4,8 @@
 //   - Inventory: digital MSU form + scan upload
 //   - Consent:   e-sign status, signed-paper scan, revoke
 //   - Sessions:  counseling sessions filtered to this student
-import React, { useEffect, useMemo, useState } from "react";
-import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, FileDown, Edit, Trash2 } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, FileDown, Edit, Trash2, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useAuth } from "../../context/AuthContext";
@@ -14,6 +14,7 @@ import ChatModal from "../ChatModal";
 import { Modal, BTN, formatDate } from "../ui";
 import { downloadReportAsPdf } from "../../utils/sessionReport";
 import ReportPreview from "./ReportPreview";
+import { createPortal } from "react-dom";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -348,6 +349,37 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
     [studentSessions]
   );
   const [viewing, setViewing] = useState(null);
+  const [openPopoverId, setOpenPopoverId] = useState(null);
+  const [popoverPos, setPopoverPos] = useState(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
+  const buttonRefs = useRef({});
+  const popoverRef = useRef(null);
+
+  const togglePopover = (e, id) => {
+    if (openPopoverId === id) { setOpenPopoverId(null); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPopoverPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    setOpenPopoverId(id);
+  };
+
+  useEffect(() => {
+    if (!openPopoverId) return;
+    const handler = (e) => {
+      const btn = buttonRefs.current[openPopoverId];
+      const pop = popoverRef.current;
+      if ((!btn || !btn.contains(e.target)) && (!pop || !pop.contains(e.target))) {
+        setOpenPopoverId(null);
+      }
+    };
+    const onScroll = () => setOpenPopoverId(null);
+    document.addEventListener("mousedown", handler);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [openPopoverId]);
 
   if (!studentSessions.length) {
     return (
@@ -362,63 +394,49 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-xs text-gray-700">
+      <table className="w-full text-sm table-fixed">
+        <colgroup>
+          <col style={{ width: "13%" }} />
+          <col style={{ width: "34%" }} />
+          <col style={{ width: "34%" }} />
+          <col style={{ width: "11%" }} />
+          <col style={{ width: "8%" }} />
+        </colgroup>
+        <thead className="bg-gray-50 border-b border-gray-100">
           <tr>
-            <th className="px-3 py-2 text-left">Date</th>
-            <th className="px-3 py-2 text-left">Concern</th>
-            <th className="px-3 py-2 text-left">Summary</th>
-            <th className="px-3 py-2 text-left">Next</th>
-            <th className="px-3 py-2 text-right">Actions</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Next</th>
+            <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y">
-          {studentSessions.map((s) => {
+        <tbody className="divide-y divide-gray-100">
+          {studentSessions.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE).map((s) => {
             const effectiveNext = effectiveNextSession.get(s.id) ?? s.nextSession;
             return (
-            <tr key={s.id} className="hover:bg-gray-50/70">
-              <td className="px-3 py-2 whitespace-nowrap text-gray-700">{formatDate(s.sessionDate)}</td>
-              <td className="px-3 py-2 text-gray-700 max-w-xs truncate" title={s.presentingConcern}>{s.presentingConcern || "—"}</td>
-              <td className="px-3 py-2 text-gray-700 max-w-xs truncate" title={s.summary}>{s.summary || "—"}</td>
-              <td className="px-3 py-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${effectiveNext === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
+            <tr key={s.id} className="hover:bg-gray-50/70 align-top">
+              <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">{formatDate(s.sessionDate)}</td>
+              <td className="px-3 py-2.5 min-w-0">
+                <p className="line-clamp-3 text-sm text-gray-700 break-words">{s.presentingConcern || "—"}</p>
+              </td>
+              <td className="px-3 py-2.5 min-w-0">
+                <p className="line-clamp-3 text-sm text-gray-700 break-words">{s.summary || "—"}</p>
+              </td>
+              <td className="px-3 py-2.5">
+                <span className={`inline-flex text-xs px-2 py-1 rounded-full whitespace-nowrap ${effectiveNext === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
                   {NEXT_LABELS[effectiveNext] || effectiveNext}
                 </span>
               </td>
-              <td className="px-3 py-2 text-right">
-                <div className="inline-flex items-center gap-1">
+              <td className="px-3 py-2.5 text-right">
+                <div ref={(el) => { buttonRefs.current[s.id] = el; }} className="inline-block">
                   <button
-                    onClick={() => setViewing(s)}
-                    className="p-1.5 rounded hover:bg-gray-100"
-                    title="View report"
+                    onClick={(e) => togglePopover(e, s.id)}
+                    className="p-1.5 rounded hover:bg-gray-100 transition"
+                    title="Actions"
                   >
-                    <Eye size={14} />
+                    <MoreVertical size={14} />
                   </button>
-                  <button
-                    onClick={() => downloadReportAsPdf(s, { title: titleFor(s) })}
-                    className="p-1.5 rounded hover:bg-gray-100"
-                    title="Download / print as PDF"
-                  >
-                    <FileDown size={14} />
-                  </button>
-                  {currentUser?.role === "counselor" && Number(s.counselorId) === Number(currentUser.id) && (
-                    <>
-                      <button
-                        onClick={() => onEditSession?.(s)}
-                        className="p-1.5 rounded hover:bg-gray-100"
-                        title="Edit"
-                      >
-                        <Edit size={14} className="text-blue-600" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteSession?.(s)}
-                        className="p-1.5 rounded hover:bg-gray-100"
-                        title="Delete"
-                      >
-                        <Trash2 size={14} className="text-red-600" />
-                      </button>
-                    </>
-                  )}
                 </div>
               </td>
             </tr>
@@ -426,6 +444,32 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
           })}
         </tbody>
       </table>
+
+      {studentSessions.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 text-xs text-gray-600">
+          <span>
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, studentSessions.length)} of {studentSessions.length} sessions
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Previous"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(Math.ceil(studentSessions.length / PAGE_SIZE) - 1, p + 1))}
+              disabled={(page + 1) * PAGE_SIZE >= studentSessions.length}
+              className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Next"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <Modal
         open={!!viewing}
@@ -442,7 +486,9 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
             <div className="flex items-center gap-2">
               <button
                 className={BTN.secondary}
-                onClick={() => downloadReportAsPdf(viewing, { title: titleFor(viewing) })}
+                disabled={!currentUser?.signatureUrl}
+                title={currentUser?.signatureUrl ? undefined : "Upload your signature in Profile to enable downloads"}
+                onClick={() => downloadReportAsPdf(viewing, { title: titleFor(viewing), signatureUrl: currentUser?.signatureUrl })}
               >
                 <FileDown size={14} /> Download PDF
               </button>
@@ -454,9 +500,55 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
         }
       >
         {viewing && (
-          <ReportPreview report={viewing} title={titleFor(viewing)} />
+          <ReportPreview report={viewing} title={titleFor(viewing)} fallbackSignatureUrl={currentUser?.signatureUrl} />
         )}
       </Modal>
+
+      {openPopoverId && popoverPos && (() => {
+        const popSess = studentSessions.find((x) => x.id === openPopoverId);
+        if (!popSess) return null;
+        const isCounselorPop = currentUser?.role === "counselor" && Number(popSess.counselorId) === Number(currentUser.id);
+        return createPortal(
+          <div
+            ref={popoverRef}
+            style={{ position: "fixed", top: popoverPos.top, right: popoverPos.right, zIndex: 9999 }}
+            className="w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 py-1 overflow-hidden"
+          >
+            <button
+              onClick={() => { setViewing(popSess); setOpenPopoverId(null); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+            >
+              <Eye size={13} /> View
+            </button>
+            <button
+              onClick={currentUser?.signatureUrl ? () => { downloadReportAsPdf(popSess, { title: titleFor(popSess), signatureUrl: currentUser.signatureUrl }); setOpenPopoverId(null); } : undefined}
+              disabled={!currentUser?.signatureUrl}
+              title={currentUser?.signatureUrl ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
+              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition text-left ${currentUser?.signatureUrl ? "text-gray-700 hover:bg-gray-50" : "text-gray-400 cursor-not-allowed"}`}
+            >
+              <FileDown size={13} /> Download
+            </button>
+            {isCounselorPop && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  onClick={() => { onEditSession?.(popSess); setOpenPopoverId(null); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition text-left"
+                >
+                  <Edit size={13} /> Edit
+                </button>
+                <button
+                  onClick={() => { onDeleteSession?.(popSess); setOpenPopoverId(null); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition text-left"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+              </>
+            )}
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 }

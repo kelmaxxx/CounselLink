@@ -3,11 +3,12 @@
 //   Students        : per-student records with completeness badges (Inventory / Consent / sessions)
 //   Session Records : flat archive of all counseling sessions (existing)
 //   Overview        : analytics (existing)
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Search, Plus, Edit, Trash2, Users, FileText, FileDown, Eye, Calendar,
   TrendingUp, Activity, AlertCircle, RefreshCw, UserRound, ClipboardList, Target,
-  ListChecks, ArrowLeft, ArrowRight, CheckCircle2, Folder, MoreHorizontal
+  ListChecks, ArrowLeft, ArrowRight, CheckCircle2, Folder, MoreHorizontal, MoreVertical
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useCounselingSessions } from "../context/CounselingSessionsContext";
@@ -62,12 +63,39 @@ export default function ManageStudents() {
   // Drawer state
   const [drawerStudent, setDrawerStudent] = useState(null);
   const [openPopoverId, setOpenPopoverId] = useState(null);
+  const [studentPopoverPos, setStudentPopoverPos] = useState(null);
+  const [studentPopoverData, setStudentPopoverData] = useState(null);
+  const studentButtonRefs = useRef({});
+  const studentPopoverRef = useRef(null);
   const [viewSession, setViewSession] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [selectedDept, setSelectedDept] = useState(null);
   // Session Records tab folder navigation
   const [selectedRecordsFolder, setSelectedRecordsFolder] = useState(null);
   const [selectedRecordsDept, setSelectedRecordsDept] = useState(null);
+  // Session records table popover (separate from the student-list popover)
+  const [openSessionPopoverId, setOpenSessionPopoverId] = useState(null);
+  const [sessionPopoverPos, setSessionPopoverPos] = useState(null);
+  const [sessionPopoverData, setSessionPopoverData] = useState(null);
+  const sessionButtonRefs = useRef({});
+  const sessionPopoverRef = useRef(null);
+
+  const toggleSessionPopover = (e, session) => {
+    if (openSessionPopoverId === session.id) { setOpenSessionPopoverId(null); setSessionPopoverData(null); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSessionPopoverPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    setOpenSessionPopoverId(session.id);
+    setSessionPopoverData(session);
+  };
+
+  const toggleStudentPopover = (e, student) => {
+    e.stopPropagation();
+    if (openPopoverId === student.id) { setOpenPopoverId(null); setStudentPopoverData(null); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    setStudentPopoverPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    setOpenPopoverId(student.id);
+    setStudentPopoverData(student);
+  };
 
   const reportTitleFor = (s) =>
     `Session Report — ${s.studentName} (${(s.sessionDate || "").split("T")[0]})`;
@@ -111,6 +139,38 @@ export default function ManageStudents() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, students.length]);
+
+  useEffect(() => {
+    if (!openSessionPopoverId) return;
+    const close = () => { setOpenSessionPopoverId(null); setSessionPopoverData(null); };
+    const handler = (e) => {
+      const btn = sessionButtonRefs.current[openSessionPopoverId];
+      const pop = sessionPopoverRef.current;
+      if ((!btn || !btn.contains(e.target)) && (!pop || !pop.contains(e.target))) close();
+    };
+    document.addEventListener("mousedown", handler);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [openSessionPopoverId]);
+
+  useEffect(() => {
+    if (!openPopoverId) return;
+    const close = () => { setOpenPopoverId(null); setStudentPopoverData(null); };
+    const handler = (e) => {
+      const btn = studentButtonRefs.current[openPopoverId];
+      const pop = studentPopoverRef.current;
+      if ((!btn || !btn.contains(e.target)) && (!pop || !pop.contains(e.target))) close();
+    };
+    document.addEventListener("mousedown", handler);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [openPopoverId]);
 
   const handleRecordsChanged = (studentId, { inventory, consent }) => {
     setRecordsByStudent((prev) => ({ ...prev, [studentId]: { inventory, consent, loaded: true } }));
@@ -376,49 +436,14 @@ export default function ManageStudents() {
                     <td className="px-4 py-3">{conBadge}</td>
                     <td className="px-4 py-3 text-gray-700">{sessionCount}</td>
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="relative inline-block">
+                      <div ref={(el) => { studentButtonRefs.current[s.id] = el; }} className="inline-block">
                         <button
-                          onClick={(e) => { e.stopPropagation(); setOpenPopoverId(openPopoverId === s.id ? null : s.id); }}
+                          onClick={(e) => toggleStudentPopover(e, s)}
                           className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800"
                           title="Actions"
                         >
                           <MoreHorizontal size={16} />
                         </button>
-                        {openPopoverId === s.id && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setOpenPopoverId(null)} />
-                            <div className="absolute right-0 z-20 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
-                              <button
-                                onClick={() => { setOpenPopoverId(null); setDrawerStudent(s); }}
-                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                              >
-                                <Eye size={14} /> View
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setOpenPopoverId(null);
-                                  setForm({ ...blankForm(), studentId: String(s.id), sessionDate: new Date().toISOString().split("T")[0] });
-                                  setRecordStep(0);
-                                  setEditing({});
-                                  setActiveTab("records");
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                              >
-                                <Plus size={14} /> Add Record
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setOpenPopoverId(null);
-                                  setStudentSearch(s.name || s.studentId || "");
-                                  setActiveTab("records");
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                              >
-                                <ClipboardList size={14} /> Manage
-                              </button>
-                            </div>
-                          </>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -525,23 +550,32 @@ export default function ManageStudents() {
                       {selectedDept}
                     </span>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 shadow overflow-x-auto">
-                    <table className="min-w-full divide-y">
-                      <thead className="bg-gray-50">
-                        <tr className="text-left text-xs text-gray-700">
-                          <th className="px-4 py-3 font-medium">Student</th>
-                          <th className="px-4 py-3 font-medium">College / ID</th>
-                          <th className="px-4 py-3 font-medium">Inventory</th>
-                          <th className="px-4 py-3 font-medium">Authorize</th>
-                          <th className="px-4 py-3 font-medium">Consent</th>
-                          <th className="px-4 py-3 font-medium">Sessions</th>
-                          <th className="px-4 py-3 font-medium text-right">Actions</th>
+                  <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
+                    <table className="w-full text-sm table-fixed">
+                      <colgroup>
+                        <col style={{ width: "22%" }} />
+                        <col style={{ width: "18%" }} />
+                        <col style={{ width: "11%" }} />
+                        <col style={{ width: "11%" }} />
+                        <col style={{ width: "11%" }} />
+                        <col style={{ width: "11%" }} />
+                        <col style={{ width: "16%" }} />
+                      </colgroup>
+                      <thead className="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">College / ID</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventory</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Authorize</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Consent</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sessions</th>
+                          <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y text-sm">
+                      <tbody className="divide-y divide-gray-100 text-sm">
                         {folderStudents.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                               No students found.
                             </td>
                           </tr>
@@ -773,19 +807,27 @@ export default function ManageStudents() {
               </div>
 
               {/* Table */}
-              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-x-auto">
-                <table className="min-w-full divide-y">
-                  <thead className="bg-gray-50">
-                    <tr className="text-left text-xs text-gray-700">
-                      <th className="px-4 py-3 font-medium">Date</th>
-                      <th className="px-4 py-3 font-medium">Student</th>
-                      <th className="px-4 py-3 font-medium">Concern</th>
-                      <th className="px-4 py-3 font-medium">Summary</th>
-                      <th className="px-4 py-3 font-medium">Next</th>
-                      <th className="px-4 py-3 font-medium text-right">Actions</th>
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
+                <table className="w-full text-sm table-fixed">
+                  <colgroup>
+                    <col style={{ width: "11%" }} />
+                    <col style={{ width: "17%" }} />
+                    <col style={{ width: "22%" }} />
+                    <col style={{ width: "22%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "12%" }} />
+                  </colgroup>
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y text-sm">
+                  <tbody className="divide-y divide-gray-100">
                     {deptFiltered.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
@@ -795,37 +837,32 @@ export default function ManageStudents() {
                         </td>
                       </tr>
                     ) : deptFiltered.map((s) => (
-                      <tr key={s.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{formatDate(s.sessionDate)}</td>
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-gray-900">{s.studentName}</div>
-                          <div className="text-xs text-gray-500">{s.studentNumber || "—"} • {s.studentCollege || "N/A"}</div>
+                      <tr key={s.id} className="hover:bg-gray-50/70 align-top">
+                        <td className="px-4 py-2.5 whitespace-nowrap text-xs text-gray-600">{formatDate(s.sessionDate)}</td>
+                        <td className="px-4 py-2.5 min-w-0">
+                          <div className="font-medium text-sm text-gray-900 truncate">{s.studentName}</div>
+                          <div className="text-xs text-gray-500 truncate">{s.studentNumber || "—"} · {s.studentCollege || "N/A"}</div>
                         </td>
-                        <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={s.presentingConcern}>{s.presentingConcern || "—"}</td>
-                        <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={s.summary}>{s.summary || "—"}</td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-1 rounded-full ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
+                        <td className="px-4 py-2.5 min-w-0">
+                          <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.presentingConcern || "—"}</p>
+                        </td>
+                        <td className="px-4 py-2.5 min-w-0">
+                          <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.summary || "—"}</p>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={`inline-flex text-xs px-2 py-1 rounded-full whitespace-nowrap ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
                             {NEXT_LABELS[s.nextSession] || s.nextSession}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center gap-1 flex-wrap justify-end">
-                            <button onClick={() => setViewSession(s)} className="p-1.5 rounded hover:bg-gray-100" title="View report">
-                              <Eye size={14} className="text-gray-700" />
+                        <td className="px-4 py-2.5 text-right">
+                          <div ref={(el) => { sessionButtonRefs.current[s.id] = el; }} className="inline-block">
+                            <button
+                              onClick={(e) => toggleSessionPopover(e, s)}
+                              className="p-1.5 rounded hover:bg-gray-100 transition"
+                              title="Actions"
+                            >
+                              <MoreVertical size={14} />
                             </button>
-                            <button onClick={() => downloadReportAsPdf(s, { title: reportTitleFor(s) })} className="p-1.5 rounded hover:bg-gray-100" title="Download / print as PDF">
-                              <FileDown size={14} className="text-gray-700" />
-                            </button>
-                            {currentUser?.role === "counselor" && Number(s.counselorId) === Number(currentUser.id) && (
-                              <>
-                                <button onClick={() => openEdit(s)} className="p-1.5 rounded hover:bg-gray-100" title="Edit">
-                                  <Edit size={14} className="text-blue-600" />
-                                </button>
-                                <button onClick={() => setConfirmDelete(s)} className="p-1.5 rounded hover:bg-gray-100" title="Delete">
-                                  <Trash2 size={14} className="text-red-600" />
-                                </button>
-                              </>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -837,6 +874,92 @@ export default function ManageStudents() {
           );
         })()}
       </div>
+
+      {/* Student list portal popover */}
+      {openPopoverId && studentPopoverPos && studentPopoverData && (() => {
+        const popStu = studentPopoverData;
+        return createPortal(
+          <div
+            ref={studentPopoverRef}
+            style={{ position: "fixed", top: studentPopoverPos.top, right: studentPopoverPos.right, zIndex: 9999 }}
+            className="w-40 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 py-1 overflow-hidden"
+          >
+            <button
+              onClick={() => { setOpenPopoverId(null); setStudentPopoverData(null); setDrawerStudent(popStu); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+            >
+              <Eye size={13} /> View
+            </button>
+            <button
+              onClick={() => {
+                setOpenPopoverId(null); setStudentPopoverData(null);
+                setForm({ ...blankForm(), studentId: String(popStu.id), sessionDate: new Date().toISOString().split("T")[0] });
+                setRecordStep(0); setEditing({}); setActiveTab("records");
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+            >
+              <Plus size={13} /> Add Record
+            </button>
+            <button
+              onClick={() => {
+                setOpenPopoverId(null); setStudentPopoverData(null);
+                setStudentSearch(popStu.name || popStu.studentId || "");
+                setActiveTab("records");
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+            >
+              <ClipboardList size={13} /> Manage
+            </button>
+          </div>,
+          document.body
+        );
+      })()}
+
+      {/* Session records table portal popover */}
+      {openSessionPopoverId && sessionPopoverPos && sessionPopoverData && (() => {
+        const popSess = sessionPopoverData;
+        const isCounselorRow = currentUser?.role === "counselor" && Number(popSess.counselorId) === Number(currentUser.id);
+        return createPortal(
+          <div
+            ref={sessionPopoverRef}
+            style={{ position: "fixed", top: sessionPopoverPos.top, right: sessionPopoverPos.right, zIndex: 9999 }}
+            className="w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 py-1 overflow-hidden"
+          >
+            <button
+              onClick={() => { setViewSession(popSess); setOpenSessionPopoverId(null); setSessionPopoverData(null); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+            >
+              <Eye size={13} /> View
+            </button>
+            <button
+              onClick={currentUser?.signatureUrl ? () => { downloadReportAsPdf(popSess, { title: reportTitleFor(popSess), signatureUrl: currentUser.signatureUrl }); setOpenSessionPopoverId(null); setSessionPopoverData(null); } : undefined}
+              disabled={!currentUser?.signatureUrl}
+              title={currentUser?.signatureUrl ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
+              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition text-left ${currentUser?.signatureUrl ? "text-gray-700 hover:bg-gray-50" : "text-gray-400 cursor-not-allowed"}`}
+            >
+              <FileDown size={13} /> Download
+            </button>
+            {isCounselorRow && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  onClick={() => { openEdit(popSess); setOpenSessionPopoverId(null); setSessionPopoverData(null); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition text-left"
+                >
+                  <Edit size={13} /> Edit
+                </button>
+                <button
+                  onClick={() => { setConfirmDelete(popSess); setOpenSessionPopoverId(null); setSessionPopoverData(null); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition text-left"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+              </>
+            )}
+          </div>,
+          document.body
+        );
+      })()}
 
       {/* Add / Edit Modal */}
       <Modal

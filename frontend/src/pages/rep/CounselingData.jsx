@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
   FileText,
@@ -9,6 +9,7 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  MoreVertical,
 } from "lucide-react";
 import {
   PageHeader,
@@ -39,6 +40,18 @@ export default function CounselingData() {
   const [error, setError] = useState("");
   const [activeReport, setActiveReport] = useState(null);
   const [reportsPage, setReportsPage] = useState(1);
+  const [openPopover, setOpenPopover] = useState(null);
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setOpenPopover(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -151,21 +164,33 @@ export default function CounselingData() {
                           })}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <div className="inline-flex gap-1">
+                          <div
+                            ref={openPopover === r.id ? popoverRef : null}
+                            className="relative inline-block"
+                          >
                             <button
-                              onClick={() => setActiveReport(r)}
-                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                              title="View report"
+                              onClick={() => setOpenPopover(openPopover === r.id ? null : r.id)}
+                              className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
+                              title="Actions"
                             >
-                              <Eye size={13} /> View
+                              <MoreVertical size={14} />
                             </button>
-                            <button
-                              onClick={() => downloadReportAsPdf(payload, { title: r.title })}
-                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                              title="Download / print as PDF"
-                            >
-                              <FileDown size={13} /> PDF
-                            </button>
+                            {openPopover === r.id && (
+                              <div className="absolute right-0 top-full mt-1 z-30 w-40 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+                                <button
+                                  onClick={() => { setActiveReport(r); setOpenPopover(null); }}
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
+                                >
+                                  <Eye size={13} /> View report
+                                </button>
+                                <button
+                                  onClick={() => { downloadReportAsPdf(payload, { title: r.title }); setOpenPopover(null); }}
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
+                                >
+                                  <FileDown size={13} /> Download PDF
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>

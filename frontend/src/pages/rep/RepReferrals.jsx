@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useReferrals } from "../../context/ReferralsContext";
-import { COLLEGES } from "../../data/mockData";
+import { getDepartments } from "../../data/msuColleges";
 import { Send, Plus, History } from "lucide-react";
 import {
   PageHeader,
@@ -32,6 +32,8 @@ export default function RepReferrals() {
   const { referrals, loading, error, fetchReferrals, cancelReferral } = useReferrals();
   const [activeTab, setActiveTab] = useState("pending");
   const [newOpen, setNewOpen] = useState(false);
+  const [cancelId, setCancelId] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     fetchReferrals();
@@ -51,9 +53,12 @@ export default function RepReferrals() {
   );
   const filtered = activeTab === "pending" ? pending : history;
 
-  const handleCancel = async (id) => {
-    if (!window.confirm("Cancel this referral?")) return;
-    await cancelReferral(id);
+  const confirmCancel = async () => {
+    if (!cancelId) return;
+    setCancelling(true);
+    await cancelReferral(cancelId);
+    setCancelling(false);
+    setCancelId(null);
   };
 
   return (
@@ -143,12 +148,18 @@ export default function RepReferrals() {
                             {r.studentName}
                           </div>
                           <div className="text-xs text-gray-500 truncate">
-                            {r.studentCollege || r.studentEmail || "—"}
+                            {r.studentDepartment || r.studentCollege || "—"}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{r.receivingCounselorName}</td>
+                    <td className="px-4 py-3">
+                      {r.receivingCounselorName ? (
+                        <span className="text-gray-700">{r.receivingCounselorName}</span>
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">To Be Approve</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 max-w-sm">
                       <p className="text-gray-700 line-clamp-2">{r.reason}</p>
                       {r.decision_note && (
@@ -172,7 +183,7 @@ export default function RepReferrals() {
                     <td className="px-4 py-3 text-right">
                       {r.status === "pending" && (
                         <button
-                          onClick={() => handleCancel(r.id)}
+                          onClick={() => setCancelId(r.id)}
                           className="inline-flex items-center h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
                         >
                           Cancel
@@ -195,6 +206,38 @@ export default function RepReferrals() {
           onCreated={() => fetchReferrals()}
         />
       )}
+
+      <Modal
+        open={!!cancelId}
+        onClose={() => setCancelId(null)}
+        title="Cancel this referral?"
+        subtitle="The referral will be withdrawn and the counselor will be notified."
+        danger
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN.secondary}
+              onClick={() => setCancelId(null)}
+              disabled={cancelling}
+            >
+              Keep it
+            </button>
+            <button
+              type="button"
+              className={BTN.danger}
+              onClick={confirmCancel}
+              disabled={cancelling}
+            >
+              {cancelling ? "Cancelling…" : "Yes, cancel referral"}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          Are you sure you want to cancel this referral? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }
@@ -227,35 +270,18 @@ function TabBtn({ active, onClick, children, icon, count }) {
 const EMPTY_REFERRAL_FORM = {
   fullName: "",
   studentIdNumber: "",
-  college: "",
+  department: "",
   contactNumber: "",
   natureOfConcern: "",
   natureOfConcernOther: "",
   description: "",
-  receivingCounselorId: "",
 };
 
 function NewReferralModal({ token, currentUser, onClose, onCreated }) {
-  const [counselors, setCounselors] = useState([]);
-  const [loadingLists, setLoadingLists] = useState(false);
-  const [form, setForm] = useState({
-    ...EMPTY_REFERRAL_FORM,
-    college: currentUser?.college || "",
-  });
+  const myDepartments = getDepartments(currentUser?.college);
+  const [form, setForm] = useState({ ...EMPTY_REFERRAL_FORM });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!token) return;
-    setLoadingLists(true);
-    fetch(`${API_BASE}/api/users?role=counselor`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((cou) => setCounselors(Array.isArray(cou) ? cou : []))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoadingLists(false));
-  }, [token]);
 
   const setField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -265,12 +291,11 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
     const required =
       form.fullName.trim() &&
       form.studentIdNumber.trim() &&
-      form.college.trim() &&
+      form.department.trim() &&
       form.contactNumber.trim() &&
       form.natureOfConcern.trim() &&
       (form.natureOfConcern !== "Other" || form.natureOfConcernOther.trim()) &&
-      form.description.trim() &&
-      form.receivingCounselorId;
+      form.description.trim();
     if (!required) {
       setError("All required fields must be filled.");
       return;
@@ -290,12 +315,12 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
         body: JSON.stringify({
           fullName: form.fullName.trim(),
           studentIdNumber: form.studentIdNumber.trim(),
-          college: form.college.trim(),
+          college: currentUser?.college || "",
+          department: form.department.trim(),
           contactNumber: form.contactNumber.trim(),
           natureOfConcern: form.natureOfConcern,
           natureOfConcernOther: form.natureOfConcernOther.trim() || null,
           description: form.description.trim(),
-          receivingCounselorId: Number(form.receivingCounselorId),
         }),
       });
       const body = await res.json();
@@ -317,7 +342,7 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
       open
       onClose={onClose}
       title="New referral"
-      subtitle="Refer a student to a counselor — the student doesn't need an account yet."
+      subtitle="Refer a student for counseling — the referral is sent to all available counselors."
       size="lg"
       align="top"
       footer={
@@ -360,17 +385,17 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
             />
           </div>
           <div>
-            <label className={LABEL}>College *</label>
+            <label className={LABEL}>Department *</label>
             <select
               required
               className={INPUT}
-              value={form.college}
-              onChange={(e) => setField("college", e.target.value)}
+              value={form.department}
+              onChange={(e) => setField("department", e.target.value)}
             >
-              <option value="">Select college</option>
-              {COLLEGES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              <option value="">Select department</option>
+              {myDepartments.map((d) => (
+                <option key={d.code} value={d.name}>
+                  {d.name}
                 </option>
               ))}
             </select>
@@ -388,24 +413,6 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
               placeholder="09123456789"
             />
           </div>
-        </div>
-
-        <div>
-          <label className={LABEL}>Refer to counselor *</label>
-          <select
-            required
-            className={INPUT}
-            value={form.receivingCounselorId}
-            onChange={(e) => setField("receivingCounselorId", e.target.value)}
-            disabled={loadingLists}
-          >
-            <option value="">{loadingLists ? "Loading…" : "Select a counselor"}</option>
-            {counselors.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} {c.department ? `· ${c.department}` : ""}
-              </option>
-            ))}
-          </select>
         </div>
 
         <div>
