@@ -44,16 +44,19 @@ const STATUS_COLORS = {
 };
 
 const TIME_LABEL = {
-  morning: "9:00 AM – 12:00 PM",
-  afternoon: "1:00 PM – 5:00 PM",
   "9:00-10:00": "9:00 – 10:00 AM",
   "10:00-11:00": "10:00 – 11:00 AM",
   "11:00-12:00": "11:00 – 12:00 PM",
   "1:00-2:00": "1:00 – 2:00 PM",
   "2:00-3:00": "2:00 – 3:00 PM",
   "3:00-4:00": "3:00 – 4:00 PM",
+  "4:00-5:00": "4:00 – 5:00 PM",
 };
-const timeLabel = (slot) => TIME_LABEL[slot] || slot || "—";
+const timeLabel = (slot) => {
+  if (slot === "morning") return "9:00 AM – 12:00 PM";
+  if (slot === "afternoon") return "1:00 PM – 5:00 PM";
+  return TIME_LABEL[slot] || slot || "—";
+};
 
 export default function CounselorDashboard() {
   const { currentUser, users, lookupUser } = useAuth();
@@ -148,6 +151,29 @@ export default function CounselorDashboard() {
   const activeUrgentCount = myAppointments.filter(
     (a) => (a.is_urgent || a.isUrgent) && (a.status === "approved" || a.status === "rescheduled")
   ).length;
+  const getLocalTodayStr = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const todayStr = getLocalTodayStr();
+
+  const isPastTime = (dateStr, timeSlot) => {
+    if (!dateStr) return false;
+    let justDate = "";
+    try {
+      justDate = new Date(dateStr).toISOString().split("T")[0];
+    } catch (e) {
+      justDate = String(dateStr).split("T")[0];
+    }
+    if (justDate < todayStr) return true;
+    if (justDate > todayStr) return false;
+    const h = new Date().getHours();
+    if (!timeSlot) return h >= 17;
+    if (["morning", "9:00-10:00", "10:00-11:00", "11:00-12:00"].includes(timeSlot)) return h >= 12;
+    return h >= 17;
+  };
+
   const isSameDay = (value) => {
     if (!value) return false;
     const d = new Date(value);
@@ -162,11 +188,14 @@ export default function CounselorDashboard() {
   const todayAppointments = myAppointments.filter(
     (a) => (a.status === "approved" || a.status === "rescheduled") && isSameDay(a.scheduledDate)
   ).length;
-  // "Incoming appointments" — every appointment still ahead of us, regardless
-  // of date: fresh approvals, reschedules, and follow-ups all carry one of
-  // these two statuses (there's no separate DB status for follow-ups).
+  // "Incoming appointments" — every appointment still ahead of us.
   const incomingAppointments = myAppointments.filter(
-    (a) => a.status === "approved" || a.status === "rescheduled"
+    (a) =>
+      (a.status === "approved" || a.status === "rescheduled") &&
+      !isPastTime(
+        a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date,
+        a.scheduledTime || a.scheduled_time || a.preferredTime || a.preferred_time || a.timeSlot || a.time_slot
+      )
   ).length;
 
   const topColleges = Object.entries(studentsByCollege).sort((a, b) => b[1] - a[1]);
@@ -227,7 +256,7 @@ export default function CounselorDashboard() {
     const date =
       appt.preferredDate ||
       appt.preferred_date ||
-      new Date().toISOString().split("T")[0];
+      todayStr;
     const result = await acceptAppointment({ id, date, timeSlot: slot, note: null });
     if (result.success) {
       setMyAppointments((prev) =>

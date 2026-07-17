@@ -19,18 +19,14 @@ export const createUrgentCounselingRequest = async (req, res) => {
   const trimmed = {
     fullName: (fullName || "").trim(),
     studentIdNumber: (studentIdNumber || "").trim(),
-    institutionalEmail: (institutionalEmail || "").trim().toLowerCase(),
     description: (description || "").trim(),
   };
 
-  if (!trimmed.fullName || !trimmed.studentIdNumber || !trimmed.institutionalEmail || !trimmed.description) {
+  if (!trimmed.fullName || !trimmed.studentIdNumber || !trimmed.description) {
     return res.status(400).json({ message: "Please complete all required fields." });
   }
 
-  const msuDomains = ["@msu.edu.ph", "@s.msumain.edu.ph", "@msumain.edu.ph"];
-  if (!msuDomains.some((d) => trimmed.institutionalEmail.endsWith(d))) {
-    return res.status(400).json({ message: "Please use a valid MSU institutional email." });
-  }
+
 
   // Per-day duplicate check: one urgent request per student per calendar day.
   // Matches on student ID, institutional email, or full name (as specified).
@@ -42,11 +38,7 @@ export const createUrgentCounselingRequest = async (req, res) => {
   );
   for (const r of byStudentId) matchedUserIds.add(r.id);
 
-  const byEmail = await query(
-    "SELECT id FROM users WHERE LOWER(email) = ? AND is_placeholder = 0",
-    [trimmed.institutionalEmail]
-  );
-  for (const r of byEmail) matchedUserIds.add(r.id);
+
 
   if (matchedUserIds.size > 0) {
     const ids = [...matchedUserIds];

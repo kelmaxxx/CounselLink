@@ -17,8 +17,10 @@ const normalizeDate = (value) => {
 
 const getQueueSlot = (slot) => {
   const s = (slot || "").toLowerCase();
-  if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:")) return "PM";
+  // Broad afternoon block (new) or legacy hour-by-hour afternoon slots
+  if (s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return "PM";
   if (!s) return null;
+  // Broad morning block (new) and all other values → AM
   return "AM";
 };
 
@@ -195,19 +197,41 @@ export const rescheduleAppointment = async (req, res) => {
 
   const normalizedDate = normalizeDate(date);
 
+  // ── Assign a queue number (same logic as acceptAppointment) ──────────
+  const queueSlot = getQueueSlot(timeSlot);
+  const queueDate = normalizedDate;
+
+  const [{ cnt }] = await query(
+    `SELECT COUNT(*) AS cnt FROM appointments
+     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling' AND id <> ?`,
+    [queueDate, queueSlot, id]
+  );
+
+  if (cnt >= 10) {
+    return res.status(409).json({
+      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue for ${queueDate} is full (10 appointments). Please choose a different date or time slot.`,
+    });
+  }
+
+  const queueNumber = cnt + 1;
+
   await query(
-    "UPDATE appointments SET status='rescheduled', counselor_id=?, scheduled_date=?, scheduled_time=?, counselor_action_note=?, updated_at=NOW() WHERE id=?",
-    [counselorId, normalizedDate, timeSlot, note || null, id]
+    `UPDATE appointments
+     SET status='rescheduled', counselor_id=?, scheduled_date=?, scheduled_time=?,
+         counselor_action_note=?, queue_number=?, queue_date=?, queue_slot=?, updated_at=NOW()
+     WHERE id=?`,
+    [counselorId, normalizedDate, timeSlot, note || null, queueNumber, queueDate, queueSlot, id]
   );
 
   await logAction(req, "reschedule_appointment", "appointment", id, { date: normalizedDate, timeSlot });
 
   const rows = await query("SELECT student_id FROM appointments WHERE id = ?", [id]);
   if (rows.length) {
+    const queueInfo = ` Your queue number is ${queueSlot} #${queueNumber}.`;
     await createNotification({
       userId: rows[0].student_id,
       title: "Appointment Rescheduled",
-      message: `Your appointment was rescheduled to ${normalizedDate} at ${timeSlot}.`,
+      message: `Your appointment was rescheduled to ${normalizedDate} at ${timeSlot}.${queueInfo}`,
       link: "/student/appointments",
     });
     notifyUser(rows[0].student_id, { type: "appointments" });
@@ -234,8 +258,8 @@ export const removeNoShows = async (req, res) => {
          OR (
            scheduled_date = CURDATE()
            AND (
-             (scheduled_time IN ('morning', '9:00-10:00', '10:00-11:00', '11:00-12:00') AND CURTIME() >= '12:00:00')
-             OR (scheduled_time IN ('afternoon', '1:00-2:00', '2:00-3:00', '3:00-4:00') AND CURTIME() >= '17:00:00')
+             (scheduled_time IN ('morning', '9:00-10:00', '10:00-11:00', '11:00-12:00', '9:00-12:00') AND CURTIME() >= '12:00:00')
+             OR (scheduled_time IN ('afternoon', '1:00-2:00', '2:00-3:00', '3:00-4:00', '4:00-5:00', '1:00-5:00') AND CURTIME() >= '17:00:00')
              OR (scheduled_time IS NULL AND CURTIME() >= '17:00:00')
            )
          )

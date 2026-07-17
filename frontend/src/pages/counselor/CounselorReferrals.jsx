@@ -23,6 +23,7 @@ const TIME_LABEL = {
   "1:00-2:00": "1:00 – 2:00 PM",
   "2:00-3:00": "2:00 – 3:00 PM",
   "3:00-4:00": "3:00 – 4:00 PM",
+  "4:00-5:00": "4:00 – 5:00 PM",
 };
 
 export default function CounselorReferrals() {

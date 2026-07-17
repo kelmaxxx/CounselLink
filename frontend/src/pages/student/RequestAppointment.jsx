@@ -22,14 +22,18 @@ import {
   Zap,
   Brain,
   MessageCircle,
+  PenLine,
 } from "lucide-react";
 import { BTN, INPUT, LABEL, Modal, initialsOf } from "../../components/ui";
 import InformedConsentSection from "../../components/InformedConsent";
+import SignaturePad from "../../components/SignaturePad";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
 const TIME_BLOCKS = [
-  { label: "9:00 AM – 12:00 PM", value: "morning", description: "Morning block" },
-  { label: "1:00 PM – 5:00 PM", value: "afternoon", description: "Afternoon block" },
+  { label: "9:00 AM – 12:00 PM", value: "9:00-12:00", description: "Morning slot" },
+  { label: "1:00 PM – 5:00 PM", value: "1:00-5:00", description: "Afternoon slot" },
 ];
 const slotLabel = (value) => TIME_BLOCKS.find((s) => s.value === value)?.label || value;
 
@@ -84,7 +88,7 @@ const firstAvailableDate = () => {
 
 export default function RequestAppointment() {
   const navigate = useNavigate();
-  const { currentUser, users } = useAuth();
+  const { currentUser, users, token, updateProfile } = useAuth();
   const myRecord = users?.find((u) => u.email === currentUser?.email) || currentUser;
   const { createAppointment } = useAppointments?.() || {};
   const { createTestRequest } = useTests?.() || {};
@@ -94,6 +98,43 @@ export default function RequestAppointment() {
 
   const [submitted, setSubmitted] = useState(false);
   const [successModal, setSuccessModal] = useState({ open: false, data: null });
+
+  // ── Signature state ────────────────────────────────────────────────
+  // confirmedSigUrl: the data-URL (drawn) or server URL (from profile) of the
+  // signature that will be embedded in the printed slip and used as the gate
+  // to enable the submit button.
+  const [confirmedSigUrl, setConfirmedSigUrl] = useState(null);
+  const [sigBusy, setSigBusy] = useState(false);
+
+  // Save a freshly-drawn blob to the student's profile AND confirm it locally.
+  const saveDrawnSignature = async (blob) => {
+    if (!blob || !token) return;
+    setSigBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("signature", blob, "signature.png");
+      const res = await fetch(`${API_BASE}/api/uploads/signature`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Upload failed");
+      await updateProfile({
+        signatureUrl: data.signatureUrl,
+        signatureFileName: data.signatureFileName,
+        signatureFileType: data.signatureFileType,
+      });
+      // Show the data-URL immediately so we don't need a round-trip
+      const reader = new FileReader();
+      reader.onloadend = () => setConfirmedSigUrl(reader.result);
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      alert(err.message || "Could not save signature");
+    } finally {
+      setSigBusy(false);
+    }
+  };
 
   const printRef = useRef(null);
   const handlePrint = useReactToPrint({
@@ -302,6 +343,10 @@ export default function RequestAppointment() {
               myRecord={myRecord}
               form={form}
               onJump={setStep}
+              confirmedSigUrl={confirmedSigUrl}
+              setConfirmedSigUrl={setConfirmedSigUrl}
+              saveDrawnSignature={saveDrawnSignature}
+              sigBusy={sigBusy}
             />
           )}
 
@@ -315,14 +360,25 @@ export default function RequestAppointment() {
                 <button type="button" onClick={handlePrint} className={BTN.secondary}>
                   <Printer size={14} /> Print
                 </button>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={submitted}
-                  className={BTN.primary}
-                >
-                  {submitted ? "Submitting…" : "Submit request"}
-                </button>
+                {confirmedSigUrl ? (
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={submitted}
+                    className={BTN.primary}
+                  >
+                    {submitted ? "Submitting…" : "Submit request"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className={`${BTN.primary} opacity-50 cursor-not-allowed`}
+                    title="Please provide your signature above before submitting"
+                  >
+                    <PenLine size={14} /> Sign to submit
+                  </button>
+                )}
               </div>
             ) : (
               <button
@@ -644,7 +700,7 @@ function ScheduleStep({ form, setField, selectSlot, firstAvail, quickBook }) {
                 ].join(" ")}
               >
                 <p className={`text-sm font-semibold mb-0.5 ${active ? "text-white" : "text-gray-900"}`}>
-                  {block.value === "morning" ? "Morning" : "Afternoon"}
+                  {block.description.split(" ")[0]}
                 </p>
                 <p className={`text-xs ${active ? "text-maroon-100" : "text-gray-500"}`}>{block.label}</p>
               </button>
@@ -779,12 +835,18 @@ function ConsentStep({ setField, currentUser }) {
 /* ────────────────────────────────────────────────────────────────────
    Step: Review & submit (printable slip)
 ──────────────────────────────────────────────────────────────────── */
-function ReviewStep({ printRef, currentUser, myRecord, form, onJump }) {
+function ReviewStep({ printRef, currentUser, myRecord, form, onJump, confirmedSigUrl, setConfirmedSigUrl, saveDrawnSignature, sigBusy }) {
+  const [showPad, setShowPad] = useState(false);
+
+  // If the student already has a profile signature and nothing is confirmed yet,
+  // auto-confirm it so they don't need to re-draw unnecessarily.
+  const profileSigUrl = currentUser?.signatureUrl ? `${API_BASE}${currentUser.signatureUrl}` : null;
+
   return (
     <StepCard
       icon={CheckCircle2}
       title="Review your request"
-      subtitle="Check everything is correct, then submit or print."
+      subtitle="Check everything is correct, sign, then submit or print."
     >
       <div ref={printRef} className="space-y-4 print:space-y-2">
         <ReviewBlock title="Student details" onEdit={() => onJump(0)}>
@@ -816,24 +878,109 @@ function ReviewStep({ printRef, currentUser, myRecord, form, onJump }) {
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{form.reason || "—"}</p>
         </ReviewBlock>
 
-        {/* Signatures — for the printed slip */}
+        {/* ── Digital signature block (screen only) ── */}
+        <div className="print:hidden rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <PenLine size={15} className="text-maroon-600" />
+            <span className="text-sm font-semibold text-gray-900">Your digital signature</span>
+            <span className="ml-1 text-xs font-medium text-red-500">* Required to submit</span>
+          </div>
+
+          {confirmedSigUrl ? (
+            <div className="space-y-2">
+              <div className="w-full max-w-xs h-20 rounded-lg border border-maroon-200 bg-white flex items-center justify-center overflow-hidden">
+                <img src={confirmedSigUrl} alt="Your signature" className="max-h-full max-w-full object-contain" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-medium">
+                  <CheckCircle2 size={13} /> Signature confirmed
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowPad(true)}
+                  className="text-xs text-maroon-600 hover:underline"
+                >
+                  Redraw
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {profileSigUrl && (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">You have a saved signature from your profile:</p>
+                  <div className="w-full max-w-xs h-20 rounded-lg border border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden">
+                    <img src={profileSigUrl} alt="Profile signature" className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmedSigUrl(profileSigUrl)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-maroon-600 text-white hover:bg-maroon-700 transition"
+                    >
+                      <CheckCircle2 size={13} /> Use this signature
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPad(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-100 transition"
+                    >
+                      <PenLine size={13} /> Draw a new one
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!profileSigUrl && (
+                <div className="space-y-1">
+                  <p className="text-xs text-gray-500">Draw your signature to confirm and submit this request.</p>
+                  <button
+                    type="button"
+                    disabled={sigBusy}
+                    onClick={() => setShowPad(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-maroon-600 text-white hover:bg-maroon-700 disabled:opacity-50 transition"
+                  >
+                    <PenLine size={14} /> {sigBusy ? "Saving…" : "Draw signature"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Printed slip signature row ── */}
         <div className="hidden print:grid grid-cols-2 gap-6 pt-4">
           <div>
-            <p className="text-xs font-medium text-gray-700 mb-3">Student signature</p>
-            <div className="border-t-2 border-gray-400 pt-1.5 text-center">
-              <p className="text-xs text-gray-600">Sign above the line</p>
+            <p className="text-xs font-medium text-gray-700 mb-1">Student signature</p>
+            {confirmedSigUrl ? (
+              <img src={confirmedSigUrl} alt="Student signature" className="h-14 object-contain" />
+            ) : (
+              <div className="h-14" />
+            )}
+            <div className="border-t-2 border-gray-400 pt-1">
+              <p className="text-xs text-gray-600">{currentUser?.name}</p>
             </div>
-            <p className="text-xs text-gray-600 mt-2">{currentUser?.name}</p>
           </div>
           <div>
             <p className="text-xs font-medium text-gray-700 mb-3">Authorized personnel</p>
-            <div className="border-t-2 border-gray-400 pt-1.5 text-center">
-              <p className="text-xs text-gray-600">Sign above the line</p>
+            <div className="h-14" />
+            <div className="border-t-2 border-gray-400 pt-1">
+              <p className="text-xs text-gray-600">(DSA personnel)</p>
             </div>
-            <p className="text-xs text-gray-600 mt-2">(DSA personnel)</p>
           </div>
         </div>
       </div>
+
+      {/* Signature pad modal */}
+      {showPad && (
+        <SignaturePad
+          onSave={async (blob) => {
+            setShowPad(false);
+            await saveDrawnSignature(blob);
+          }}
+          onClose={() => !sigBusy && setShowPad(false)}
+          busy={sigBusy}
+        />
+      )}
     </StepCard>
   );
 }

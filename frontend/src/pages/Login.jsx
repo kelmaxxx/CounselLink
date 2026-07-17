@@ -860,7 +860,6 @@ export default function Login() {
 const EMPTY_URGENT_FORM = {
   fullName: "",
   studentIdNumber: "",
-  institutionalEmail: "",
   description: "",
 };
 
@@ -891,14 +890,6 @@ function AuthShell({ children }) {
     const errors = {};
     if (!urgentForm.fullName.trim()) errors.fullName = "Required";
     if (!/^\d{9}$/.test(urgentForm.studentIdNumber)) errors.studentIdNumber = "Must be exactly 9 digits.";
-    if (!urgentForm.institutionalEmail.trim()) {
-      errors.institutionalEmail = "Required";
-    } else {
-      const emailLower = urgentForm.institutionalEmail.toLowerCase();
-      const allowed = ["@s.msumain.edu.ph"];
-      if (!allowed.some((d) => emailLower.endsWith(d)))
-        errors.institutionalEmail = "Use your MSU institutional email (e.g., name@s.msumain.edu.ph).";
-    }
     if (!urgentForm.description.trim()) errors.description = "Required";
     return errors;
   };
@@ -923,7 +914,6 @@ function AuthShell({ children }) {
         body: JSON.stringify({
           fullName: urgentForm.fullName,
           studentIdNumber: urgentForm.studentIdNumber,
-          institutionalEmail: urgentForm.institutionalEmail,
           description: urgentForm.description,
         }),
       });
@@ -1121,17 +1111,7 @@ function UrgentCounselingModal({
             </InputWithIcon>
           </FieldRow>
 
-          <FieldRow label="Institutional Email" error={formErrors.institutionalEmail}>
-            <InputWithIcon icon={Mail}>
-              <input
-                className={`${INPUT} pl-9`}
-                type="email"
-                placeholder="name@s.msumain.edu.ph"
-                value={form.institutionalEmail}
-                onChange={(e) => onFormChange("institutionalEmail", e.target.value)}
-              />
-            </InputWithIcon>
-          </FieldRow>
+
 
           <FieldRow label="Description of Emergency" error={formErrors.description}>
             <textarea

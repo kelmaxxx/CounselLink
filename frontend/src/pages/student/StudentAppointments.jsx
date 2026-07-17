@@ -20,6 +20,7 @@ const TABS = [
   { id: "pending", label: "Pending" },
   { id: "approved", label: "Approved" },
   { id: "rescheduled", label: "Rescheduled" },
+  { id: "missed", label: "Missed" },
   { id: "rejected", label: "Rejected" },
 ];
 
@@ -30,6 +31,29 @@ const formatDate = (value) => {
   } catch {
     return value;
   }
+};
+
+const getLocalTodayStr = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+const isPastTime = (dateStr, timeSlot) => {
+  if (!dateStr) return false;
+  let justDate = "";
+  try {
+    justDate = new Date(dateStr).toISOString().split("T")[0];
+  } catch {
+    justDate = String(dateStr).split("T")[0];
+  }
+  const todayStr = getLocalTodayStr();
+  if (justDate < todayStr) return true;
+  if (justDate > todayStr) return false;
+  const h = new Date().getHours();
+  if (!timeSlot) return h >= 17;
+  if (["morning", "9:00-10:00", "10:00-11:00", "11:00-12:00"].includes(timeSlot)) return h >= 12;
+  return h >= 17;
 };
 
 export default function StudentAppointments() {
@@ -49,11 +73,37 @@ export default function StudentAppointments() {
   const mine = useMemo(() => {
     const myAppts = (appointments || [])
       .filter((a) => a.student_id === currentUser?.id || a.studentId === currentUser?.id)
-      .map((a) => ({ ...a, isTest: false }));
+      .map((a) => {
+        let st = a.status;
+        if (st === "no_show") st = "missed";
+        else if (
+          (st === "approved" || st === "rescheduled") &&
+          isPastTime(
+            a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date,
+            a.scheduledTime || a.scheduled_time || a.preferredTime || a.preferred_time || a.timeSlot || a.time_slot
+          )
+        ) {
+          st = "missed";
+        }
+        return { ...a, status: st, originalStatus: a.status, isTest: false };
+      });
 
     const myTestsList = (tests || [])
       .filter((t) => t.student_id === currentUser?.id || t.studentUserId === currentUser?.id)
-      .map((t) => ({ ...t, isTest: true }));
+      .map((t) => {
+        let st = t.status;
+        if (st === "no_show") st = "missed";
+        else if (
+          (st === "approved" || st === "rescheduled") &&
+          isPastTime(
+            t.scheduledDate || t.scheduled_date || t.preferredDate || t.preferred_date,
+            t.scheduledTime || t.scheduled_time || t.preferredTime || t.preferred_time || t.timeSlot || t.time_slot
+          )
+        ) {
+          st = "missed";
+        }
+        return { ...t, status: st, originalStatus: t.status, isTest: true };
+      });
 
     return [...myAppts, ...myTestsList]
       .filter((item) => item.status !== "completed")

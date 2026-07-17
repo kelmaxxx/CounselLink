@@ -274,6 +274,7 @@ const STATUS_PALETTE = {
   declined: "bg-red-50 text-red-700",
   completed: "bg-emerald-50 text-emerald-700",
   no_show: "bg-orange-50 text-orange-600",
+  missed: "bg-orange-50 text-orange-600",
   active: "bg-emerald-50 text-emerald-700",
   inactive: "bg-gray-100 text-gray-600",
   confirmed: "bg-emerald-50 text-emerald-700",
