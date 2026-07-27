@@ -290,7 +290,7 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">CounselLink · MSU Marawi</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">CounceLink · MSU Marawi</p>
             <p className="text-xs text-gray-400">Division of Student Affairs</p>
           </div>
           <StatusPill status={appointment.status} />

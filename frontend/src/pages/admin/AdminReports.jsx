@@ -187,7 +187,7 @@ export default function AdminReports() {
 
   const exportCsv = () => {
     const rows = [];
-    rows.push(["CounselLink MSU-Marawi — Admin Report"]);
+    rows.push(["CounceLink MSU-Marawi — Admin Report"]);
     rows.push(["Generated", detailsPayload.generatedAt]);
     rows.push([]);
     rows.push(["Filters"]);

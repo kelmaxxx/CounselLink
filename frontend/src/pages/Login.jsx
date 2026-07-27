@@ -17,6 +17,7 @@ import {
   Phone,
   ArrowLeft,
   AlertTriangle,
+  Home,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL } from "../components/ui";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../utils/phone";
@@ -995,13 +996,23 @@ function AuthShell({ children }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-maroon-600 via-maroon-700 to-maroon-800 flex items-center justify-center p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <button
-        type="button"
-        onClick={openUrgentFlow}
-        className="fixed top-4 right-4 z-40 inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-lg transition-colors"
-      >
-        <AlertTriangle size={16} />
-      </button>
+      {/* Top-right fixed action buttons */}
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+        <a
+          href="/"
+          title="Back to Home"
+          className="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/20 hover:bg-white/30 text-white shadow-lg transition-colors backdrop-blur-sm"
+        >
+          <Home size={18} />
+        </a>
+        <button
+          type="button"
+          onClick={openUrgentFlow}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-lg transition-colors"
+        >
+          <AlertTriangle size={16} />
+        </button>
+      </div>
 
       <div className="w-full max-w-xl flex flex-col items-center">
         <img
