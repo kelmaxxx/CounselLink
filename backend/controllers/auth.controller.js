@@ -84,6 +84,9 @@ export const login = async (req, res) => {
       email: user.email,
       role: user.role,
       name: user.name,
+      firstName: user.first_name,
+      middleName: user.middle_name,
+      lastName: user.last_name,
       status: user.status,
       college: user.college,
       department: user.department,
@@ -102,8 +105,9 @@ export const login = async (req, res) => {
 };
 
 export const registerStudent = async (req, res) => {
-  const { name, email, password, studentId, college, department, program, phone, corUrl, corFileName, corFileType, avatarUrl, avatarFileName, avatarFileType } = req.body;
-  if (!name || !email || !password || !studentId || !college) {
+  const { firstName, middleName, lastName, email, password, studentId, college, department, program, phone, corUrl, corFileName, corFileType, avatarUrl, avatarFileName, avatarFileType } = req.body;
+  const name = [firstName, middleName, lastName].filter(Boolean).join(" ");
+  if (!firstName || !lastName || !email || !password || !studentId || !college) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
@@ -165,6 +169,9 @@ export const registerStudent = async (req, res) => {
     await query(
       `UPDATE users
        SET name = ?,
+           first_name = ?,
+           middle_name = ?,
+           last_name = ?,
            email = ?,
            password = ?,
            status = 'pending_approval',
@@ -184,6 +191,9 @@ export const registerStudent = async (req, res) => {
        WHERE id = ?`,
       [
         name,
+        firstName || null,
+        middleName || null,
+        lastName || null,
         email,
         hashed,
         college,
@@ -211,9 +221,9 @@ export const registerStudent = async (req, res) => {
   const hashed = await bcrypt.hash(password, 10);
 
   const result = await query(
-    `INSERT INTO users (name, email, password, role, status, college, department, program, student_id, phone, cor_url, cor_file_name, cor_file_type, avatar_url, avatar_file_name, avatar_file_type)
-     VALUES (?, ?, ?, 'student', 'pending_approval', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
-    [name, email, hashed, college, department || null, program || null, studentId, phone || null, corUrl || null, corFileName || null, corFileType || null, avatarUrl || null, avatarFileName || null, avatarFileType || null]
+    `INSERT INTO users (name, first_name, middle_name, last_name, email, password, role, status, college, department, program, student_id, phone, cor_url, cor_file_name, cor_file_type, avatar_url, avatar_file_name, avatar_file_type)
+     VALUES (?, ?, ?, ?, ?, ?, 'student', 'pending_approval', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+    [name, firstName || null, middleName || null, lastName || null, email, hashed, college, department || null, program || null, studentId, phone || null, corUrl || null, corFileName || null, corFileType || null, avatarUrl || null, avatarFileName || null, avatarFileType || null]
   );
 
   await consumeVerification();

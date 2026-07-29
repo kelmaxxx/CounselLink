@@ -425,7 +425,7 @@ export default function CounselorDashboard() {
       .slice(0, 10);
   }, [pendingQueue]);
 
-  const firstName = currentUser?.name?.split(" ")[0] || "Counselor";
+  const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Counselor";
   const today = new Date();
   const dateLabel = today.toLocaleDateString(undefined, {
     weekday: "long",

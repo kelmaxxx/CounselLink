@@ -88,7 +88,7 @@ export default function AdminDashboard() {
       .sort((a, b) => b[1] - a[1]);
   }, [students]);
 
-  const firstName = currentUser?.name?.split(" ")[0] || "Admin";
+  const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Admin";
 
   return (
     <>

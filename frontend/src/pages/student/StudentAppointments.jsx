@@ -58,7 +58,7 @@ const isPastTime = (dateStr, timeSlot) => {
 
 export default function StudentAppointments() {
   const { currentUser } = useAuth();
-  const { appointments, fetchAppointments } = useAppointments();
+  const { appointments, fetchAppointments, cancelAppointment } = useAppointments();
   const { tests, fetchTests } = useTests();
   const [activeTab, setActiveTab] = useState("all");
   const [selected, setSelected] = useState(null);
@@ -69,6 +69,14 @@ export default function StudentAppointments() {
     fetchAppointments?.().catch(() => undefined);
     fetchTests?.().catch(() => undefined);
   }, [fetchAppointments, fetchTests]);
+
+  const handleCancel = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel this?")) return;
+    const res = await cancelAppointment?.(id);
+    if (!res?.success) {
+      alert(res?.message || "Failed to cancel");
+    }
+  };
 
   const mine = useMemo(() => {
     const myAppts = (appointments || [])
@@ -209,12 +217,22 @@ export default function StudentAppointments() {
                       <StatusPill status={a.status} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setSelected(a)}
-                        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                      >
-                        <FileText size={13} /> View
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setSelected(a)}
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                        >
+                          <FileText size={13} /> View
+                        </button>
+                        {["pending", "approved", "accepted", "rescheduled"].includes(String(a.status).toLowerCase()) && (
+                          <button
+                            onClick={() => handleCancel(a.id)}
+                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-red-300 bg-red-50 text-xs text-red-700 hover:bg-red-100 transition"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

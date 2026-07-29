@@ -129,7 +129,7 @@ export default function ContactSection() {
             {/* Logos */}
             <div className="mt-8 flex items-center gap-5 flex-wrap">
               <img src="/msu-logo.png" alt="MSU Marawi" className="h-14 object-contain" />
-              <img src="/dsa-logo.png" alt="Division of Student Affairs" className="h-14 object-contain" />
+              <img src="/dsa-logo.png?v=2" alt="Division of Student Affairs" className="h-14 object-contain" />
               <img src="/guidance-logo.jpg" alt="Guidance Office" className="h-14 object-contain rounded-lg" />
             </div>
           </div>

@@ -4,6 +4,9 @@ USE counselink;
 CREATE TABLE IF NOT EXISTS users (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(120) NOT NULL,
+  first_name VARCHAR(50),
+  middle_name VARCHAR(50),
+  last_name VARCHAR(50),
   email VARCHAR(120) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   role ENUM('student','counselor','admin','college_rep') NOT NULL,

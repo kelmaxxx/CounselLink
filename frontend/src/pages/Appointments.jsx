@@ -46,7 +46,7 @@ function StatCard({ icon: Icon, label, count, color }) {
 
 export default function Appointments() {
   const { currentUser } = useAuth();
-  const { fetchAppointments } = useAppointments();
+  const { fetchAppointments, cancelAppointment } = useAppointments();
   const { getTestsForCurrentUser } = useTests();
 
   const [appointments, setAppointments] = React.useState([]);
@@ -74,6 +74,14 @@ export default function Appointments() {
   const pendingCount = appointments.filter((a) => a.status === "pending").length;
   const confirmedCount = appointments.filter((a) => a.status === "accepted").length;
   const completedCount = appointments.filter((a) => a.status === "completed").length;
+
+  const handleCancel = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
+    const res = await cancelAppointment(id);
+    if (!res.success) {
+      alert(res.message || "Failed to cancel appointment");
+    }
+  };
 
   return (
     <div className="p-6">
@@ -144,6 +152,9 @@ export default function Appointments() {
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Scheduled Date</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Reason</th>
+                  {currentUser?.role === "student" && (
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -158,10 +169,22 @@ export default function Appointments() {
                     <td className="py-3 px-4">
                       <StatusBadge status={apt.status} />
                     </td>
-                    <td className="py-3 px-4 text-gray-600 max-w-xs truncate">
-                      {apt.reason.substring(0, 50)}
-                      {apt.reason.length > 50 ? "..." : ""}
+                    <td className="py-3 px-4 text-gray-600 max-w-xs truncate" title={apt.reason || ""}>
+                      {(apt.reason || "").substring(0, 50)}
+                      {(apt.reason || "").length > 50 ? "..." : ""}
                     </td>
+                    {currentUser?.role === "student" && (
+                      <td className="py-3 px-4">
+                        {["pending", "approved", "accepted", "rescheduled"].includes(String(apt.status).toLowerCase()) && (
+                          <button
+                            onClick={() => handleCancel(apt.id)}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium transition"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -204,6 +227,9 @@ export default function Appointments() {
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Preferred Date</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Scheduled Date</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                  {currentUser?.role === "student" && (
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -218,6 +244,18 @@ export default function Appointments() {
                     <td className="py-3 px-4">
                       <StatusBadge status={test.status} />
                     </td>
+                    {currentUser?.role === "student" && (
+                      <td className="py-3 px-4">
+                        {["pending", "approved", "accepted", "rescheduled"].includes(String(test.status).toLowerCase()) && (
+                          <button
+                            onClick={() => handleCancel(test.id)}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium transition"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
