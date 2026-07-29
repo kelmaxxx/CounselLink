@@ -39,7 +39,8 @@ const isAllowedStudentEmail = (email) => {
 
 const emptyLoginErrors = { identifier: "", password: "", form: "" };
 const emptySignupErrors = {
-  name: "",
+  firstName: "",
+  lastName: "",
   email: "",
   studentId: "",
   phone: "",
@@ -66,7 +67,9 @@ export default function Login() {
 
   const [loginForm, setLoginForm] = useState({ identifier: "", password: "" });
   const [signupForm, setSignupForm] = useState({
-    name: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -265,7 +268,8 @@ export default function Login() {
   const validateStep = (step) => {
     const next = { ...emptySignupErrors };
     if (step === 1) {
-      if (!signupForm.name.trim()) next.name = "Full name is required.";
+      if (!signupForm.firstName.trim()) next.firstName = "First name is required.";
+      if (!signupForm.lastName.trim()) next.lastName = "Surname is required.";
       if (!/^\d{9}$/.test(signupForm.studentId)) next.studentId = "Student ID must be exactly 9 digits.";
       if (!signupForm.email.trim()) next.email = "Email is required.";
       else {
@@ -337,7 +341,9 @@ export default function Login() {
     }
     setSignupLoading(true);
     const res = await signup({
-      name: signupForm.name,
+      firstName: signupForm.firstName,
+      middleName: signupForm.middleName,
+      lastName: signupForm.lastName,
       email: signupForm.email,
       password: signupForm.password,
       role: signupForm.role,
@@ -400,14 +406,34 @@ export default function Login() {
           {/* Step 1 — Personal info */}
           {signupStep === 1 && (
             <div className="space-y-4">
-              <FieldRow label="Full name" error={signupErrors.name}>
+              <FieldRow label="Surname" error={signupErrors.lastName}>
                 <input
-                  name="name"
-                  value={signupForm.name}
+                  name="lastName"
+                  value={signupForm.lastName}
                   onChange={handleSignupChange}
                   className={INPUT}
-                  placeholder="Juan Dela Cruz"
+                  placeholder="Dela Cruz"
                   autoFocus
+                />
+              </FieldRow>
+
+              <FieldRow label="First name" error={signupErrors.firstName}>
+                <input
+                  name="firstName"
+                  value={signupForm.firstName}
+                  onChange={handleSignupChange}
+                  className={INPUT}
+                  placeholder="Juan"
+                />
+              </FieldRow>
+
+              <FieldRow label="Middle name (optional)" error={signupErrors.middleName}>
+                <input
+                  name="middleName"
+                  value={signupForm.middleName}
+                  onChange={handleSignupChange}
+                  className={INPUT}
+                  placeholder="Macaraeg"
                 />
               </FieldRow>
 

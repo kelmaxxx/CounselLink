@@ -213,7 +213,7 @@ export default function StudentDashboard() {
     }
     : null;
 
-  const firstName = currentUser?.name?.split(" ")[0] || "Student";
+  const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Student";
   const today = new Date();
   const dateLabel = today.toLocaleDateString(undefined, {
     weekday: "long",

@@ -291,3 +291,24 @@ export const removeNoShows = async (req, res) => {
 
   return res.json({ removed: toRemove.length });
 };
+
+export const deleteAppointment = async (req, res) => {
+  const { id } = req.params;
+  const rows = await query("SELECT student_id, status FROM appointments WHERE id = ?", [id]);
+  if (!rows.length) return res.status(404).json({ message: "Not found" });
+  
+  const apt = rows[0];
+  if (apt.student_id !== req.user.id && req.user.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  
+  if (!["pending", "approved", "accepted"].includes(apt.status)) {
+    return res.status(400).json({ message: "Can only cancel pending or approved appointments" });
+  }
+
+  await query("DELETE FROM appointments WHERE id = ?", [id]);
+  await logAction(req, "delete_appointment", "appointment", id, { status: apt.status });
+  notifyRole("counselor", { type: "appointments" });
+
+  res.json({ message: "Appointment canceled successfully" });
+};

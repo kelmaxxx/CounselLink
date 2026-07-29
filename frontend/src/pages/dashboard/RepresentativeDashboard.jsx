@@ -34,7 +34,7 @@ export default function RepresentativeDashboard() {
       .catch(() => setReceivedReportsCount(0));
   }, [token]);
 
-  const firstName = currentUser?.name?.split(" ")[0] || "College";
+  const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Representative";
 
   return (
     <>

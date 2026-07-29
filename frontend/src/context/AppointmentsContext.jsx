@@ -173,6 +173,21 @@ export function AppointmentsProvider({ children }) {
     return { success: true };
   };
 
+  const cancelAppointment = async (id) => {
+    const response = await fetch(`${apiBase}/api/appointments/${id}`, {
+      method: "DELETE",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: data.message || "Unable to cancel appointment" };
+    }
+    await fetchAppointments();
+    return { success: true };
+  };
+
   const getAppointmentsForCurrentUser = () => appointments;
 
   const saveSessionForm = (id, data) => {
@@ -207,6 +222,7 @@ export function AppointmentsProvider({ children }) {
       rejectAppointment,
       completeAppointment,
       removeNoShows,
+      cancelAppointment,
       getAppointmentsForCurrentUser,
       fetchAppointments,
       saveSessionForm,

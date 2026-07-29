@@ -111,7 +111,7 @@ export default function AboutSection() {
 
             <div className="mt-8 flex items-center gap-4">
               <img
-                src="/dsa-logo.png"
+                src="/dsa-logo.png?v=2"
                 alt="Division of Student Affairs"
                 className="h-14 object-contain"
               />

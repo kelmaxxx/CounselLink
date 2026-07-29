@@ -169,7 +169,7 @@ export const OFFICIAL_HEADER_STYLES = `
 // official form document (Student Counseling Form, Appointment Slip, ...).
 export function buildOfficialHeaderHTML({ docCode = "MSU DSA GCS Form 3.3", pageLabel = "Page 1", date = "—" } = {}) {
   const msuLogoUrl = `${window.location.origin}/msu-logo.png`;
-  const dsaLogoUrl = `${window.location.origin}/dsa-logo.png`;
+  const dsaLogoUrl = `${window.location.origin}/dsa-logo.png?v=2`;
   const guidanceLogoUrl = `${window.location.origin}/guidance-logo.jpg`;
   return `
   <table class="header-table">
