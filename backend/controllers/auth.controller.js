@@ -511,3 +511,22 @@ export const changePassword = async (req, res) => {
     return res.status(500).json({ message: "Server error." });
   }
 };
+
+export const getPublicStats = async (req, res) => {
+  try {
+    const [students] = await query("SELECT COUNT(*) AS cnt FROM users WHERE role = 'student'");
+    const [counselors] = await query("SELECT COUNT(*) AS cnt FROM users WHERE role = 'counselor'");
+    const [appointments] = await query(
+      "SELECT COUNT(*) AS cnt FROM appointments WHERE LOWER(status) = 'approved' OR LOWER(status) = 'completed'"
+    );
+
+    return res.json({
+      studentsCount: Number(students?.cnt || 0),
+      counselorsCount: Number(counselors?.cnt || 0),
+      appointmentsCount: Number(appointments?.cnt || 0),
+    });
+  } catch (err) {
+    console.error("getPublicStats error:", err);
+    return res.status(500).json({ message: "Server error." });
+  }
+};

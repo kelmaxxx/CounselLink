@@ -38,16 +38,19 @@ import {
 } from "../../components/ui";
 
 const TIME_LABEL = {
-  morning: "9:00 AM – 12:00 PM",
-  afternoon: "1:00 PM – 5:00 PM",
   "9:00-10:00": "9:00 – 10:00 AM",
   "10:00-11:00": "10:00 – 11:00 AM",
   "11:00-12:00": "11:00 – 12:00 PM",
   "1:00-2:00": "1:00 – 2:00 PM",
   "2:00-3:00": "2:00 – 3:00 PM",
   "3:00-4:00": "3:00 – 4:00 PM",
+  "4:00-5:00": "4:00 – 5:00 PM",
 };
-const timeLabel = (slot) => TIME_LABEL[slot] || slot || "—";
+const timeLabel = (slot) => {
+  if (slot === "morning") return "9:00 AM – 12:00 PM";
+  if (slot === "afternoon") return "1:00 PM – 5:00 PM";
+  return TIME_LABEL[slot] || slot || "—";
+};
 
 const getTimeBlock = (slot) => {
   if (!slot || slot === "morning" || slot.startsWith("9:") || slot.startsWith("10:") || slot.startsWith("11:"))
@@ -254,13 +257,23 @@ export default function CounselorAppointments() {
     return mins >= 17 * 60;
   };
 
-  const upcomingAppointments = myAppointments.filter(
-    (a) => (a.status === "approved" || a.status === "rescheduled") && (
-      !a.scheduledDate ||
-      a.scheduledDate > today ||
-      (a.scheduledDate === today && !isSlotOver(a.scheduledTimeSlot))
-    )
-  );
+  const standardizeDate = (dStr) => {
+    if (!dStr) return "";
+    try {
+      return new Date(dStr).toISOString().split("T")[0];
+    } catch {
+      return String(dStr).split("T")[0];
+    }
+  };
+
+  const upcomingAppointments = myAppointments.filter((a) => {
+    if (a.status !== "approved" && a.status !== "rescheduled") return false;
+    const sched = standardizeDate(a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date);
+    if (!sched) return true; // Keep urgent/unscheduled
+    if (sched > today) return true;
+    if (sched === today) return !isSlotOver(a.scheduledTimeSlot || a.timeSlot || a.preferredTime || a.preferred_time);
+    return false;
+  });
 
   // Queue for approved/rescheduled/follow-up (non-urgent) — per scheduledDate + AM/PM, sorted by when counselor acted
   const sessionQueueMap = useMemo(() => {
@@ -308,10 +321,10 @@ export default function CounselorAppointments() {
   // Missed — no-shows + overdue follow-ups (violet) + overdue urgents (red)
   const overdueAppts = myAppointments.filter((a) => {
     if (a.status !== "approved" && a.status !== "rescheduled") return false;
-    const sched = a.scheduledDate || a.scheduled_date;
+    const sched = standardizeDate(a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date);
     if (!sched) return false;
     if (sched < today) return true;
-    if (sched === today) return isSlotOver(a.scheduledTimeSlot);
+    if (sched === today) return isSlotOver(a.scheduledTimeSlot || a.timeSlot || a.preferredTime || a.preferred_time);
     return false;
   });
   const missedAppointments = [
@@ -320,21 +333,22 @@ export default function CounselorAppointments() {
     ...overdueAppts.filter((a) => !!(a.is_urgent || a.isUrgent) && a.reason !== "Follow-up Session").map((a) => ({ ...a, _missedType: "urgent" })),
   ];
 
-  const upcomingTests = myTests.filter(
-    (t) => (t.status === "approved" || t.status === "rescheduled") && (
-      !t.scheduledDate ||
-      t.scheduledDate > today ||
-      (t.scheduledDate === today && !isSlotOver(t.scheduledTimeSlot))
-    )
-  );
+  const upcomingTests = myTests.filter((t) => {
+    if (t.status !== "approved" && t.status !== "rescheduled") return false;
+    const sched = standardizeDate(t.scheduledDate || t.scheduled_date || t.preferredDate || t.preferred_date);
+    if (!sched) return true;
+    if (sched > today) return true;
+    if (sched === today) return !isSlotOver(t.scheduledTimeSlot || t.timeSlot || t.preferredTime || t.preferred_time);
+    return false;
+  });
   const completedTests = myTests.filter((t) => t.status === "completed");
 
   const overdueTests = myTests.filter((t) => {
     if (t.status !== "approved" && t.status !== "rescheduled") return false;
-    const sched = t.scheduledDate || t.scheduled_date;
+    const sched = standardizeDate(t.scheduledDate || t.scheduled_date || t.preferredDate || t.preferred_date);
     if (!sched) return false;
     if (sched < today) return true;
-    if (sched === today) return isSlotOver(t.scheduledTimeSlot);
+    if (sched === today) return isSlotOver(t.scheduledTimeSlot || t.timeSlot || t.preferredTime || t.preferred_time);
     return false;
   });
   const missedTests = [

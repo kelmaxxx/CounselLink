@@ -656,8 +656,22 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{student?.name || "Student"}</h3>
-            <p className="text-xs text-gray-600">
-              {student?.studentId || student?.email || ""}{student?.college ? ` • ${student.college}` : ""}
+            <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+              {student?.studentId && <span>ID: {student.studentId}</span>}
+              {student?.studentId && (student?.email || student?.phone || student?.college) && <span className="text-gray-300">•</span>}
+              {student?.email && <span>Email: {student.email}</span>}
+              {student?.phone && (
+                <>
+                  <span className="text-gray-300">•</span>
+                  <span>Contact: {student.phone}</span>
+                </>
+              )}
+              {student?.college && (
+                <>
+                  <span className="text-gray-300">•</span>
+                  <span>College: {student.college}</span>
+                </>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2">

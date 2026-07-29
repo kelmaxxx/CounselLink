@@ -91,21 +91,48 @@ export default function StudentDashboard() {
     else if (fallbackName) setChatRecipient({ id, name: fallbackName });
   };
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const getLocalTodayStr = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const todayStr = getLocalTodayStr();
 
-  // Only show approved/rescheduled appointments whose scheduled date hasn't passed.
+  const isPastTime = (dateStr, timeSlot) => {
+    if (!dateStr) return false;
+    let justDate = "";
+    try {
+      justDate = new Date(dateStr).toISOString().split("T")[0];
+    } catch (e) {
+      justDate = String(dateStr).split("T")[0];
+    }
+    if (justDate < todayStr) return true;
+    if (justDate > todayStr) return false;
+    const h = new Date().getHours();
+    if (!timeSlot) return h >= 17;
+    if (["morning", "9:00-10:00", "10:00-11:00", "11:00-12:00"].includes(timeSlot)) return h >= 12;
+    return h >= 17;
+  };
+
+  // Only show approved/rescheduled appointments whose scheduled date/time hasn't passed.
   // Urgent appointments have no scheduledDate so they always remain visible until completed.
   const upcoming = myAppointments.filter(
     (a) =>
       (a.status === "approved" || a.status === "rescheduled") &&
-      (!a.scheduledDate || a.scheduledDate >= todayStr)
+      !isPastTime(
+        a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date,
+        a.scheduledTime || a.scheduled_time || a.preferredTime || a.preferred_time || a.timeSlot || a.time_slot
+      )
   );
   const pending = myAppointments.filter((a) => a.status === "pending");
   const completedAppointments = myAppointments.filter((a) => a.status === "completed");
   const upcomingTests = myTests.filter(
     (t) =>
       (t.status === "approved" || t.status === "rescheduled") &&
-      (!t.scheduledDate || t.scheduledDate >= todayStr)
+      !isPastTime(
+        t.scheduledDate || t.scheduled_date || t.preferredDate || t.preferred_date,
+        t.scheduledTime || t.scheduled_time || t.preferredTime || t.preferred_time || t.timeSlot || t.time_slot
+      )
   );
   const pendingTests = myTests.filter((t) => t.status === "pending");
 
@@ -130,7 +157,10 @@ export default function StudentDashboard() {
       t.status !== "completed" &&
       t.status !== "rejected" &&
       t.status !== "no_show" &&
-      (t.status === "pending" || !t.scheduledDate || t.scheduledDate >= todayStr)
+      (t.status === "pending" || !isPastTime(
+        t.scheduledDate || t.scheduled_date || t.preferredDate || t.preferred_date,
+        t.scheduledTime || t.scheduled_time || t.preferredTime || t.preferred_time || t.timeSlot || t.time_slot
+      ))
   );
 
   const sortByDateTime = (a, b) => {

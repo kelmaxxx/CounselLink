@@ -6,8 +6,10 @@ import { isValidPhMobile } from "../utils/validators.js";
 
 const getQueueSlot = (slot) => {
   const s = (slot || "").toLowerCase();
-  if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:")) return "PM";
+  // Broad afternoon block (new) or legacy hour-by-hour afternoon slots
+  if (s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return "PM";
   if (!s) return null;
+  // Broad morning block (new) and all other values → AM
   return "AM";
 };
 

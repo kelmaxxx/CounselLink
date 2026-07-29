@@ -8,6 +8,7 @@ import {
   verifyResetOtp,
   resetPassword,
   changePassword,
+  getPublicStats,
 } from "../controllers/auth.controller.js";
 import {
   loginLimiter,
@@ -20,6 +21,7 @@ import { auth } from "../middleware/auth.js";
 
 const router = Router();
 
+router.get("/public-stats", getPublicStats);
 router.post("/login", loginLimiter, login);
 router.post("/register", registerLimiter, registerStudent);
 router.post("/signup/send-code", signupCodeLimiter, sendSignupCode);
