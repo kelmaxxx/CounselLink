@@ -6,6 +6,7 @@ import AboutSection from "../components/landing/AboutSection";
 import FeaturesSection from "../components/landing/FeaturesSection";
 import HowItWorksSection from "../components/landing/HowItWorksSection";
 import BenefitsSection from "../components/landing/BenefitsSection";
+import SpecialistsSection from "../components/landing/SpecialistsSection";
 import FAQSection from "../components/landing/FAQSection";
 import ContactSection from "../components/landing/ContactSection";
 import LandingFooter from "../components/landing/LandingFooter";
@@ -28,6 +29,7 @@ export default function LandingPage() {
         <FeaturesSection />
         <HowItWorksSection />
         <BenefitsSection />
+        <SpecialistsSection />
         <FAQSection />
         <ContactSection />
       </main>

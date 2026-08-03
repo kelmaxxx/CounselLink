@@ -146,9 +146,9 @@ export const completeAppointment = async (req, res) => {
     return res.status(409).json({ message: "Appointment is already completed" });
   }
   const allowedFromPending = appt.status === "pending" && appt.is_urgent;
-  if (!["approved", "rescheduled"].includes(appt.status) && !allowedFromPending) {
+  if (!["approved", "rescheduled", "no_show"].includes(appt.status) && !allowedFromPending) {
     return res.status(409).json({
-      message: `Only approved or rescheduled appointments can be marked done (was: ${appt.status})`,
+      message: `Only approved, rescheduled, or missed appointments can be marked done (was: ${appt.status})`,
     });
   }
 

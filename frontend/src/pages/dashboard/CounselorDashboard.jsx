@@ -448,6 +448,7 @@ export default function CounselorDashboard() {
           </div>
           <Link
             to="/counselor/appointments"
+            state={{ tab: "sessions", subTab: "urgent" }}
             className="text-sm font-semibold text-red-700 hover:underline whitespace-nowrap"
           >
             View →

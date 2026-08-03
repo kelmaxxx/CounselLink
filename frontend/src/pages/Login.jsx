@@ -269,6 +269,7 @@ export default function Login() {
     const next = { ...emptySignupErrors };
     if (step === 1) {
       if (!signupForm.firstName.trim()) next.firstName = "First name is required.";
+      if (!signupForm.middleName.trim()) next.middleName = "Middle name is required.";
       if (!signupForm.lastName.trim()) next.lastName = "Surname is required.";
       if (!/^\d{9}$/.test(signupForm.studentId)) next.studentId = "Student ID must be exactly 9 digits.";
       if (!signupForm.email.trim()) next.email = "Email is required.";
@@ -427,7 +428,7 @@ export default function Login() {
                 />
               </FieldRow>
 
-              <FieldRow label="Middle name (optional)" error={signupErrors.middleName}>
+              <FieldRow label="Middle name" error={signupErrors.middleName}>
                 <input
                   name="middleName"
                   value={signupForm.middleName}
@@ -885,7 +886,9 @@ export default function Login() {
 }
 
 const EMPTY_URGENT_FORM = {
-  fullName: "",
+  firstName: "",
+  middleName: "",
+  familyName: "",
   studentIdNumber: "",
   description: "",
 };
@@ -915,7 +918,9 @@ function AuthShell({ children }) {
 
   const validateUrgentForm = () => {
     const errors = {};
-    if (!urgentForm.fullName.trim()) errors.fullName = "Required";
+    if (!urgentForm.firstName.trim()) errors.firstName = "Required";
+    if (!urgentForm.middleName.trim()) errors.middleName = "Required";
+    if (!urgentForm.familyName.trim()) errors.familyName = "Required";
     if (!/^\d{9}$/.test(urgentForm.studentIdNumber)) errors.studentIdNumber = "Must be exactly 9 digits.";
     if (!urgentForm.description.trim()) errors.description = "Required";
     return errors;
@@ -939,7 +944,9 @@ function AuthShell({ children }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: urgentForm.fullName,
+          firstName: urgentForm.firstName,
+          middleName: urgentForm.middleName,
+          familyName: urgentForm.familyName,
           studentIdNumber: urgentForm.studentIdNumber,
           description: urgentForm.description,
         }),
@@ -1124,16 +1131,40 @@ function UrgentCounselingModal({
         size="md"
       >
         <div className="space-y-4">
-          <FieldRow label="Full Name" error={formErrors.fullName}>
-            <InputWithIcon icon={UserRound}>
-              <input
-                className={`${INPUT} pl-9`}
-                value={form.fullName}
-                placeholder="Juan Dela Cruz"
-                onChange={(e) => onFormChange("fullName", e.target.value)}
-              />
-            </InputWithIcon>
-          </FieldRow>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <FieldRow label="First Name" error={formErrors.firstName}>
+              <InputWithIcon icon={UserRound}>
+                <input
+                  className={`${INPUT} pl-9`}
+                  value={form.firstName}
+                  placeholder="Juan"
+                  onChange={(e) => onFormChange("firstName", e.target.value)}
+                />
+              </InputWithIcon>
+            </FieldRow>
+
+            <FieldRow label="Middle Name" error={formErrors.middleName}>
+              <InputWithIcon icon={UserRound}>
+                <input
+                  className={`${INPUT} pl-9`}
+                  value={form.middleName}
+                  placeholder="Dela"
+                  onChange={(e) => onFormChange("middleName", e.target.value)}
+                />
+              </InputWithIcon>
+            </FieldRow>
+
+            <FieldRow label="Family Name" error={formErrors.familyName}>
+              <InputWithIcon icon={UserRound}>
+                <input
+                  className={`${INPUT} pl-9`}
+                  value={form.familyName}
+                  placeholder="Cruz"
+                  onChange={(e) => onFormChange("familyName", e.target.value)}
+                />
+              </InputWithIcon>
+            </FieldRow>
+          </div>
 
           <FieldRow label="Student ID Number" error={formErrors.studentIdNumber}>
             <InputWithIcon icon={Hash}>

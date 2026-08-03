@@ -12,7 +12,7 @@ import { useAuth } from "../../context/AuthContext";
 import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
 import { Modal, BTN, formatDate } from "../ui";
-import { downloadReportAsPdf } from "../../utils/sessionReport";
+import { saveReportAsPdfFile } from "../../utils/sessionReport";
 import ReportPreview from "./ReportPreview";
 import { createPortal } from "react-dom";
 
@@ -488,7 +488,7 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
                 className={BTN.secondary}
                 disabled={!currentUser?.signatureUrl}
                 title={currentUser?.signatureUrl ? undefined : "Upload your signature in Profile to enable downloads"}
-                onClick={() => downloadReportAsPdf(viewing, { title: titleFor(viewing), signatureUrl: currentUser?.signatureUrl })}
+                onClick={() => saveReportAsPdfFile(viewing, { title: titleFor(viewing), signatureUrl: currentUser?.signatureUrl })}
               >
                 <FileDown size={14} /> Download PDF
               </button>
@@ -521,7 +521,7 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
               <Eye size={13} /> View
             </button>
             <button
-              onClick={currentUser?.signatureUrl ? () => { downloadReportAsPdf(popSess, { title: titleFor(popSess), signatureUrl: currentUser.signatureUrl }); setOpenPopoverId(null); } : undefined}
+              onClick={currentUser?.signatureUrl ? () => { saveReportAsPdfFile(popSess, { title: titleFor(popSess), signatureUrl: currentUser.signatureUrl }); setOpenPopoverId(null); } : undefined}
               disabled={!currentUser?.signatureUrl}
               title={currentUser?.signatureUrl ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
               className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition text-left ${currentUser?.signatureUrl ? "text-gray-700 hover:bg-gray-50" : "text-gray-400 cursor-not-allowed"}`}

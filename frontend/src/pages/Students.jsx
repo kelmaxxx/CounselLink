@@ -15,7 +15,7 @@ import { useCounselingSessions } from "../context/CounselingSessionsContext";
 import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
 import { Modal, BTN, INPUT, LABEL, formatDate, BigStat } from "../components/ui";
-import { downloadReportAsPdf } from "../utils/sessionReport";
+import { downloadReportAsPdf, saveReportAsPdfFile } from "../utils/sessionReport";
 import { getDepartments, getCollegeName } from "../data/msuColleges";
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
@@ -649,227 +649,245 @@ export default function ManageStudents() {
         {activeTab === "records" && (() => {
           // Build college → department groups from sessions (resolved via studentsById)
           const sessionsByCollege = {};
-          sessions.forEach((s) => {
+          const q = search.trim().toLowerCase();
+          const filteredRecords = sessions.filter((s) => {
+            const matchesQuery = !q
+              || (s.studentName || "").toLowerCase().includes(q)
+              || (s.presentingConcern || "").toLowerCase().includes(q)
+              || (s.summary || "").toLowerCase().includes(q)
+              || String(s.studentIdNumber || "").toLowerCase().includes(q)
+              || String(studentsById[s.studentId]?.studentId || "").toLowerCase().includes(q);
+            const matchesStudent = studentFilter === "all" || s.studentId === Number(studentFilter);
+            return matchesQuery && matchesStudent;
+          });
+
+          filteredRecords.forEach((s) => {
             const st = studentsById[s.studentId];
             const college = st?.college || s.studentCollege || "Unassigned";
             if (!sessionsByCollege[college]) sessionsByCollege[college] = [];
             sessionsByCollege[college].push(s);
           });
 
-          // Level 1 — college folders
-          if (!selectedRecordsFolder) {
-            return (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {Object.keys(sessionsByCollege).sort().map((college) => (
-                  <div
-                    key={college}
-                    onClick={() => { setSelectedRecordsFolder(college); setSelectedRecordsDept(null); }}
-                    className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
-                  >
-                    <Folder size={48} className="text-maroon-600 fill-maroon-100" />
-                    <div className="font-semibold text-gray-800 text-sm">{college}</div>
-                    <div className="text-[11px] text-gray-500 leading-tight">{getCollegeName(college)}</div>
-                    <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                      {sessionsByCollege[college].length} record{sessionsByCollege[college].length !== 1 && "s"}
+          const renderRecordsContent = () => {
+            // Level 1 — college folders
+            if (!selectedRecordsFolder) {
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {Object.keys(sessionsByCollege).sort().map((college) => (
+                    <div
+                      key={college}
+                      onClick={() => { setSelectedRecordsFolder(college); setSelectedRecordsDept(null); }}
+                      className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                    >
+                      <Folder size={48} className="text-maroon-600 fill-maroon-100" />
+                      <div className="font-semibold text-gray-800 text-sm">{college}</div>
+                      <div className="text-[11px] text-gray-500 leading-tight">{getCollegeName(college)}</div>
+                      <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                        {sessionsByCollege[college].length} record{sessionsByCollege[college].length !== 1 && "s"}
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {Object.keys(sessionsByCollege).length === 0 && (
-                  <div className="col-span-full py-8 text-center text-gray-500">
-                    {sessions.length === 0 ? "No session records yet." : "No records found."}
-                  </div>
-                )}
-              </div>
-            );
-          }
+                  ))}
+                  {Object.keys(sessionsByCollege).length === 0 && (
+                    <div className="col-span-full py-8 text-center text-gray-500">
+                      {sessions.length === 0 ? "No session records yet." : "No records found."}
+                    </div>
+                  )}
+                </div>
+              );
+            }
 
-          // Build department sub-groups within the chosen college
-          const collegeSessions = sessionsByCollege[selectedRecordsFolder] || [];
-          const sessionsByDept = {};
-          collegeSessions.forEach((s) => {
-            const st = studentsById[s.studentId];
-            const dept = st?.department || "Unassigned";
-            if (!sessionsByDept[dept]) sessionsByDept[dept] = [];
-            sessionsByDept[dept].push(s);
-          });
+            // Build department sub-groups within the chosen college
+            const collegeSessions = sessionsByCollege[selectedRecordsFolder] || [];
+            const sessionsByDept = {};
+            collegeSessions.forEach((s) => {
+              const st = studentsById[s.studentId];
+              const dept = st?.department || "Unassigned";
+              if (!sessionsByDept[dept]) sessionsByDept[dept] = [];
+              sessionsByDept[dept].push(s);
+            });
 
-          // Level 2 — department sub-folders
-          if (!selectedRecordsDept) {
+            // Level 2 — department sub-folders
+            if (!selectedRecordsDept) {
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      onClick={() => setSelectedRecordsFolder(null)}
+                      className="text-sm font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
+                    >
+                      <ArrowLeft size={16} /> Back to Folders
+                    </button>
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <Folder size={20} className="text-maroon-600 fill-maroon-100" />
+                      {selectedRecordsFolder}
+                      <span className="text-sm font-normal text-gray-500">· {getCollegeName(selectedRecordsFolder)}</span>
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {Object.keys(sessionsByDept).sort().map((dept) => {
+                      const deptCode = getDepartments(selectedRecordsFolder).find((d) => d.name === dept)?.code;
+                      return (
+                        <div
+                          key={dept}
+                          onClick={() => setSelectedRecordsDept(dept)}
+                          className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                        >
+                          <Folder size={40} className="text-amber-600 fill-amber-100" />
+                          <div className="font-semibold text-gray-800 text-sm">{deptCode || dept}</div>
+                          {deptCode && <div className="text-[11px] text-gray-500 leading-tight">{dept}</div>}
+                          <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                            {sessionsByDept[dept].length} record{sessionsByDept[dept].length !== 1 && "s"}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
+            // Level 3 — session records table for the selected college + department
+            const deptSessions = sessionsByDept[selectedRecordsDept] || [];
+            const deptFiltered = deptSessions;
+
             return (
               <div className="space-y-4">
-                <div className="flex items-center gap-3 flex-wrap">
+                {/* Breadcrumb */}
+                <div className="flex items-center gap-2 flex-wrap text-sm">
                   <button
-                    onClick={() => setSelectedRecordsFolder(null)}
-                    className="text-sm font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
+                    onClick={() => { setSelectedRecordsFolder(null); setSelectedRecordsDept(null); }}
+                    className="font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
                   >
-                    <ArrowLeft size={16} /> Back to Folders
+                    <ArrowLeft size={16} /> Folders
                   </button>
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <Folder size={20} className="text-maroon-600 fill-maroon-100" />
+                  <span className="text-gray-400">/</span>
+                  <button
+                    onClick={() => setSelectedRecordsDept(null)}
+                    className="font-medium text-maroon-700 hover:text-maroon-800"
+                  >
                     {selectedRecordsFolder}
-                    <span className="text-sm font-normal text-gray-500">· {getCollegeName(selectedRecordsFolder)}</span>
-                  </h3>
+                  </button>
+                  <span className="text-gray-400">/</span>
+                  <span className="font-semibold text-gray-800 flex items-center gap-1.5">
+                    <Folder size={16} className="text-amber-600 fill-amber-100" />
+                    {selectedRecordsDept}
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {Object.keys(sessionsByDept).sort().map((dept) => {
-                    const deptCode = getDepartments(selectedRecordsFolder).find((d) => d.name === dept)?.code;
-                    return (
-                      <div
-                        key={dept}
-                        onClick={() => setSelectedRecordsDept(dept)}
-                        className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
-                      >
-                        <Folder size={40} className="text-amber-600 fill-amber-100" />
-                        <div className="font-semibold text-gray-800 text-sm">{deptCode || dept}</div>
-                        {deptCode && <div className="text-[11px] text-gray-500 leading-tight">{dept}</div>}
-                        <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                          {sessionsByDept[dept].length} record{sessionsByDept[dept].length !== 1 && "s"}
-                        </div>
-                      </div>
-                    );
-                  })}
+
+                {/* Toolbar */}
+                <div className="flex flex-col sm:flex-row gap-3 justify-between items-start">
+                  <div className="flex gap-2 flex-1 items-center">
+                    <select
+                      className="px-3 py-2 rounded border bg-white text-sm"
+                      value={studentFilter}
+                      onChange={(e) => setFilterSelected(e.target.value)}
+                    >
+                      <option value="all">All students</option>
+                      {deptSessions
+                        .reduce((acc, s) => {
+                          if (!acc.find((x) => x.id === s.studentId))
+                            acc.push({ id: s.studentId, name: s.studentName });
+                          return acc;
+                        }, [])
+                        .map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  {currentUser?.role === "counselor" && (
+                    <button
+                      onClick={openCreate}
+                      className="flex items-center gap-2 px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700 text-sm font-medium"
+                    >
+                      <Plus size={16} /> Add Record
+                    </button>
+                  )}
+                </div>
+
+                {/* Table */}
+                <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
+                  <table className="w-full text-sm table-fixed">
+                    <colgroup>
+                      <col style={{ width: "11%" }} />
+                      <col style={{ width: "17%" }} />
+                      <col style={{ width: "22%" }} />
+                      <col style={{ width: "22%" }} />
+                      <col style={{ width: "16%" }} />
+                      <col style={{ width: "12%" }} />
+                    </colgroup>
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {deptFiltered.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                            {deptSessions.length === 0
+                              ? "No session records for this department yet."
+                              : "No records match your filters."}
+                          </td>
+                        </tr>
+                      ) : deptFiltered.map((s) => (
+                        <tr key={s.id} className="hover:bg-gray-50/70 align-top">
+                          <td className="px-4 py-2.5 whitespace-nowrap text-xs text-gray-600">{formatDate(s.sessionDate)}</td>
+                          <td className="px-4 py-2.5 min-w-0">
+                            <div className="font-medium text-sm text-gray-900 truncate">{s.studentName}</div>
+                            <div className="text-xs text-gray-500 truncate">{s.studentNumber || "—"} · {s.studentCollege || "N/A"}</div>
+                          </td>
+                          <td className="px-4 py-2.5 min-w-0">
+                            <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.presentingConcern || "—"}</p>
+                          </td>
+                          <td className="px-4 py-2.5 min-w-0">
+                            <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.summary || "—"}</p>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <span className={`inline-flex text-xs px-2 py-1 rounded-full whitespace-nowrap ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
+                              {NEXT_LABELS[s.nextSession] || s.nextSession}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            <div ref={(el) => { sessionButtonRefs.current[s.id] = el; }} className="inline-block">
+                              <button
+                                onClick={(e) => toggleSessionPopover(e, s)}
+                                className="p-1.5 rounded hover:bg-gray-100 transition"
+                                title="Actions"
+                              >
+                                <MoreVertical size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             );
-          }
+          };
 
-          // Level 3 — session records table for the selected college + department
-          const deptSessions = sessionsByDept[selectedRecordsDept] || [];
-          const q = search.trim().toLowerCase();
-          const deptFiltered = deptSessions.filter((s) => {
-            const matchesQuery = !q
-              || (s.studentName || "").toLowerCase().includes(q)
-              || (s.presentingConcern || "").toLowerCase().includes(q)
-              || (s.summary || "").toLowerCase().includes(q);
-            const matchesStudent = studentFilter === "all" || s.studentId === Number(studentFilter);
-            return matchesQuery && matchesStudent;
-          });
+          const setFilterSelected = (val) => {
+            setStudentFilter(val);
+          };
 
           return (
             <div className="space-y-4">
-              {/* Breadcrumb */}
-              <div className="flex items-center gap-2 flex-wrap text-sm">
-                <button
-                  onClick={() => { setSelectedRecordsFolder(null); setSelectedRecordsDept(null); }}
-                  className="font-medium text-maroon-700 hover:text-maroon-800 flex items-center gap-1"
-                >
-                  <ArrowLeft size={16} /> Folders
-                </button>
-                <span className="text-gray-400">/</span>
-                <button
-                  onClick={() => setSelectedRecordsDept(null)}
-                  className="font-medium text-maroon-700 hover:text-maroon-800"
-                >
-                  {selectedRecordsFolder}
-                </button>
-                <span className="text-gray-400">/</span>
-                <span className="font-semibold text-gray-800 flex items-center gap-1.5">
-                  <Folder size={16} className="text-amber-600 fill-amber-100" />
-                  {selectedRecordsDept}
-                </span>
-              </div>
-
-              {/* Toolbar */}
-              <div className="flex flex-col sm:flex-row gap-3 justify-between items-start">
-                <div className="flex gap-2 flex-1 items-center">
-                  <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                      className="pl-10 pr-3 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-maroon-500"
-                      placeholder="Search by student, concern, or summary..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                    />
-                  </div>
-                  <select
-                    className="px-3 py-2 rounded border bg-white"
-                    value={studentFilter}
-                    onChange={(e) => setStudentFilter(e.target.value)}
-                  >
-                    <option value="all">All students</option>
-                    {deptSessions
-                      .reduce((acc, s) => {
-                        if (!acc.find((x) => x.id === s.studentId))
-                          acc.push({ id: s.studentId, name: s.studentName });
-                        return acc;
-                      }, [])
-                      .map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+              <div className="flex flex-col sm:flex-row gap-3 justify-between items-start mb-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    className="pl-10 pr-3 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-maroon-500"
+                    placeholder="Search sessions by name, ID, concern..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
                 </div>
-                {currentUser?.role === "counselor" && (
-                  <button
-                    onClick={openCreate}
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-maroon-600 text-white hover:bg-maroon-700"
-                  >
-                    <Plus size={16} /> Add Record
-                  </button>
-                )}
               </div>
-
-              {/* Table */}
-              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
-                <table className="w-full text-sm table-fixed">
-                  <colgroup>
-                    <col style={{ width: "11%" }} />
-                    <col style={{ width: "17%" }} />
-                    <col style={{ width: "22%" }} />
-                    <col style={{ width: "22%" }} />
-                    <col style={{ width: "16%" }} />
-                    <col style={{ width: "12%" }} />
-                  </colgroup>
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {deptFiltered.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                          {deptSessions.length === 0
-                            ? "No session records for this department yet."
-                            : "No records match your filters."}
-                        </td>
-                      </tr>
-                    ) : deptFiltered.map((s) => (
-                      <tr key={s.id} className="hover:bg-gray-50/70 align-top">
-                        <td className="px-4 py-2.5 whitespace-nowrap text-xs text-gray-600">{formatDate(s.sessionDate)}</td>
-                        <td className="px-4 py-2.5 min-w-0">
-                          <div className="font-medium text-sm text-gray-900 truncate">{s.studentName}</div>
-                          <div className="text-xs text-gray-500 truncate">{s.studentNumber || "—"} · {s.studentCollege || "N/A"}</div>
-                        </td>
-                        <td className="px-4 py-2.5 min-w-0">
-                          <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.presentingConcern || "—"}</p>
-                        </td>
-                        <td className="px-4 py-2.5 min-w-0">
-                          <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.summary || "—"}</p>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span className={`inline-flex text-xs px-2 py-1 rounded-full whitespace-nowrap ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
-                            {NEXT_LABELS[s.nextSession] || s.nextSession}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <div ref={(el) => { sessionButtonRefs.current[s.id] = el; }} className="inline-block">
-                            <button
-                              onClick={(e) => toggleSessionPopover(e, s)}
-                              className="p-1.5 rounded hover:bg-gray-100 transition"
-                              title="Actions"
-                            >
-                              <MoreVertical size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {renderRecordsContent()}
             </div>
           );
         })()}
@@ -932,7 +950,7 @@ export default function ManageStudents() {
               <Eye size={13} /> View
             </button>
             <button
-              onClick={currentUser?.signatureUrl ? () => { downloadReportAsPdf(popSess, { title: reportTitleFor(popSess), signatureUrl: currentUser.signatureUrl }); setOpenSessionPopoverId(null); setSessionPopoverData(null); } : undefined}
+              onClick={currentUser?.signatureUrl ? () => { saveReportAsPdfFile(popSess, { title: reportTitleFor(popSess), signatureUrl: currentUser.signatureUrl }); setOpenSessionPopoverId(null); setSessionPopoverData(null); } : undefined}
               disabled={!currentUser?.signatureUrl}
               title={currentUser?.signatureUrl ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
               className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition text-left ${currentUser?.signatureUrl ? "text-gray-700 hover:bg-gray-50" : "text-gray-400 cursor-not-allowed"}`}
@@ -1192,7 +1210,7 @@ export default function ManageStudents() {
             <div className="flex items-center gap-2">
               <button
                 className={BTN.secondary}
-                onClick={() => downloadReportAsPdf(viewSession, { title: reportTitleFor(viewSession) })}
+                onClick={() => saveReportAsPdfFile(viewSession, { title: reportTitleFor(viewSession) })}
               >
                 <FileDown size={14} /> Download PDF
               </button>

@@ -1,18 +1,84 @@
 // src/components/landing/HeroSection.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, CalendarCheck } from "lucide-react";
+import { ArrowRight, CalendarCheck, ChevronLeft, ChevronRight } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
+const DEFAULT_CAROUSEL_IMAGES = [
+  {
+    src: "/carousel/media__1785766737811.jpg",
+    title: "College of Health Sciences",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785766738014.jpg",
+    title: "College of Sports, Physical Education, and Recreation",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785766738147.jpg",
+    title: "College of Natural Sciences & Mathematics",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785766738228.jpg",
+    title: "College of Fisheries & Aquatic Sciences",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785766738249.jpg",
+    title: "College of Education",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785767846829.jpg",
+    title: "College of Hospitality & Tourism Management",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785767847016.jpg",
+    title: "College of Engineering",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785767847113.jpg",
+    title: "College of Agriculture",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785767847190.jpg",
+    title: "College of Information & Computing Sciences",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785767847251.jpg",
+    title: "College of Forestry and Environmental Studies",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785769607872.jpg",
+    title: "College of Social Sciences and Humanities",
+    category: "Campus Visitation",
+  },
+  {
+    src: "/carousel/media__1785769607769.jpg",
+    title: "College of Public affairs",
+    category: "Campus Visitation",
+  },
+];
+
 export default function HeroSection() {
-  const [stats, setStats] = React.useState({
+  const [stats, setStats] = useState({
     studentsCount: 0,
     counselorsCount: 0,
     appointmentsCount: 0,
   });
+  const [slides, setSlides] = useState(DEFAULT_CAROUSEL_IMAGES);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch(`${API_BASE}/api/auth/public-stats`)
       .then((res) => (res.ok ? res.json() : {}))
       .then((data) => {
@@ -22,8 +88,54 @@ export default function HeroSection() {
           appointmentsCount: data.appointmentsCount ?? 0,
         });
       })
-      .catch(() => {});
+      .catch(() => { });
+
+    // Fetch dynamic announcements with images
+    fetch(`${API_BASE}/api/announcements/public`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((announcements) => {
+        if (Array.isArray(announcements) && announcements.length > 0) {
+          const dynamicSlides = announcements
+            .filter((a) => a.imageUrl)
+            .map((a) => {
+              const fullUrl = a.imageUrl.startsWith("http")
+                ? a.imageUrl
+                : `${API_BASE}${a.imageUrl}`;
+              const firstLine = a.content ? a.content.split("\n")[0] : "Admin Announcement";
+              return {
+                src: fullUrl,
+                title: firstLine.length > 45 ? firstLine.substring(0, 45) + "..." : firstLine,
+                category: "Admin Announcement",
+              };
+            });
+
+          if (dynamicSlides.length > 0) {
+            setSlides((prev) => {
+              const existingSrcs = new Set(dynamicSlides.map((s) => s.src));
+              const filteredPrev = prev.filter((s) => !existingSrcs.has(s.src));
+              return [...dynamicSlides, ...filteredPrev];
+            });
+          }
+        }
+      })
+      .catch(() => { });
   }, []);
+
+  useEffect(() => {
+    if (isPaused || slides.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isPaused, slides.length]);
+
+  const handlePrev = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  };
+
+  const handleNext = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  };
 
   const handleGetStarted = () => {
     const el = document.querySelector("#features");
@@ -108,7 +220,7 @@ export default function HeroSection() {
             </div>
           </div>
 
-          {/* Right — illustration */}
+          {/* Right — Image Carousel with Floating Cards */}
           <div
             className="hidden lg:flex justify-center items-center animate-fade-in-up"
             style={{ animationDelay: "0.2s" }}
@@ -116,32 +228,98 @@ export default function HeroSection() {
             <div className="relative">
               {/* Glow ring */}
               <div className="absolute inset-0 rounded-full bg-white/10 blur-2xl scale-110" />
-              <div className="relative bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-8 shadow-2xl">
-                <img
-                  src="/counselink-round.png"
-                  alt="CounceLink — Guidance Counseling System"
-                  className="w-64 h-64 object-contain drop-shadow-xl"
-                />
 
-                {/* Floating card: appointment */}
-                <div className="absolute -top-4 -left-6 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 animate-bounce-slow">
-                  <div className="w-9 h-9 rounded-xl bg-maroon-50 flex items-center justify-center">
-                    <CalendarCheck size={18} className="text-maroon-500" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-gray-800">Appointment Approved</p>
-                    <p className="text-xs text-gray-400">Just now</p>
+              {/* Main Carousel Frame */}
+              <div
+                className="relative bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-4 shadow-2xl w-[340px] sm:w-[400px] z-10 overflow-hidden"
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
+              >
+                <div className="relative w-full h-[360px] sm:h-[420px] rounded-2xl overflow-hidden bg-maroon-900/40">
+                  {/* Active Slide Image */}
+                  {slides.map((slide, idx) => (
+                    <div
+                      key={idx}
+                      className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${idx === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0"
+                        }`}
+                    >
+                      {/* Blurred backdrop image for announcement / contain styles to maintain beautiful context */}
+                      {slide.category !== "Campus Visitation" && (
+                        <div
+                          className="absolute inset-0 bg-cover bg-center blur-lg opacity-40 scale-110"
+                          style={{ backgroundImage: `url(${slide.src})` }}
+                        />
+                      )}
+                      <img
+                        src={slide.src}
+                        alt={slide.title}
+                        className={`w-full h-full rounded-2xl relative z-10 ${
+                          slide.category === "Campus Visitation" ? "object-cover" : "object-contain bg-black/30"
+                        }`}
+                      />
+                      {/* Gradient overlay at bottom for title */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-12 rounded-b-2xl z-20">
+                        <span className="inline-block px-2 py-0.5 mb-1 text-[10px] uppercase tracking-wider font-semibold rounded bg-maroon-600/90 text-white border border-white/20">
+                          {slide.category}
+                        </span>
+                        <p className="text-sm font-semibold text-white truncate drop-shadow">
+                          {slide.title}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Navigation Arrows */}
+                  <button
+                    onClick={handlePrev}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-all"
+                    aria-label="Previous Slide"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-all"
+                    aria-label="Next Slide"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+
+                  {/* Pagination Dots */}
+                  <div className="absolute bottom-2 inset-x-0 z-20 flex justify-center items-center gap-1.5">
+                    {slides.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setCurrentSlide(idx)}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentSlide
+                          ? "w-5 bg-white"
+                          : "w-1.5 bg-white/50 hover:bg-white/80"
+                          }`}
+                        aria-label={`Go to slide ${idx + 1}`}
+                      />
+                    ))}
                   </div>
                 </div>
+              </div>
 
-                {/* Floating card: notification */}
-                <div
-                  className="absolute -bottom-4 -right-6 bg-white rounded-2xl shadow-xl px-4 py-3 animate-bounce-slow"
-                  style={{ animationDelay: "1s" }}
-                >
-                  <p className="text-xs font-semibold text-gray-800">🔔 Session Reminder</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Tomorrow, 10:00 AM</p>
+              {/* Floating card: appointment */}
+              <div className="absolute -top-4 -left-6 z-20 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 animate-bounce-slow">
+                <div className="w-9 h-9 rounded-xl bg-maroon-50 flex items-center justify-center">
+                  <CalendarCheck size={18} className="text-maroon-500" />
                 </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-800">Appointment Approved</p>
+                  <p className="text-xs text-gray-400">Just now</p>
+                </div>
+              </div>
+
+              {/* Floating card: notification */}
+              <div
+                className="absolute -bottom-4 -right-6 z-20 bg-white rounded-2xl shadow-xl px-4 py-3 animate-bounce-slow"
+                style={{ animationDelay: "1s" }}
+              >
+                <p className="text-xs font-semibold text-gray-800">🔔 Session Reminder</p>
+                <p className="text-xs text-gray-400 mt-0.5">Tomorrow, 10:00 AM</p>
               </div>
             </div>
           </div>
