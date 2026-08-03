@@ -101,3 +101,19 @@ export const deleteAnnouncement = async (req, res) => {
 
   return res.json({ message: "Announcement deleted", id: Number(id) });
 };
+
+export const listPublicAnnouncements = async (_req, res) => {
+  try {
+    const rows = await query(
+      `SELECT a.id, a.content, a.image_url AS imageUrl, a.date_posted
+       FROM announcements a
+       WHERE a.image_url IS NOT NULL AND a.image_url != ''
+       ORDER BY a.date_posted DESC`
+    );
+    return res.json(rows);
+  } catch (err) {
+    console.error("listPublicAnnouncements error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+

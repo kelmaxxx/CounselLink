@@ -64,18 +64,16 @@ export default function StudentAppointments() {
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);
   const APPTS_PER_PAGE = 10;
+  const [cancelConfirmId, setCancelConfirmId] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
 
   useEffect(() => {
     fetchAppointments?.().catch(() => undefined);
     fetchTests?.().catch(() => undefined);
   }, [fetchAppointments, fetchTests]);
 
-  const handleCancel = async (id) => {
-    if (!window.confirm("Are you sure you want to cancel this?")) return;
-    const res = await cancelAppointment?.(id);
-    if (!res?.success) {
-      alert(res?.message || "Failed to cancel");
-    }
+  const handleCancel = (id) => {
+    setCancelConfirmId(id);
   };
 
   const mine = useMemo(() => {
@@ -254,6 +252,50 @@ export default function StudentAppointments() {
           studentName={currentUser?.name}
           onClose={() => setSelected(null)}
         />
+      )}
+
+      {cancelConfirmId && (
+        <Modal
+          open
+          onClose={() => setCancelConfirmId(null)}
+          title="Confirm Cancellation"
+          danger
+          size="sm"
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to cancel this appointment? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setCancelConfirmId(null)}
+                className={BTN.secondary}
+                disabled={cancellingId === cancelConfirmId}
+              >
+                No, Keep It
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = cancelConfirmId;
+                  setCancellingId(id);
+                  const res = await cancelAppointment?.(id);
+                  setCancellingId(null);
+                  if (res?.success) {
+                    setCancelConfirmId(null);
+                  } else {
+                    alert(res?.message || "Failed to cancel");
+                  }
+                }}
+                className={BTN.danger}
+                disabled={cancellingId === cancelConfirmId}
+              >
+                {cancellingId === cancelConfirmId ? "Cancelling..." : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

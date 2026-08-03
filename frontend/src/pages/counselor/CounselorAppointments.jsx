@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
@@ -107,9 +107,25 @@ export default function CounselorAppointments() {
   const [rejectModal, setRejectModal] = useState({ open: false, id: null, note: "" });
   const [completeConfirmModal, setCompleteConfirmModal] = useState({ open: false, id: null, type: "counseling" });
   const [actionErrorModal, setActionErrorModal] = useState({ open: false, message: "" });
-  const [activeTab, setActiveTab] = useState("pending");
-  const [sessionSubTab, setSessionSubTab] = useState("approved");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    if (location.state?.tab) return location.state.tab;
+    return "pending";
+  });
+  const [sessionSubTab, setSessionSubTab] = useState(() => {
+    if (location.state?.subTab) return location.state.subTab;
+    return "approved";
+  });
   const [testSubTab, setTestSubTab] = useState("approved");
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+    if (location.state?.subTab) {
+      setSessionSubTab(location.state.subTab);
+    }
+  }, [location.state]);
   const [search, setSearch] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -275,41 +291,7 @@ export default function CounselorAppointments() {
     return false;
   });
 
-  // Queue for approved/rescheduled/follow-up (non-urgent) — per scheduledDate + AM/PM, sorted by when counselor acted
-  const sessionQueueMap = useMemo(() => {
-    const map = {};
-    const eligible = upcomingAppointments.filter((a) => !(a.is_urgent || a.isUrgent));
-    const groups = {};
-    eligible.forEach((a) => {
-      const date = a.scheduledDate || "";
-      const key = `${date}|${getTimeBlock(a.scheduledTimeSlot || "")}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(a);
-    });
-    Object.values(groups).forEach((group) => {
-      group.sort((x, y) => new Date(x.updated_at || x.created_at || 0) - new Date(y.updated_at || y.created_at || 0));
-      group.forEach((a, i) => { map[a.id] = i + 1; });
-    });
-    return map;
-  }, [upcomingAppointments]);
 
-  // Separate urgent queue — per scheduledDate + AM/PM, sorted by created_at
-  const urgentSessionQueueMap = useMemo(() => {
-    const map = {};
-    const urgents = upcomingAppointments.filter((a) => a.is_urgent || a.isUrgent);
-    const groups = {};
-    urgents.forEach((a) => {
-      const date = a.scheduledDate || a.preferredDate || "";
-      const key = `${date}|${getTimeBlock(a.scheduledTimeSlot || a.timeSlot || "")}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(a);
-    });
-    Object.values(groups).forEach((group) => {
-      group.sort((x, y) => new Date(x.created_at || 0) - new Date(y.created_at || 0));
-      group.forEach((a, i) => { map[a.id] = i + 1; });
-    });
-    return map;
-  }, [upcomingAppointments]);
 
   const completedAppointments = myAppointments.filter((a) => {
     if (a.status !== "completed") return false;
@@ -821,12 +803,12 @@ export default function CounselorAppointments() {
                             {/* APPROVED */}
                             {sessionSubTab === "approved" && (
                               <>
-                                {sessionQueueMap[a.id] != null && (
+                                {a.queueNumber != null && (
                                   <div className="flex items-center gap-2 text-xs">
                                     <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-sky-600 text-white text-[11px]">
-                                      Queue #{sessionQueueMap[a.id]}
+                                      Queue #{a.queueNumber}
                                     </span>
-                                    <span className="text-gray-400">{getTimeBlock(a.scheduledTimeSlot)} block</span>
+                                    <span className="text-gray-400">{(a.queueSlot || getTimeBlock(a.scheduledTimeSlot))} block</span>
                                   </div>
                                 )}
                                 <div className="flex items-baseline gap-1.5 text-xs">
@@ -841,12 +823,12 @@ export default function CounselorAppointments() {
                             {/* RESCHEDULED */}
                             {sessionSubTab === "rescheduled" && (
                               <>
-                                {sessionQueueMap[a.id] != null && (
+                                {a.queueNumber != null && (
                                   <div className="flex items-center gap-2 text-xs">
                                     <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-sky-600 text-white text-[11px]">
-                                      Queue #{sessionQueueMap[a.id]}
+                                      Queue #{a.queueNumber}
                                     </span>
-                                    <span className="text-gray-400">{getTimeBlock(a.scheduledTimeSlot)} block</span>
+                                    <span className="text-gray-400">{(a.queueSlot || getTimeBlock(a.scheduledTimeSlot))} block</span>
                                   </div>
                                 )}
                                 <div className="flex items-baseline gap-1.5 text-xs">
@@ -865,12 +847,12 @@ export default function CounselorAppointments() {
                             {/* FOLLOW-UP */}
                             {sessionSubTab === "follow_up" && (
                               <>
-                                {sessionQueueMap[a.id] != null && (
+                                {a.queueNumber != null && (
                                   <div className="flex items-center gap-2 text-xs">
                                     <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-sky-600 text-white text-[11px]">
-                                      Queue #{sessionQueueMap[a.id]}
+                                      Queue #{a.queueNumber}
                                     </span>
-                                    <span className="text-gray-400">{getTimeBlock(a.scheduledTimeSlot)} block</span>
+                                    <span className="text-gray-400">{(a.queueSlot || getTimeBlock(a.scheduledTimeSlot))} block</span>
                                   </div>
                                 )}
                                 <div className="flex items-baseline gap-1.5 text-xs">
@@ -893,12 +875,12 @@ export default function CounselorAppointments() {
                                   <span className="text-gray-400 w-16 flex-shrink-0">Appt #</span>
                                   <span className="text-gray-500">{a.controlNo}</span>
                                 </div>
-                                {urgentSessionQueueMap[a.id] != null && (
+                                {a.queueNumber != null && (
                                   <div className="flex items-center gap-2 text-xs mt-0.5">
                                     <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-red-600 text-white text-[11px]">
-                                      Urgent Queue #{urgentSessionQueueMap[a.id]}
+                                      Urgent Queue #{a.queueNumber}
                                     </span>
-                                    <span className="text-gray-400">{(a.queue_slot || getTimeBlock(a.scheduledTimeSlot || a.timeSlot || "")) + " slot"}</span>
+                                    <span className="text-gray-400">{(a.queueSlot || getTimeBlock(a.scheduledTimeSlot || a.timeSlot || "")) + " slot"}</span>
                                   </div>
                                 )}
                                 <div className="flex items-baseline gap-1.5 text-xs">

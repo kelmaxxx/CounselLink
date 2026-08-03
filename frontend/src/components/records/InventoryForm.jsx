@@ -106,10 +106,18 @@ const blankInventory = () => ({
   },
 });
 
-const mergeInventory = (stored) => {
+const mergeInventory = (stored, studentProfile) => {
   const blank = blankInventory();
+  if (studentProfile) {
+    if (studentProfile.email) {
+      blank.personal.emailAddress = studentProfile.email;
+    }
+    if (studentProfile.phone) {
+      blank.personal.mobileNo = studentProfile.phone;
+    }
+  }
   if (!stored || typeof stored !== "object") return blank;
-  return {
+  const merged = {
     personal: { ...blank.personal, ...(stored.personal || {}) },
     educational: {
       ...blank.educational,
@@ -140,6 +148,17 @@ const mergeInventory = (stored) => {
     },
     acknowledgment: { ...blank.acknowledgment, ...(stored.acknowledgment || {}) },
   };
+
+  if (studentProfile) {
+    if (!merged.personal.emailAddress && studentProfile.email) {
+      merged.personal.emailAddress = studentProfile.email;
+    }
+    if (!merged.personal.mobileNo && studentProfile.phone) {
+      merged.personal.mobileNo = studentProfile.phone;
+    }
+  }
+
+  return merged;
 };
 
 function LineInput({ value, onChange, disabled, className = "", placeholder = "", maxLength = 100, type = "text" }) {
@@ -199,7 +218,7 @@ export default function InventoryForm({
   hasSignature = true,
 }) {
   const { downloadInventoryDocx } = useStudentRecords();
-  const [data, setData] = useState(() => mergeInventory(inventory?.formData));
+  const [data, setData] = useState(() => mergeInventory(inventory?.formData, studentProfile));
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [scanInputKey, setScanInputKey] = useState(0); 
@@ -215,8 +234,8 @@ export default function InventoryForm({
 
   useEffect(() => {
     if (dirtyRef.current) return;
-    setData(mergeInventory(inventory?.formData));
-  }, [inventory?.id, inventory?.updatedAt]);
+    setData(mergeInventory(inventory?.formData, studentProfile));
+  }, [inventory?.id, inventory?.updatedAt, studentProfile]);
 
   const edit = (updater) => {
     dirtyRef.current = true;

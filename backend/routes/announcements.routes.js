@@ -4,11 +4,14 @@ import { requireRole } from "../middleware/rbac.js";
 import {
   createAnnouncement,
   listAnnouncements,
+  listPublicAnnouncements,
   updateAnnouncement,
   deleteAnnouncement,
 } from "../controllers/announcements.controller.js";
 
 const router = Router();
+
+router.get("/public", listPublicAnnouncements);
 
 router.use(auth, requireRole("admin"));
 

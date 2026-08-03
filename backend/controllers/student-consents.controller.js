@@ -74,6 +74,39 @@ export const eSignConsent = async (req, res) => {
     await logAction(req, "record_consent", "student_consent", result.insertId, { method: "e-sign", created: true });
   }
 
+  // Also sync disclaimerAgreed: true into student_inventories so both Authorize and Consent badges check off
+  const existingInv = await query("SELECT id, form_data FROM student_inventories WHERE student_id = ?", [studentId]);
+  const nowStr = new Date().toISOString().split("T")[0];
+  if (existingInv.length) {
+    let parsed = existingInv[0].form_data;
+    if (typeof parsed === "string") {
+      try { parsed = JSON.parse(parsed); } catch { parsed = {}; }
+    }
+    parsed = parsed || {};
+    parsed.acknowledgment = {
+      ...(parsed.acknowledgment || {}),
+      disclaimerAgreed: true,
+      studentPrintedName: typedName.trim(),
+      dateAcknowledged: nowStr,
+    };
+    await query(
+      "UPDATE student_inventories SET form_data = ?, updated_at = NOW() WHERE student_id = ?",
+      [JSON.stringify(parsed), studentId]
+    );
+  } else {
+    const defaultFormData = {
+      acknowledgment: {
+        disclaimerAgreed: true,
+        studentPrintedName: typedName.trim(),
+        dateAcknowledged: nowStr,
+      },
+    };
+    await query(
+      "INSERT INTO student_inventories (student_id, form_data) VALUES (?, ?)",
+      [studentId, JSON.stringify(defaultFormData)]
+    );
+  }
+
   const rows = await query(`SELECT ${SELECT_FIELDS} ${FROM_JOIN} WHERE c.student_id = ?`, [studentId]);
   return res.status(201).json(rows[0]);
 };

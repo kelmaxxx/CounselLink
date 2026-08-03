@@ -14,15 +14,19 @@ const ALREADY_PENDING_MESSAGE =
 // date/time + IP address with a null actor, which is the permanent record
 // of the request.
 export const createUrgentCounselingRequest = async (req, res) => {
-  const { fullName, studentIdNumber, institutionalEmail, description } = req.body || {};
+  const { firstName, middleName, familyName, studentIdNumber, institutionalEmail, description } = req.body || {};
 
   const trimmed = {
-    fullName: (fullName || "").trim(),
+    firstName: (firstName || "").trim(),
+    middleName: (middleName || "").trim(),
+    familyName: (familyName || "").trim(),
     studentIdNumber: (studentIdNumber || "").trim(),
     description: (description || "").trim(),
   };
 
-  if (!trimmed.fullName || !trimmed.studentIdNumber || !trimmed.description) {
+  const fullName = [trimmed.firstName, trimmed.middleName, trimmed.familyName].filter(Boolean).join(" ");
+
+  if (!trimmed.firstName || !trimmed.middleName || !trimmed.familyName || !trimmed.studentIdNumber || !trimmed.description) {
     return res.status(400).json({ message: "Please complete all required fields." });
   }
 
@@ -58,7 +62,7 @@ export const createUrgentCounselingRequest = async (req, res) => {
     `SELECT a.id FROM appointments a
      JOIN users u ON a.student_id = u.id
      WHERE LOWER(u.name) = LOWER(?) AND a.is_urgent = 1 AND DATE(a.created_at) = CURDATE() LIMIT 1`,
-    [trimmed.fullName]
+    [fullName]
   );
   if (todayByName.length > 0) {
     return res.status(200).json({ alreadyPending: true, message: ALREADY_PENDING_MESSAGE });
@@ -86,9 +90,17 @@ export const createUrgentCounselingRequest = async (req, res) => {
     const randomPassword = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10);
 
     const userResult = await query(
-      `INSERT INTO users (name, email, password, role, status, student_id, is_placeholder)
-       VALUES (?, ?, ?, 'student', 'approved', ?, 1)`,
-      [trimmed.fullName, placeholderEmail, randomPassword, trimmed.studentIdNumber]
+      `INSERT INTO users (name, first_name, middle_name, last_name, email, password, role, status, student_id, is_placeholder)
+       VALUES (?, ?, ?, ?, ?, ?, 'student', 'approved', ?, 1)`,
+      [
+        fullName,
+        trimmed.firstName,
+        trimmed.middleName || null,
+        trimmed.familyName,
+        placeholderEmail,
+        randomPassword,
+        trimmed.studentIdNumber,
+      ]
     );
     studentUserId = userResult.insertId;
     placeholderCreated = true;

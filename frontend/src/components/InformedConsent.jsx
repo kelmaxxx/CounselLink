@@ -25,11 +25,32 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
   const [consent, setConsent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [agreed, setAgreed] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
   const [typedName, setTypedName] = useState(currentUser?.name || "");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [sharingBusy, setSharingBusy] = useState(false);
   const [sharingFeedback, setSharingFeedback] = useState(null);
+
+  const status = !consent
+    ? "unsigned"
+    : consent.revokedAt
+    ? "revoked"
+    : consent.eConsentSignedAt
+    ? "signed"
+    : consent.scanUrl
+    ? "paper-on-file"
+    : "unsigned";
+
+  const onFile = status === "signed" || status === "paper-on-file";
+
+  useEffect(() => {
+    if (onFile) {
+      onConsentChange?.(true);
+    } else {
+      onConsentChange?.(agreed && authorized);
+    }
+  }, [onFile, agreed, authorized, onConsentChange]);
 
   useEffect(() => {
     if (!studentId || !getConsent) {
@@ -59,21 +80,9 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId]);
 
-  const status = !consent
-    ? "unsigned"
-    : consent.revokedAt
-    ? "revoked"
-    : consent.eConsentSignedAt
-    ? "signed"
-    : consent.scanUrl
-    ? "paper-on-file"
-    : "unsigned";
-
-  const onFile = status === "signed" || status === "paper-on-file";
-
   const handleSign = async () => {
-    if (!agreed) {
-      setFeedback({ type: "error", text: "Please tick the agreement box to continue." });
+    if (!agreed || !authorized) {
+      setFeedback({ type: "error", text: "Please check both the Informed Consent agreement and Data Privacy authorization boxes to continue." });
       return;
     }
     if (!typedName.trim()) {
@@ -110,15 +119,20 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
     try {
       const res = await setReferralSharingConsent(studentId, allow);
       if (res?.success) {
-        setConsent(res.consent);
-        setSharingFeedback({ type: "success", text: "Your choice has been saved." });
+        setConsent((prev) => (prev ? { ...prev, referralSharingConsent: allow ? "yes" : "no" } : prev));
+        setSharingFeedback({
+          type: "success",
+          text: allow
+            ? "Preference saved: your counselor may share session reports with referring college representatives when requested."
+            : "Preference saved: session reports will remain private and won't be shared with referring representatives.",
+        });
       } else {
-        setSharingFeedback({ type: "error", text: res?.message || "Failed to save your choice." });
+        setSharingFeedback({ type: "error", text: res?.message || "Failed to save preference." });
       }
     } catch {
       setSharingFeedback({
         type: "error",
-        text: "Couldn't reach the server to save your choice. Please check your connection and try again.",
+        text: "Couldn't reach the server to save your preference.",
       });
     } finally {
       setSharingBusy(false);
@@ -127,69 +141,44 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
 
   return (
     <>
-      <div className="bg-maroon-50 border border-maroon-200 rounded-lg p-5 max-h-96 overflow-y-auto">
-        <div className="space-y-4 text-sm text-maroon-900 leading-relaxed">
+      <div className="border border-gray-200 rounded-2xl p-5 bg-gray-50/60 space-y-4 text-xs text-gray-700 leading-relaxed max-h-96 overflow-y-auto">
+        <h3 className="text-sm font-semibold text-gray-900 tracking-tight">
+          Informed Consent for Guidance and Counseling Services
+        </h3>
+        <p>
+          Counseling is a confidential process designed to help you address your concerns, come to a
+          greater understanding of yourself, and learn effective personal and interpersonal coping
+          strategies.
+        </p>
+        <div className="space-y-2">
+          <p className="font-semibold text-gray-900">Confidentiality & Limits</p>
           <p>
-            Counseling is a confidential process designed to help you address your concerns, come
-            to a greater understanding of yourself, and learn effective personal and interpersonal
-            coping strategies. It involves a relationship between you and a trained counselor who
-            has the desire and willingness to help you accomplish your individual goals. Counseling
-            involves sharing sensitive, personal, and private information that may at times be
-            distressing. During the course of counseling, there may be periods of increased anxiety
-            or confusion. The outcome of counseling is often positive; however, the level of
-            satisfaction for any individual is not predictable. Your counselor is available to
-            support you throughout the counseling process.
+            All interactions with Counseling Services, including scheduling, attendance, content of
+            sessions, progress, and records are confidential. No record of counseling is contained
+            in any academic or job placement file.
           </p>
-          <div>
-            <p className="font-semibold mb-1">Confidentiality</p>
-            <p>
-              All interactions with Counseling Services, including scheduling of or attendance at
-              appointments, consent of your sessions, progress in counseling, and your records are
-              confidential. No record of counseling is contained in any academic, educational, or
-              job placement file. You may request in writing to release specific information about
-              your counseling to persons you designate.
-            </p>
-          </div>
-          <div>
-            <p className="font-semibold mb-1">Exceptions to confidentiality</p>
-            <ul className="list-disc pl-5 space-y-1.5">
-              <li>
-                The counseling staff works as a team. Your counselor may consult with other
-                counseling staff to provide the best possible care. These consultations are for
-                professional and training purposes.
-              </li>
-              <li>
-                If there is evidence of clear and imminent danger of harm to self and/or others, a
-                counselor is legally required to report this information to the authorities
-                responsible for ensuring safety.
-              </li>
-              <li>
-                Philippine law requires that staff of Counseling Services who learn of, or strongly
-                suspect, physical or sexual abuse or neglect of any person under 18 years of age
-                must report this information to county child protection services.
-              </li>
-              <li>
-                A court order, issued by a judge, may require the Counseling Services staff to
-                release information contained in records and / or require a counselor to testify in
-                a court hearing.
-              </li>
-            </ul>
-            <p className="mt-2">
-              There is no fee for counseling services. If you are referred off campus to health,
-              mental health, or substance abuse professionals, you are responsible for their
-              charges.
-            </p>
-          </div>
-          <div>
-            <p className="font-semibold mb-1">Acknowledgment</p>
-            <p>
-              I acknowledge having been informed of my rights and responsibilities as a student
-              receiving counseling services at Division of Student Affairs, Guidance and Counseling
-              Section, Mindanao State University, Marawi City. I understand the risks and benefits
-              of guidance and counseling services, the nature, and the limits of confidentiality. By
-              signing below, I agree to the terms and conditions of counseling.
-            </p>
-          </div>
+          <p className="font-semibold text-gray-900">Exceptions to confidentiality include:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Professional consultation among counseling staff for team care.</li>
+            <li>Evidence of clear and imminent danger of harm to self or others.</li>
+            <li>Suspected physical or sexual abuse or neglect of any minor under 18 years of age.</li>
+            <li>A court order issued by a judge.</li>
+          </ul>
+        </div>
+        <div>
+          <p className="font-semibold text-gray-900">Fees</p>
+          <p>
+            There is no fee for counseling services at MSU DSA Guidance and Counseling Section.
+            Off-campus referrals remain the student&apos;s financial responsibility.
+          </p>
+        </div>
+        <div>
+          <p className="font-semibold text-gray-900">Acknowledgment</p>
+          <p>
+            I acknowledge having been informed of my rights and responsibilities as a student
+            receiving counseling services at Division of Student Affairs, Guidance and Counseling
+            Section, Mindanao State University, Marawi City.
+          </p>
         </div>
       </div>
 
@@ -285,6 +274,7 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
               {feedback.text}
             </div>
           )}
+          
           <label
             className={`flex items-start gap-3 cursor-pointer rounded-xl border p-3.5 transition ${
               agreed ? "bg-maroon-50 border-maroon-300" : "bg-white border-gray-200 hover:bg-gray-50"
@@ -302,6 +292,22 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
             </span>
           </label>
 
+          <label
+            className={`flex items-start gap-3 cursor-pointer rounded-xl border p-3.5 transition ${
+              authorized ? "bg-maroon-50 border-maroon-300" : "bg-white border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={authorized}
+              onChange={(e) => setAuthorized(e.target.checked)}
+              className="mt-0.5 w-4 h-4 text-maroon-600 rounded"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              <span className="font-semibold text-gray-900">Data Privacy Authorization:</span> I hereby authorize the Guidance and Counseling Section of Division of Student Affairs to collect and process data for Individual Inventory and documentation purposes under RA 10173 (Data Privacy Act of 2012).
+            </span>
+          </label>
+
           <div>
             <label className={LABEL}>Type your full name as your signature</label>
             <input
@@ -314,7 +320,7 @@ export default function InformedConsentSection({ currentUser, onConsentChange })
           </div>
 
           <div className="flex justify-end pt-1">
-            <button type="button" onClick={handleSign} disabled={busy} className={BTN.primary}>
+            <button type="button" onClick={handleSign} disabled={busy || !agreed || !authorized} className={BTN.primary}>
               {busy ? "Recording…" : "I agree — record my consent"}
             </button>
           </div>

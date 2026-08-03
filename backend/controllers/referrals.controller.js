@@ -5,6 +5,7 @@ import { logAction } from "../utils/audit.js";
 import { createNotification } from "../utils/notify.js";
 import { notifyUser, notifyRole } from "../events.js";
 import { isValidPhMobile } from "../utils/validators.js";
+import { sendEmail } from "../services/email.service.js";
 
 const NATURE_OF_CONCERN_OPTIONS = [
   "Academic Concern",
@@ -31,54 +32,82 @@ const baseSelect = `
 export const createReferral = async (req, res) => {
   const referrerId = req.user?.id;
   const {
+    firstName,
+    middleName,
+    familyName,
     fullName,
     studentIdNumber,
     college,
     department,
-    contactNumber,
     natureOfConcern,
     natureOfConcernOther,
     description,
     receivingCounselorId,
+    referrerContactNumber,
+    referrerPosition,
+    referrerDepartment,
   } = req.body || {};
 
   const trimmed = {
-    fullName: (fullName || "").trim(),
+    firstName: (firstName || "").trim(),
+    middleName: (middleName || "").trim(),
+    familyName: (familyName || "").trim(),
     studentIdNumber: (studentIdNumber || "").trim(),
     college: (college || req.user?.college || "").trim(),
     department: (department || "").trim(),
-    contactNumber: (contactNumber || "").trim(),
     natureOfConcern: (natureOfConcern || "").trim(),
     natureOfConcernOther: (natureOfConcernOther || "").trim(),
     description: (description || "").trim(),
+    referrerContactNumber: (referrerContactNumber || "").trim(),
+    referrerPosition: (referrerPosition || "").trim(),
+    referrerDepartment: (referrerDepartment || "").trim(),
   };
 
+  const finalFullName = [trimmed.firstName, trimmed.middleName, trimmed.familyName].filter(Boolean).join(" ") || (fullName || "").trim();
+
   const hasAllRequired =
-    trimmed.fullName &&
+    trimmed.firstName &&
+    trimmed.middleName &&
+    trimmed.familyName &&
     trimmed.studentIdNumber &&
     trimmed.college &&
-    trimmed.contactNumber &&
     trimmed.natureOfConcern &&
     trimmed.description &&
     NATURE_OF_CONCERN_OPTIONS.includes(trimmed.natureOfConcern) &&
-    (trimmed.natureOfConcern !== "Other" || trimmed.natureOfConcernOther);
+    (trimmed.natureOfConcern !== "Other" || trimmed.natureOfConcernOther) &&
+    trimmed.referrerContactNumber &&
+    trimmed.referrerPosition &&
+    trimmed.referrerDepartment;
 
   if (!hasAllRequired) {
-    return res.status(400).json({ message: "Please complete all required fields." });
+    return res.status(400).json({ message: "Please complete all required fields (First name, Middle name, Family name, Student ID, Department, Referrer contact number, Position, Referrer department, Concern, and Description are required)." });
   }
 
-  if (!isValidPhMobile(trimmed.contactNumber)) {
-    return res.status(400).json({ message: "Contact number must start with 09 and have 11 digits" });
+  // Student ID must be exactly 9 digits
+  if (!/^\d{9}$/.test(trimmed.studentIdNumber)) {
+    return res.status(400).json({ message: "Student ID must be exactly 9 digits." });
   }
 
-  if (req.user?.college && trimmed.college !== req.user.college) {
+  if (!isValidPhMobile(trimmed.referrerContactNumber)) {
+    return res.status(400).json({ message: "Referrer contact number must start with 09 and have 11 digits" });
+  }
+
+  if (req.user?.college && trimmed.college.toLowerCase() !== req.user.college.toLowerCase()) {
     return res
       .status(403)
       .json({ message: "You can only refer students from your own college" });
   }
 
+  // Update referrer profile
+  await query(
+    `UPDATE users
+     SET phone = ?, position = ?, department = ?
+     WHERE id = ?`,
+    [trimmed.referrerContactNumber, trimmed.referrerPosition, trimmed.referrerDepartment, referrerId]
+  );
+
   // Match against an existing student record (registered or a previous
-  // referral/walk-in placeholder) by Student ID so we don't create duplicates.
+  // referral/walk-in placeholder) by Student ID to check college and duplicates.
   const existingStudents = await query(
     "SELECT id, name, college FROM users WHERE student_id = ? AND role = 'student' LIMIT 1",
     [trimmed.studentIdNumber]
@@ -89,21 +118,42 @@ export const createReferral = async (req, res) => {
 
   if (existingStudents.length > 0) {
     student = existingStudents[0];
-  } else {
-    // No account for this Student ID yet — create a placeholder student
-    // record so the referral can be linked to a student_id FK and the
-    // student shows up in Student Records. It can't be logged into (random
-    // password, synthetic email) and gets claimed/updated automatically if
-    // this student later registers with the same Student ID.
+    if (student.college && student.college.trim().toLowerCase() !== trimmed.college.trim().toLowerCase()) {
+      return res.status(400).json({
+        message: `Student with ID ${trimmed.studentIdNumber} is registered under the College of ${student.college}. You cannot refer students from other colleges.`
+      });
+    }
+  }
+
+  // Check by name to see if student belongs to another college
+  const existingByName = await query(
+    "SELECT id, name, college FROM users WHERE ((first_name = ? AND middle_name = ? AND last_name = ?) OR name = ?) AND role = 'student' LIMIT 1",
+    [trimmed.firstName, trimmed.middleName, trimmed.familyName, finalFullName]
+  );
+
+  if (existingByName.length > 0) {
+    const matchedUser = existingByName[0];
+    if (matchedUser.college && matchedUser.college.trim().toLowerCase() !== trimmed.college.trim().toLowerCase()) {
+      return res.status(400).json({
+        message: `Student named "${finalFullName}" is registered under the College of ${matchedUser.college}. You cannot refer students from other colleges.`
+      });
+    }
+    if (!student) {
+      student = matchedUser;
+    }
+  }
+
+  if (!student) {
+    // No account for this Student ID yet — create a placeholder student record
     const placeholderEmail = `referral-${trimmed.studentIdNumber.replace(/[^a-zA-Z0-9]/g, "")}-${Date.now()}@placeholder.counselink.local`;
     const randomPassword = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10);
 
     const userResult = await query(
-      `INSERT INTO users (name, email, password, role, status, college, student_id, phone, is_placeholder)
-       VALUES (?, ?, ?, 'student', 'approved', ?, ?, ?, 1)`,
-      [trimmed.fullName, placeholderEmail, randomPassword, trimmed.college, trimmed.studentIdNumber, trimmed.contactNumber]
+      `INSERT INTO users (name, first_name, middle_name, last_name, email, password, role, status, college, student_id, phone, is_placeholder)
+       VALUES (?, ?, ?, ?, ?, ?, 'student', 'approved', ?, ?, NULL, 1)`,
+      [finalFullName, trimmed.firstName, trimmed.middleName, trimmed.familyName, placeholderEmail, randomPassword, trimmed.college, trimmed.studentIdNumber]
     );
-    student = { id: userResult.insertId, name: trimmed.fullName, college: trimmed.college };
+    student = { id: userResult.insertId, name: finalFullName, college: trimmed.college };
     placeholderCreated = true;
   }
 
@@ -221,7 +271,13 @@ export const decideReferral = async (req, res) => {
   }
 
   const [referral] = await query(
-    "SELECT id, receiving_counselor_id, referrer_id, status, student_id, reason FROM referrals WHERE id = ?",
+    `SELECT r.id, r.receiving_counselor_id, r.referrer_id, r.status, r.student_id, r.reason,
+            ref.email AS referrerEmail, ref.name AS referrerName,
+            stu.name AS studentName
+     FROM referrals r
+     LEFT JOIN users ref ON r.referrer_id = ref.id
+     LEFT JOIN users stu ON r.student_id = stu.id
+     WHERE r.id = ?`,
     [id]
   );
   if (!referral) return res.status(404).json({ message: "Referral not found" });
@@ -294,6 +350,24 @@ export const decideReferral = async (req, res) => {
     message: repMessage,
     link: `/rep/referrals`,
   });
+
+  // Send an email to the college representative
+  if (referral.referrerEmail) {
+    try {
+      await sendEmail({
+        to: referral.referrerEmail,
+        subject: `Referral update: Student ${referral.studentName || ""} referral ${status}`,
+        text: `Dear ${referral.referrerName || "College Representative"},\n\nThis is to notify you that the referral you submitted for student ${referral.studentName || ""} has been ${status} by the counselor.\n\nDetail:\n${repMessage}\n\nBest regards,\nMSU Marawi CounselLink`,
+        html: `<p>Dear ${referral.referrerName || "College Representative"},</p>
+               <p>This is to notify you that the referral you submitted for student <strong>${referral.studentName || ""}</strong> has been <strong>${status}</strong> by the counselor.</p>
+               <p><strong>Detail:</strong><br/>${repMessage}</p>
+               <p>Best regards,<br/>MSU Marawi CounselLink</p>`
+      });
+    } catch (err) {
+      console.error("Failed to send referral update email:", err);
+    }
+  }
+
   // Update the referring rep's referrals list live.
   notifyUser(referral.referrer_id, { type: "referrals" });
   // Refresh all counselors' referral list (accepted referral leaves pending) and

@@ -435,48 +435,39 @@ export default function StudentCounselingForm() {
             </button>
 
             {isLast ? (
-              <div ref={actionsRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setActionsOpen((o) => !o)}
-                  className={BTN.secondary}
-                  title="Actions"
-                >
-                  <MoreVertical size={15} /> Actions
-                </button>
-                {actionsOpen && (
-                  <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => { handlePrint(); setActionsOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
-                    >
-                      <FileDown size={14} /> Export PDF
-                    </button>
-                    {!isFinalized && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => { handleSave(); setActionsOpen(false); }}
-                          disabled={saving}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left disabled:opacity-50"
-                        >
-                          <Save size={14} /> {saving ? "Saving…" : existingSessionId ? "Update record" : "Save record"}
-                        </button>
-                        <div className="my-1 border-t border-gray-100" />
-                        <button
-                          type="button"
-                          onClick={() => { handleSubmitReport(); setActionsOpen(false); }}
-                          disabled={submittingReport || saving}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition text-left disabled:opacity-50"
-                        >
-                          <CheckCircle2 size={14} /> {submittingReport ? "Submitting…" : "Submit Report"}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+              !isFinalized && (
+                <div ref={actionsRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActionsOpen((o) => !o)}
+                    className={BTN.secondary}
+                    title="Actions"
+                  >
+                    <MoreVertical size={15} /> Actions
+                  </button>
+                  {actionsOpen && (
+                    <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => { handleSave(); setActionsOpen(false); }}
+                        disabled={saving}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left disabled:opacity-50"
+                      >
+                        <Save size={14} /> {saving ? "Saving…" : existingSessionId ? "Update record" : "Save record"}
+                      </button>
+                      <div className="my-1 border-t border-gray-100" />
+                      <button
+                        type="button"
+                        onClick={() => { handleSubmitReport(); setActionsOpen(false); }}
+                        disabled={submittingReport || saving}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition text-left disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={14} /> {submittingReport ? "Submitting…" : "Submit Report"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
             ) : (
               <button type="button" onClick={goNext} disabled={!stepValid()} className={BTN.primary}>
                 Continue <ArrowRight size={14} />
