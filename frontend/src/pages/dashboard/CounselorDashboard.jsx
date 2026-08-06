@@ -25,7 +25,7 @@ import ProfileViewModal from "../../components/ProfileViewModal";
 import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
 import { useReferrals } from "../../context/ReferralsContext";
-import { SectionCard, EmptyState, BigStat, DonutStat, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
+import { SectionCard, EmptyState, BigStat, RankedBarChart, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
 
 const COLLEGE_COLORS = [
   "#0B6623", "#1d4ed8", "#c2410c", "#7e22ce", "#0e7490", "#9f1239",
@@ -512,8 +512,7 @@ export default function CounselorDashboard() {
           title="Students by college"
           subtitle="Distribution of your caseload"
         >
-          <DonutStat
-            compact
+          <RankedBarChart
             data={topColleges
               .filter(([, c]) => c > 0)
               .map(([name, value], i) => ({
@@ -521,8 +520,8 @@ export default function CounselorDashboard() {
                 value,
                 color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
               }))}
-            total={totalStudents}
-            centerLabel="students"
+            labelWidth={110}
+            maxRows={7}
             emptyIcon={Users}
             emptyTitle="No students yet"
           />
@@ -532,15 +531,13 @@ export default function CounselorDashboard() {
           title="Appointment status"
           subtitle="Breakdown of your appointments by current status"
         >
-          <DonutStat
-            compact
+          <RankedBarChart
             data={appointmentStatusBreakdown.map((entry) => ({
               name: entry.name,
               value: entry.value,
               color: STATUS_COLORS[entry.name.toLowerCase()] || "#94a3b8",
             }))}
-            total={myAppointments.length + myTests.length}
-            centerLabel="appointments"
+            labelWidth={100}
             emptyIcon={Calendar}
             emptyTitle="No appointments yet"
           />
