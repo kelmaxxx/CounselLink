@@ -44,6 +44,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     appointments: "/counselor/appointments",
     referrals: "/counselor/referrals",
     "generate-reports": "/counselor/reports",
+    "system-evaluation": `${roleBase}/system-evaluation`,
 
     // College Rep
     "counseling-data": "/rep/counseling-data",

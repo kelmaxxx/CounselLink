@@ -13,6 +13,7 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import ImageModule from "docxtemplater-image-module-free";
 import { imageSize } from "image-size";
+import { FIELD_WIDTHS, fit } from "./inventory-field-widths.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = path.join(__dirname, "..", "templates", "individual-inventory-template.docx");
@@ -82,7 +83,11 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatur
   const data = {
     // I. Personal
     idNumber: val(p.idNumber) || val(profile.studentNumber),
-    fullName,
+    // Name is printed as three separate fixed-width fields so Surname / First /
+    // Middle always line up under the "(Surname)(First Name)(Middle Name)" guide.
+    nameSurname: val(p.surname),
+    nameFirst: val(p.firstName),
+    nameMiddle: val(p.middleName),
     sex: val(p.sex),
     age: val(p.age),
     course: val(p.course),
@@ -221,6 +226,14 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatur
     data[`tr${i}Kind`] = val(row.kindOfTest);
     data[`tr${i}Score`] = val(row.score);
     data[`tr${i}Rank`] = val(row.rank);
+  }
+
+  // Pad/truncate every fill-in field to its fixed width so each underlined "line"
+  // is a constant length: short/empty values show as a blank line, long values are
+  // trimmed to fit instead of wrapping the form onto a third page. Checkbox and
+  // signature values have no width entry and pass through untouched.
+  for (const [key, width] of Object.entries(FIELD_WIDTHS)) {
+    data[key] = fit(data[key], width);
   }
 
   return data;
