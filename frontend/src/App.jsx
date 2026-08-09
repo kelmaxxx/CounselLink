@@ -11,6 +11,8 @@ import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
+import SystemEvaluationSurvey from "./pages/SystemEvaluationSurvey";
+import SystemEvaluationTally from "./pages/counselor/SystemEvaluationTally";
 
 // Student pages
 import RequestAppointment from "./pages/student/RequestAppointment";
@@ -81,6 +83,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/system-evaluation" element={<SystemEvaluationSurvey />} />
+        <Route path="/eval" element={<SystemEvaluationSurvey />} />
+        <Route path="/system-evaluation/tally" element={<SystemEvaluationTally />} />
+        <Route path="/researcher/tally" element={<SystemEvaluationTally />} />
 
         {/* Root: Landing Page for guests, Dashboard for authenticated users */}
         <Route path="/" element={<RootRoute />} />
@@ -216,6 +222,16 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <FeedbackTallySummary />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/counselor/system-evaluation"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <SystemEvaluationTally />
               </Layout>
             </ProtectedRoute>
           }
@@ -370,6 +386,16 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <SystemLogs />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/system-evaluation"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <SystemEvaluationTally />
               </Layout>
             </ProtectedRoute>
           }
