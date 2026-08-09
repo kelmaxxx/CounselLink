@@ -78,6 +78,7 @@ function StarPicker({ value, onChange }) {
 }
 
 export function ClientFeedbackFormModal({ token, context, onClose, onSubmitted }) {
+  const [part, setPart] = useState(1);
   const [responses, setResponses] = useState({});
   const [satisfaction, setSatisfaction] = useState(null);
   const [recommend, setRecommend] = useState(null);
@@ -89,29 +90,69 @@ export function ClientFeedbackFormModal({ token, context, onClose, onSubmitted }
 
   const setAnswer = (key, value) => setResponses((prev) => ({ ...prev, [key]: value }));
 
+  const PARTS = [
+    { number: 1, title: "Working Relationship" },
+    { number: 2, title: "Results" },
+    { number: 3, title: "Satisfaction & Comments" },
+    { number: 4, title: "Rating" },
+  ];
+
+  const validatePart = (p) => {
+    if (p === 1) {
+      const missing = RELATIONSHIP_ITEMS.filter((item) => !responses[item.key]);
+      if (missing.length > 0) {
+        return "Please answer all statements in Part 1 before continuing.";
+      }
+    }
+    if (p === 2) {
+      const missing = OUTCOME_ITEMS.filter((item) => !responses[item.key]);
+      if (missing.length > 0) {
+        return "Please answer all statements in Part 2 before continuing.";
+      }
+    }
+    if (p === 3) {
+      if (!satisfaction) {
+        return "Please choose your overall satisfaction.";
+      }
+      if (!recommend) {
+        return "Please indicate whether you would recommend your counselor.";
+      }
+    }
+    if (p === 4) {
+      if (!rating) {
+        return "Please select a star rating.";
+      }
+    }
+    return null;
+  };
+
+  const handleNext = () => {
+    setError("");
+    const err = validatePart(part);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setPart((p) => Math.min(p + 1, 4));
+  };
+
+  const handleBack = () => {
+    setError("");
+    setPart((p) => Math.max(p - 1, 1));
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setError("");
 
-    const unanswered = RESPONSE_KEYS.filter((k) => !responses[k]);
-    if (unanswered.length) {
-      setError("Please answer all 12 statements above.");
+    const err = validatePart(4);
+    if (err) {
+      setError(err);
       return;
     }
-    if (!satisfaction) {
-      setError("Please choose your overall satisfaction.");
-      return;
-    }
-    if (!recommend) {
-      setError("Please answer whether you'd recommend your counselor.");
-      return;
-    }
-    if (!rating) {
-      setError("Please choose a star rating.");
-      return;
-    }
+
     if (!context.counselorId) {
-      setError("Missing counselor. Refresh and try again.");
+      setError("Missing counselor info. Refresh and try again.");
       return;
     }
 
@@ -158,19 +199,32 @@ export function ClientFeedbackFormModal({ token, context, onClose, onSubmitted }
             Close
           </button>
         ) : (
-          <>
-            <button type="button" onClick={onClose} className={BTN.secondary}>
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="client-feedback-form"
-              disabled={submitting}
-              className={BTN.primary}
-            >
-              {submitting ? "Submitting…" : "Submit feedback"}
-            </button>
-          </>
+          <div className="flex justify-between items-center w-full">
+            {part === 1 ? (
+              <button type="button" onClick={onClose} className={BTN.secondary}>
+                Cancel
+              </button>
+            ) : (
+              <button type="button" onClick={handleBack} className={BTN.secondary}>
+                Back
+              </button>
+            )}
+
+            {part < 4 ? (
+              <button type="button" onClick={handleNext} className={BTN.primary}>
+                Next
+              </button>
+            ) : (
+              <button
+                type="submit"
+                form="client-feedback-form"
+                disabled={submitting}
+                className={BTN.primary}
+              >
+                {submitting ? "Submitting…" : "Submit feedback"}
+              </button>
+            )}
+          </div>
         )
       }
     >
@@ -203,95 +257,146 @@ export function ClientFeedbackFormModal({ token, context, onClose, onSubmitted }
             to others. <span className="font-medium text-gray-700">You DO NOT need to identify yourself.</span>
           </p>
 
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-1">
-              About the working relationship with your Counselor
-            </h4>
-            <ScaleHeader scale={LIKERT_SCALE} />
-            {RELATIONSHIP_ITEMS.map((item, i) => (
-              <LikertRow
-                key={item.key}
-                index={i + 1}
-                text={item.text}
-                scale={LIKERT_SCALE}
-                value={responses[item.key]}
-                onChange={(v) => setAnswer(item.key, v)}
-                name={item.key}
-              />
+          {/* Part indicator bar */}
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-2">
+            {PARTS.map((p) => (
+              <div key={p.number} className="flex items-center gap-1.5">
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition ${
+                    part === p.number
+                      ? "bg-maroon-600 text-white"
+                      : part > p.number
+                      ? "bg-emerald-600 text-white"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {p.number}
+                </span>
+                <span
+                  className={`text-xs font-medium hidden sm:inline ${
+                    part === p.number ? "text-gray-900 font-semibold" : "text-gray-400"
+                  }`}
+                >
+                  {p.title}
+                </span>
+                {p.number < 4 && <span className="text-gray-300 text-xs">➔</span>}
+              </div>
             ))}
           </div>
 
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-1">
-              About the results of working with your counselor
-            </h4>
-            <ScaleHeader scale={LIKERT_SCALE} />
-            {OUTCOME_ITEMS.map((item, i) => (
-              <LikertRow
-                key={item.key}
-                index={RELATIONSHIP_ITEMS.length + i + 1}
-                text={item.text}
-                scale={LIKERT_SCALE}
-                value={responses[item.key]}
-                onChange={(v) => setAnswer(item.key, v)}
-                name={item.key}
-              />
-            ))}
-          </div>
-
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-1">Overall satisfaction</h4>
-            <ScaleHeader scale={SATISFACTION_SCALE} />
-            <LikertRow
-              index={13}
-              text="My overall satisfaction with the service provided by my counselor is:"
-              scale={SATISFACTION_SCALE}
-              value={satisfaction}
-              onChange={setSatisfaction}
-              name="satisfaction"
-            />
-          </div>
-
-          <div>
-            <label className={LABEL}>
-              Based on my experience, I would recommend my counselor to others
-            </label>
-            <div className="flex gap-4">
-              {RECOMMEND_OPTIONS.map((opt) => (
-                <label key={opt.value} className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-                  <input
-                    type="radio"
-                    name="recommend"
-                    value={opt.value}
-                    checked={recommend === opt.value}
-                    onChange={() => setRecommend(opt.value)}
-                    className="accent-maroon-600"
-                  />
-                  {opt.label}
-                </label>
+          {/* PART 1: About the working relationship */}
+          {part === 1 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-1">
+                Part 1: About the working relationship with your Counselor
+              </h4>
+              <ScaleHeader scale={LIKERT_SCALE} />
+              {RELATIONSHIP_ITEMS.map((item, i) => (
+                <LikertRow
+                  key={item.key}
+                  index={i + 1}
+                  text={item.text}
+                  scale={LIKERT_SCALE}
+                  value={responses[item.key]}
+                  onChange={(v) => setAnswer(item.key, v)}
+                  name={item.key}
+                />
               ))}
             </div>
-          </div>
+          )}
 
-          <div>
-            <label className={LABEL}>Other comments (optional)</label>
-            <textarea
-              rows={4}
-              className={INPUT}
-              placeholder="Anything else you'd like to share?"
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-            />
-          </div>
-
-          <div className="pt-3 border-t border-gray-100 text-center">
-            <label className={`${LABEL} text-center`}>Rate your overall experience</label>
-            <div className="flex justify-center">
-              <StarPicker value={rating} onChange={setRating} />
+          {/* PART 2: About the results */}
+          {part === 2 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-1">
+                Part 2: About the results of working with your counselor
+              </h4>
+              <ScaleHeader scale={LIKERT_SCALE} />
+              {OUTCOME_ITEMS.map((item, i) => (
+                <LikertRow
+                  key={item.key}
+                  index={RELATIONSHIP_ITEMS.length + i + 1}
+                  text={item.text}
+                  scale={LIKERT_SCALE}
+                  value={responses[item.key]}
+                  onChange={(v) => setAnswer(item.key, v)}
+                  name={item.key}
+                />
+              ))}
             </div>
-          </div>
+          )}
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {/* PART 3: Overall satisfaction & comments */}
+          {part === 3 && (
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-1">
+                Part 3: Overall satisfaction and comments
+              </h4>
+              <div>
+                <ScaleHeader scale={SATISFACTION_SCALE} />
+                <LikertRow
+                  index={13}
+                  text="My overall satisfaction with the service provided by my counselor is:"
+                  scale={SATISFACTION_SCALE}
+                  value={satisfaction}
+                  onChange={setSatisfaction}
+                  name="satisfaction"
+                />
+              </div>
+
+              <div>
+                <label className={LABEL}>
+                  Based on my experience, I would recommend my counselor to others *
+                </label>
+                <div className="flex gap-4 mt-1">
+                  {RECOMMEND_OPTIONS.map((opt) => (
+                    <label key={opt.value} className="inline-flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="recommend"
+                        value={opt.value}
+                        checked={recommend === opt.value}
+                        onChange={() => setRecommend(opt.value)}
+                        className="accent-maroon-600"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className={LABEL}>Other comments (optional)</label>
+                <textarea
+                  rows={4}
+                  className={INPUT}
+                  placeholder="Anything else you'd like to share?"
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* PART 4: Ratings */}
+          {part === 4 && (
+            <div className="space-y-4 text-center py-4">
+              <h4 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-1 text-left">
+                Part 4: Ratings
+              </h4>
+              <p className="text-sm text-gray-700">Please rate your overall experience with your counselor:</p>
+              <div className="flex justify-center py-2">
+                <StarPicker value={rating} onChange={setRating} />
+              </div>
+              {rating > 0 && (
+                <p className="text-xs text-emerald-600 font-medium">
+                  {rating} / 5 stars selected
+                </p>
+              )}
+            </div>
+          )}
+
+          {error && <p className="text-sm text-red-600 font-medium mt-2">{error}</p>}
         </form>
       )}
     </Modal>

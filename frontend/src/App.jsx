@@ -7,6 +7,7 @@ import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
+import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
@@ -58,6 +59,25 @@ function NotificationsRedirect() {
   return <Navigate to="/student/notifications" replace />;
 }
 
+/**
+ * Smart root route:
+ *  - Unauthenticated  → LandingPage
+ *  - Authenticated    → Dashboard (via ProtectedRoute, identical to before)
+ */
+function RootRoute() {
+  const { currentUser } = useAuth();
+  if (currentUser) {
+    return (
+      <ProtectedRoute>
+        <Layout>
+          <Dashboard />
+        </Layout>
+      </ProtectedRoute>
+    );
+  }
+  return <LandingPage />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -68,17 +88,8 @@ export default function App() {
         <Route path="/system-evaluation/tally" element={<SystemEvaluationTally />} />
         <Route path="/researcher/tally" element={<SystemEvaluationTally />} />
 
-        {/* Dashboard */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+        {/* Root: Landing Page for guests, Dashboard for authenticated users */}
+        <Route path="/" element={<RootRoute />} />
 
         {/* Shared Messages */}
         <Route

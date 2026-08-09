@@ -1,7 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
-import { createNotification } from "../utils/notify.js";
-import { notifyUser } from "../events.js";
+import { createNotification, notifyUsers } from "../utils/notify.js";
+import { notifyUser, notifyRole } from "../events.js";
 import { buildSessionReportPayload } from "./counseling-sessions.controller.js";
 
 const baseSelect = `
@@ -22,10 +22,8 @@ export const createReportRequest = async (req, res) => {
 
   const type = ["college", "department"].includes(requestType) ? requestType : "individual";
 
-  if (!counselorId || !reason?.trim()) {
-    return res
-      .status(400)
-      .json({ message: "counselorId and reason are required" });
+  if (!reason?.trim()) {
+    return res.status(400).json({ message: "reason is required" });
   }
   if (type === "individual" && !studentId) {
     return res
@@ -38,11 +36,15 @@ export const createReportRequest = async (req, res) => {
       .json({ message: "department is required for a department summary request" });
   }
 
-  const [counselor] = await query(
-    "SELECT id, name FROM users WHERE id = ? AND role = 'counselor'",
-    [counselorId]
-  );
-  if (!counselor) return res.status(404).json({ message: "Counselor not found" });
+  // counselorId is optional — if provided, assign directly; otherwise broadcast to all counselors.
+  let resolvedCounselorId = counselorId || null;
+  if (resolvedCounselorId) {
+    const [counselor] = await query(
+      "SELECT id FROM users WHERE id = ? AND role = 'counselor'",
+      [resolvedCounselorId]
+    );
+    if (!counselor) return res.status(404).json({ message: "Counselor not found" });
+  }
 
   let student = null;
   if (type === "individual") {
@@ -60,7 +62,7 @@ export const createReportRequest = async (req, res) => {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
     [
       requesterId,
-      counselorId,
+      resolvedCounselorId,
       type,
       student?.id || null,
       student?.name || null,
@@ -73,28 +75,40 @@ export const createReportRequest = async (req, res) => {
 
   const requesterName = req.user?.name || "A College";
   const collegeLabel = req.user?.college ? ` for ${req.user.college}` : "";
+  const notifTitle = "Report request received";
+  const notifMsg =
+    type === "college"
+      ? `${requesterName} requested a college-wide summary report${collegeLabel}.`
+      : type === "department"
+      ? `${requesterName} requested a ${department.trim()} summary${collegeLabel}.`
+      : `${requesterName} requested a report on ${student.name}.`;
 
-  await query(
-    `INSERT INTO notifications (user_id, title, message, status, link)
-     VALUES (?, ?, ?, 'unread', ?)`,
-    [
-      counselorId,
-      "Report request received",
-      type === "college"
-        ? `${requesterName} requested a college-wide summary report${collegeLabel}.`
-        : type === "department"
-        ? `${requesterName} requested a ${department.trim()} summary${collegeLabel}.`
-        : `${requesterName} requested a report on ${student.name}.`,
-      `/counselor/reports`,
-    ]
-  );
+  if (resolvedCounselorId) {
+    await query(
+      `INSERT INTO notifications (user_id, title, message, status, link) VALUES (?, ?, ?, 'unread', ?)`,
+      [resolvedCounselorId, notifTitle, notifMsg, `/counselor/reports`]
+    );
+    notifyUser(resolvedCounselorId, { type: "notification" });
+  } else {
+    const allCounselors = await query(
+      "SELECT id FROM users WHERE role = 'counselor' AND status = 'approved'",
+      []
+    );
+    if (allCounselors.length) {
+      await notifyUsers(
+        allCounselors.map((c) => c.id),
+        { title: notifTitle, message: notifMsg, link: `/counselor/reports` }
+      );
+    }
+    notifyRole("counselor", { type: "notification" });
+  }
 
   if (type === "college" || type === "department") {
     // College-wide and department summaries still go through the assigned
     // counselor, who writes the narrative — handled by
     // reports.controller.js createCollegeSummary.
     await logAction(req, "create_report_request", "report_request", requestId, {
-      counselorId,
+      counselorId: resolvedCounselorId,
       requestType: type,
       department: type === "department" ? department.trim() : null,
     });
@@ -188,7 +202,7 @@ export const createReportRequest = async (req, res) => {
   }
 
   await logAction(req, "create_report_request", "report_request", requestId, {
-    counselorId,
+    counselorId: resolvedCounselorId,
     requestType: type,
     studentId,
     autoResolved: status || "pending",
@@ -222,7 +236,7 @@ export const sendIndividualReport = async (req, res) => {
   if (request.request_type !== "individual") {
     return res.status(400).json({ message: "This request is not an individual student request" });
   }
-  if (request.counselor_id !== counselorId) {
+  if (request.counselor_id !== null && request.counselor_id !== counselorId) {
     return res.status(403).json({ message: "Only the assigned counselor can send this report" });
   }
   if (request.status !== "pending") {
@@ -273,8 +287,8 @@ export const sendIndividualReport = async (req, res) => {
   );
 
   await query(
-    "UPDATE report_requests SET status = 'fulfilled', response_note = NULL, responded_at = NOW() WHERE id = ?",
-    [id]
+    "UPDATE report_requests SET status = 'fulfilled', response_note = NULL, responded_at = NOW(), counselor_id = ? WHERE id = ?",
+    [counselorId, id]
   );
 
   await createNotification({
@@ -306,7 +320,7 @@ export const listReportRequests = async (req, res) => {
   const params = [];
 
   if (role === "counselor") {
-    conditions.push("rr.counselor_id = ?");
+    conditions.push("(rr.counselor_id = ? OR rr.counselor_id IS NULL)");
     params.push(userId);
   } else if (role === "college_rep") {
     conditions.push("rr.requester_id = ?");
@@ -341,7 +355,7 @@ export const respondReportRequest = async (req, res) => {
     [id]
   );
   if (!request) return res.status(404).json({ message: "Report request not found" });
-  if (request.counselor_id !== userId) {
+  if (request.counselor_id !== null && request.counselor_id !== userId) {
     return res.status(403).json({ message: "Only the assigned counselor can respond" });
   }
   if (request.status !== "pending") {
@@ -349,8 +363,8 @@ export const respondReportRequest = async (req, res) => {
   }
 
   await query(
-    "UPDATE report_requests SET status = ?, response_note = ?, responded_at = NOW() WHERE id = ?",
-    [status, responseNote?.trim() || null, id]
+    "UPDATE report_requests SET status = ?, response_note = ?, responded_at = NOW(), counselor_id = ? WHERE id = ?",
+    [status, responseNote?.trim() || null, userId, id]
   );
 
   await query(

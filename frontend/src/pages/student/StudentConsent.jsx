@@ -228,8 +228,11 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
           )}
           <button
             onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition disabled:opacity-50"
+            disabled={saving || !alreadyFeedback}
+            title={!alreadyFeedback ? "Submit your feedback first to save this result" : undefined}
+            className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
+              alreadyFeedback ? "bg-maroon-600 text-white hover:bg-maroon-700" : "bg-gray-200 text-gray-400"
+            }`}
           >
             <Download size={12} /> {saving ? "Saving…" : "Save"}
           </button>
@@ -342,8 +345,11 @@ function CounselingResultCard({ session, studentName, token, alreadyFeedback, on
           )}
           <button
             onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 transition disabled:opacity-50"
+            disabled={saving || !alreadyFeedback}
+            title={!alreadyFeedback ? "Submit your feedback first to save this report" : undefined}
+            className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
+              alreadyFeedback ? "bg-maroon-600 text-white hover:bg-maroon-700" : "bg-gray-200 text-gray-400"
+            }`}
           >
             <Download size={12} /> {saving ? "Saving…" : "Save"}
           </button>

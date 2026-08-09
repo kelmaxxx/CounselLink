@@ -162,6 +162,7 @@ for (let i = 0; i < 5; i++) {
   EDU_TAGS.push(`{edu${i}School}`, `{edu${i}Address}`, `{edu${i}PublicPrivate}`, `{edu${i}YearGraduated}`, `{edu${i}Honors}`);
 }
 
+// Single run helper — Century 8 pt, same as the source document.
 const RUN_RPR = `<w:rPr><w:rFonts w:ascii="Century" w:hAnsi="Century"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr>`;
 const makeRun = (text) => `<w:r>${RUN_RPR}<w:t xml:space="preserve">${text}</w:t></w:r>`;
 
@@ -312,6 +313,38 @@ function build() {
     }
   }
 
+  // 7) Force a page break BEFORE the "TEST RECORD" heading so that section
+  //    always starts on page 2, giving exactly 2 printed pages regardless of
+  //    how much content is on page 1.
+  //    Strategy: find the paragraph that contains "TEST RECORD" and inject
+  //    <w:pageBreakBefore/> into its <w:pPr> (creating one if absent).
+  let pageBreakAdded = 0;
+  const testRecordIdx = xml.indexOf("TEST RECORD");
+  if (testRecordIdx >= 0) {
+    // Walk back to the enclosing paragraph.
+    const pStart = Math.max(
+      xml.lastIndexOf("<w:p ", testRecordIdx),
+      xml.lastIndexOf("<w:p>", testRecordIdx)
+    );
+    if (pStart >= 0) {
+      const pEnd = xml.indexOf("</w:p>", pStart);
+      if (pEnd >= 0) {
+        const para = xml.slice(pStart, pEnd + "</w:p>".length);
+        let newPara;
+        if (para.includes("<w:pPr>")) {
+          // Inject into existing pPr (right after opening tag).
+          newPara = para.replace("<w:pPr>", "<w:pPr><w:pageBreakBefore/>");
+        } else {
+          // No pPr yet — create one right after the opening <w:p> or <w:p ...>.
+          const tagEnd = para.indexOf(">") + 1;
+          newPara = para.slice(0, tagEnd) + "<w:pPr><w:pageBreakBefore/></w:pPr>" + para.slice(tagEnd);
+        }
+        xml = xml.slice(0, pStart) + newPara + xml.slice(pEnd + "</w:p>".length);
+        pageBreakAdded = 1;
+      }
+    }
+  }
+
   zip.file("word/document.xml", xml);
   const out = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
   fs.writeFileSync(OUT, out);
@@ -323,6 +356,7 @@ function build() {
   console.log(`Educational cells filled: ${eduIdx}/${EDU_TAGS.length}`);
   console.log(`Student signature lines added: ${studentSigLines}/2`);
   console.log(`Counselor attestation block added: ${counselorBlockAdded}/1`);
+  console.log(`TEST RECORD page break added: ${pageBreakAdded}/1`);
   console.log(`Template written: ${OUT}`);
 }
 

@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
+import { useReferrals } from "../../context/ReferralsContext";
 import {
   User2,
   MessageCircle,
@@ -23,7 +25,6 @@ import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
 import {
   PageHeader,
-  BigStat,
   SectionCard,
   EmptyState,
   StatusPill,
@@ -37,16 +38,19 @@ import {
 } from "../../components/ui";
 
 const TIME_LABEL = {
-  morning: "9:00 AM – 12:00 PM",
-  afternoon: "1:00 PM – 5:00 PM",
   "9:00-10:00": "9:00 – 10:00 AM",
   "10:00-11:00": "10:00 – 11:00 AM",
   "11:00-12:00": "11:00 – 12:00 PM",
   "1:00-2:00": "1:00 – 2:00 PM",
   "2:00-3:00": "2:00 – 3:00 PM",
   "3:00-4:00": "3:00 – 4:00 PM",
+  "4:00-5:00": "4:00 – 5:00 PM",
 };
-const timeLabel = (slot) => TIME_LABEL[slot] || slot || "—";
+const timeLabel = (slot) => {
+  if (slot === "morning") return "9:00 AM – 12:00 PM";
+  if (slot === "afternoon") return "1:00 PM – 5:00 PM";
+  return TIME_LABEL[slot] || slot || "—";
+};
 
 const getTimeBlock = (slot) => {
   if (!slot || slot === "morning" || slot.startsWith("9:") || slot.startsWith("10:") || slot.startsWith("11:"))
@@ -59,7 +63,13 @@ const SESSION_SUB_TABS = [
   { id: "rescheduled", label: "Rescheduled" },
   { id: "follow_up", label: "Follow-up" },
   { id: "urgent", label: "Urgent" },
-  { id: "missing", label: "Missing" },
+  { id: "missing", label: "Missed" },
+];
+
+const TEST_SUB_TABS = [
+  { id: "approved", label: "Approved" },
+  { id: "rescheduled", label: "Rescheduled" },
+  { id: "missed", label: "Missed" },
 ];
 
 export default function CounselorAppointments() {
@@ -74,9 +84,14 @@ export default function CounselorAppointments() {
   } = useAppointments();
   const { getTestsForCurrentUser, fetchTests, acceptTest } = useTests();
   const { sessions } = useCounselingSessions();
+  const { referrals, fetchReferrals } = useReferrals?.() || {};
   const [busyId, setBusyId] = useState(null);
   const [openPopoverId, setOpenPopoverId] = useState(null);
   const actionRefs = useRef({});
+
+  useEffect(() => {
+    fetchReferrals?.().catch(() => undefined);
+  }, [fetchReferrals]);
 
   useEffect(() => {
     if (!openPopoverId) return;
@@ -92,8 +107,25 @@ export default function CounselorAppointments() {
   const [rejectModal, setRejectModal] = useState({ open: false, id: null, note: "" });
   const [completeConfirmModal, setCompleteConfirmModal] = useState({ open: false, id: null, type: "counseling" });
   const [actionErrorModal, setActionErrorModal] = useState({ open: false, message: "" });
-  const [activeTab, setActiveTab] = useState("pending");
-  const [sessionSubTab, setSessionSubTab] = useState("approved");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    if (location.state?.tab) return location.state.tab;
+    return "pending";
+  });
+  const [sessionSubTab, setSessionSubTab] = useState(() => {
+    if (location.state?.subTab) return location.state.subTab;
+    return "approved";
+  });
+  const [testSubTab, setTestSubTab] = useState("approved");
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+    if (location.state?.subTab) {
+      setSessionSubTab(location.state.subTab);
+    }
+  }, [location.state]);
   const [search, setSearch] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -173,7 +205,11 @@ export default function CounselorAppointments() {
 
   const myAppointments = useMemo(() => getAppointmentsForCurrentUser(), [getAppointmentsForCurrentUser]);
   const myTests = useMemo(() => getTestsForCurrentUser(), [getTestsForCurrentUser]);
-  const pendingTests = useMemo(() => myTests.filter((t) => t.status === "pending"), [myTests]);
+  const pendingTests = useMemo(() => {
+    return myTests
+      .filter((t) => t.status === "pending")
+      .sort((x, y) => new Date(x.preferredDate || x.preferred_date || 0) - new Date(y.preferredDate || y.preferred_date || 0));
+  }, [myTests]);
 
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [chatRecipient, setChatRecipient] = useState(null);
@@ -197,10 +233,13 @@ export default function CounselorAppointments() {
   };
 
   const pendingAppointments = useMemo(() => {
-    const all = myAppointments.filter((a) => a.status === "pending");
-    const urgents = all.filter((a) => a.is_urgent || a.isUrgent).sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
-    const regulars = all.filter((a) => !(a.is_urgent || a.isUrgent));
-    return [...urgents, ...regulars];
+    return myAppointments
+      .filter((a) => a.status === "pending")
+      .sort((x, y) => {
+        const dx = new Date(x.preferredDate || x.preferred_date || 0);
+        const dy = new Date(y.preferredDate || y.preferred_date || 0);
+        return dx - dy;
+      });
   }, [myAppointments]);
 
   // Queue for pending urgent appointments only
@@ -221,47 +260,38 @@ export default function CounselorAppointments() {
     return map;
   }, [pendingAppointments]);
 
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-  const upcomingAppointments = myAppointments.filter(
-    (a) => (a.status === "approved" || a.status === "rescheduled") && (!a.scheduledDate || a.scheduledDate >= today)
-  );
+  const isSlotOver = (slot) => {
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const s = (slot || "").toLowerCase();
+    const isAM = s === "morning" || s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:");
+    const isPM = s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:");
+    if (isAM) return mins >= 12 * 60;
+    if (isPM) return mins >= 17 * 60;
+    return mins >= 17 * 60;
+  };
 
-  // Queue for approved/rescheduled/follow-up (non-urgent) — per scheduledDate + AM/PM, sorted by when counselor acted
-  const sessionQueueMap = useMemo(() => {
-    const map = {};
-    const eligible = upcomingAppointments.filter((a) => !(a.is_urgent || a.isUrgent));
-    const groups = {};
-    eligible.forEach((a) => {
-      const date = a.scheduledDate || "";
-      const key = `${date}|${getTimeBlock(a.scheduledTimeSlot || "")}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(a);
-    });
-    Object.values(groups).forEach((group) => {
-      group.sort((x, y) => new Date(x.updated_at || x.created_at || 0) - new Date(y.updated_at || y.created_at || 0));
-      group.forEach((a, i) => { map[a.id] = i + 1; });
-    });
-    return map;
-  }, [upcomingAppointments]);
+  const standardizeDate = (dStr) => {
+    if (!dStr) return "";
+    try {
+      return new Date(dStr).toISOString().split("T")[0];
+    } catch {
+      return String(dStr).split("T")[0];
+    }
+  };
 
-  // Separate urgent queue — per scheduledDate + AM/PM, sorted by created_at
-  const urgentSessionQueueMap = useMemo(() => {
-    const map = {};
-    const urgents = upcomingAppointments.filter((a) => a.is_urgent || a.isUrgent);
-    const groups = {};
-    urgents.forEach((a) => {
-      const date = a.scheduledDate || a.preferredDate || "";
-      const key = `${date}|${getTimeBlock(a.scheduledTimeSlot || a.timeSlot || "")}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(a);
-    });
-    Object.values(groups).forEach((group) => {
-      group.sort((x, y) => new Date(x.created_at || 0) - new Date(y.created_at || 0));
-      group.forEach((a, i) => { map[a.id] = i + 1; });
-    });
-    return map;
-  }, [upcomingAppointments]);
+  const upcomingAppointments = myAppointments.filter((a) => {
+    if (a.status !== "approved" && a.status !== "rescheduled") return false;
+    const sched = standardizeDate(a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date);
+    if (!sched) return true; // Keep urgent/unscheduled
+    if (sched > today) return true;
+    if (sched === today) return !isSlotOver(a.scheduledTimeSlot || a.timeSlot || a.preferredTime || a.preferred_time);
+    return false;
+  });
+
+
 
   const completedAppointments = myAppointments.filter((a) => {
     if (a.status !== "completed") return false;
@@ -273,8 +303,11 @@ export default function CounselorAppointments() {
   // Missed — no-shows + overdue follow-ups (violet) + overdue urgents (red)
   const overdueAppts = myAppointments.filter((a) => {
     if (a.status !== "approved" && a.status !== "rescheduled") return false;
-    const sched = a.scheduledDate || a.scheduled_date;
-    return sched && sched < today;
+    const sched = standardizeDate(a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date);
+    if (!sched) return false;
+    if (sched < today) return true;
+    if (sched === today) return isSlotOver(a.scheduledTimeSlot || a.timeSlot || a.preferredTime || a.preferred_time);
+    return false;
   });
   const missedAppointments = [
     ...myAppointments.filter((a) => a.status === "no_show").map((a) => ({ ...a, _missedType: "no_show" })),
@@ -282,10 +315,28 @@ export default function CounselorAppointments() {
     ...overdueAppts.filter((a) => !!(a.is_urgent || a.isUrgent) && a.reason !== "Follow-up Session").map((a) => ({ ...a, _missedType: "urgent" })),
   ];
 
-  const upcomingTests = myTests.filter(
-    (t) => (t.status === "approved" || t.status === "rescheduled") && (!t.scheduledDate || t.scheduledDate >= today)
-  );
+  const upcomingTests = myTests.filter((t) => {
+    if (t.status !== "approved" && t.status !== "rescheduled") return false;
+    const sched = standardizeDate(t.scheduledDate || t.scheduled_date || t.preferredDate || t.preferred_date);
+    if (!sched) return true;
+    if (sched > today) return true;
+    if (sched === today) return !isSlotOver(t.scheduledTimeSlot || t.timeSlot || t.preferredTime || t.preferred_time);
+    return false;
+  });
   const completedTests = myTests.filter((t) => t.status === "completed");
+
+  const overdueTests = myTests.filter((t) => {
+    if (t.status !== "approved" && t.status !== "rescheduled") return false;
+    const sched = standardizeDate(t.scheduledDate || t.scheduled_date || t.preferredDate || t.preferred_date);
+    if (!sched) return false;
+    if (sched < today) return true;
+    if (sched === today) return isSlotOver(t.scheduledTimeSlot || t.timeSlot || t.preferredTime || t.preferred_time);
+    return false;
+  });
+  const missedTests = [
+    ...myTests.filter((t) => t.status === "no_show"),
+    ...overdueTests,
+  ];
 
   const notCompletedAppointments = myAppointments.filter(
     (a) => a.status !== "completed" && a.status !== "rejected" && a.status !== "no_show"
@@ -313,19 +364,25 @@ export default function CounselorAppointments() {
     }).slice(0, 6);
   }, [allNames, search]);
 
+  const pendingReferrals = (referrals || []).filter((r) => r.status === "pending");
+
   const matchesSearch = (name) => !search.trim() || (name || "").toLowerCase().includes(search.toLowerCase());
 
   const filteredPendingAppts = pendingAppointments.filter((a) => matchesSearch(a.studentName));
   const filteredPendingTests = pendingTests.filter((t) => matchesSearch(t.studentName));
+  const filteredPendingReferrals = pendingReferrals.filter((r) => matchesSearch(r.studentName));
   const filteredSessions = upcomingAppointments.filter((a) => matchesSearch(a.studentName));
   const filteredTests = upcomingTests.filter((t) => matchesSearch(t.studentName));
+  const filteredMissedTests = missedTests.filter((t) => matchesSearch(t.studentName));
   const filteredCompleted = recentlyCompleted.filter((item) => matchesSearch(item.studentName));
   const filteredMissed = missedAppointments.filter((a) => matchesSearch(a.studentName));
 
   const filteredPending = useMemo(() => [
     ...filteredPendingAppts.map((a) => ({ ...a, _kind: "appt" })),
     ...filteredPendingTests.map((t) => ({ ...t, _kind: "test" })),
-  ], [filteredPendingAppts, filteredPendingTests]);
+    ...filteredPendingReferrals.map((r) => ({ ...r, _kind: "referral" })),
+  ].sort((x, y) => new Date(x.preferredDate || x.preferred_date || x.created_at || 0) - new Date(y.preferredDate || y.preferred_date || y.created_at || 0)),
+  [filteredPendingAppts, filteredPendingTests, filteredPendingReferrals]);
 
   const pagedPending = useMemo(
     () => filteredPending.slice((pendingPage - 1) * PAGE_SIZE, pendingPage * PAGE_SIZE),
@@ -333,13 +390,14 @@ export default function CounselorAppointments() {
   );
 
   const sessionSubFiltered = useMemo(() => {
+    const byDate = (a, b) => new Date(a.scheduledDate || a.preferredDate || 0) - new Date(b.scheduledDate || b.preferredDate || 0);
     switch (sessionSubTab) {
-      case "approved":   return filteredSessions.filter((a) => a.status === "approved" && a.reason !== "Follow-up Session" && !a.is_urgent && !a.isUrgent);
-      case "rescheduled": return filteredSessions.filter((a) => a.status === "rescheduled" && !a.is_urgent && !a.isUrgent);
-      case "follow_up":  return filteredSessions.filter((a) => a.reason === "Follow-up Session" && !a.is_urgent && !a.isUrgent);
-      case "urgent":     return filteredSessions.filter((a) => a.is_urgent || a.isUrgent);
-      case "missing":    return filteredMissed;
-      default:           return filteredSessions;
+      case "approved":    return filteredSessions.filter((a) => a.status === "approved" && a.reason !== "Follow-up Session" && !a.is_urgent && !a.isUrgent).sort(byDate);
+      case "rescheduled": return filteredSessions.filter((a) => a.status === "rescheduled" && !a.is_urgent && !a.isUrgent).sort(byDate);
+      case "follow_up":   return filteredSessions.filter((a) => a.reason === "Follow-up Session" && !a.is_urgent && !a.isUrgent).sort(byDate);
+      case "urgent":      return filteredSessions.filter((a) => a.is_urgent || a.isUrgent).sort(byDate);
+      case "missing":     return filteredMissed.sort(byDate);
+      default:            return filteredSessions.sort(byDate);
     }
   }, [filteredSessions, filteredMissed, sessionSubTab]);
 
@@ -347,9 +405,19 @@ export default function CounselorAppointments() {
     () => sessionSubFiltered.slice((sessionsPage - 1) * PAGE_SIZE, sessionsPage * PAGE_SIZE),
     [sessionSubFiltered, sessionsPage]
   );
+  const testSubFiltered = useMemo(() => {
+    const byDate = (a, b) => new Date(a.scheduledDate || a.preferredDate || 0) - new Date(b.scheduledDate || b.preferredDate || 0);
+    switch (testSubTab) {
+      case "approved":    return filteredTests.filter((t) => t.status === "approved").sort(byDate);
+      case "rescheduled": return filteredTests.filter((t) => t.status === "rescheduled").sort(byDate);
+      case "missed":      return filteredMissedTests.sort(byDate);
+      default:            return filteredTests.sort(byDate);
+    }
+  }, [filteredTests, filteredMissedTests, testSubTab]);
+
   const pagedTests = useMemo(
-    () => filteredTests.slice((testsPage - 1) * PAGE_SIZE, testsPage * PAGE_SIZE),
-    [filteredTests, testsPage]
+    () => testSubFiltered.slice((testsPage - 1) * PAGE_SIZE, testsPage * PAGE_SIZE),
+    [testSubFiltered, testsPage]
   );
   const pagedCompleted = useMemo(
     () => filteredCompleted.slice((completedPage - 1) * PAGE_SIZE, completedPage * PAGE_SIZE),
@@ -357,7 +425,7 @@ export default function CounselorAppointments() {
   );
 
   const TABS = [
-    { id: "pending",   label: "Pending",              count: pendingAppointments.length + pendingTests.length },
+    { id: "pending",   label: "Pending",              count: pendingAppointments.length + pendingTests.length + pendingReferrals.length },
     { id: "sessions",  label: "Counseling Sessions",  count: upcomingAppointments.length },
     { id: "tests",     label: "Psychological Tests",   count: upcomingTests.length },
     { id: "completed", label: "Completed",             count: recentlyCompleted.length },
@@ -371,20 +439,13 @@ export default function CounselorAppointments() {
         subtitle="Scheduled counseling sessions and psychological tests"
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <BigStat label="Pending requests"        value={pendingAppointments.length}                         hint="Awaiting your response"  icon={Clock3}       tone="amber" />
-        <BigStat label="Counseling sessions"     value={notCompletedAppointments.length}                    hint="Not yet completed"        icon={CalendarClock} tone="sky"   />
-        <BigStat label="Psych tests"             value={upcomingTests.length}                               hint="Confirmed tests"          icon={ClipboardList} tone="blue"  />
-        <BigStat label="Completed appointments"  value={completedAppointments.length + completedTests.length} hint="Sessions & tests"       icon={CheckCircle2}  tone="gray"  />
-      </div>
-
       {/* ── Tab bar + search ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSearch(""); setPendingPage(1); setSessionsPage(1); setTestsPage(1); setCompletedPage(1); setSessionSubTab("approved"); }}
+              onClick={() => { setActiveTab(tab.id); setSearch(""); setPendingPage(1); setSessionsPage(1); setTestsPage(1); setCompletedPage(1); setSessionSubTab("approved"); setTestSubTab("approved"); }}
               className={["flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap", activeTab === tab.id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"].join(" ")}
             >
               {tab.label}
@@ -422,8 +483,9 @@ export default function CounselorAppointments() {
           ) : (
             <>
               <ul className="divide-y divide-gray-100">
-                {/* Counseling appointment pending items */}
-                {pagedPending.filter((item) => item._kind === "appt").map((a) => {
+                {pagedPending.map((item) => {
+                  if (item._kind === "appt") {
+                  const a = item;
                   const studentId = a.student_id || a.studentUserId;
                   const isUrgent = !!(a.is_urgent || a.isUrgent);
                   const preferredSlot = Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : a.timeSlot || "";
@@ -517,10 +579,9 @@ export default function CounselorAppointments() {
                       </div>
                     </li>
                   );
-                })}
-
-                {/* Psychological test pending items */}
-                {pagedPending.filter((item) => item._kind === "test").map((t) => {
+                  }
+                  if (item._kind === "test") {
+                  const t = item;
                   const studentId = t.student_id || t.studentUserId;
                   const preferredSlot = Array.isArray(t.preferredSlots) ? t.preferredSlots[0] : t.timeSlot || "";
                   return (
@@ -582,6 +643,61 @@ export default function CounselorAppointments() {
                       </div>
                     </li>
                   );
+                  }
+                  if (item._kind === "referral") {
+                  const r = item;
+                  return (
+                    <li key={`ref-${r.id}`} className="px-4 py-3 hover:bg-gray-50/70 transition">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          {initialsOf(r.studentName)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {/* Row 1: name + badge */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-gray-900">{r.studentName}</span>
+                            <StatusPill status="pending" />
+                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-violet-50 text-violet-700 border-violet-200">
+                              <FileText size={11} /> College Referral
+                            </span>
+                          </div>
+                          {/* Department below name */}
+                          {r.studentDepartment && (
+                            <p className="text-xs text-gray-500 mt-0.5">{r.studentDepartment}</p>
+                          )}
+                          <div className="mt-1.5 space-y-0.5">
+                            <div className="flex items-baseline gap-1.5 text-xs">
+                              <span className="text-gray-400 w-20 flex-shrink-0">Counselor</span>
+                              {r.receivingCounselorName ? (
+                                <span className="text-gray-700">{r.receivingCounselorName}</span>
+                              ) : (
+                                <span className="text-gray-400 italic">To Be Approve</span>
+                              )}
+                            </div>
+                            {r.reason && (
+                              <div className="flex items-baseline gap-1.5 text-xs">
+                                <span className="text-gray-400 w-20 flex-shrink-0">Reason</span>
+                                <span className="text-gray-600 line-clamp-2">{r.reason}</span>
+                              </div>
+                            )}
+                            <div className="flex items-baseline gap-1.5 text-xs">
+                              <span className="text-gray-400 w-20 flex-shrink-0">Submitted</span>
+                              <span className="text-gray-500 tabular-nums">{r.created_at ? formatDate(r.created_at) : "—"}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Link
+                            to="/counselor/referrals"
+                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-violet-300 bg-violet-50 text-xs text-violet-700 hover:bg-violet-100 transition"
+                          >
+                            <FileText size={12} /> View
+                          </Link>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                  }
                 })}
               </ul>
               <Pagination page={pendingPage} totalPages={Math.ceil(filteredPending.length / PAGE_SIZE)} onPageChange={setPendingPage} />
@@ -662,7 +778,7 @@ export default function CounselorAppointments() {
                             <button onClick={() => openProfile(studentId, a.studentName)} className="text-sm font-semibold text-gray-900 hover:underline">
                               {a.studentName}
                             </button>
-                            {!isUrgent && <span className="text-xs text-gray-500">{a.college || "—"}</span>}
+                            <span className="text-xs text-gray-500">{a.college || "—"}</span>
                             {isMissing ? (
                               missedType === "follow_up" ? (
                                 <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">Missed Follow-up</span>
@@ -687,12 +803,12 @@ export default function CounselorAppointments() {
                             {/* APPROVED */}
                             {sessionSubTab === "approved" && (
                               <>
-                                {sessionQueueMap[a.id] != null && (
+                                {a.queueNumber != null && (
                                   <div className="flex items-center gap-2 text-xs">
                                     <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-sky-600 text-white text-[11px]">
-                                      Queue #{sessionQueueMap[a.id]}
+                                      Queue #{a.queueNumber}
                                     </span>
-                                    <span className="text-gray-400">{getTimeBlock(a.scheduledTimeSlot)} block</span>
+                                    <span className="text-gray-400">{(a.queueSlot || getTimeBlock(a.scheduledTimeSlot))} block</span>
                                   </div>
                                 )}
                                 <div className="flex items-baseline gap-1.5 text-xs">
@@ -707,12 +823,12 @@ export default function CounselorAppointments() {
                             {/* RESCHEDULED */}
                             {sessionSubTab === "rescheduled" && (
                               <>
-                                {sessionQueueMap[a.id] != null && (
+                                {a.queueNumber != null && (
                                   <div className="flex items-center gap-2 text-xs">
                                     <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-sky-600 text-white text-[11px]">
-                                      Queue #{sessionQueueMap[a.id]}
+                                      Queue #{a.queueNumber}
                                     </span>
-                                    <span className="text-gray-400">{getTimeBlock(a.scheduledTimeSlot)} block</span>
+                                    <span className="text-gray-400">{(a.queueSlot || getTimeBlock(a.scheduledTimeSlot))} block</span>
                                   </div>
                                 )}
                                 <div className="flex items-baseline gap-1.5 text-xs">
@@ -731,12 +847,12 @@ export default function CounselorAppointments() {
                             {/* FOLLOW-UP */}
                             {sessionSubTab === "follow_up" && (
                               <>
-                                {sessionQueueMap[a.id] != null && (
+                                {a.queueNumber != null && (
                                   <div className="flex items-center gap-2 text-xs">
                                     <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-sky-600 text-white text-[11px]">
-                                      Queue #{sessionQueueMap[a.id]}
+                                      Queue #{a.queueNumber}
                                     </span>
-                                    <span className="text-gray-400">{getTimeBlock(a.scheduledTimeSlot)} block</span>
+                                    <span className="text-gray-400">{(a.queueSlot || getTimeBlock(a.scheduledTimeSlot))} block</span>
                                   </div>
                                 )}
                                 <div className="flex items-baseline gap-1.5 text-xs">
@@ -755,26 +871,22 @@ export default function CounselorAppointments() {
                             {/* URGENT */}
                             {sessionSubTab === "urgent" && (
                               <>
-                                {urgentSessionQueueMap[a.id] != null && (
-                                  <div className="flex items-center gap-2 text-xs">
+                                <div className="flex items-baseline gap-1.5 text-xs">
+                                  <span className="text-gray-400 w-16 flex-shrink-0">Appt #</span>
+                                  <span className="text-gray-500">{a.controlNo}</span>
+                                </div>
+                                {a.queueNumber != null && (
+                                  <div className="flex items-center gap-2 text-xs mt-0.5">
                                     <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-red-600 text-white text-[11px]">
-                                      Urgent Queue #{urgentSessionQueueMap[a.id]}
+                                      Urgent Queue #{a.queueNumber}
                                     </span>
-                                    <span className="text-gray-400">{getTimeBlock(a.scheduledTimeSlot || a.timeSlot || "")} block</span>
+                                    <span className="text-gray-400">{(a.queueSlot || getTimeBlock(a.scheduledTimeSlot || a.timeSlot || "")) + " slot"}</span>
                                   </div>
                                 )}
                                 <div className="flex items-baseline gap-1.5 text-xs">
-                                  <span className="text-gray-400 w-16 flex-shrink-0">Requested</span>
-                                  <span className="text-gray-600">{a.created_at ? formatDate(a.created_at) : "—"}</span>
-                                </div>
-                                <div className="flex items-baseline gap-1.5 text-xs">
                                   <span className="text-gray-400 w-16 flex-shrink-0">Schedule</span>
                                   <span className="text-gray-900 font-medium tabular-nums">
-                                    {a.scheduledDate
-                                      ? `${formatDate(a.scheduledDate)} · ${timeLabel(a.scheduledTimeSlot)}`
-                                      : a.preferredDate
-                                      ? `${formatDate(a.preferredDate)}${a.timeSlot ? ` · ${timeLabel(a.timeSlot)}` : ""}`
-                                      : "—"}
+                                    {a.queueDate || a.queue_date ? formatDate(a.queueDate || a.queue_date) : a.created_at ? formatDate(a.created_at) : "—"}
                                   </span>
                                 </div>
                               </>
@@ -859,9 +971,34 @@ export default function CounselorAppointments() {
 
       {/* ══════════════ TESTS TAB ══════════════ */}
       {activeTab === "tests" && (
-        <SectionCard className="mb-6" title="Psychological tests" subtitle={`${filteredTests.length} scheduled`} noBodyPadding>
-          {filteredTests.length === 0 ? (
-            <EmptyState icon={ClipboardList} title={search ? "No results" : "No scheduled tests"} hint={search ? `No tests match "${search}".` : "Accepted test requests will appear here."} />
+        <SectionCard className="mb-6" title="Psychological tests" subtitle={`${upcomingTests.length} scheduled`} noBodyPadding>
+          {/* Sub-tab bar */}
+          <div className="flex items-center gap-1 border-b border-gray-100 px-4 pt-3 overflow-x-auto">
+            {TEST_SUB_TABS.map((st) => {
+              let cnt;
+              switch (st.id) {
+                case "approved":    cnt = filteredTests.filter((t) => t.status === "approved").length; break;
+                case "rescheduled": cnt = filteredTests.filter((t) => t.status === "rescheduled").length; break;
+                case "missed":      cnt = filteredMissedTests.length; break;
+                default:            cnt = filteredTests.length;
+              }
+              return (
+                <button
+                  key={st.id}
+                  onClick={() => { setTestSubTab(st.id); setTestsPage(1); }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 -mb-px transition whitespace-nowrap ${testSubTab === st.id ? "text-maroon-700 border-maroon-600" : "text-gray-500 border-transparent hover:text-gray-700"}`}
+                >
+                  {st.label}
+                  <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold tabular-nums ${testSubTab === st.id ? "bg-maroon-100 text-maroon-700" : "bg-gray-100 text-gray-600"}`}>
+                    {cnt}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {testSubFiltered.length === 0 ? (
+            <EmptyState icon={ClipboardList} title={search ? "No results" : "No tests in this category"} hint={search ? `No tests match "${search}".` : "Tests matching this filter will appear here."} />
           ) : (
             <>
               <ul className="divide-y divide-gray-100">
@@ -870,22 +1007,27 @@ export default function CounselorAppointments() {
                   const original = t.preferredDate
                     ? `${formatDate(t.preferredDate)} · ${Array.isArray(t.preferredSlots) ? t.preferredSlots.map((s) => timeLabel(s)).join(", ") : "—"}`
                     : "—";
+                  const isMissedTest = testSubTab === "missed";
                   return (
                     <li key={t.id} className="px-4 py-3 hover:bg-gray-50/70 transition">
                       <div className="flex items-start gap-3">
-                        <button onClick={() => openProfile(studentId, t.studentName)} className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center justify-center text-xs font-semibold flex-shrink-0 transition" title="View profile">
+                        <button onClick={() => openProfile(studentId, t.studentName)} className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 transition ${isMissedTest ? "bg-gray-100 text-gray-500 hover:bg-gray-200" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`} title="View profile">
                           {initialsOf(t.studentName)}
                         </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <button onClick={() => openProfile(studentId, t.studentName)} className="text-sm font-semibold text-gray-900 hover:underline">{t.studentName}</button>
                             <span className="text-xs text-gray-500">{t.college || "—"}</span>
-                            <StatusPill status={t.status} />
+                            {isMissedTest ? (
+                              <StatusPill status="no_show" />
+                            ) : (
+                              <StatusPill status={t.status} />
+                            )}
                             <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
                               <ClipboardList size={11} /> {t.testType || "Psychological test"}
                             </span>
                             {t.controlNo && <span className="inline-flex items-center gap-1 text-xs text-gray-400 font-medium"><Hash size={10} />{t.controlNo}</span>}
-                            {t.queue_number != null && (
+                            {!isMissedTest && t.queue_number != null && (
                               <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">
                                 {t.queue_slot || getTimeBlock(t.scheduledTimeSlot || "")} Queue #{t.queue_number}
                               </span>
@@ -914,7 +1056,7 @@ export default function CounselorAppointments() {
                   );
                 })}
               </ul>
-              <Pagination page={testsPage} totalPages={Math.ceil(filteredTests.length / PAGE_SIZE)} onPageChange={setTestsPage} />
+              <Pagination page={testsPage} totalPages={Math.ceil(testSubFiltered.length / PAGE_SIZE)} onPageChange={setTestsPage} />
             </>
           )}
         </SectionCard>

@@ -22,7 +22,6 @@ import WelcomeHero from "../../components/WelcomeHero";
 import {
   PageHeader,
   BigStat,
-  DonutStat,
   RankedBarChart,
   SectionCard,
   EmptyState,
@@ -88,7 +87,7 @@ export default function AdminDashboard() {
       .sort((a, b) => b[1] - a[1]);
   }, [students]);
 
-  const firstName = currentUser?.name?.split(" ")[0] || "Admin";
+  const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Admin";
 
   return (
     <>
@@ -153,15 +152,13 @@ export default function AdminDashboard() {
             title="User role distribution"
             subtitle="System breakdown by role"
           >
-            <DonutStat
-              stack
+            <RankedBarChart
               data={pieData.map((entry, idx) => ({
                 name: entry.name,
                 value: entry.value,
                 color: PIE_COLORS[idx % PIE_COLORS.length],
               }))}
-              total={visibleUsers.length}
-              centerLabel="users"
+              labelWidth={90}
               emptyIcon={Users}
               emptyTitle="No users yet"
             />

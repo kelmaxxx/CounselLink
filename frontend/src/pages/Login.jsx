@@ -17,6 +17,7 @@ import {
   Phone,
   ArrowLeft,
   AlertTriangle,
+  Home,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL } from "../components/ui";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../utils/phone";
@@ -38,7 +39,8 @@ const isAllowedStudentEmail = (email) => {
 
 const emptyLoginErrors = { identifier: "", password: "", form: "" };
 const emptySignupErrors = {
-  name: "",
+  firstName: "",
+  lastName: "",
   email: "",
   studentId: "",
   phone: "",
@@ -65,7 +67,9 @@ export default function Login() {
 
   const [loginForm, setLoginForm] = useState({ identifier: "", password: "" });
   const [signupForm, setSignupForm] = useState({
-    name: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -264,7 +268,9 @@ export default function Login() {
   const validateStep = (step) => {
     const next = { ...emptySignupErrors };
     if (step === 1) {
-      if (!signupForm.name.trim()) next.name = "Full name is required.";
+      if (!signupForm.firstName.trim()) next.firstName = "First name is required.";
+      if (!signupForm.middleName.trim()) next.middleName = "Middle name is required.";
+      if (!signupForm.lastName.trim()) next.lastName = "Surname is required.";
       if (!/^\d{9}$/.test(signupForm.studentId)) next.studentId = "Student ID must be exactly 9 digits.";
       if (!signupForm.email.trim()) next.email = "Email is required.";
       else {
@@ -336,7 +342,9 @@ export default function Login() {
     }
     setSignupLoading(true);
     const res = await signup({
-      name: signupForm.name,
+      firstName: signupForm.firstName,
+      middleName: signupForm.middleName,
+      lastName: signupForm.lastName,
       email: signupForm.email,
       password: signupForm.password,
       role: signupForm.role,
@@ -399,14 +407,34 @@ export default function Login() {
           {/* Step 1 — Personal info */}
           {signupStep === 1 && (
             <div className="space-y-4">
-              <FieldRow label="Full name" error={signupErrors.name}>
+              <FieldRow label="Surname" error={signupErrors.lastName}>
                 <input
-                  name="name"
-                  value={signupForm.name}
+                  name="lastName"
+                  value={signupForm.lastName}
                   onChange={handleSignupChange}
                   className={INPUT}
-                  placeholder="Juan Dela Cruz"
+                  placeholder="Dela Cruz"
                   autoFocus
+                />
+              </FieldRow>
+
+              <FieldRow label="First name" error={signupErrors.firstName}>
+                <input
+                  name="firstName"
+                  value={signupForm.firstName}
+                  onChange={handleSignupChange}
+                  className={INPUT}
+                  placeholder="Juan"
+                />
+              </FieldRow>
+
+              <FieldRow label="Middle name" error={signupErrors.middleName}>
+                <input
+                  name="middleName"
+                  value={signupForm.middleName}
+                  onChange={handleSignupChange}
+                  className={INPUT}
+                  placeholder="Macaraeg"
                 />
               </FieldRow>
 
@@ -858,9 +886,10 @@ export default function Login() {
 }
 
 const EMPTY_URGENT_FORM = {
-  fullName: "",
+  firstName: "",
+  middleName: "",
+  familyName: "",
   studentIdNumber: "",
-  institutionalEmail: "",
   description: "",
 };
 
@@ -889,16 +918,10 @@ function AuthShell({ children }) {
 
   const validateUrgentForm = () => {
     const errors = {};
-    if (!urgentForm.fullName.trim()) errors.fullName = "Required";
+    if (!urgentForm.firstName.trim()) errors.firstName = "Required";
+    if (!urgentForm.middleName.trim()) errors.middleName = "Required";
+    if (!urgentForm.familyName.trim()) errors.familyName = "Required";
     if (!/^\d{9}$/.test(urgentForm.studentIdNumber)) errors.studentIdNumber = "Must be exactly 9 digits.";
-    if (!urgentForm.institutionalEmail.trim()) {
-      errors.institutionalEmail = "Required";
-    } else {
-      const emailLower = urgentForm.institutionalEmail.toLowerCase();
-      const allowed = ["@s.msumain.edu.ph"];
-      if (!allowed.some((d) => emailLower.endsWith(d)))
-        errors.institutionalEmail = "Use your MSU institutional email (e.g., name@s.msumain.edu.ph).";
-    }
     if (!urgentForm.description.trim()) errors.description = "Required";
     return errors;
   };
@@ -921,9 +944,10 @@ function AuthShell({ children }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: urgentForm.fullName,
+          firstName: urgentForm.firstName,
+          middleName: urgentForm.middleName,
+          familyName: urgentForm.familyName,
           studentIdNumber: urgentForm.studentIdNumber,
-          institutionalEmail: urgentForm.institutionalEmail,
           description: urgentForm.description,
         }),
       });
@@ -1005,13 +1029,23 @@ function AuthShell({ children }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-maroon-600 via-maroon-700 to-maroon-800 flex items-center justify-center p-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <button
-        type="button"
-        onClick={openUrgentFlow}
-        className="fixed top-4 right-4 z-40 inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-lg transition-colors"
-      >
-        <AlertTriangle size={16} />
-      </button>
+      {/* Top-right fixed action buttons */}
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+        <a
+          href="/"
+          title="Back to Home"
+          className="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/20 hover:bg-white/30 text-white shadow-lg transition-colors backdrop-blur-sm"
+        >
+          <Home size={18} />
+        </a>
+        <button
+          type="button"
+          onClick={openUrgentFlow}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-lg transition-colors"
+        >
+          <AlertTriangle size={16} />
+        </button>
+      </div>
 
       <div className="w-full max-w-xl flex flex-col items-center">
         <img
@@ -1097,16 +1131,40 @@ function UrgentCounselingModal({
         size="md"
       >
         <div className="space-y-4">
-          <FieldRow label="Full Name" error={formErrors.fullName}>
-            <InputWithIcon icon={UserRound}>
-              <input
-                className={`${INPUT} pl-9`}
-                value={form.fullName}
-                placeholder="Juan Dela Cruz"
-                onChange={(e) => onFormChange("fullName", e.target.value)}
-              />
-            </InputWithIcon>
-          </FieldRow>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <FieldRow label="First Name" error={formErrors.firstName}>
+              <InputWithIcon icon={UserRound}>
+                <input
+                  className={`${INPUT} pl-9`}
+                  value={form.firstName}
+                  placeholder="Juan"
+                  onChange={(e) => onFormChange("firstName", e.target.value)}
+                />
+              </InputWithIcon>
+            </FieldRow>
+
+            <FieldRow label="Middle Name" error={formErrors.middleName}>
+              <InputWithIcon icon={UserRound}>
+                <input
+                  className={`${INPUT} pl-9`}
+                  value={form.middleName}
+                  placeholder="Dela"
+                  onChange={(e) => onFormChange("middleName", e.target.value)}
+                />
+              </InputWithIcon>
+            </FieldRow>
+
+            <FieldRow label="Family Name" error={formErrors.familyName}>
+              <InputWithIcon icon={UserRound}>
+                <input
+                  className={`${INPUT} pl-9`}
+                  value={form.familyName}
+                  placeholder="Cruz"
+                  onChange={(e) => onFormChange("familyName", e.target.value)}
+                />
+              </InputWithIcon>
+            </FieldRow>
+          </div>
 
           <FieldRow label="Student ID Number" error={formErrors.studentIdNumber}>
             <InputWithIcon icon={Hash}>
@@ -1121,17 +1179,7 @@ function UrgentCounselingModal({
             </InputWithIcon>
           </FieldRow>
 
-          <FieldRow label="Institutional Email" error={formErrors.institutionalEmail}>
-            <InputWithIcon icon={Mail}>
-              <input
-                className={`${INPUT} pl-9`}
-                type="email"
-                placeholder="name@s.msumain.edu.ph"
-                value={form.institutionalEmail}
-                onChange={(e) => onFormChange("institutionalEmail", e.target.value)}
-              />
-            </InputWithIcon>
-          </FieldRow>
+
 
           <FieldRow label="Description of Emergency" error={formErrors.description}>
             <textarea

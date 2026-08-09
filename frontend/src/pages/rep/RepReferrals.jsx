@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useReferrals } from "../../context/ReferralsContext";
-import { COLLEGES } from "../../data/mockData";
+import { getDepartments } from "../../data/msuColleges";
 import { Send, Plus, History } from "lucide-react";
 import {
   PageHeader,
@@ -32,6 +32,8 @@ export default function RepReferrals() {
   const { referrals, loading, error, fetchReferrals, cancelReferral } = useReferrals();
   const [activeTab, setActiveTab] = useState("pending");
   const [newOpen, setNewOpen] = useState(false);
+  const [cancelId, setCancelId] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     fetchReferrals();
@@ -51,9 +53,12 @@ export default function RepReferrals() {
   );
   const filtered = activeTab === "pending" ? pending : history;
 
-  const handleCancel = async (id) => {
-    if (!window.confirm("Cancel this referral?")) return;
-    await cancelReferral(id);
+  const confirmCancel = async () => {
+    if (!cancelId) return;
+    setCancelling(true);
+    await cancelReferral(cancelId);
+    setCancelling(false);
+    setCancelId(null);
   };
 
   return (
@@ -127,7 +132,7 @@ export default function RepReferrals() {
                   <th className="px-4 py-2.5">Reason</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5">Created</th>
-                  <th className="px-4 py-2.5 text-right">Actions</th>
+                  {activeTab === "pending" && <th className="px-4 py-2.5 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -143,12 +148,18 @@ export default function RepReferrals() {
                             {r.studentName}
                           </div>
                           <div className="text-xs text-gray-500 truncate">
-                            {r.studentCollege || r.studentEmail || "—"}
+                            {r.studentDepartment || r.studentCollege || "—"}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{r.receivingCounselorName}</td>
+                    <td className="px-4 py-3">
+                      {r.receivingCounselorName ? (
+                        <span className="text-gray-700">{r.receivingCounselorName}</span>
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">To Be Approve</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 max-w-sm">
                       <p className="text-gray-700 line-clamp-2">{r.reason}</p>
                       {r.decision_note && (
@@ -169,16 +180,18 @@ export default function RepReferrals() {
                         minute: "2-digit",
                       })}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {r.status === "pending" && (
-                        <button
-                          onClick={() => handleCancel(r.id)}
-                          className="inline-flex items-center h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </td>
+                    {activeTab === "pending" && (
+                      <td className="px-4 py-3 text-right">
+                        {r.status === "pending" && (
+                          <button
+                            onClick={() => setCancelId(r.id)}
+                            className="inline-flex items-center h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -195,6 +208,38 @@ export default function RepReferrals() {
           onCreated={() => fetchReferrals()}
         />
       )}
+
+      <Modal
+        open={!!cancelId}
+        onClose={() => setCancelId(null)}
+        title="Cancel this referral?"
+        subtitle="The referral will be withdrawn and the counselor will be notified."
+        danger
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN.secondary}
+              onClick={() => setCancelId(null)}
+              disabled={cancelling}
+            >
+              Keep it
+            </button>
+            <button
+              type="button"
+              className={BTN.danger}
+              onClick={confirmCancel}
+              disabled={cancelling}
+            >
+              {cancelling ? "Cancelling…" : "Yes, cancel referral"}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          Are you sure you want to cancel this referral? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }
@@ -225,58 +270,83 @@ function TabBtn({ active, onClick, children, icon, count }) {
 }
 
 const EMPTY_REFERRAL_FORM = {
-  fullName: "",
+  firstName: "",
+  middleName: "",
+  familyName: "",
   studentIdNumber: "",
-  college: "",
-  contactNumber: "",
+  department: "",
+  referrerContactNumber: "",
+  referrerPosition: "",
+  referrerDepartment: "",
   natureOfConcern: "",
   natureOfConcernOther: "",
   description: "",
-  receivingCounselorId: "",
 };
 
 function NewReferralModal({ token, currentUser, onClose, onCreated }) {
-  const [counselors, setCounselors] = useState([]);
-  const [loadingLists, setLoadingLists] = useState(false);
-  const [form, setForm] = useState({
+  const myDepartments = getDepartments(currentUser?.college);
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState(() => ({
     ...EMPTY_REFERRAL_FORM,
-    college: currentUser?.college || "",
-  });
+    referrerContactNumber: currentUser?.phone || "",
+    referrerPosition: currentUser?.position || "",
+    referrerDepartment: currentUser?.department || "",
+  }));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!token) return;
-    setLoadingLists(true);
-    fetch(`${API_BASE}/api/users?role=counselor`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((cou) => setCounselors(Array.isArray(cou) ? cou : []))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoadingLists(false));
-  }, [token]);
-
   const setField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+
+  const STEPS = [
+    { number: 1, title: "Student Info" },
+    { number: 2, title: "Referrer Info" },
+    { number: 3, title: "Concern & Details" },
+  ];
+
+  const validateStep = (s) => {
+    if (s === 1) {
+      if (!form.firstName.trim()) return "Student First Name is required.";
+      if (!form.middleName.trim()) return "Student Middle Name is required.";
+      if (!form.familyName.trim()) return "Student Family Name is required.";
+      if (!form.studentIdNumber.trim()) return "Student ID is required.";
+      if (!/^\d{9}$/.test(form.studentIdNumber.trim())) return "Student ID must be exactly 9 digits.";
+      if (!form.department.trim()) return "Student Department is required.";
+    }
+    if (s === 2) {
+      if (!form.referrerContactNumber.trim()) return "Referrer Contact Number is required.";
+      if (!/^09\d{9}$/.test(form.referrerContactNumber.trim())) return "Referrer contact number must start with 09 and be exactly 11 digits.";
+      if (!form.referrerPosition.trim()) return "Referrer Position is required.";
+      if (!form.referrerDepartment.trim()) return "Referrer Department is required.";
+    }
+    if (s === 3) {
+      if (!form.natureOfConcern.trim()) return "Nature of concern is required.";
+      if (form.natureOfConcern === "Other" && !form.natureOfConcernOther.trim()) return "Please specify the concern.";
+      if (!form.description.trim()) return "Brief description is required.";
+    }
+    return null;
+  };
+
+  const handleNext = () => {
+    setError("");
+    const err = validateStep(step);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setStep((s) => s + 1);
+  };
+
+  const handleBack = () => {
+    setError("");
+    setStep((s) => s - 1);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
-    const required =
-      form.fullName.trim() &&
-      form.studentIdNumber.trim() &&
-      form.college.trim() &&
-      form.contactNumber.trim() &&
-      form.natureOfConcern.trim() &&
-      (form.natureOfConcern !== "Other" || form.natureOfConcernOther.trim()) &&
-      form.description.trim() &&
-      form.receivingCounselorId;
-    if (!required) {
-      setError("All required fields must be filled.");
-      return;
-    }
-    if (!isValidPhMobile(form.contactNumber.trim())) {
-      setError(`Contact number: ${PHONE_HINT}`);
+    const err = validateStep(3);
+    if (err) {
+      setError(err);
       return;
     }
     setSubmitting(true);
@@ -288,14 +358,18 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          fullName: form.fullName.trim(),
+          firstName: form.firstName.trim(),
+          middleName: form.middleName.trim(),
+          familyName: form.familyName.trim(),
           studentIdNumber: form.studentIdNumber.trim(),
-          college: form.college.trim(),
-          contactNumber: form.contactNumber.trim(),
+          college: currentUser?.college || "",
+          department: form.department.trim(),
+          referrerContactNumber: form.referrerContactNumber.trim(),
+          referrerPosition: form.referrerPosition.trim(),
+          referrerDepartment: form.referrerDepartment.trim(),
           natureOfConcern: form.natureOfConcern,
           natureOfConcernOther: form.natureOfConcernOther.trim() || null,
           description: form.description.trim(),
-          receivingCounselorId: Number(form.receivingCounselorId),
         }),
       });
       const body = await res.json();
@@ -317,138 +391,234 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
       open
       onClose={onClose}
       title="New referral"
-      subtitle="Refer a student to a counselor — the student doesn't need an account yet."
+      subtitle="Refer a student for counseling — the referral is sent to all available counselors."
       size="lg"
       align="top"
       footer={
-        <>
-          <button type="button" onClick={onClose} className={BTN.secondary}>
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="new-referral-form"
-            disabled={submitting}
-            className={BTN.primary}
-          >
-            {submitting ? "Sending…" : "Send referral"}
-          </button>
-        </>
+        <div className="flex justify-between items-center w-full">
+          {step === 1 ? (
+            <button type="button" onClick={onClose} className={BTN.secondary}>
+              Cancel
+            </button>
+          ) : (
+            <button type="button" onClick={handleBack} className={BTN.secondary}>
+              Back
+            </button>
+          )}
+
+          {step < 3 ? (
+            <button type="button" onClick={handleNext} className={BTN.primary}>
+              Next
+            </button>
+          ) : (
+            <button
+              type="submit"
+              form="new-referral-form"
+              disabled={submitting}
+              className={BTN.primary}
+            >
+              {submitting ? "Sending…" : "Send referral"}
+            </button>
+          )}
+        </div>
       }
     >
-      <form id="new-referral-form" onSubmit={submit} className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className={LABEL}>Student name *</label>
-            <input
-              required
-              type="text"
-              className={INPUT}
-              value={form.fullName}
-              onChange={(e) => setField("fullName", e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={LABEL}>Student ID *</label>
-            <input
-              required
-              type="text"
-              className={INPUT}
-              value={form.studentIdNumber}
-              onChange={(e) => setField("studentIdNumber", e.target.value)}
-              placeholder="e.g. 2021-00123"
-            />
-          </div>
-          <div>
-            <label className={LABEL}>College *</label>
-            <select
-              required
-              className={INPUT}
-              value={form.college}
-              onChange={(e) => setField("college", e.target.value)}
-            >
-              <option value="">Select college</option>
-              {COLLEGES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className={LABEL}>Contact number *</label>
-            <input
-              required
-              type="tel"
-              inputMode="numeric"
-              maxLength={11}
-              className={INPUT}
-              value={form.contactNumber}
-              onChange={(e) => setField("contactNumber", sanitizePhoneDigits(e.target.value))}
-              placeholder="09123456789"
-            />
-          </div>
+      <form id="new-referral-form" onSubmit={submit} className="space-y-4">
+        {/* Step Indicator Header */}
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+          {STEPS.map((s) => (
+            <div key={s.number} className="flex items-center gap-1.5">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition ${
+                step === s.number
+                  ? "bg-maroon-600 text-white"
+                  : step > s.number
+                  ? "bg-emerald-600 text-white"
+                  : "bg-gray-100 text-gray-400"
+              }`}>
+                {s.number}
+              </span>
+              <span className={`text-xs font-medium hidden sm:inline ${step === s.number ? "text-gray-900 font-semibold" : "text-gray-400"}`}>
+                {s.title}
+              </span>
+              {s.number < 3 && <span className="text-gray-300 text-xs">➔</span>}
+            </div>
+          ))}
         </div>
 
-        <div>
-          <label className={LABEL}>Refer to counselor *</label>
-          <select
-            required
-            className={INPUT}
-            value={form.receivingCounselorId}
-            onChange={(e) => setField("receivingCounselorId", e.target.value)}
-            disabled={loadingLists}
-          >
-            <option value="">{loadingLists ? "Loading…" : "Select a counselor"}</option>
-            {counselors.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} {c.department ? `· ${c.department}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        {step === 1 && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-900">Step 1: Student Information</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className={LABEL}>First Name *</label>
+                <input
+                  required
+                  type="text"
+                  className={INPUT}
+                  value={form.firstName}
+                  onChange={(e) => setField("firstName", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Middle Name *</label>
+                <input
+                  required
+                  type="text"
+                  className={INPUT}
+                  value={form.middleName}
+                  onChange={(e) => setField("middleName", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Family Name *</label>
+                <input
+                  required
+                  type="text"
+                  className={INPUT}
+                  value={form.familyName}
+                  onChange={(e) => setField("familyName", e.target.value)}
+                />
+              </div>
+            </div>
 
-        <div>
-          <label className={LABEL}>Nature of concern *</label>
-          <select
-            required
-            className={INPUT}
-            value={form.natureOfConcern}
-            onChange={(e) => setField("natureOfConcern", e.target.value)}
-          >
-            <option value="">Select nature of concern</option>
-            {NATURE_OF_CONCERN_OPTIONS.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
-        </div>
-        {form.natureOfConcern === "Other" && (
-          <div>
-            <label className={LABEL}>Please specify *</label>
-            <input
-              required
-              type="text"
-              className={INPUT}
-              value={form.natureOfConcernOther}
-              onChange={(e) => setField("natureOfConcernOther", e.target.value)}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>Student ID *</label>
+                <input
+                  required
+                  type="text"
+                  maxLength={9}
+                  className={INPUT}
+                  value={form.studentIdNumber}
+                  onChange={(e) => setField("studentIdNumber", e.target.value)}
+                  placeholder="9-digit ID (e.g. 123456789)"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Department *</label>
+                <select
+                  required
+                  className={INPUT}
+                  value={form.department}
+                  onChange={(e) => setField("department", e.target.value)}
+                >
+                  <option value="">Select department</option>
+                  {myDepartments.map((d) => (
+                    <option key={d.code} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
         )}
 
-        <div>
-          <label className={LABEL}>Brief description *</label>
-          <textarea
-            required
-            rows={3}
-            className={INPUT}
-            placeholder="Why are you referring this student?"
-            value={form.description}
-            onChange={(e) => setField("description", e.target.value)}
-          />
-        </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {step === 2 && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-900">Step 2: Referrer Information</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>Referrer Name</label>
+                <input
+                  readOnly
+                  disabled
+                  type="text"
+                  className={`${INPUT} bg-gray-50 text-gray-500`}
+                  value={currentUser?.name || ""}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Contact Number *</label>
+                <input
+                  required
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={11}
+                  className={INPUT}
+                  value={form.referrerContactNumber}
+                  onChange={(e) => setField("referrerContactNumber", sanitizePhoneDigits(e.target.value))}
+                  placeholder="09XXXXXXXXX"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Position *</label>
+                <input
+                  required
+                  type="text"
+                  className={INPUT}
+                  value={form.referrerPosition}
+                  onChange={(e) => setField("referrerPosition", e.target.value)}
+                  placeholder="e.g. College Dean, Instructor"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Department *</label>
+                <select
+                  required
+                  className={INPUT}
+                  value={form.referrerDepartment}
+                  onChange={(e) => setField("referrerDepartment", e.target.value)}
+                >
+                  <option value="">Select department</option>
+                  {myDepartments.map((d) => (
+                    <option key={d.code} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-900">Step 3: Referral Details</h4>
+            <div>
+              <label className={LABEL}>Nature of concern *</label>
+              <select
+                required
+                className={INPUT}
+                value={form.natureOfConcern}
+                onChange={(e) => setField("natureOfConcern", e.target.value)}
+              >
+                <option value="">Select nature of concern</option>
+                {NATURE_OF_CONCERN_OPTIONS.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {form.natureOfConcern === "Other" && (
+              <div>
+                <label className={LABEL}>Please specify *</label>
+                <input
+                  required
+                  type="text"
+                  className={INPUT}
+                  value={form.natureOfConcernOther}
+                  onChange={(e) => setField("natureOfConcernOther", e.target.value)}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className={LABEL}>Brief description *</label>
+              <textarea
+                required
+                rows={3}
+                className={INPUT}
+                placeholder="Why are you referring this student?"
+                value={form.description}
+                onChange={(e) => setField("description", e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-sm text-red-600 mt-2 font-medium">{error}</p>}
       </form>
     </Modal>
   );

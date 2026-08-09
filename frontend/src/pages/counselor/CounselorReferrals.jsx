@@ -23,6 +23,7 @@ const TIME_LABEL = {
   "1:00-2:00": "1:00 – 2:00 PM",
   "2:00-3:00": "2:00 – 3:00 PM",
   "3:00-4:00": "3:00 – 4:00 PM",
+  "4:00-5:00": "4:00 – 5:00 PM",
 };
 
 export default function CounselorReferrals() {
@@ -46,7 +47,9 @@ export default function CounselorReferrals() {
   const incomingPending = useMemo(
     () =>
       referrals.filter(
-        (r) => r.receiving_counselor_id === currentUser?.id && r.status === "pending"
+        (r) =>
+          (r.receiving_counselor_id === null || r.receiving_counselor_id === currentUser?.id) &&
+          r.status === "pending"
       ),
     [referrals, currentUser?.id]
   );
@@ -162,7 +165,7 @@ export default function CounselorReferrals() {
                   <th className="px-4 py-2.5">Reason</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5">Created</th>
-                  <th className="px-4 py-2.5 text-right">Actions</th>
+                  {activeTab === "incoming" && <th className="px-4 py-2.5 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -209,24 +212,26 @@ export default function CounselorReferrals() {
                         minute: "2-digit",
                       })}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {activeTab === "incoming" && r.status === "pending" && (
-                        <div className="inline-flex gap-1">
-                          <button
-                            onClick={() => openDecision(r, "accepted")}
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
-                          >
-                            <CheckCircle2 size={13} /> Accept
-                          </button>
-                          <button
-                            onClick={() => openDecision(r, "rejected")}
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition"
-                          >
-                            <XCircle size={13} /> Reject
-                          </button>
-                        </div>
-                      )}
-                    </td>
+                    {activeTab === "incoming" && (
+                      <td className="px-4 py-3 text-right">
+                        {r.status === "pending" && (
+                          <div className="inline-flex gap-1">
+                            <button
+                              onClick={() => openDecision(r, "accepted")}
+                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
+                            >
+                              <CheckCircle2 size={13} /> Accept
+                            </button>
+                            <button
+                              onClick={() => openDecision(r, "rejected")}
+                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition"
+                            >
+                              <XCircle size={13} /> Reject
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

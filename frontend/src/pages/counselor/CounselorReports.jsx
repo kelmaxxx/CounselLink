@@ -135,6 +135,10 @@ export default function CounselorReports() {
   };
 
   const handleSendIndividual = async (request) => {
+    if (!currentUser?.signatureUrl) {
+      setSendError("You must upload your signature in your Profile before sending a report.");
+      return;
+    }
     setSendingId(request.id);
     setSendError("");
     try {
@@ -189,6 +193,10 @@ export default function CounselorReports() {
 
   const submitGenerate = async () => {
     if (!genTarget) return;
+    if (!currentUser?.signatureUrl) {
+      setGenError("You must upload your signature in your Profile before sending a report.");
+      return;
+    }
     if (!genNarrative.trim()) {
       setGenError("A written summary is required.");
       return;
@@ -702,7 +710,7 @@ export default function CounselorReports() {
                           })}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <ReportActions report={r} onView={() => setActiveReport(r)} />
+                          <ReportActions report={r} onView={() => setActiveReport(r)} signatureUrl={currentUser?.signatureUrl} />
                         </td>
                       </tr>
                     );
@@ -772,7 +780,7 @@ export default function CounselorReports() {
                           : "—"}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <SessionDownloadButtons session={s} onView={() => setActiveReport({
+                        <SessionDownloadButtons session={s} signatureUrl={currentUser?.signatureUrl} onView={() => setActiveReport({
                           id: `session-${s.id}`,
                           title: `Session Report — ${s.studentName} (${(s.sessionDate || "").split("T")[0]})`,
                           sent_at: s.finalizedAt,
@@ -814,8 +822,11 @@ export default function CounselorReports() {
             <div className="flex items-center gap-2">
               <button
                 className={BTN.secondary}
+                disabled={!currentUser?.signatureUrl}
+                title={currentUser?.signatureUrl ? undefined : "Upload your signature in Profile to enable downloads"}
                 onClick={() => downloadReportAsPdf(parsePayload(activeReport.report_payload), {
                   title: activeReport.title,
+                  signatureUrl: currentUser?.signatureUrl,
                 })}
               >
                 <FileDown size={14} /> Download PDF
@@ -828,7 +839,7 @@ export default function CounselorReports() {
         }
       >
         {activePayload ? (
-          <ReportPreview report={activePayload} title={activeReport?.title} />
+          <ReportPreview report={activePayload} title={activeReport?.title} fallbackSignatureUrl={currentUser?.signatureUrl} />
         ) : (
           <p className="text-sm text-gray-500">No report payload available.</p>
         )}
@@ -981,9 +992,9 @@ function GenStat({ label, value }) {
   );
 }
 
-function ReportActions({ report, onView }) {
+function ReportActions({ report, onView, signatureUrl }) {
   const payload = parsePayload(report.report_payload);
-  const handle = (fn) => () => fn(payload, { title: report.title });
+  const hasSignature = !!signatureUrl;
   return (
     <div className="inline-flex gap-1">
       <button
@@ -994,9 +1005,10 @@ function ReportActions({ report, onView }) {
         <Eye size={13} /> View
       </button>
       <button
-        onClick={handle(downloadReportAsPdf)}
-        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-        title="Download / print as PDF"
+        onClick={hasSignature ? () => downloadReportAsPdf(payload, { title: report.title, signatureUrl }) : undefined}
+        disabled={!hasSignature}
+        title={hasSignature ? "Download / print as PDF" : "Upload your signature in Profile to enable downloads"}
+        className={`inline-flex items-center gap-1 h-7 px-2 rounded-md border text-xs transition ${hasSignature ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100" : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"}`}
       >
         <FileDown size={13} /> PDF
       </button>
@@ -1004,9 +1016,11 @@ function ReportActions({ report, onView }) {
   );
 }
 
-function SessionDownloadButtons({ session, onView }) {
+function SessionDownloadButtons({ session, onView, signatureUrl }) {
+  const hasSignature = !!signatureUrl;
   const opts = {
     title: `Session Report — ${session.studentName} (${(session.sessionDate || "").split("T")[0]})`,
+    signatureUrl,
   };
   return (
     <div className="inline-flex gap-1">
@@ -1018,9 +1032,10 @@ function SessionDownloadButtons({ session, onView }) {
         <Eye size={13} /> View
       </button>
       <button
-        onClick={() => downloadReportAsPdf(session, opts)}
-        className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-        title="PDF"
+        onClick={hasSignature ? () => downloadReportAsPdf(session, opts) : undefined}
+        disabled={!hasSignature}
+        title={hasSignature ? "Download / print as PDF" : "Upload your signature in Profile to enable downloads"}
+        className={`inline-flex items-center gap-1 h-7 px-2 rounded-md border text-xs transition ${hasSignature ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100" : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"}`}
       >
         <FileDown size={13} /> PDF
       </button>
