@@ -70,7 +70,6 @@ export default function StudentProfile() {
   const [formData, setFormData] = useState(emptyForm(myRecord));
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [inventory, setInventory] = useState(null);
   const [loadingInventory, setLoadingInventory] = useState(true);
@@ -101,33 +100,6 @@ export default function StudentProfile() {
       setInventory(fresh);
     }
     return res;
-  };
-
-  const handleChangePhoto = async (file) => {
-    if (!file || !token) return;
-    setUploadingAvatar(true);
-    try {
-      const fd = new FormData();
-      fd.append("avatar", file);
-      const res = await fetch(`${API_BASE}/api/uploads/avatar`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Upload failed");
-      await updateProfile({
-        avatarUrl: data.avatarUrl,
-        avatarFileName: data.avatarFileName,
-        avatarFileType: data.avatarFileType,
-      });
-      setMessage({ type: "success", text: "Profile photo updated" });
-    } catch (err) {
-      setMessage({ type: "error", text: err.message || "Unable to update photo" });
-    } finally {
-      setUploadingAvatar(false);
-      setTimeout(() => setMessage(null), 3000);
-    }
   };
 
   useEffect(() => {
@@ -278,8 +250,6 @@ export default function StudentProfile() {
         identifier={myRecord?.studentId}
         identifierIcon={Hash}
         avatarUrl={myRecord?.avatarUrl}
-        onChangePhoto={handleChangePhoto}
-        uploading={uploadingAvatar}
         chips={[
           myRecord?.college && { label: myRecord.college, icon: GraduationCap },
           myRecord?.yearLevel && { label: myRecord.yearLevel, icon: Calendar },

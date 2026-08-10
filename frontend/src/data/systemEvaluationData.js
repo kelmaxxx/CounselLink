@@ -14,6 +14,12 @@ export const RESEARCH_INFO = {
     title: "Department of Information Sciences Chairperson",
     email: "suhaina.khalid@msumain.edu.ph",
   },
+
+  co_adviser: {
+    name: " Prof. Amer Hussien T. Macatotong",
+    email: "amerhussien.macatototng@msumain.edu.ph",
+  },
+
 };
 
 export const SUS_SCALE = [

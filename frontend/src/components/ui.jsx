@@ -201,62 +201,127 @@ export function RankedBarChart({
   tooltipFormatter,
   maxRows,
   othersColor = "#94a3b8",
+  title = "Distribution Details",
 }) {
   if (!data.length) {
     return <EmptyState icon={emptyIcon} title={emptyTitle} />;
   }
-  const ranked = [...data].sort((a, b) => b.value - a.value);
+  const ranked = React.useMemo(() => [...data].sort((a, b) => b.value - a.value), [data]);
   // Keep overview tiles compact and grid-balanced: show the top (maxRows-1)
   // categories and roll the long tail into a single "Others" bar rather than
   // letting the panel grow to dozens of rows.
-  let sorted = ranked;
-  if (maxRows && ranked.length > maxRows) {
-    const head = ranked.slice(0, maxRows - 1);
-    const tail = ranked.slice(maxRows - 1);
-    const othersValue = tail.reduce((sum, d) => sum + d.value, 0);
-    sorted = [
-      ...head,
-      { name: `Others (${tail.length})`, value: othersValue, color: othersColor },
-    ];
-  }
+  const sorted = React.useMemo(() => {
+    if (maxRows && ranked.length > maxRows) {
+      const head = ranked.slice(0, maxRows - 1);
+      const tail = ranked.slice(maxRows - 1);
+      const othersValue = tail.reduce((sum, d) => sum + d.value, 0);
+      return [
+        ...head,
+        { name: `Others (${tail.length})`, value: othersValue, color: othersColor },
+      ];
+    }
+    return ranked;
+  }, [ranked, maxRows, othersColor]);
+
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const totalVal = React.useMemo(() => ranked.reduce((sum, d) => sum + d.value, 0), [ranked]);
+  const maxValue = React.useMemo(() => (ranked.length ? Math.max(...ranked.map((d) => d.value)) : 1), [ranked]);
+
   const chartHeight = Math.max(sorted.length * rowHeight, rowHeight);
+  const isTruncated = maxRows && ranked.length > maxRows;
+
   return (
-    <div style={{ width: "100%", height: chartHeight }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={sorted}
-          layout="vertical"
-          margin={{ top: 4, right: 34, left: 4, bottom: 4 }}
-          barCategoryGap="22%"
-        >
-          <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f1f5f9" />
-          <XAxis type="number" hide allowDecimals={false} />
-          <YAxis
-            type="category"
-            dataKey="name"
-            width={labelWidth}
-            tick={{ fontSize: 12, fill: "#4b5563" }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <Tooltip
-            formatter={tooltipFormatter}
-            cursor={{ fill: "#f8fafc" }}
-            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
-          />
-          <Bar dataKey="value" radius={[4, 4, 4, 4]} maxBarSize={22}>
-            {sorted.map((d) => (
-              <Cell key={d.name} fill={d.color} />
-            ))}
-            <LabelList
-              dataKey="value"
-              position="right"
-              style={{ fontSize: 12, fill: "#374151", fontWeight: 600 }}
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <>
+      <div 
+        onClick={() => setModalOpen(true)}
+        className="cursor-pointer group relative hover:bg-gray-50/50 p-2.5 rounded-2xl transition duration-150"
+        title="Click to view full distribution list"
+      >
+        <div style={{ width: "100%", height: chartHeight }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={sorted}
+              layout="vertical"
+              margin={{ top: 4, right: 34, left: 4, bottom: 4 }}
+              barCategoryGap="22%"
+            >
+              <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis type="number" hide allowDecimals={false} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={labelWidth}
+                tick={{ fontSize: 12, fill: "#4b5563" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                formatter={tooltipFormatter}
+                cursor={{ fill: "#f8fafc" }}
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
+              />
+              <Bar dataKey="value" radius={[4, 4, 4, 4]} maxBarSize={22}>
+                {sorted.map((d) => (
+                  <Cell key={d.name} fill={d.color} />
+                ))}
+                <LabelList
+                  dataKey="value"
+                  position="right"
+                  style={{ fontSize: 12, fill: "#374151", fontWeight: 600 }}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {isTruncated && (
+          <p className="text-[10px] text-center text-gray-400 mt-2 select-none group-hover:text-maroon-600 transition-colors duration-150">
+            Click chart to view all {ranked.length} distributions
+          </p>
+        )}
+      </div>
+
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={title}
+        subtitle={`Full distribution details — Total count: ${totalVal}`}
+        size="lg"
+        footer={
+          <button className={BTN.primary} onClick={() => setModalOpen(false)}>
+            Close
+          </button>
+        }
+      >
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+          <div className="flex items-center justify-between text-xs text-gray-500 pb-2 border-b border-gray-100">
+            <span>Ranked list ({ranked.length} items)</span>
+            <span className="font-semibold text-gray-700">{totalVal} total sessions/users</span>
+          </div>
+          <div className="space-y-3.5 py-1">
+            {ranked.map((d, index) => {
+              const pct = totalVal ? Math.round((d.value / totalVal) * 100) : 0;
+              const widthPct = maxValue ? (d.value / maxValue) * 100 : 0;
+              return (
+                <div key={d.name} className="flex items-center gap-3.5 text-sm">
+                  <span className="w-6 font-semibold text-gray-400 tabular-nums shrink-0">#{index + 1}</span>
+                  <span className="w-40 font-medium text-gray-700 shrink-0 truncate" title={d.name}>
+                    {d.name}
+                  </span>
+                  <div className="flex-1 bg-gray-100 h-5 rounded-md overflow-hidden relative min-w-[100px]">
+                    <div
+                      className="h-full rounded-md transition-all duration-500"
+                      style={{ width: `${widthPct}%`, backgroundColor: d.color || othersColor }}
+                    />
+                  </div>
+                  <span className="w-12 text-right font-bold text-gray-900 tabular-nums shrink-0">{d.value}</span>
+                  <span className="w-12 text-right text-xs text-gray-400 tabular-nums shrink-0">{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
 

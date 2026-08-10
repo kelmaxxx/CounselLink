@@ -33,6 +33,10 @@ const OUT = path.join(__dirname, "..", "templates", "individual-inventory-templa
 
 // --- Whole-<w:t> replacements (checkboxes + static labels), keyed by node index.
 const TEXT_EDITS = {
+  // 1x1 Picture box replacement
+  29: "{%studentAvatar}",
+  30: "{%studentAvatar}",
+
   // I. PERSONAL INFORMATION — leftover spacer/label nodes around split lines.
   53: "): ",
   60: "",

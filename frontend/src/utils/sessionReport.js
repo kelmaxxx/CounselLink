@@ -264,9 +264,31 @@ function buildCollegeSummaryHTML(report, opts = {}) {
   </table>
 
   <div class="section-label">Counseling Activity Overview</div>
-  <table class="data-table">
-    <tr><th>Total sessions</th><th>Active cases</th><th>Completed</th></tr>
-    <tr><td>${formatLine(t.totalSessions)}</td><td>${formatLine(t.activeCases)}</td><td>${formatLine(t.completed)}</td></tr>
+  <table class="data-table" style="text-align: center;">
+    <thead>
+      <tr>
+        <th colspan="2" style="text-align: center; border-bottom: 1px solid #999;">Total Sessions</th>
+        <th colspan="2" style="text-align: center; border-bottom: 1px solid #999;">Student Sessions</th>
+        <th rowspan="2" style="vertical-align: middle; text-align: center;">Active Cases</th>
+        <th rowspan="2" style="vertical-align: middle; text-align: center;">Completed</th>
+      </tr>
+      <tr>
+        <th style="text-align: center;">Counseling</th>
+        <th style="text-align: center;">Psychological Test</th>
+        <th style="text-align: center;">Follow-up</th>
+        <th style="text-align: center;">Terminated</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="text-align: center;">${formatLine(t.counselingSessions ?? 0)}</td>
+        <td style="text-align: center;">${formatLine(t.testingSessions ?? 0)}</td>
+        <td style="text-align: center;">${formatLine(t.followupSessions ?? 0)}</td>
+        <td style="text-align: center;">${formatLine(t.terminationSessions ?? 0)}</td>
+        <td style="text-align: center;">${formatLine(t.activeCases ?? 0)}</td>
+        <td style="text-align: center;">${formatLine(t.completed ?? 0)}</td>
+      </tr>
+    </tbody>
   </table>
 
   <div class="section-label">Individual Session Summaries (student names withheld)</div>

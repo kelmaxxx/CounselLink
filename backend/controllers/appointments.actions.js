@@ -92,6 +92,8 @@ export const acceptAppointment = async (req, res) => {
       timeSlot: normalizedSlot,
       note: note || null,
       isUrgent,
+      counselorId,
+      queueNo: queueNumber,
     });
   }
 
@@ -123,6 +125,7 @@ export const rejectAppointment = async (req, res) => {
       studentId: rows[0].student_id,
       status: "rejected",
       note: note || null,
+      counselorId,
     });
   }
 
@@ -241,6 +244,8 @@ export const rescheduleAppointment = async (req, res) => {
       date: normalizedDate,
       timeSlot,
       note: note || null,
+      counselorId,
+      queueNo: queueNumber,
     });
   }
 

@@ -94,7 +94,10 @@ export default function RequestAppointment() {
   const { createTestRequest } = useTests?.() || {};
 
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(() => ({
+    ...initialForm,
+    phoneNumber: myRecord?.phone || "",
+  }));
 
   const [submitted, setSubmitted] = useState(false);
   const [successModal, setSuccessModal] = useState({ open: false, data: null });
@@ -228,7 +231,7 @@ export default function RequestAppointment() {
             preferredSlots: form.preferredSlots.map(slotLabel),
           },
         });
-        setForm(initialForm);
+        setForm({ ...initialForm, phoneNumber: myRecord?.phone || "" });
         setStep(0);
       } else {
         alert(res?.message || "Failed to submit test request.");
@@ -257,7 +260,7 @@ export default function RequestAppointment() {
           preferredSlots: form.preferredSlots.map(slotLabel),
         },
       });
-      setForm(initialForm);
+      setForm({ ...initialForm, phoneNumber: myRecord?.phone || "" });
       setStep(0);
     } else {
       alert(res?.message || "Failed to submit appointment.");

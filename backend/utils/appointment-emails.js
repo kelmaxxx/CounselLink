@@ -17,55 +17,56 @@ const escapeHtml = (value) =>
 
 // Build the subject + human-readable body for each appointment status. Kept in
 // one place so the wording stays consistent with the in-app notifications.
-const buildContent = ({ status, date, timeSlot, note, isUrgent, isTest }) => {
+const buildContent = ({ status, date, timeSlot, note, isUrgent, isTest, counselorName, queueNo }) => {
   const when = date && timeSlot ? `${date} at ${timeSlot}` : null;
+  const counselorStr = counselorName ? ` by Counselor ${escapeHtml(counselorName)}` : " by the counselor";
+  const queueStr = queueNo ? ` Your queue number is #${escapeHtml(queueNo)}.` : "";
+  const pleaseAttendStr = " Please attend the session at your preferred schedule.";
+  const pleaseAttendReschedStr = " Please attend the session at your new schedule.";
 
   switch (status) {
     case "completed":
       return isTest
         ? {
-            subject: "Your CounselLink psychological test is complete",
-            heading: "Psychological Test Completed",
-            lead: "Your psychological test has been marked as <strong>completed</strong> by the counselor. You may view the details in your account.",
-            ctaPath: "/student/tests",
-            ctaLabel: "View my tests",
-          }
+          subject: "Your CounselLink psychological test is complete",
+          heading: "Psychological Test Completed",
+          lead: "Your psychological test has been marked as <strong>completed</strong> by the counselor. You may view the details in your account.",
+          ctaPath: "/student/tests",
+          ctaLabel: "View my tests",
+        }
         : {
-            subject: "Your CounselLink counseling session is complete",
-            heading: "Counseling Session Completed",
-            lead: "Your counseling session has been marked as <strong>completed</strong> by the counselor. Thank you for coming in.",
-          };
+          subject: "Your CounseLink counseling session is complete",
+          heading: "Counseling Session Completed",
+          lead: "Your counseling session has been marked as <strong>completed</strong> by the counselor. Thank you for coming in.",
+        };
     case "approved":
       return {
-        subject: "Your CounselLink appointment was approved",
+        subject: "Your CounseLink appointment was approved",
         heading: "Appointment Approved",
         lead: isUrgent
-          ? "Your urgent appointment request has been <strong>approved</strong>. Please proceed to the counselor's office."
-          : `Your counseling appointment has been <strong>approved</strong>${
-              when ? ` for <strong>${escapeHtml(when)}</strong>` : ""
-            }.`,
+          ? `Your urgent appointment request has been <strong>approved</strong>${counselorStr}.${queueStr} Please proceed to the counselor's office.`
+          : `Your counseling appointment has been <strong>approved</strong>${counselorStr}${when ? ` for <strong>${escapeHtml(when)}</strong>` : ""
+          }.${queueStr}${pleaseAttendStr}`,
       };
     case "rescheduled":
       return {
-        subject: "Your CounselLink appointment was rescheduled",
+        subject: "Your CounseLink appointment was rescheduled",
         heading: "Appointment Rescheduled",
-        lead: `Your counseling appointment has been <strong>rescheduled</strong>${
-          when ? ` to <strong>${escapeHtml(when)}</strong>` : ""
-        }. Please take note of the new schedule.`,
+        lead: `Your counseling appointment has been <strong>rescheduled</strong>${counselorStr}${when ? ` to <strong>${escapeHtml(when)}</strong>` : ""
+          }.${queueStr}${pleaseAttendReschedStr}`,
       };
     case "rejected":
       return {
-        subject: "Update on your CounselLink appointment",
+        subject: "Update on your CounseLink appointment",
         heading: "Appointment Rejected",
-        lead: "Unfortunately, your counseling appointment request was <strong>not approved</strong>. You may submit a new request at any time.",
+        lead: `Unfortunately, your counseling appointment request was <strong>not approved</strong>${counselorStr}. You may submit a new request at any time.`,
       };
     case "followup":
       return {
         subject: "A follow-up session has been scheduled for you",
         heading: "Follow-up Session Scheduled",
-        lead: `Your counselor has scheduled a <strong>follow-up session</strong>${
-          when ? ` for <strong>${escapeHtml(when)}</strong>` : ""
-        }.`,
+        lead: `Your counselor has scheduled a <strong>follow-up session</strong>${when ? ` for <strong>${escapeHtml(when)}</strong>` : ""
+          }.`,
       };
     default:
       return null;
@@ -77,14 +78,13 @@ const renderHtml = ({ name, heading, lead, note, ctaPath, ctaLabel }) => `
     <h2 style="color:#111827;font-size:20px;margin:0 0 16px">${escapeHtml(heading)}</h2>
     <p style="font-size:15px;line-height:1.6;margin:0 0 12px">Hello ${escapeHtml(name)},</p>
     <p style="font-size:15px;line-height:1.6;margin:0 0 16px">${lead}</p>
-    ${
-      note
-        ? `<div style="background:#f3f4f6;border-radius:8px;padding:12px 16px;margin:0 0 16px">
+    ${note
+    ? `<div style="background:#f3f4f6;border-radius:8px;padding:12px 16px;margin:0 0 16px">
              <p style="font-size:13px;color:#6b7280;margin:0 0 4px">Note from your counselor:</p>
              <p style="font-size:14px;color:#111827;margin:0;white-space:pre-wrap">${escapeHtml(note)}</p>
            </div>`
-        : ""
-    }
+    : ""
+  }
     <a href="${APP_URL}${ctaPath}"
        style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:8px">
        ${escapeHtml(ctaLabel)}
@@ -114,18 +114,26 @@ const renderText = ({ name, lead, note, ctaPath, ctaLabel }) => {
 // controller pattern: never throws to the caller and never blocks the HTTP
 // response — failures are logged and swallowed so a down mail provider can't
 // break the (already persisted) appointment action or in-app notification.
-export const sendAppointmentStatusEmail = ({ studentId, status, date, timeSlot, note, isUrgent, isTest }) => {
-  const content = buildContent({ status, date, timeSlot, note, isUrgent, isTest });
-  if (!content || !studentId) return;
-
-  const ctaPath = content.ctaPath || "/student/appointments";
-  const ctaLabel = content.ctaLabel || "View my appointments";
+export const sendAppointmentStatusEmail = ({ studentId, status, date, timeSlot, note, isUrgent, isTest, counselorId, queueNo }) => {
+  if (!studentId) return;
 
   (async () => {
     try {
       const rows = await query("SELECT name, email FROM users WHERE id = ? LIMIT 1", [studentId]);
       const student = rows[0];
       if (!student?.email) return;
+
+      let counselorName = null;
+      if (counselorId) {
+        const cRows = await query("SELECT name FROM users WHERE id = ? LIMIT 1", [counselorId]);
+        if (cRows.length) counselorName = cRows[0].name;
+      }
+
+      const content = buildContent({ status, date, timeSlot, note, isUrgent, isTest, counselorName, queueNo });
+      if (!content) return;
+
+      const ctaPath = content.ctaPath || "/student/appointments";
+      const ctaLabel = content.ctaLabel || "View my appointments";
 
       const name = student.name || "there";
       await sendEmail({

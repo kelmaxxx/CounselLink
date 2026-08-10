@@ -132,6 +132,7 @@ export default function SystemEvaluationSurvey() {
           <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 flex flex-wrap justify-center gap-x-6 gap-y-1">
             <span><strong>Researchers:</strong> {RESEARCH_INFO.researchers.map(r => r.name).join(" & ")}</span>
             <span><strong>Adviser:</strong> {RESEARCH_INFO.adviser.name}</span>
+            <span><strong>Co-Adviser:</strong> {RESEARCH_INFO.co_adviser.name}</span>
           </div>
         </div>
 
@@ -250,7 +251,6 @@ export default function SystemEvaluationSurvey() {
                 <option value="student">Student</option>
                 <option value="guidance_counselor">Guidance Counselor / Personnel</option>
                 <option value="personnel">Faculty / Staff</option>
-                <option value="other">Other Evaluator</option>
               </select>
             </div>
           </div>
@@ -322,7 +322,7 @@ export default function SystemEvaluationSurvey() {
               rows={3}
               value={formData.comments}
               onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
-              placeholder="Share any feedback, observations, or suggestions regarding CounselLink..."
+              placeholder="Share any feedback, observations, or suggestions regarding CounseLink..."
               className="w-full p-3 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-maroon-500"
             />
           </div>

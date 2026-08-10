@@ -117,6 +117,7 @@ export default function CounselorAppointments() {
     return "approved";
   });
   const [testSubTab, setTestSubTab] = useState("approved");
+  const [pendingSubTab, setPendingSubTab] = useState("upcoming");
 
   useEffect(() => {
     if (location.state?.tab) {
@@ -384,9 +385,38 @@ export default function CounselorAppointments() {
   ].sort((x, y) => new Date(x.preferredDate || x.preferred_date || x.created_at || 0) - new Date(y.preferredDate || y.preferred_date || y.created_at || 0)),
   [filteredPendingAppts, filteredPendingTests, filteredPendingReferrals]);
 
+    const { pendingNotDue, pendingPastDue } = useMemo(() => {
+    const notDue = [];
+    const pastDue = [];
+    filteredPending.forEach(item => {
+      if (item._kind === 'referral') {
+        notDue.push(item);
+        return;
+      }
+      const sched = standardizeDate(item.preferredDate || item.preferred_date);
+      if (!sched) {
+        notDue.push(item);
+      } else if (sched > today) {
+        notDue.push(item);
+      } else if (sched < today) {
+        pastDue.push(item);
+      } else {
+        const slot = Array.isArray(item.preferredSlots) ? item.preferredSlots[0] : item.timeSlot || item.preferredTime || item.preferred_time;
+        if (isSlotOver(slot)) {
+          pastDue.push(item);
+        } else {
+          notDue.push(item);
+        }
+      }
+    });
+    return { pendingNotDue: notDue, pendingPastDue: pastDue };
+  }, [filteredPending, today, isSlotOver]);
+
+  const pendingSubFiltered = pendingSubTab === "overdue" ? pendingPastDue : pendingNotDue;
+
   const pagedPending = useMemo(
-    () => filteredPending.slice((pendingPage - 1) * PAGE_SIZE, pendingPage * PAGE_SIZE),
-    [filteredPending, pendingPage]
+    () => pendingSubFiltered.slice((pendingPage - 1) * PAGE_SIZE, pendingPage * PAGE_SIZE),
+    [pendingSubFiltered, pendingPage]
   );
 
   const sessionSubFiltered = useMemo(() => {
@@ -424,6 +454,11 @@ export default function CounselorAppointments() {
     [filteredCompleted, completedPage]
   );
 
+  const PENDING_SUB_TABS = [
+    { id: "upcoming", label: "Upcoming" },
+    { id: "overdue", label: "Overdue" }
+  ];
+
   const TABS = [
     { id: "pending",   label: "Pending",              count: pendingAppointments.length + pendingTests.length + pendingReferrals.length },
     { id: "sessions",  label: "Counseling Sessions",  count: upcomingAppointments.length },
@@ -445,7 +480,7 @@ export default function CounselorAppointments() {
           {TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSearch(""); setPendingPage(1); setSessionsPage(1); setTestsPage(1); setCompletedPage(1); setSessionSubTab("approved"); setTestSubTab("approved"); }}
+              onClick={() => { setActiveTab(tab.id); setSearch(""); setPendingPage(1); setSessionsPage(1); setTestsPage(1); setCompletedPage(1); setSessionSubTab("approved"); setTestSubTab("approved"); setPendingSubTab("upcoming"); }}
               className={["flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition whitespace-nowrap", activeTab === tab.id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"].join(" ")}
             >
               {tab.label}
@@ -478,7 +513,26 @@ export default function CounselorAppointments() {
       {/* ══════════════ PENDING TAB ══════════════ */}
       {activeTab === "pending" && (
         <SectionCard className="mb-6" title="Pending requests" subtitle={`${filteredPending.length} awaiting your response`} noBodyPadding>
-          {filteredPending.length === 0 ? (
+          {/* Sub-tab bar */}
+          <div className="flex items-center gap-1 border-b border-gray-100 px-4 pt-3 overflow-x-auto">
+            {PENDING_SUB_TABS.map((st) => {
+              const cnt = st.id === "overdue" ? pendingPastDue.length : pendingNotDue.length;
+              return (
+                <button
+                  key={st.id}
+                  onClick={() => { setPendingSubTab(st.id); setPendingPage(1); }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 -mb-px transition whitespace-nowrap ${pendingSubTab === st.id ? "text-maroon-700 border-maroon-600" : "text-gray-500 border-transparent hover:text-gray-700"}`}
+                >
+                  {st.label}
+                  <span className={`inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold tabular-nums ${pendingSubTab === st.id ? "bg-maroon-100 text-maroon-700" : "bg-gray-100 text-gray-600"}`}>
+                    {cnt}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {pendingSubFiltered.length === 0 ? (
             <EmptyState icon={Clock3} title={search ? "No results" : "No pending requests"} hint={search ? `No pending requests match "${search}".` : "New counseling requests from students will appear here."} />
           ) : (
             <>
@@ -700,7 +754,7 @@ export default function CounselorAppointments() {
                   }
                 })}
               </ul>
-              <Pagination page={pendingPage} totalPages={Math.ceil(filteredPending.length / PAGE_SIZE)} onPageChange={setPendingPage} />
+              <Pagination page={pendingPage} totalPages={Math.ceil(pendingSubFiltered.length / PAGE_SIZE)} onPageChange={setPendingPage} />
             </>
           )}
         </SectionCard>
