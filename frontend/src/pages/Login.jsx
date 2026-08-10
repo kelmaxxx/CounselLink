@@ -1377,6 +1377,12 @@ function ForgotPasswordModal({ onClose }) {
       setError("Email is required.");
       return;
     }
+    const emailLower = email.trim().toLowerCase();
+    const isInstitutional = ["@s.msumain.edu.ph", "@msu.edu.ph", "@msumain.edu.ph"].some(domain => emailLower.endsWith(domain));
+    if (!isInstitutional) {
+      setError("Please use your MSU institutional email (e.g., name@s.msumain.edu.ph)");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {

@@ -345,6 +345,10 @@ export const requestPasswordReset = async (req, res) => {
     return res.status(400).json({ message: "Email is required" });
   }
 
+  if (!isAllowedStudentEmail(email)) {
+    return res.status(400).json({ message: "Please use your MSU institutional email (e.g., name@s.msumain.edu.ph)" });
+  }
+
   const genericMessage =
     "If that email is registered, a 6-digit verification code has been sent.";
   const userRows = await query("SELECT id, email, name FROM users WHERE email = ?", [email]);

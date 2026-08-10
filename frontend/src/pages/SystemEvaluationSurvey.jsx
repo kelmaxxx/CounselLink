@@ -112,7 +112,15 @@ export default function SystemEvaluationSurvey() {
     <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Top Header & Branding */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 text-center">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 text-center relative">
+          {(currentUser?.role === "admin" || currentUser?.role === "counselor") && (
+            <Link
+              to={currentUser.role === "admin" ? "/admin/system-evaluation" : "/counselor/system-evaluation"}
+              className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
+            >
+              <FileText size={14} /> View Survey Tally
+            </Link>
+          )}
           <div className="flex justify-center items-center gap-4 mb-3">
             <img src="/counselink-round.png" alt="MSU Logo" className="w-14 h-14 object-contain" />
           </div>

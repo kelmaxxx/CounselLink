@@ -1,3 +1,4 @@
+import * as XLSX from 'xlsx';
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { SUS_QUESTIONS, SUS_SCALE, getSusGrade } from "../../data/systemEvaluationData";
@@ -35,7 +36,8 @@ const toCsv = (rows) => rows.map((row) => row.map(csvCell).join(",")).join("\n")
 const ACCEPTED_PASSCODES = ["counselink2026", "1234", "cics2026"];
 
 export default function SystemEvaluationTally() {
-  const { token } = useAuth();
+  const { token, currentUser } = useAuth();
+  const isAdmin = currentUser?.role === "admin";
 
   const [storedPasscode, setStoredPasscode] = useState(() => {
     return sessionStorage.getItem("researcher_passcode") || "";
@@ -53,6 +55,9 @@ export default function SystemEvaluationTally() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showExcelModal, setShowExcelModal] = useState(false);
+  const [excelPassword, setExcelPassword] = useState("");
+  const [excelPasswordError, setExcelPasswordError] = useState("");
 
   const surveyUrl = `${window.location.origin}/system-evaluation`;
 
@@ -112,7 +117,7 @@ export default function SystemEvaluationTally() {
     if (!tally || !tally.count) return;
 
     const rows = [];
-    rows.push(["CounselLink - System Usability Scale (SUS) Evaluation Tally Summary"]);
+    rows.push(["CounseLink - System Usability Scale (SUS) Evaluation Tally Summary"]);
     rows.push(["Generated Date:", new Date().toLocaleDateString()]);
     rows.push(["Total Respondents:", tally.count]);
     rows.push(["Average SUS Score:", `${tally.averageSusScore} / 100`]);
@@ -121,7 +126,7 @@ export default function SystemEvaluationTally() {
     rows.push([]);
 
     rows.push(["STATEMENT BREAKDOWN (SUS Scale: 1=Strongly Agree, 5=Strongly Disagree)"]);
-    rows.push(["#", "Statement", ...SUS_SCALE.map((s) => s.label), "Avg Score"]);
+    rows.push(["#", "Statement", "Strongly Agree (1)", "Agree (2)", "Neutral (3)", "Disagree (4)", "Strongly Disagree (5)", "Weighted Mean"]);
     SUS_QUESTIONS.forEach((q) => {
       const pq = tally.perQuestion[q.id] || {};
       rows.push([
@@ -157,6 +162,77 @@ export default function SystemEvaluationTally() {
   };
 
   const gradeInfo = tally ? getSusGrade(tally.averageSusScore) : null;
+
+  const handleExportExcel = (e) => {
+    e.preventDefault();
+    setExcelPasswordError("");
+    const trimmed = excelPassword.trim();
+    if (ACCEPTED_PASSCODES.includes(trimmed) || trimmed === "admin2026") {
+      setExcelPassword("");
+      setShowExcelModal(false);
+      exportExcel();
+    } else {
+      setExcelPasswordError("Invalid passcode. Access restricted to authorized administrators.");
+    }
+  };
+
+  const exportExcel = () => {
+    if (!tally || !tally.count) return;
+
+    const wb = XLSX.utils.book_new();
+
+    const summaryRows = [
+      ["CounseLink - System Usability Scale (SUS) Evaluation Tally Summary"],
+      [],
+      ["Metadata", "Value"],
+      ["Generated Date", new Date().toLocaleDateString()],
+      ["Total Respondents", tally.count],
+      ["Average SUS Score", tally.averageSusScore],
+      ["Usability Grade", tally.grade],
+      ["Acceptability Rating", tally.acceptability],
+      [],
+      ["STATEMENT BREAKDOWN"],
+      ["#", "Statement", "Strongly Agree (1)", "Agree (2)", "Neutral (3)", "Disagree (4)", "Strongly Disagree (5)", "Weighted Mean"]
+    ];
+
+    SUS_QUESTIONS.forEach((q) => {
+      const pq = tally.perQuestion[q.id] || {};
+      summaryRows.push([
+        q.number,
+        q.text,
+        pq[1] || 0,
+        pq[2] || 0,
+        pq[3] || 0,
+        pq[4] || 0,
+        pq[5] || 0,
+        pq.average ? Number(pq.average.toFixed(2)) : 0
+      ]);
+    });
+
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Tally Summary");
+
+    const individualRows = [
+      ["ID", "Respondent Name", "Classification", "Date", "SUS Score", "Comments"]
+    ];
+
+    (tally.evaluations || []).forEach((e) => {
+      individualRows.push([
+        e.id,
+        e.respondentName,
+        e.respondentType,
+        new Date(e.createdAt).toLocaleDateString(),
+        e.susScore,
+        e.comments || ""
+      ]);
+    });
+
+    const wsIndividual = XLSX.utils.aoa_to_sheet(individualRows);
+    XLSX.utils.book_append_sheet(wb, wsIndividual, "Individual Responses");
+
+    XLSX.writeFile(wb, `counselink_sus_evaluation_tally_${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
 
   // Passcode Protection Gate
   if (!isUnlocked) {
@@ -308,7 +384,7 @@ export default function SystemEvaluationTally() {
           {/* Statement Tally Table */}
           <SectionCard
             title="System Usability Scale (SUS) Item Tally"
-            subtitle="Counts and average rating per statement (1 = Strongly Agree, 5 = Strongly Disagree)"
+            subtitle="Counts and weighted mean rating per statement (1 = Strongly Agree, 5 = Strongly Disagree)"
             noBodyPadding
           >
             <div className="overflow-x-auto">
@@ -317,12 +393,12 @@ export default function SystemEvaluationTally() {
                   <tr className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold border-b border-slate-200">
                     <th className="px-4 py-3 w-12 text-center">#</th>
                     <th className="px-4 py-3">Statement</th>
-                    {SUS_SCALE.map((s) => (
-                      <th key={s.value} className="px-3 py-3 text-center">
-                        {s.value} ({s.label.split(" ")[0]})
-                      </th>
-                    ))}
-                    <th className="px-4 py-3 text-center">Avg Rating</th>
+                    <th className="px-3 py-3 text-center">Strongly Agree (1)</th>
+                    <th className="px-3 py-3 text-center">Agree (2)</th>
+                    <th className="px-3 py-3 text-center">Neutral (3)</th>
+                    <th className="px-3 py-3 text-center">Disagree (4)</th>
+                    <th className="px-3 py-3 text-center">Strongly Disagree (5)</th>
+                    <th className="px-4 py-3 text-center">Weighted Mean</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -332,11 +408,11 @@ export default function SystemEvaluationTally() {
                       <tr key={q.id} className="hover:bg-slate-50/70 transition">
                         <td className="px-4 py-3 text-center font-semibold text-slate-400">{q.number}</td>
                         <td className="px-4 py-3 font-medium text-slate-800">{q.text}</td>
-                        {SUS_SCALE.map((s) => (
-                          <td key={s.value} className="px-3 py-3 text-center font-mono text-slate-600">
-                            {pq[s.value] || 0}
-                          </td>
-                        ))}
+                        <td className="px-3 py-3 text-center font-mono text-slate-600">{pq[1] || 0}</td>
+                        <td className="px-3 py-3 text-center font-mono text-slate-600">{pq[2] || 0}</td>
+                        <td className="px-3 py-3 text-center font-mono text-slate-600">{pq[3] || 0}</td>
+                        <td className="px-3 py-3 text-center font-mono text-slate-600">{pq[4] || 0}</td>
+                        <td className="px-3 py-3 text-center font-mono text-slate-600">{pq[5] || 0}</td>
                         <td className="px-4 py-3 text-center font-bold text-maroon-700 font-mono">
                           {pq.average ? pq.average.toFixed(2) : "—"}
                         </td>
@@ -390,6 +466,54 @@ export default function SystemEvaluationTally() {
             </div>
           </SectionCard>
         </>
+      )}
+
+      {showExcelModal && (
+        <Modal
+          open={showExcelModal}
+          onClose={() => {
+            setShowExcelModal(false);
+            setExcelPassword("");
+            setExcelPasswordError("");
+          }}
+          title="Export Evaluation Data to Excel"
+        >
+          <form onSubmit={handleExportExcel} className="space-y-4 p-4">
+            <p className="text-xs text-slate-500">
+              Please enter the administrator passcode to export the system evaluation tally to Excel format.
+            </p>
+            <div>
+              <label className={LABEL}>Administrator Passcode</label>
+              <input
+                type="password"
+                required
+                value={excelPassword}
+                onChange={(e) => setExcelPassword(e.target.value)}
+                placeholder="Enter passcode"
+                className={INPUT}
+              />
+            </div>
+            {excelPasswordError && (
+              <p className="text-xs text-red-600 font-medium">{excelPasswordError}</p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExcelModal(false);
+                  setExcelPassword("");
+                  setExcelPasswordError("");
+                }}
+                className={BTN.secondary}
+              >
+                Cancel
+              </button>
+              <button type="submit" className={BTN.primary}>
+                Download Excel
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );
