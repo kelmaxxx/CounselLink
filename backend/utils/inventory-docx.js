@@ -57,6 +57,35 @@ export function readSignatureFile(signatureUrl) {
   }
 }
 
+const AVATAR_MAX_W = 96;
+const AVATAR_MAX_H = 96;
+
+const avatarSize = (buffer, tagValue) => {
+  if (tagValue === TRANSPARENT_PX_B64) return [1, 1];
+  try {
+    const { width, height } = imageSize(buffer);
+    const scale = Math.min(AVATAR_MAX_W / width, AVATAR_MAX_H / height, 1);
+    return [Math.round(width * scale), Math.round(height * scale)];
+  } catch {
+    return [AVATAR_MAX_W, AVATAR_MAX_H];
+  }
+};
+
+// Reads a stored avatar image (users.avatar_url, e.g.
+// "/uploads/avatars/avatar-7-....png") from local disk. Returns null for
+// anything missing or outside the uploads directory.
+export function readAvatarFile(avatarUrl) {
+  if (!avatarUrl || typeof avatarUrl !== "string") return null;
+  if (!avatarUrl.startsWith("/uploads/")) return null;
+  const filePath = path.resolve(UPLOADS_DIR, avatarUrl.slice("/uploads/".length));
+  if (!filePath.startsWith(path.resolve(UPLOADS_DIR))) return null;
+  try {
+    return fs.readFileSync(filePath);
+  } catch {
+    return null;
+  }
+}
+
 // Checkbox glyph used everywhere a box/marker appears on the form.
 const box = (checked) => (checked ? "[ X ]" : "[   ]");
 // Plain text value: never emit null/undefined.
@@ -206,6 +235,9 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatur
   data.counselorSignature = signatures.counselorSignature
     ? signatures.counselorSignature.toString("base64")
     : TRANSPARENT_PX_B64;
+  data.studentAvatar = signatures.studentAvatar
+    ? signatures.studentAvatar.toString("base64")
+    : TRANSPARENT_PX_B64;
   data.counselorPrintedName = val(signatures.counselorName);
 
   // Educational background table: 5 fixed levels x 5 columns.
@@ -240,14 +272,19 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatur
 }
 
 // `signatures` (all optional): { studentSignature: Buffer, counselorSignature:
-// Buffer, counselorName: string } — see readSignatureFile above for loading.
+// Buffer, studentAvatar: Buffer, counselorName: string } — see readSignatureFile above for loading.
 export function generateInventoryDocx(formData = {}, profile = {}, signatures = {}) {
   const content = fs.readFileSync(TEMPLATE_PATH, "binary");
   const zip = new PizZip(content);
   const imageModule = new ImageModule({
     centered: false,
     getImage: (tagValue) => Buffer.from(tagValue, "base64"),
-    getSize: (img, tagValue) => signatureSize(img, tagValue),
+    getSize: (img, tagValue, tagName) => {
+      if (tagName === "studentAvatar") {
+        return avatarSize(img, tagValue);
+      }
+      return signatureSize(img, tagValue);
+    },
   });
   const doc = new Docxtemplater(zip, {
     paragraphLoop: true,

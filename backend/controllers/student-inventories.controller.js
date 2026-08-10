@@ -1,6 +1,6 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
-import { generateInventoryDocx, readSignatureFile } from "../utils/inventory-docx.js";
+import { generateInventoryDocx, readSignatureFile, readAvatarFile } from "../utils/inventory-docx.js";
 
 const SELECT_FIELDS = `
   i.id, i.student_id AS studentId, i.counselor_id AS counselorId,
@@ -145,7 +145,7 @@ export const downloadInventoryDocx = async (req, res) => {
 
   const rows = await query(
     `SELECT i.form_data AS formData, s.name AS studentName, s.student_id AS studentNumber, s.email AS studentEmail,
-            s.signature_url AS studentSignatureUrl,
+            s.signature_url AS studentSignatureUrl, s.avatar_url AS studentAvatarUrl,
             c.name AS counselorName, c.signature_url AS counselorSignatureUrl
        FROM student_inventories i
        JOIN users s ON i.student_id = s.id
@@ -175,6 +175,7 @@ export const downloadInventoryDocx = async (req, res) => {
   const signatures = {
     studentSignature: readSignatureFile(row.studentSignatureUrl),
     counselorSignature: readSignatureFile(counselorSignatureUrl),
+    studentAvatar: readAvatarFile(row.studentAvatarUrl),
     counselorName,
   };
 

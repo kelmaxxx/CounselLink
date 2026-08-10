@@ -387,7 +387,7 @@ export default function Login() {
             }}
             className={`${BTN.primary} w-full`}
           >
-            Back to login
+            Waiting for approval...
           </button>
         </div>
       </AuthShell>
@@ -407,7 +407,7 @@ export default function Login() {
           {/* Step 1 — Personal info */}
           {signupStep === 1 && (
             <div className="space-y-4">
-              <FieldRow label="Surname" error={signupErrors.lastName}>
+              <FieldRow label="Last name" error={signupErrors.lastName}>
                 <input
                   name="lastName"
                   value={signupForm.lastName}

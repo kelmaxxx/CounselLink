@@ -115,6 +115,21 @@ const mergeInventory = (stored, studentProfile) => {
     if (studentProfile.phone) {
       blank.personal.mobileNo = studentProfile.phone;
     }
+    if (studentProfile.studentId) {
+      blank.personal.idNumber = studentProfile.studentId;
+    }
+    if (studentProfile.lastName) {
+      blank.personal.surname = studentProfile.lastName;
+    }
+    if (studentProfile.firstName) {
+      blank.personal.firstName = studentProfile.firstName;
+    }
+    if (studentProfile.middleName) {
+      blank.personal.middleName = studentProfile.middleName;
+    }
+    if (studentProfile.program) {
+      blank.personal.course = studentProfile.program;
+    }
   }
   if (!stored || typeof stored !== "object") return blank;
   const merged = {
@@ -155,6 +170,21 @@ const mergeInventory = (stored, studentProfile) => {
     }
     if (!merged.personal.mobileNo && studentProfile.phone) {
       merged.personal.mobileNo = studentProfile.phone;
+    }
+    if (!merged.personal.idNumber && studentProfile.studentId) {
+      merged.personal.idNumber = studentProfile.studentId;
+    }
+    if (!merged.personal.surname && studentProfile.lastName) {
+      merged.personal.surname = studentProfile.lastName;
+    }
+    if (!merged.personal.firstName && studentProfile.firstName) {
+      merged.personal.firstName = studentProfile.firstName;
+    }
+    if (!merged.personal.middleName && studentProfile.middleName) {
+      merged.personal.middleName = studentProfile.middleName;
+    }
+    if (!merged.personal.course && studentProfile.program) {
+      merged.personal.course = studentProfile.program;
     }
   }
 

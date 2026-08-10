@@ -524,6 +524,7 @@ export default function CounselorDashboard() {
             maxRows={7}
             emptyIcon={Users}
             emptyTitle="No students yet"
+            title="Students by College"
           />
         </SectionCard>
 
@@ -540,6 +541,7 @@ export default function CounselorDashboard() {
             labelWidth={100}
             emptyIcon={Calendar}
             emptyTitle="No appointments yet"
+            title="Appointment Status Breakdown"
           />
         </SectionCard>
       </div>

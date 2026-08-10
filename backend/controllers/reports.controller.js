@@ -138,22 +138,51 @@ export const getAdminReport = async (_req, res) => {
 // dashboard used to compute client-side: every appointment for students in the
 // college, split by status.
 const computeCollegeTotals = async (college, department = null) => {
-  const rows = await query(
-    `SELECT a.status, COUNT(*) AS count
+  const appts = await query(
+    `SELECT a.appointment_type, a.status, COUNT(*) AS count
      FROM appointments a
      JOIN users u ON a.student_id = u.id
      WHERE u.college = ?${department ? " AND u.department = ?" : ""}
-     GROUP BY a.status`,
+     GROUP BY a.appointment_type, a.status`,
     department ? [college, department] : [college]
   );
-  const sumWhere = (statuses) =>
-    rows
-      .filter((r) => statuses.includes(r.status))
+
+  const sessions = await query(
+    `SELECT cs.next_session, COUNT(*) AS count
+     FROM counseling_sessions cs
+     JOIN users u ON cs.student_id = u.id
+     WHERE u.college = ?${department ? " AND u.department = ?" : ""} AND cs.finalized_at IS NOT NULL
+     GROUP BY cs.next_session`,
+    department ? [college, department] : [college]
+  );
+
+  const sumAppts = (types, statuses) =>
+    appts
+      .filter((r) => types.includes(r.appointment_type) && statuses.includes(r.status))
       .reduce((sum, r) => sum + Number(r.count), 0);
+
+  const sumSessions = (nextSessions) =>
+    sessions
+      .filter((r) => nextSessions.includes(r.next_session))
+      .reduce((sum, r) => sum + Number(r.count), 0);
+
+  const counselingSessions = sumAppts(["counseling"], ["pending", "approved", "rescheduled", "completed", "rejected", "no_show"]);
+  const testingSessions = sumAppts(["psychological_test"], ["pending", "approved", "rescheduled", "completed", "rejected", "no_show"]);
+
+  const followupSessions = sumSessions(["followup"]);
+  const terminationSessions = sumSessions(["termination"]);
+
+  const activeCases = sumAppts(["counseling", "psychological_test"], ["pending", "approved", "rescheduled"]);
+  const completed = sumAppts(["counseling", "psychological_test"], ["completed"]) + terminationSessions;
+
   return {
-    totalSessions: rows.reduce((sum, r) => sum + Number(r.count), 0),
-    activeCases: sumWhere(["pending", "accepted", "approved"]),
-    completed: sumWhere(["completed"]),
+    totalSessions: counselingSessions + testingSessions,
+    counselingSessions,
+    testingSessions,
+    followupSessions,
+    terminationSessions,
+    activeCases,
+    completed,
   };
 };
 
@@ -299,48 +328,11 @@ export const getCollegeReport = async (req, res) => {
     [college]
   );
 
-  const appointmentCounts = await query(
-    `SELECT a.status, COUNT(*) AS count
-     FROM appointments a
-     JOIN users u ON a.student_id = u.id
-     WHERE u.college = ?
-     GROUP BY a.status`,
-    [college]
-  );
-
-  const testCounts = await query(
-    `SELECT a.status, COUNT(*) AS count
-     FROM appointments a
-     JOIN users u ON a.student_id = u.id
-     WHERE u.college = ? AND a.appointment_type = 'psychological_test'
-     GROUP BY a.status`,
-    [college]
-  );
-
-  const appointmentTotal = appointmentCounts.reduce((sum, row) => sum + Number(row.count), 0);
-  const testTotal = testCounts.reduce((sum, row) => sum + Number(row.count), 0);
-
-  const active = appointmentCounts
-    .filter((row) => ["pending", "accepted", "approved"].includes(row.status))
-    .reduce((sum, row) => sum + Number(row.count), 0) +
-    testCounts
-      .filter((row) => ["pending", "accepted", "approved"].includes(row.status))
-      .reduce((sum, row) => sum + Number(row.count), 0);
-
-  const completed = appointmentCounts
-    .filter((row) => ["completed", "accepted", "approved"].includes(row.status))
-    .reduce((sum, row) => sum + Number(row.count), 0) +
-    testCounts
-      .filter((row) => ["completed", "accepted", "approved"].includes(row.status))
-      .reduce((sum, row) => sum + Number(row.count), 0);
+  const totals = await computeCollegeTotals(college, null);
 
   return res.json({
     college,
-    totals: {
-      totalSessions: appointmentTotal + testTotal,
-      activeCases: active,
-      completed,
-    },
+    totals,
     students,
   });
 };

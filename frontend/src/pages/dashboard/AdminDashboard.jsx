@@ -161,6 +161,7 @@ export default function AdminDashboard() {
               labelWidth={90}
               emptyIcon={Users}
               emptyTitle="No users yet"
+              title="User Role Distribution"
             />
           </SectionCard>
 
@@ -177,6 +178,7 @@ export default function AdminDashboard() {
               maxRows={7}
               emptyIcon={Users}
               emptyTitle="No students yet"
+              title="Students by College"
             />
           </SectionCard>
 
@@ -193,6 +195,7 @@ export default function AdminDashboard() {
               maxRows={7}
               emptyIcon={CalendarCheck}
               emptyTitle="No completed appointments yet"
+              title="Appointments by College"
             />
           </SectionCard>
         </div>

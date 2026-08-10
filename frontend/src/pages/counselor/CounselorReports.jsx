@@ -936,10 +936,13 @@ export default function CounselorReports() {
               {genLoading ? (
                 <div className="text-sm text-gray-500">Loading totals…</div>
               ) : genTotals ? (
-                <div className="grid grid-cols-3 gap-3">
-                  <GenStat label="Total sessions" value={genTotals.totals?.totalSessions ?? "—"} />
-                  <GenStat label="Active cases" value={genTotals.totals?.activeCases ?? "—"} />
-                  <GenStat label="Completed" value={genTotals.totals?.completed ?? "—"} />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                  <GenStat label="Counseling" value={genTotals.totals?.counselingSessions ?? 0} />
+                  <GenStat label="Psych Test" value={genTotals.totals?.testingSessions ?? 0} />
+                  <GenStat label="Follow-up" value={genTotals.totals?.followupSessions ?? 0} />
+                  <GenStat label="Terminated" value={genTotals.totals?.terminationSessions ?? 0} />
+                  <GenStat label="Active Cases" value={genTotals.totals?.activeCases ?? 0} />
+                  <GenStat label="Completed" value={genTotals.totals?.completed ?? 0} />
                 </div>
               ) : (
                 <div className="text-sm text-gray-500">Totals unavailable.</div>
