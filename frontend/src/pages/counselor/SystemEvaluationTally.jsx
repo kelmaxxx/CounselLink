@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import * as XLSX from "xlsx";
 import { useAuth } from "../../context/AuthContext";
 import { SUS_QUESTIONS, SUS_SCALE, getSusGrade } from "../../data/systemEvaluationData";
 import {
@@ -14,9 +15,9 @@ import {
   Copy,
   Check,
   Printer,
-  Download,
   Award,
   Users,
+  FileSpreadsheet,
   ExternalLink,
   Lock,
   ShieldCheck,
@@ -26,11 +27,7 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-const csvCell = (value) => {
-  const s = String(value ?? "");
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-const toCsv = (rows) => rows.map((row) => row.map(csvCell).join(",")).join("\n");
+/* ── Excel Export Utility ─────────────────────────────────────────── */
 
 const ACCEPTED_PASSCODES = ["counselink2026", "1234", "cics2026"];
 
@@ -108,52 +105,96 @@ export default function SystemEvaluationTally() {
     window.print();
   };
 
-  const exportCsv = () => {
+  const exportExcel = () => {
     if (!tally || !tally.count) return;
 
-    const rows = [];
-    rows.push(["CounselLink - System Usability Scale (SUS) Evaluation Tally Summary"]);
-    rows.push(["Generated Date:", new Date().toLocaleDateString()]);
-    rows.push(["Total Respondents:", tally.count]);
-    rows.push(["Average SUS Score:", `${tally.averageSusScore} / 100`]);
-    rows.push(["Grade Rating:", tally.grade]);
-    rows.push(["Acceptability:", tally.acceptability]);
-    rows.push([]);
+    const wb = XLSX.utils.book_new();
 
-    rows.push(["STATEMENT BREAKDOWN (SUS Scale: 1=Strongly Agree, 5=Strongly Disagree)"]);
-    rows.push(["#", "Statement", ...SUS_SCALE.map((s) => s.label), "Avg Score"]);
-    SUS_QUESTIONS.forEach((q) => {
+    /* ── Sheet 1: Summary ─────────────────────────────────────────── */
+    const summaryData = [
+      ["CounselLink – System Usability Scale (SUS) Evaluation Report"],
+      [],
+      ["Report Generated", new Date().toLocaleString()],
+      ["Total Respondents", tally.count],
+      ["Average SUS Score", tally.averageSusScore],
+      ["Out Of", 100],
+      ["Grade Rating", tally.grade],
+      ["Acceptability", tally.acceptability],
+      [],
+      ["SUS Score Interpretation Guide"],
+      ["Score Range", "Grade", "Adjective", "Acceptability"],
+      ["80.3 – 100", "A", "Excellent", "Acceptable"],
+      ["68.0 – 80.2", "B", "Good", "Acceptable"],
+      ["51.0 – 67.9", "C", "OK", "Marginal"],
+      ["35.7 – 50.9", "D", "Poor", "Not Acceptable"],
+      ["0 – 35.6", "F", "Awful", "Not Acceptable"],
+    ];
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    wsSummary["!cols"] = [
+      { wch: 24 }, { wch: 22 }, { wch: 14 }, { wch: 18 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+
+    /* ── Sheet 2: Tallied Results Per Statement ───────────────────── */
+    const tallyHeader = [
+      "#",
+      "SUS Statement",
+      ...SUS_SCALE.map((s) => `${s.label} (${s.value})`),
+      "Total Responses",
+      "Average Rating",
+    ];
+    const tallyRows = SUS_QUESTIONS.map((q) => {
       const pq = tally.perQuestion[q.id] || {};
-      rows.push([
+      const counts = SUS_SCALE.map((s) => pq[s.value] || 0);
+      const totalResp = counts.reduce((a, b) => a + b, 0);
+      return [
         q.number,
         q.text,
-        ...SUS_SCALE.map((s) => pq[s.value] || 0),
-        pq.average ? pq.average.toFixed(2) : "0.00",
-      ]);
+        ...counts,
+        totalResp,
+        pq.average ? Number(pq.average.toFixed(2)) : 0,
+      ];
     });
-    rows.push([]);
+    const tallyData = [tallyHeader, ...tallyRows];
+    const wsTally = XLSX.utils.aoa_to_sheet(tallyData);
+    wsTally["!cols"] = [
+      { wch: 4 },   // #
+      { wch: 70 },  // Statement
+      { wch: 18 },  // SA
+      { wch: 10 },  // A
+      { wch: 10 },  // N
+      { wch: 12 },  // D
+      { wch: 20 },  // SD
+      { wch: 16 },  // Total
+      { wch: 16 },  // Avg
+    ];
+    XLSX.utils.book_append_sheet(wb, wsTally, "Tally Per Statement");
 
-    rows.push(["INDIVIDUAL RESPONSES"]);
-    rows.push(["ID", "Respondent Name", "Classification", "Date", "SUS Score", "Comments"]);
-    (tally.evaluations || []).forEach((e) => {
-      rows.push([
-        e.id,
-        e.respondentName,
-        e.respondentType,
-        new Date(e.createdAt).toLocaleDateString(),
-        e.susScore,
-        e.comments || "",
-      ]);
-    });
+    /* ── Sheet 3: Respondent List (no raw answers, just scores) ─── */
+    const respHeader = ["#", "Respondent Name", "Classification", "Date Submitted", "SUS Score", "Comments"];
+    const respRows = (tally.evaluations || []).map((e, idx) => [
+      idx + 1,
+      e.respondentName,
+      (e.respondentType || "").replace("_", " "),
+      new Date(e.createdAt).toLocaleDateString(),
+      e.susScore,
+      e.comments || "",
+    ]);
+    const respData = [respHeader, ...respRows];
+    const wsResp = XLSX.utils.aoa_to_sheet(respData);
+    wsResp["!cols"] = [
+      { wch: 5 },   // #
+      { wch: 28 },  // Name
+      { wch: 22 },  // Classification
+      { wch: 16 },  // Date
+      { wch: 12 },  // Score
+      { wch: 40 },  // Comments
+    ];
+    XLSX.utils.book_append_sheet(wb, wsResp, "Respondents");
 
-    const csvContent = toCsv(rows);
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `counselink_sus_evaluation_tally_${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    /* ── Download ──────────────────────────────────────────────────── */
+    const fileName = `CounselLink_SUS_Evaluation_Report_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const gradeInfo = tally ? getSusGrade(tally.averageSusScore) : null;
@@ -214,8 +255,8 @@ export default function SystemEvaluationTally() {
             <button onClick={fetchTally} className={BTN.secondary} title="Refresh tally data">
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
             </button>
-            <button onClick={exportCsv} disabled={!tally?.count} className={BTN.secondary}>
-              <Download size={14} /> Export CSV
+            <button onClick={exportExcel} disabled={!tally?.count} className={BTN.secondary}>
+              <FileSpreadsheet size={14} /> Export Excel
             </button>
             <button onClick={handlePrint} className={BTN.primary}>
               <Printer size={14} /> Print Summary
