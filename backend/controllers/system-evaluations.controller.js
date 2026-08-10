@@ -115,15 +115,20 @@ export async function getSystemEvaluationsTally(req, res) {
   const perQuestion = {};
   for (let i = 1; i <= 10; i++) {
     const qKey = `q${i}`;
-    perQuestion[qKey] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, sum: 0, average: 0 };
+    perQuestion[qKey] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     rows.forEach((r) => {
       const val = Number(r[qKey]);
       if (val >= 1 && val <= 5) {
         perQuestion[qKey][val] = (perQuestion[qKey][val] || 0) + 1;
-        perQuestion[qKey].sum += val;
       }
     });
-    perQuestion[qKey].average = Number((perQuestion[qKey].sum / totalCount).toFixed(2));
+    const f1 = perQuestion[qKey][1] || 0;
+    const f2 = perQuestion[qKey][2] || 0;
+    const f3 = perQuestion[qKey][3] || 0;
+    const f4 = perQuestion[qKey][4] || 0;
+    const f5 = perQuestion[qKey][5] || 0;
+    const weightedSum = (1 * f1) + (2 * f2) + (3 * f3) + (4 * f4) + (5 * f5);
+    perQuestion[qKey].average = Number((weightedSum / totalCount).toFixed(2));
   }
 
   return res.json({
