@@ -192,6 +192,41 @@ export default function SystemEvaluationTally() {
     ];
     XLSX.utils.book_append_sheet(wb, wsResp, "Respondents");
 
+    /* ── Sheet 4: Per-Respondent Question Breakdown ───────────────── */
+    const breakdownHeader = [
+      "#",
+      "Respondent Name",
+      ...SUS_QUESTIONS.map((q) => `Q${q.number}`),
+      "Overall SUS Score",
+    ];
+    const breakdownRows = (tally.evaluations || []).map((e, idx) => [
+      idx + 1,
+      e.respondentName,
+      ...SUS_QUESTIONS.map((q) => e.answers?.[q.id] ?? ""),
+      e.susScore,
+    ]);
+    // Average row at the bottom
+    const avgRow = [
+      "",
+      `Average (n=${tally.count})`,
+      ...SUS_QUESTIONS.map((q) => {
+        const pq = tally.perQuestion[q.id] || {};
+        return pq.average ? Number(pq.average.toFixed(2)) : 0;
+      }),
+      tally.averageSusScore,
+    ];
+    breakdownRows.push(avgRow);
+
+    const breakdownData = [breakdownHeader, ...breakdownRows];
+    const wsBreakdown = XLSX.utils.aoa_to_sheet(breakdownData);
+    wsBreakdown["!cols"] = [
+      { wch: 5 },   // #
+      { wch: 28 },  // Respondent Name
+      ...SUS_QUESTIONS.map(() => ({ wch: 8 })),  // Q1-Q10
+      { wch: 18 },  // Overall SUS Score
+    ];
+    XLSX.utils.book_append_sheet(wb, wsBreakdown, "Per Respondent Breakdown");
+
     /* ── Download ──────────────────────────────────────────────────── */
     const fileName = `CounselLink_SUS_Evaluation_Report_${new Date().toISOString().split("T")[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
@@ -384,6 +419,65 @@ export default function SystemEvaluationTally() {
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+
+          {/* Per-Respondent Breakdown Table (Q1-Q10 + Overall) */}
+          <SectionCard
+            title="Per-Respondent Question Breakdown"
+            subtitle="Each respondent's individual ratings per question (Q1–Q10) and their overall SUS score"
+            noBodyPadding
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold border-b border-slate-200">
+                    <th className="px-4 py-3 w-12 text-center">#</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Respondent</th>
+                    {SUS_QUESTIONS.map((q) => (
+                      <th key={q.id} className="px-3 py-3 text-center whitespace-nowrap">
+                        Q{q.number}
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-center whitespace-nowrap">Overall SUS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {tally.evaluations.map((e, idx) => (
+                    <tr key={e.id} className="hover:bg-slate-50/70 transition">
+                      <td className="px-4 py-3 text-center font-semibold text-slate-400">{idx + 1}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">{e.respondentName}</td>
+                      {SUS_QUESTIONS.map((q) => (
+                        <td key={q.id} className="px-3 py-3 text-center font-mono text-slate-600">
+                          {e.answers?.[q.id] ?? "—"}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-block px-2.5 py-1 text-xs font-bold rounded-lg bg-maroon-50 text-maroon-700 border border-maroon-100">
+                          {e.susScore}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Average row at bottom */}
+                  <tr className="bg-maroon-50/40 border-t-2 border-maroon-200 font-semibold">
+                    <td className="px-4 py-3 text-center text-maroon-700" colSpan={2}>
+                      Average (n={tally.count})
+                    </td>
+                    {SUS_QUESTIONS.map((q) => {
+                      const pq = tally.perQuestion[q.id] || {};
+                      return (
+                        <td key={q.id} className="px-3 py-3 text-center font-mono text-maroon-700">
+                          {pq.average ? pq.average.toFixed(2) : "—"}
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3 text-center font-mono font-bold text-maroon-800">
+                      {tally.averageSusScore}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
