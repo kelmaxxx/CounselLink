@@ -107,7 +107,7 @@ export const login = async (req, res) => {
 export const registerStudent = async (req, res) => {
   const { firstName, middleName, lastName, email, password, studentId, college, department, program, phone, corUrl, corFileName, corFileType, avatarUrl, avatarFileName, avatarFileType } = req.body;
   const name = [firstName, middleName, lastName].filter(Boolean).join(" ");
-  if (!firstName || !lastName || !email || !password || !studentId || !college) {
+  if (!firstName || !lastName || !email || !password || !studentId || !college || !avatarUrl) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 

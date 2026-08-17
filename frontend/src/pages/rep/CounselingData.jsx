@@ -19,7 +19,7 @@ import {
   BTN,
   initialsOf,
 } from "../../components/ui";
-import { downloadReportAsPdf } from "../../utils/sessionReport";
+import { saveReportAsPdfFile } from "../../utils/sessionReport";
 import ReportPreview from "../../components/records/ReportPreview";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -69,10 +69,17 @@ export default function CounselingData() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const activePayload = useMemo(
-    () => (activeReport ? parsePayload(activeReport.report_payload) : null),
-    [activeReport]
-  );
+  const activePayload = useMemo(() => {
+    if (!activeReport) return null;
+    const p = parsePayload(activeReport.report_payload) || {};
+    return {
+      ...p,
+      counselorName: p.counselorName || p.counselor_name || activeReport.senderName,
+      counselorSignatureUrl: p.counselorSignatureUrl || p.counselor_signature_url || activeReport.senderSignatureUrl,
+      senderName: activeReport.senderName,
+      senderSignatureUrl: activeReport.senderSignatureUrl,
+    };
+  }, [activeReport]);
 
   const totalReportPages = Math.max(1, Math.ceil(reports.length / REPORTS_PAGE_SIZE));
   const pagedReports = reports.slice(
@@ -130,6 +137,13 @@ export default function CounselingData() {
                   {pagedReports.map((r) => {
                     const payload = parsePayload(r.report_payload);
                     const college = isCollegeSummary(payload);
+                    const fullPayload = {
+                      ...payload,
+                      counselorName: payload?.counselorName || payload?.counselor_name || r.senderName,
+                      counselorSignatureUrl: payload?.counselorSignatureUrl || payload?.counselor_signature_url || r.senderSignatureUrl,
+                      senderName: r.senderName,
+                      senderSignatureUrl: r.senderSignatureUrl,
+                    };
                     return (
                       <tr key={r.id} className="hover:bg-gray-50/70 transition">
                         <td className="px-4 py-3">
@@ -184,10 +198,10 @@ export default function CounselingData() {
                                   <Eye size={13} /> View report
                                 </button>
                                 <button
-                                  onClick={() => { downloadReportAsPdf(payload, { title: r.title }); setOpenPopover(null); }}
+                                  onClick={() => { saveReportAsPdfFile(fullPayload, { title: r.title }); setOpenPopover(null); }}
                                   className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
                                 >
-                                  <FileDown size={13} /> Download PDF
+                                  <FileDown size={13} /> Download
                                 </button>
                               </div>
                             )}
@@ -236,7 +250,7 @@ export default function CounselingData() {
             ? `From ${activeReport.senderName} · ${new Date(activeReport.sent_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
             : ""
         }
-        size="lg"
+        size="5xl"
         align="top"
         footer={
           activeReport && (
@@ -244,12 +258,12 @@ export default function CounselingData() {
               <button
                 className={BTN.secondary}
                 onClick={() =>
-                  downloadReportAsPdf(parsePayload(activeReport.report_payload), {
+                  saveReportAsPdfFile(activePayload, {
                     title: activeReport.title,
                   })
                 }
               >
-                <FileDown size={14} /> Download PDF
+                <FileDown size={14} /> Download
               </button>
               <button className={BTN.primary} onClick={() => setActiveReport(null)}>
                 Close
@@ -258,11 +272,13 @@ export default function CounselingData() {
           )
         }
       >
-        {activePayload ? (
-          <ReportPreview report={activePayload} title={activeReport?.title} />
-        ) : (
-          <p className="text-sm text-gray-500">No payload available.</p>
-        )}
+        <div className="max-h-[75vh] overflow-auto pr-1">
+          {activePayload ? (
+            <ReportPreview report={activePayload} title={activeReport?.title} fallbackSignatureUrl={activeReport?.senderSignatureUrl} height={750} />
+          ) : (
+            <p className="text-sm text-gray-500 p-4">No payload available.</p>
+          )}
+        </div>
       </Modal>
     </div>
   );

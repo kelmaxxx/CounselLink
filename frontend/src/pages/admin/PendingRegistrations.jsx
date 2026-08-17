@@ -222,7 +222,7 @@ export default function PendingRegistrations() {
               className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden"
             >
               <div className="p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     {(user.avatarUrl || user.avatar_url) ? (
                       <img
@@ -284,7 +284,7 @@ export default function PendingRegistrations() {
                   </div>
 
                   {/* COR Preview */}
-                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                  <div className="flex flex-col items-start sm:items-end gap-1.5 flex-shrink-0 w-full sm:w-auto">
                     <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
                       Certificate of Registration
                     </p>

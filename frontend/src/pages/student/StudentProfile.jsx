@@ -422,7 +422,7 @@ export default function StudentProfile() {
           size="5xl"
           align="top"
         >
-          <div className="max-h-[75vh] overflow-y-auto pr-2">
+          <div className="max-h-[75vh] overflow-auto pr-2">
             {loadingInventory ? (
               <div className="text-sm text-gray-500 py-8 text-center">Loading inventory form...</div>
             ) : (

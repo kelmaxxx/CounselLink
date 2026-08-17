@@ -16,7 +16,7 @@ const buildRejectionEmail = ({ name, reason }) => ({
 
 export const pendingRegistrations = async (_req, res) => {
   const rows = await query(
-    "SELECT id, name, email, student_id AS studentId, college, status, cor_url AS corUrl, cor_file_name AS corFileName, cor_file_type AS corFileType FROM users WHERE role='student' AND status='pending_approval'"
+    "SELECT id, name, email, student_id AS studentId, college, department, program, year_level AS yearLevel, status, cor_url AS corUrl, cor_file_name AS corFileName, cor_file_type AS corFileType, avatar_url AS avatarUrl, avatar_file_name AS avatarFileName, avatar_file_type AS avatarFileType FROM users WHERE role='student' AND status='pending_approval'"
   );
   return res.json(rows);
 };

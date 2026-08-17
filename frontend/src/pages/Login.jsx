@@ -289,6 +289,7 @@ export default function Login() {
     }
     if (step === 3) {
       if (!signupForm.corImage) next.cor = "Please upload your Certificate of Registration (COR).";
+      if (!signupForm.avatarImage) next.avatar = "Please upload your 1x1 picture.";
     }
     if (step === 4) {
       if (!signupForm.password) next.password = "Password is required.";
