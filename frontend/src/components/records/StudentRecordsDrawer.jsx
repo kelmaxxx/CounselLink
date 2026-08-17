@@ -700,7 +700,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-auto px-6 py-4">
           {loading ? (
             <div className="text-sm text-gray-500">Loading records...</div>
           ) : tab === "inventory" ? (

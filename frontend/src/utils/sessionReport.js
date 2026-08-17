@@ -83,7 +83,7 @@ export function normalizeSessionReport(input = {}) {
     studentName: get("studentName", "student_name"),
     studentCollege: get("studentCollege", "student_college"),
     studentNumber: get("studentNumber", "student_number"),
-    counselorName: get("counselorName", "counselor_name"),
+    counselorName: get("counselorName", "counselor_name") || input.senderName || input.sender_name || "",
     sessionDate: get("sessionDate", "session_date"),
     presentingConcern: get("presentingConcern", "presenting_concern"),
     goals: get("goals", "goals"),
@@ -227,6 +227,7 @@ function buildCollegeSummaryHTML(report, opts = {}) {
   const generated = report.generatedAt
     ? new Date(report.generatedAt).toLocaleDateString()
     : "—";
+  const counselorName = report.counselorName || report.counselor_name || report.senderName || opts.senderName || "";
   const docTitle = title || `College Summary — ${report.college || ""}`;
   const sessions = Array.isArray(report.sessions) ? report.sessions : [];
 
@@ -260,17 +261,15 @@ function buildCollegeSummaryHTML(report, opts = {}) {
 
   <table class="info-table">
     <tr><td><strong>College:</strong> ${formatLine(report.college)}</td><td><strong>Students enrolled:</strong> ${formatLine(report.studentCount)}</td></tr>
-    <tr><td colspan="2"><strong>Prepared by:</strong> ${formatLine(report.counselorName)} &nbsp; <strong>Date prepared:</strong> ${escapeHtml(generated)}</td></tr>
+    <tr><td colspan="2"><strong>Prepared by:</strong> ${formatLine(counselorName)} &nbsp; <strong>Date prepared:</strong> ${escapeHtml(generated)}</td></tr>
   </table>
 
   <div class="section-label">Counseling Activity Overview</div>
   <table class="data-table" style="text-align: center;">
     <thead>
       <tr>
-        <th colspan="2" style="text-align: center; border-bottom: 1px solid #999;">Total Sessions</th>
+        <th colspan="2" style="text-align: center; border-bottom: 1px solid #999;">Total Requests</th>
         <th colspan="2" style="text-align: center; border-bottom: 1px solid #999;">Student Sessions</th>
-        <th rowspan="2" style="vertical-align: middle; text-align: center;">Active Cases</th>
-        <th rowspan="2" style="vertical-align: middle; text-align: center;">Completed</th>
       </tr>
       <tr>
         <th style="text-align: center;">Counseling</th>
@@ -285,8 +284,6 @@ function buildCollegeSummaryHTML(report, opts = {}) {
         <td style="text-align: center;">${formatLine(t.testingSessions ?? 0)}</td>
         <td style="text-align: center;">${formatLine(t.followupSessions ?? 0)}</td>
         <td style="text-align: center;">${formatLine(t.terminationSessions ?? 0)}</td>
-        <td style="text-align: center;">${formatLine(t.activeCases ?? 0)}</td>
-        <td style="text-align: center;">${formatLine(t.completed ?? 0)}</td>
       </tr>
     </tbody>
   </table>
@@ -307,7 +304,7 @@ function buildCollegeSummaryHTML(report, opts = {}) {
   <div class="signature-block">
     ${signatureImageUrl ? `<img class="signature-img" src="${signatureImageUrl}" alt="Counselor signature" />` : ""}
     <div class="signature-line"></div>
-    <div class="signature-caption"><strong>${formatLine(report.counselorName)}</strong><br/>Guidance Counselor</div>
+    <div class="signature-caption"><strong>${formatLine(counselorName)}</strong><br/>Guidance Counselor</div>
   </div>
 </body>
 </html>`;
@@ -450,10 +447,11 @@ export async function saveReportAsPdfFile(report, opts = {}) {
   const signatureImageUrl =
     opts.signatureImageUrl ||
     (await resolveSignatureDataUrl(
-      opts.signatureUrl || report?.counselorSignatureUrl || report?.counselor_signature_url
+      opts.signatureUrl || report?.counselorSignatureUrl || report?.counselor_signature_url || report?.senderSignatureUrl || report?.sender_signature_url || opts.senderSignatureUrl
     ));
   const html = buildReportHTML(report, { ...opts, signatureImageUrl });
   const r = normalizeSessionReport(report);
   const paper = PAPER_SIZES[opts.paperSize] || PAPER_SIZES.a4;
-  await saveHtmlAsPdfFile(html, `${safeFileBase(r.studentName)}.pdf`, { pageWidthIn: paper.widthIn, pageHeightIn: paper.heightIn });
+  const nameBase = report?.type === "college_summary" ? (report.college ? `college_summary_${report.college}` : (report.title || opts.title || "college_summary")) : r.studentName;
+  await saveHtmlAsPdfFile(html, `${safeFileBase(nameBase)}.pdf`, { pageWidthIn: paper.widthIn, pageHeightIn: paper.heightIn });
 }

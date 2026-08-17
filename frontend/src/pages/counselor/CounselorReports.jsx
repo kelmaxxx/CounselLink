@@ -30,7 +30,7 @@ import {
   LABEL,
   initialsOf,
 } from "../../components/ui";
-import { downloadReportAsPdf } from "../../utils/sessionReport";
+import { downloadReportAsPdf, saveReportAsPdfFile } from "../../utils/sessionReport";
 import ReportPreview from "../../components/records/ReportPreview";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -815,7 +815,7 @@ export default function CounselorReports() {
               ).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
             : ""
         }
-        size="lg"
+        size="5xl"
         align="top"
         footer={
           activeReport && (
@@ -824,12 +824,12 @@ export default function CounselorReports() {
                 className={BTN.secondary}
                 disabled={!currentUser?.signatureUrl}
                 title={currentUser?.signatureUrl ? undefined : "Upload your signature in Profile to enable downloads"}
-                onClick={() => downloadReportAsPdf(parsePayload(activeReport.report_payload), {
+                onClick={() => saveReportAsPdfFile(parsePayload(activeReport.report_payload), {
                   title: activeReport.title,
                   signatureUrl: currentUser?.signatureUrl,
                 })}
               >
-                <FileDown size={14} /> Download PDF
+                <FileDown size={14} /> Download
               </button>
               <button className={BTN.primary} onClick={() => setActiveReport(null)}>
                 Close
@@ -838,17 +838,21 @@ export default function CounselorReports() {
           )
         }
       >
-        {activePayload ? (
-          <ReportPreview report={activePayload} title={activeReport?.title} fallbackSignatureUrl={currentUser?.signatureUrl} />
-        ) : (
-          <p className="text-sm text-gray-500">No report payload available.</p>
-        )}
+        <div className="max-h-[75vh] overflow-auto pr-1">
+          {activePayload ? (
+            <ReportPreview report={activePayload} title={activeReport?.title} fallbackSignatureUrl={currentUser?.signatureUrl} height={750} />
+          ) : (
+            <p className="text-sm text-gray-500 p-4">No report payload available.</p>
+          )}
+        </div>
       </Modal>
 
       <Modal
         open={!!respondTarget}
         onClose={responding ? undefined : closeRespond}
         danger
+        align="top"
+        size="md"
         title="Decline report request"
         subtitle={
           respondTarget
@@ -902,7 +906,8 @@ export default function CounselorReports() {
               } · requested by ${genTarget.requesterName || "—"}`
             : ""
         }
-        size="lg"
+        size="xl"
+        align="top"
         footer={
           genTarget && (
             <div className="flex items-center gap-2">
@@ -936,13 +941,11 @@ export default function CounselorReports() {
               {genLoading ? (
                 <div className="text-sm text-gray-500">Loading totals…</div>
               ) : genTotals ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <GenStat label="Counseling" value={genTotals.totals?.counselingSessions ?? 0} />
                   <GenStat label="Psych Test" value={genTotals.totals?.testingSessions ?? 0} />
                   <GenStat label="Follow-up" value={genTotals.totals?.followupSessions ?? 0} />
                   <GenStat label="Terminated" value={genTotals.totals?.terminationSessions ?? 0} />
-                  <GenStat label="Active Cases" value={genTotals.totals?.activeCases ?? 0} />
-                  <GenStat label="Completed" value={genTotals.totals?.completed ?? 0} />
                 </div>
               ) : (
                 <div className="text-sm text-gray-500">Totals unavailable.</div>
@@ -1008,12 +1011,12 @@ function ReportActions({ report, onView, signatureUrl }) {
         <Eye size={13} /> View
       </button>
       <button
-        onClick={hasSignature ? () => downloadReportAsPdf(payload, { title: report.title, signatureUrl }) : undefined}
+        onClick={hasSignature ? () => saveReportAsPdfFile(payload, { title: report.title, signatureUrl }) : undefined}
         disabled={!hasSignature}
-        title={hasSignature ? "Download / print as PDF" : "Upload your signature in Profile to enable downloads"}
+        title={hasSignature ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
         className={`inline-flex items-center gap-1 h-7 px-2 rounded-md border text-xs transition ${hasSignature ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100" : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"}`}
       >
-        <FileDown size={13} /> PDF
+        <FileDown size={13} /> Download
       </button>
     </div>
   );
@@ -1035,12 +1038,12 @@ function SessionDownloadButtons({ session, onView, signatureUrl }) {
         <Eye size={13} /> View
       </button>
       <button
-        onClick={hasSignature ? () => downloadReportAsPdf(session, opts) : undefined}
+        onClick={hasSignature ? () => saveReportAsPdfFile(session, opts) : undefined}
         disabled={!hasSignature}
-        title={hasSignature ? "Download / print as PDF" : "Upload your signature in Profile to enable downloads"}
+        title={hasSignature ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
         className={`inline-flex items-center gap-1 h-7 px-2 rounded-md border text-xs transition ${hasSignature ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100" : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"}`}
       >
-        <FileDown size={13} /> PDF
+        <FileDown size={13} /> Download
       </button>
     </div>
   );

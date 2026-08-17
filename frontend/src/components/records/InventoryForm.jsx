@@ -433,12 +433,12 @@ export default function InventoryForm({
         .document-container {
           display: flex;
           flex-direction: column;
-          align-items: center;
           gap: 24px;
           background-color: #f3f4f6;
           padding: 24px 16px;
           width: 100%;
           box-sizing: border-box;
+          overflow-x: auto;
         }
 
         .page-sheet {
@@ -454,6 +454,8 @@ export default function InventoryForm({
           color: black;
           text-align: left;
           flex-shrink: 0;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         @media print {

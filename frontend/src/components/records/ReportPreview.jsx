@@ -8,7 +8,7 @@ export default function ReportPreview({ report, title, height = 620, fallbackSig
   const [signatureImageUrl, setSignatureImageUrl] = useState(null);
 
   const signatureUrl =
-    report?.counselorSignatureUrl || report?.counselor_signature_url || fallbackSignatureUrl || null;
+    report?.counselorSignatureUrl || report?.counselor_signature_url || report?.senderSignatureUrl || report?.sender_signature_url || fallbackSignatureUrl || null;
 
   useEffect(() => {
     let cancelled = false;
@@ -28,12 +28,16 @@ export default function ReportPreview({ report, title, height = 620, fallbackSig
   );
 
   return (
-    <iframe
-      title={title || "Report preview"}
-      srcDoc={html}
-      sandbox="allow-same-origin"
-      className="w-full border border-gray-200 rounded-lg bg-white"
-      style={{ height }}
-    />
+    <div className="bg-gray-100 p-3 sm:p-6 rounded-xl flex justify-center overflow-x-auto min-h-[500px]">
+      <div className="w-full max-w-[8.5in] bg-white rounded-md shadow-md overflow-hidden">
+        <iframe
+          title={title || "Report preview"}
+          srcDoc={html}
+          sandbox="allow-same-origin"
+          className="w-full border-0 bg-white"
+          style={{ height: typeof height === "number" ? `${height}px` : height }}
+        />
+      </div>
+    </div>
   );
 }

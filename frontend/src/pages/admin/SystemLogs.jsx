@@ -246,77 +246,79 @@ export default function SystemLogs() {
         ) : logs.length === 0 ? (
           <EmptyState icon={Shield} title="No log entries found" hint="Try adjusting the filters above." />
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/40 border-b border-gray-100">
-                <th className="px-4 py-2.5 w-36">When</th>
-                <th className="px-4 py-2.5 w-44">Actor</th>
-                <th className="px-4 py-2.5">Action</th>
-                <th className="px-4 py-2.5 w-32">Target</th>
-                <th className="px-4 py-2.5 w-32">IP</th>
-                <th className="px-4 py-2.5 w-16">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {logs.map((log) => {
-                const isStudent = log.actorRole === "student";
-                const actorName = log.actorId == null
-                  ? "Public (unauthenticated)"
-                  : isStudent
-                    ? censorName(log.actorName || "(deleted user)")
-                    : (log.actorName || "(deleted user)");
-                return (
-                  <React.Fragment key={log.id}>
-                    <tr className="hover:bg-gray-50/70 transition">
-                      <td className="px-4 py-3 text-gray-600 text-xs tabular-nums whitespace-nowrap">
-                        {formatTs(log.createdAt)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className={`text-sm font-medium text-gray-900 break-words ${isStudent ? "font-mono" : ""}`}>
-                          {actorName}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {ROLE_LABELS[log.actorRole] || log.actorRole || "—"}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200 whitespace-nowrap">
-                          {ACTION_LABELS[log.action] || log.action}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 text-xs font-mono break-all">
-                        {log.targetType ? `${log.targetType}#${log.targetId ?? "—"}` : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs font-mono">
-                        {log.ipAddress || <span className="text-gray-300">—</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        {log.details ? (
-                          <button
-                            onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                            className="text-xs font-medium text-maroon-600 hover:text-maroon-700 transition"
-                          >
-                            {expandedId === log.id ? "Hide" : "View"}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-300">—</span>
-                        )}
-                      </td>
-                    </tr>
-                    {expandedId === log.id && log.details && (
-                      <tr className="bg-gray-50/60">
-                        <td colSpan={6} className="px-4 py-3">
-                          <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all font-mono bg-gray-100 rounded-md p-3">
-                            {JSON.stringify(log.details, null, 2)}
-                          </pre>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/40 border-b border-gray-100">
+                  <th className="px-4 py-2.5 w-36">When</th>
+                  <th className="px-4 py-2.5 w-44">Actor</th>
+                  <th className="px-4 py-2.5">Action</th>
+                  <th className="px-4 py-2.5 w-32">Target</th>
+                  <th className="px-4 py-2.5 w-32">IP</th>
+                  <th className="px-4 py-2.5 w-16">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {logs.map((log) => {
+                  const isStudent = log.actorRole === "student";
+                  const actorName = log.actorId == null
+                    ? "Public (unauthenticated)"
+                    : isStudent
+                      ? censorName(log.actorName || "(deleted user)")
+                      : (log.actorName || "(deleted user)");
+                  return (
+                    <React.Fragment key={log.id}>
+                      <tr className="hover:bg-gray-50/70 transition">
+                        <td className="px-4 py-3 text-gray-600 text-xs tabular-nums whitespace-nowrap">
+                          {formatTs(log.createdAt)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className={`text-sm font-medium text-gray-900 break-words ${isStudent ? "font-mono" : ""}`}>
+                            {actorName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {ROLE_LABELS[log.actorRole] || log.actorRole || "—"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200 whitespace-nowrap">
+                            {ACTION_LABELS[log.action] || log.action}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 text-xs font-mono break-all">
+                          {log.targetType ? `${log.targetType}#${log.targetId ?? "—"}` : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 text-xs font-mono">
+                          {log.ipAddress || <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {log.details ? (
+                            <button
+                              onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                              className="text-xs font-medium text-maroon-600 hover:text-maroon-700 transition"
+                            >
+                              {expandedId === log.id ? "Hide" : "View"}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-300">—</span>
+                          )}
                         </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                      {expandedId === log.id && log.details && (
+                        <tr className="bg-gray-50/60">
+                          <td colSpan={6} className="px-4 py-3">
+                            <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all font-mono bg-gray-100 rounded-md p-3">
+                              {JSON.stringify(log.details, null, 2)}
+                            </pre>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
         <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 flex justify-between items-center">
