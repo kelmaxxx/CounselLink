@@ -1349,16 +1349,14 @@ export default function InventoryForm({
         {!readOnly && (
           <button
             type="button"
-            onClick={isStudentView && (!hasFeedback || !hasSignature) ? undefined : handleSave}
-            disabled={busy || (isStudentView && (!hasFeedback || !hasSignature))}
+            onClick={isStudentView && !hasSignature ? undefined : handleSave}
+            disabled={busy || (isStudentView && !hasSignature)}
             title={
-              isStudentView && !hasFeedback
-                ? "Submit a Client Feedback Form first to enable saving"
-                : isStudentView && !hasSignature
+              isStudentView && !hasSignature
                 ? "Upload your signature on your Profile page to enable saving"
                 : undefined
             }
-            className={`flex items-center gap-2 px-4 py-2 rounded text-white disabled:opacity-50 text-sm font-semibold select-none ${isStudentView && (!hasFeedback || !hasSignature) ? "bg-gray-400 cursor-not-allowed" : "bg-[#0B6623] hover:bg-[#074317]"}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-white disabled:opacity-50 text-sm font-semibold select-none ${isStudentView && !hasSignature ? "bg-gray-400 cursor-not-allowed" : "bg-[#0B6623] hover:bg-[#074317]"}`}
           >
             <Save size={16} /> {busy ? "Saving..." : "Save inventory"}
           </button>

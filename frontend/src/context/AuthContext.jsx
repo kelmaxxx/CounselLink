@@ -354,6 +354,10 @@ export function AuthProvider({ children }) {
       ])
         .then(([students, counselors]) => setUsers([...students, ...counselors]))
         .catch((err) => console.error("Failed to load users:", err));
+    } else if (currentUser?.role === "student") {
+      fetchUsersByRole("counselor")
+        .then((counselors) => setUsers(counselors))
+        .catch((err) => console.error("Failed to load counselors:", err));
     }
   }, [token, currentUser?.role]);
 
