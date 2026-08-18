@@ -6,7 +6,7 @@ import ChatModal from "../components/ChatModal";
 import { initialsOf } from "../components/ui";
 
 export default function Messages() {
-  const { currentUser, users, lookupUser } = useAuth();
+  const { currentUser, users, lookupUser, fetchUsersByRole, setUsers } = useAuth();
   const { conversations, fetchConversations } = useMessages();
   const [chatRecipient, setChatRecipient] = useState(null);
   const [search, setSearch] = useState("");
@@ -15,8 +15,15 @@ export default function Messages() {
 
   useEffect(() => {
     fetchConversations().catch(() => undefined);
+    if ((currentUser?.role === "student" || currentUser?.role === "college_rep") && fetchUsersByRole) {
+      fetchUsersByRole("counselor")
+        .then((counselors) => {
+          if (counselors && setUsers) setUsers(counselors);
+        })
+        .catch(() => undefined);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUser?.role]);
 
   // Build deduped conversation list
   const items = useMemo(() => {
@@ -80,7 +87,9 @@ export default function Messages() {
         (u) =>
           u.name.toLowerCase().includes(q) ||
           u.email?.toLowerCase().includes(q) ||
-          u.position?.toLowerCase().includes(q)
+          u.position?.toLowerCase().includes(q) ||
+          u.specialization?.toLowerCase().includes(q) ||
+          u.college?.toLowerCase().includes(q)
       )
       .slice(0, 6);
   }, [suggestionPool, search]);
