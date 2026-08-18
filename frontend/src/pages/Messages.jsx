@@ -127,7 +127,11 @@ export default function Messages() {
           type="text"
           placeholder="Search by name..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onFocus={() => canSuggest && setShowSuggestions(true)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            if (canSuggest) setShowSuggestions(true);
+          }}
           className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-maroon-500"
         />
         {canSuggest && showSuggestions && searchSuggestions.length > 0 && (

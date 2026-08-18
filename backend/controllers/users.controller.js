@@ -1,7 +1,9 @@
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { isValidPhMobile } from "../utils/validators.js";
+import { sendEmail } from "../services/email.service.js";
 
 const SELECT_FIELDS = `
   id, name, email, role, status, college, student_id AS studentId, phone,
@@ -101,6 +103,16 @@ export const updateMe = async (req, res) => {
   return res.json(rows[0]);
 };
 
+export const checkEmailExists = async (req, res) => {
+  const { email } = req.query;
+  if (!email || !String(email).trim()) {
+    return res.status(400).json({ message: "Email query parameter is required" });
+  }
+
+  const rows = await query("SELECT id FROM users WHERE email = ? LIMIT 1", [String(email).trim()]);
+  return res.json({ exists: rows.length > 0 });
+};
+
 export const lookupUser = async (req, res) => {
   const { id } = req.params;
   const rows = await query(
@@ -135,7 +147,7 @@ export const getCounselorStats = async (req, res) => {
 };
 
 export const listUsers = async (req, res) => {
-  const { role } = req.query;
+  const { role, college } = req.query;
   const requesterRole = req.user?.role;
   const requesterCollege = req.user?.college || null;
 
@@ -167,10 +179,12 @@ export const listUsers = async (req, res) => {
   let sql = `SELECT ${SELECT_FIELDS} FROM users`;
   const params = [];
   const where = [];
+
   if (role) {
     where.push("role = ?");
     params.push(role);
   }
+
   if (scopeToRepCollege) {
     if (!requesterCollege) {
       // Rep with no college assigned should see no students.
@@ -178,44 +192,167 @@ export const listUsers = async (req, res) => {
     }
     where.push("college = ?");
     params.push(requesterCollege);
+  } else if (college) {
+    where.push("college = ?");
+    params.push(college);
   }
+
   if (where.length) sql += " WHERE " + where.join(" AND ");
   sql += " ORDER BY name ASC";
   const rows = await query(sql, params);
   return res.json(rows);
 };
 
-export const adminCreateUser = async (req, res) => {
-  const { name, email, password, role, college, department, position, specialization, employeeId } = req.body;
-  if (!name || !email || !password || !role) {
-    return res.status(400).json({ message: "Missing required fields" });
+async function createAndSendInvitation(user) {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await query("DELETE FROM account_invitations WHERE user_id = ?", [user.id]);
+  await query(
+    "INSERT INTO account_invitations (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+    [user.id, tokenHash, expiresAt]
+  );
+
+  const appUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const inviteLink = `${appUrl}/accept-invitation?token=${rawToken}`;
+
+  const roleTitle = user.role === "counselor" ? "Counselor" : user.role === "college_rep" ? "College Representative" : "Staff";
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+      <h2 style="color: #1e3a8a;">Welcome to CounselLink!</h2>
+      <p>Hello <strong>${user.name}</strong>,</p>
+      <p>An account has been created for you as a <strong>${roleTitle}</strong> on CounselLink.</p>
+      <p>Please click the button below to set up your password and activate your account. This link will expire in 7 days.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${inviteLink}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Set Up Your Password</a>
+      </div>
+      <p style="color: #6b7280; font-size: 14px;">If the button above does not work, copy and paste the following URL into your browser:</p>
+      <p style="color: #2563eb; font-size: 14px; word-break: break-all;">${inviteLink}</p>
+    </div>
+  `;
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: "CounselLink Account Invitation - Set Your Password",
+      html,
+    });
+  } catch (err) {
+    console.error("Failed to send invitation email:", err);
   }
-  if (!["counselor", "college_rep", "admin"].includes(role)) {
+}
+
+export const adminCreateUser = async (req, res) => {
+  const {
+    firstName,
+    middleName,
+    lastName,
+    name: nameProp,
+    email,
+    password,
+    role,
+    college,
+    department,
+    position,
+    specialization,
+    employeeId,
+  } = req.body;
+
+  if (!role || !["counselor", "college_rep", "admin"].includes(role)) {
     return res.status(400).json({ message: "Invalid role for admin creation" });
+  }
+
+  const isCounselorOrRep = ["counselor", "college_rep"].includes(role);
+
+  let fName = String(firstName || "").trim();
+  let mName = String(middleName || "").trim();
+  let lName = String(lastName || "").trim();
+  let fullName = "";
+
+  if (isCounselorOrRep) {
+    if (!fName || !mName || !lName || !email) {
+      return res.status(400).json({ message: "First name, middle name, last name, and institutional email are required." });
+    }
+    fullName = `${fName} ${mName} ${lName}`;
+  } else {
+    fullName = String(nameProp || "").trim() || `${fName} ${mName} ${lName}`.trim();
+    if (!fullName || !email) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
   }
 
   const existing = await query("SELECT id FROM users WHERE email = ?", [email]);
   if (existing.length) return res.status(409).json({ message: "Email already in use" });
 
-  const hashed = await bcrypt.hash(password, 10);
+  let hashed = "";
+  let status = "approved";
+
+  if (isCounselorOrRep) {
+    const randomSecret = crypto.randomBytes(32).toString("hex");
+    hashed = await bcrypt.hash(randomSecret, 10);
+    status = "pending_setup";
+  } else {
+    if (!password) {
+      return res.status(400).json({ message: "Password is required for admin account creation" });
+    }
+    hashed = await bcrypt.hash(password, 10);
+  }
 
   const isCounselor = role === "counselor";
   const result = await query(
-    `INSERT INTO users (name, email, password, role, status, college, department, position, specialization, employee_id)
-     VALUES (?, ?, ?, ?, 'approved', ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (name, first_name, middle_name, last_name, email, password, role, status, college, department, position, specialization, employee_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      name, email, hashed, role,
-      isCounselor ? null : (college || null),
-      isCounselor ? null : (department || null),
-      isCounselor ? (position || null) : null,
-      isCounselor ? (specialization || null) : null,
-      isCounselor ? (employeeId || null) : null,
+      fullName,
+      fName || null,
+      mName || null,
+      lName || null,
+      email,
+      hashed,
+      role,
+      status,
+      isCounselor ? null : college || null,
+      isCounselor ? null : department || null,
+      isCounselor ? position || null : null,
+      isCounselor ? specialization || null : null,
+      isCounselor ? employeeId || null : null,
     ]
   );
-  await logAction(req, "create_user", "user", result.insertId, { name, email, role, college: college || null, department: department || null });
-  const rows = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [result.insertId]);
+
+  const userId = result.insertId;
+  await logAction(req, "create_user", "user", userId, {
+    name: fullName,
+    email,
+    role,
+    college: college || null,
+    department: department || null,
+  });
+
+  if (isCounselorOrRep) {
+    await createAndSendInvitation({ id: userId, name: fullName, email, role });
+  }
+
+  const rows = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [userId]);
   return res.status(201).json(rows[0]);
 };
+
+export const resendInvitation = async (req, res) => {
+  const { id } = req.params;
+  const rows = await query("SELECT id, name, email, role, status FROM users WHERE id = ?", [id]);
+  if (!rows.length) return res.status(404).json({ message: "User not found" });
+
+  const user = rows[0];
+  if (user.status !== "pending_setup") {
+    return res.status(400).json({ message: "This user has already completed account setup." });
+  }
+
+  await createAndSendInvitation(user);
+  await logAction(req, "resend_invitation", "user", id, { email: user.email, role: user.role });
+  return res.json({ message: `Invitation setup email sent to ${user.email}.` });
+};
+
 
 export const adminUpdateUser = async (req, res) => {
   const { id } = req.params;

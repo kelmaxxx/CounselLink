@@ -68,6 +68,13 @@ export const login = async (req, res) => {
     });
   }
 
+  if (user.status === "pending_setup") {
+    return res.status(403).json({
+      message: "Account setup pending. Please check your institutional email for the invitation link to set your password.",
+      status: "pending_setup",
+    });
+  }
+
   if (user.role === "student" && user.status === "pending_approval") {
     return res.status(403).json({ message: "Account pending approval", status: "pending_approval" });
   }
@@ -544,3 +551,87 @@ export const getPublicStats = async (req, res) => {
     return res.status(500).json({ message: "Server error." });
   }
 };
+
+export const verifyInvitationToken = async (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.status(400).json({ message: "Invitation token is required" });
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const rows = await query(
+    `SELECT i.id, i.expires_at, i.used_at, u.id AS userId, u.name, u.email, u.role, u.college, u.department, u.position, u.specialization
+     FROM account_invitations i
+     JOIN users u ON i.user_id = u.id
+     WHERE i.token_hash = ? LIMIT 1`,
+    [tokenHash]
+  );
+
+  if (!rows.length) {
+    return res.status(400).json({ message: "Invalid invitation link." });
+  }
+
+  const invitation = rows[0];
+  if (invitation.used_at) {
+    return res.status(400).json({ message: "This invitation link has already been used. Please log in with your password." });
+  }
+
+  if (new Date(invitation.expires_at) < new Date()) {
+    return res.status(400).json({ message: "This invitation link has expired. Please ask your administrator to resend the invitation." });
+  }
+
+  return res.json({
+    valid: true,
+    user: {
+      id: invitation.userId,
+      name: invitation.name,
+      email: invitation.email,
+      role: invitation.role,
+      college: invitation.college,
+      department: invitation.department,
+      position: invitation.position,
+      specialization: invitation.specialization,
+    },
+  });
+};
+
+export const acceptInvitation = async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || !password) {
+    return res.status(400).json({ message: "Token and password are required." });
+  }
+
+  const policy = validatePassword(password);
+  if (!policy.ok) {
+    return res.status(400).json({ message: policy.message });
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const rows = await query(
+    `SELECT i.id, i.user_id, i.expires_at, i.used_at, u.status
+     FROM account_invitations i
+     JOIN users u ON i.user_id = u.id
+     WHERE i.token_hash = ? LIMIT 1`,
+    [tokenHash]
+  );
+
+  if (!rows.length) {
+    return res.status(400).json({ message: "Invalid invitation link." });
+  }
+
+  const invitation = rows[0];
+  if (invitation.used_at) {
+    return res.status(400).json({ message: "This invitation link has already been used." });
+  }
+
+  if (new Date(invitation.expires_at) < new Date()) {
+    return res.status(400).json({ message: "This invitation link has expired. Please ask your administrator to resend the invitation." });
+  }
+
+  const hashed = await bcrypt.hash(password, 10);
+  await query("UPDATE users SET password = ?, status = 'approved', updated_at = NOW() WHERE id = ?", [hashed, invitation.user_id]);
+  await query("UPDATE account_invitations SET used_at = NOW() WHERE id = ?", [invitation.id]);
+
+  return res.json({ message: "Account setup successful! You can now log in with your new password." });
+};
+

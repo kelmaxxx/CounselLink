@@ -9,6 +9,8 @@ import {
   resetPassword,
   changePassword,
   getPublicStats,
+  verifyInvitationToken,
+  acceptInvitation,
 } from "../controllers/auth.controller.js";
 import {
   loginLimiter,
@@ -30,5 +32,7 @@ router.post("/forgot-password", forgotLimiter, requestPasswordReset);
 router.post("/verify-otp", otpLimiter, verifyResetOtp);
 router.post("/reset-password", otpLimiter, resetPassword);
 router.post("/change-password", auth, changePassword);
+router.get("/verify-invitation", verifyInvitationToken);
+router.post("/accept-invitation", otpLimiter, acceptInvitation);
 
 export default router;
