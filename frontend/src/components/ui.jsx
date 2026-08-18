@@ -400,37 +400,39 @@ export function Modal({
   const alignClass = align === "top" ? "items-start" : "items-center";
   return (
     <div
-      className={`fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center p-4 z-[60] overflow-y-auto ${alignClass}`}
+      className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] overflow-y-auto"
       onClick={onClose}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-8`}
-      >
-        <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className={`text-lg font-semibold ${danger ? "text-red-700" : "text-gray-900"}`}>
-              {title}
-            </h3>
-            {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+      <div className={`min-h-full flex justify-center p-4 sm:p-6 ${alignClass}`}>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-auto`}
+        >
+          <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className={`text-lg font-semibold ${danger ? "text-red-700" : "text-gray-900"}`}>
+                {title}
+              </h3>
+              {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+            </div>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-700 transition flex-shrink-0"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-700 transition flex-shrink-0"
-              aria-label="Close"
-            >
-              <X size={18} />
-            </button>
+          <div className="px-6 py-5">{children}</div>
+          {footer && (
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
+              {footer}
+            </div>
           )}
         </div>
-        <div className="px-6 py-5">{children}</div>
-        {footer && (
-          <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
-            {footer}
-          </div>
-        )}
       </div>
     </div>
   );

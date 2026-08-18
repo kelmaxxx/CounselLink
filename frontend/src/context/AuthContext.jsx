@@ -270,10 +270,10 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const createUser = async ({ name, email, password, role, college, department = null, position = null, specialization = null, employeeId = null }) => {
+  const createUser = async ({ firstName = null, middleName = null, lastName = null, name = null, email, password = null, role, college = null, department = null, position = null, specialization = null, employeeId = null }) => {
     const response = await authFetch(`${apiBase}/api/users`, {
       method: "POST",
-      body: JSON.stringify({ name, email, password, role, college, department, position, specialization, employeeId }),
+      body: JSON.stringify({ firstName, middleName, lastName, name, email, password, role, college, department, position, specialization, employeeId }),
     });
     const data = await parseResponseJson(response);
     if (!response.ok) {

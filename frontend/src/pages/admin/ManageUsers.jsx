@@ -67,6 +67,7 @@ const buildCorUrl = (user) => {
 
 const statusInfo = (u) => {
   if (u.status === "pending_approval") return { status: "pending", label: "Pending" };
+  if (u.status === "pending_setup") return { status: "pending", label: "Pending Setup" };
   if (u.status && u.status !== "approved") return { status: "rejected", label: "Rejected" };
   return { status: "active", label: "Active" };
 };
@@ -108,7 +109,7 @@ const REP_COLUMNS = [
 
 const ADMIN_COLUMNS = [{ header: "Email", render: emailCell }];
 
-function UserTable({ rows, columns, onEdit, onDelete, emptyText, hideEdit = false, hideDelete = false }) {
+function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText, hideEdit = false, hideDelete = false }) {
   if (!rows.length) {
     return <EmptyState title={emptyText} />;
   }
@@ -123,7 +124,7 @@ function UserTable({ rows, columns, onEdit, onDelete, emptyText, hideEdit = fals
             </th>
           ))}
           <th className="px-4 py-2.5">Status</th>
-          <th className="px-4 py-2.5 w-16 text-right">Action</th>
+          <th className="px-4 py-2.5 w-24 text-right">Action</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-100">
@@ -148,7 +149,16 @@ function UserTable({ rows, columns, onEdit, onDelete, emptyText, hideEdit = fals
                 <StatusPill status={status}>{label}</StatusPill>
               </td>
               <td className="px-4 py-3 text-right">
-                <div className="inline-flex gap-1">
+                <div className="inline-flex items-center gap-1">
+                  {u.status === "pending_setup" && onResendInvite && (
+                    <button
+                      onClick={() => onResendInvite(u)}
+                      title="Resend Invitation Email"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition"
+                    >
+                      <RotateCcw size={13} />
+                    </button>
+                  )}
                   {!hideEdit && (
                     <button
                       onClick={() => onEdit(u)}
@@ -190,6 +200,8 @@ export default function ManageUsers() {
   const [createModal, setCreateModal] = useState({ open: false, role: "" });
   const [createStep, setCreateStep] = useState(1);
   const [createError, setCreateError] = useState("");
+  const [emailInUse, setEmailInUse] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
   const [editModal, setEditModal] = useState({ open: false, user: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, userId: null });
   const [corModalOpen, setCorModalOpen] = useState(false);
@@ -273,19 +285,65 @@ export default function ManageUsers() {
   const totalPages = Math.max(1, Math.ceil(activeRows.length / PAGE_SIZE));
   const pagedRows = activeRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+  const checkEmailAvailability = async (emailToTest) => {
+    if (!emailToTest || !emailToTest.trim() || !isInstitutionalEmail(emailToTest)) {
+      setEmailInUse(false);
+      return false;
+    }
+    try {
+      setCheckingEmail(true);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${apiBase}/api/users/check-email?email=${encodeURIComponent(emailToTest.trim())}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setCheckingEmail(false);
+      if (data.exists) {
+        setEmailInUse(true);
+        return true;
+      } else {
+        setEmailInUse(false);
+        return false;
+      }
+    } catch (err) {
+      setCheckingEmail(false);
+      return false;
+    }
+  };
+
   const openCreateModal = (role) => {
-    setCreateForm({ name: "", email: "", password: "password123", college: COLLEGES[0], department: "", employeeId: "", position: "", specialization: "" });
+    setCreateForm({
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      name: "",
+      email: "",
+      password: "",
+      college: COLLEGES[0],
+      department: "",
+      employeeId: "",
+      position: "",
+      specialization: "",
+    });
     setCreateStep(1);
     setCreateError("");
+    setEmailInUse(false);
     setCreateModal({ open: true, role });
   };
 
-  const handleCreateNext = () => {
+  const handleCreateNext = async () => {
     if (createStep === 1) {
-      if (!createForm.name.trim()) return setCreateError("Full name is required.");
+      if (!createForm.firstName.trim()) return setCreateError("First name is required.");
+      if (!createForm.middleName.trim()) return setCreateError("Middle name is required.");
+      if (!createForm.lastName.trim()) return setCreateError("Last name is required.");
       if (!createForm.email.trim()) return setCreateError("Institutional email is required.");
       if (!isInstitutionalEmail(createForm.email)) return setCreateError(`Email must end with ${STAFF_EMAIL_DOMAINS.join(" or ")}.`);
-      if (!createForm.password.trim()) return setCreateError("Password is required.");
+
+      const inUse = await checkEmailAvailability(createForm.email);
+      if (inUse) {
+        setCreateError("This email address is already in use. Please enter a different email address.");
+        return;
+      }
     }
     setCreateError("");
     setCreateStep((s) => s + 1);
@@ -295,15 +353,17 @@ export default function ManageUsers() {
     setCreateModal({ open: false, role: "" });
     setCreateStep(1);
     setCreateError("");
+    setEmailInUse(false);
   };
 
   const handleCreate = async () => {
     setBusy(true);
     const isCounselor = createModal.role === "counselor";
     const res = await createUser({
-      name: createForm.name,
-      email: createForm.email,
-      password: createForm.password,
+      firstName: createForm.firstName.trim(),
+      middleName: createForm.middleName.trim(),
+      lastName: createForm.lastName.trim(),
+      email: createForm.email.trim(),
       role: createModal.role,
       college: isCounselor ? null : (createForm.college || null),
       department: isCounselor ? null : (createForm.department || null),
@@ -314,11 +374,40 @@ export default function ManageUsers() {
     setBusy(false);
     if (res.success) {
       setCreateModal({ open: false, role: "" });
-      setMessage({ type: "success", text: "User created successfully" });
+      setMessage({ type: "success", text: "Account created! Invitation email sent." });
     } else {
-      setMessage({ type: "error", text: res.message || "Failed to create user" });
+      const isEmailDup = res.message?.toLowerCase().includes("email");
+      if (isEmailDup) {
+        setEmailInUse(true);
+        setCreateStep(1);
+        setCreateError("This email address is already in use.");
+      } else {
+        setMessage({ type: "error", text: res.message || "Failed to create user" });
+      }
     }
-    setTimeout(() => setMessage(null), 3000);
+    setTimeout(() => setMessage(null), 4000);
+  };
+
+  const handleResendInvite = async (user) => {
+    setBusy(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${apiBase}/api/users/${user.id}/resend-invite`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.message || "Failed to resend invitation email." });
+      } else {
+        setMessage({ type: "success", text: data.message || "Invitation setup email sent!" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Failed to connect to server." });
+    } finally {
+      setBusy(false);
+      setTimeout(() => setMessage(null), 4000);
+    }
   };
 
   const openEditModal = (user) => {
@@ -544,6 +633,7 @@ export default function ManageUsers() {
           }
           onEdit={openEditModal}
           onDelete={openDeleteConfirm}
+          onResendInvite={handleResendInvite}
           hideEdit={activeTab === "student" || activeTab === "counselor" || activeTab === "college_rep"}
           hideDelete={activeTab === "admin"}
           emptyText={
@@ -648,35 +738,73 @@ export default function ManageUsers() {
           {createStep === 1 && (
             <>
               <div>
-                <label className={LABEL}>Full name *</label>
+                <label className={LABEL}>First name *</label>
                 <input
                   type="text"
                   autoFocus
                   className={INPUT}
-                  value={createForm.name}
-                  onChange={(e) => { setCreateError(""); setCreateForm({ ...createForm, name: e.target.value }); }}
-                  placeholder="e.g. Maria Santos"
+                  value={createForm.firstName}
+                  onChange={(e) => { setCreateError(""); setCreateForm({ ...createForm, firstName: e.target.value }); }}
+                  placeholder="e.g. Maria"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Middle name *</label>
+                <input
+                  type="text"
+                  className={INPUT}
+                  value={createForm.middleName}
+                  onChange={(e) => { setCreateError(""); setCreateForm({ ...createForm, middleName: e.target.value }); }}
+                  placeholder="e.g. Santos"
+                />
+              </div>
+              <div>
+                <label className={LABEL}>Last name *</label>
+                <input
+                  type="text"
+                  className={INPUT}
+                  value={createForm.lastName}
+                  onChange={(e) => { setCreateError(""); setCreateForm({ ...createForm, lastName: e.target.value }); }}
+                  placeholder="e.g. Cruz"
                 />
               </div>
               <div>
                 <label className={LABEL}>Institutional Email *</label>
                 <input
                   type="email"
-                  className={INPUT}
+                  className={`${INPUT} ${emailInUse ? "border-red-500 bg-red-50/50 focus:border-red-500 focus:ring-red-200" : ""}`}
                   value={createForm.email}
-                  onChange={(e) => { setCreateError(""); setCreateForm({ ...createForm, email: e.target.value }); }}
-                  placeholder="username@msu.edu.ph"
+                  onChange={(e) => {
+                    setCreateError("");
+                    setEmailInUse(false);
+                    setCreateForm({ ...createForm, email: e.target.value });
+                  }}
+                  onBlur={(e) => {
+                    if (e.target.value) {
+                      checkEmailAvailability(e.target.value);
+                    }
+                  }}
+                  placeholder="username@s.msumain.edu.ph"
                 />
+                {checkingEmail && (
+                  <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                    Checking email availability…
+                  </p>
+                )}
+                {emailInUse && (
+                  <div className="mt-1.5 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium flex items-center gap-2">
+                    <AlertCircle className="text-red-600 flex-shrink-0" size={15} />
+                    <span>This email address is already in use. Please enter a different email address.</span>
+                  </div>
+                )}
               </div>
-              <div>
-                <label className={LABEL}>Password *</label>
-                <input
-                  type="text"
-                  className={INPUT}
-                  value={createForm.password}
-                  onChange={(e) => { setCreateError(""); setCreateForm({ ...createForm, password: e.target.value }); }}
-                />
-                <p className="text-xs text-gray-400 mt-1">The user can change their password after first login.</p>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-start gap-2">
+                <CheckCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={14} />
+                <div>
+                  <p className="font-semibold mb-0.5">Invitation Email Delivery</p>
+                  <p className="text-blue-700">An invitation link will be sent to this email address. The user will set their own password upon accepting the invitation.</p>
+                </div>
               </div>
             </>
           )}
@@ -759,9 +887,11 @@ export default function ManageUsers() {
           {/* ── Step 3: Review & confirm ── */}
           {createStep === 3 && (
             <div className="rounded-xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
-              <CreateReviewRow label="Full name" value={createForm.name} />
+              <CreateReviewRow label="First name" value={createForm.firstName} />
+              <CreateReviewRow label="Middle name" value={createForm.middleName} />
+              <CreateReviewRow label="Last name" value={createForm.lastName} />
               <CreateReviewRow label="Institutional Email" value={createForm.email} />
-              <CreateReviewRow label="Password" value={"•".repeat(Math.min(createForm.password.length, 12))} />
+              <CreateReviewRow label="Password" value="Sent via email invitation" />
               {createModal.role === "counselor" && (
                 <>
                   <CreateReviewRow label="Employee ID" value={createForm.employeeId || "—"} />

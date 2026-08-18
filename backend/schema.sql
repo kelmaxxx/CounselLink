@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(120) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   role ENUM('student','counselor','admin','college_rep') NOT NULL,
-  status ENUM('pending_approval','approved','rejected','banned') DEFAULT 'approved',
+  status ENUM('pending_approval','approved','rejected','banned','pending_setup') DEFAULT 'approved',
   college VARCHAR(50),
   student_id VARCHAR(30),
   phone VARCHAR(30),
@@ -367,3 +367,18 @@ SET @add_approved_at_col := IF(@has_approved_at_col = 0,
   'ALTER TABLE users ADD COLUMN approved_at TIMESTAMP NULL',
   'SELECT 1');
 PREPARE stmt FROM @add_approved_at_col; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Account invitation tokens for Counselor and College Representative setup
+CREATE TABLE IF NOT EXISTS account_invitations (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  token_hash VARCHAR(255) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uniq_invitation_token (token_hash)
+);
+
+ALTER TABLE users MODIFY COLUMN status ENUM('pending_approval','approved','rejected','banned','pending_setup') DEFAULT 'approved';
+

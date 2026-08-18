@@ -7,6 +7,7 @@ import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login from "./pages/Login";
+import AcceptInvitation from "./pages/AcceptInvitation";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import Messages from "./pages/Messages";
@@ -83,6 +84,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/accept-invitation" element={<AcceptInvitation />} />
         <Route path="/system-evaluation" element={<SystemEvaluationSurvey />} />
         <Route path="/eval" element={<SystemEvaluationSurvey />} />
         <Route path="/system-evaluation/tally" element={<SystemEvaluationTally />} />
