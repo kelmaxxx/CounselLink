@@ -74,14 +74,14 @@ export function NotificationsProvider({ children }) {
     });
   };
 
-  const addNotification = async ({ title, message, sendTo = "all", imageUrl }) => {
+  const addNotification = async ({ title, message, sendTo = "all", imageUrl, postAt, removeAt }) => {
     const response = await fetch(`${apiBase}/api/announcements`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ title, message, sendTo, imageUrl }),
+      body: JSON.stringify({ title, message, sendTo, imageUrl, postAt, removeAt }),
     });
     const data = await response.json();
     if (!response.ok) {

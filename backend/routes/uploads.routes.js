@@ -54,7 +54,17 @@ router.post(
   "/pubmat",
   auth,
   requireRole("admin"),
-  pubmatUpload.single("pubmat"),
+  (req, res, next) => {
+    pubmatUpload.single("pubmat")(req, res, (err) => {
+      if (err) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({ message: "File is too large. Maximum file size allowed is 25MB." });
+        }
+        return res.status(400).json({ message: err.message || "File upload failed" });
+      }
+      next();
+    });
+  },
   async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });

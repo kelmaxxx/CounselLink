@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS announcements (
   content TEXT NOT NULL,
   image_url VARCHAR(512),
   date_posted TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  post_at DATETIME NULL,
+  remove_at DATETIME NULL,
   FOREIGN KEY (admin_id) REFERENCES users(id)
 );
 

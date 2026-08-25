@@ -53,10 +53,9 @@ const SPECIALIZATIONS = [
 
 const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-const STAFF_EMAIL_DOMAINS = ["@s.msumain.edu.ph"];
-const isInstitutionalEmail = (email) => {
-  const lower = String(email || "").trim().toLowerCase();
-  return STAFF_EMAIL_DOMAINS.some((d) => lower.endsWith(d));
+const isValidEmail = (email) => {
+  const str = String(email || "").trim();
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(str);
 };
 
 const buildCorUrl = (user) => {
@@ -114,76 +113,78 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
     return <EmptyState title={emptyText} />;
   }
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
-          <th className="px-4 py-2.5">Name</th>
-          {columns.map((col) => (
-            <th key={col.header} className="px-4 py-2.5">
-              {col.header}
-            </th>
-          ))}
-          <th className="px-4 py-2.5">Status</th>
-          <th className="px-4 py-2.5 w-24 text-right">Action</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-100">
-        {rows.map((u) => {
-          const { status, label } = statusInfo(u);
-          return (
-            <tr key={u.id} className="hover:bg-gray-50/70 transition">
-              <td className="px-4 py-3">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">
-                    {initialsOf(u.name)}
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm min-w-[640px]">
+        <thead>
+          <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+            <th className="px-4 py-2.5">Name</th>
+            {columns.map((col) => (
+              <th key={col.header} className="px-4 py-2.5">
+                {col.header}
+              </th>
+            ))}
+            <th className="px-4 py-2.5">Status</th>
+            <th className="px-4 py-2.5 w-24 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {rows.map((u) => {
+            const { status, label } = statusInfo(u);
+            return (
+              <tr key={u.id} className="hover:bg-gray-50/70 transition">
+                <td className="px-4 py-3">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">
+                      {initialsOf(u.name)}
+                    </div>
+                    <span className="font-medium text-gray-900 text-sm break-words leading-snug">{u.name}</span>
                   </div>
-                  <span className="font-medium text-gray-900 text-sm break-words leading-snug">{u.name}</span>
-                </div>
-              </td>
-              {columns.map((col) => (
-                <td key={col.header} className="px-4 py-3 text-gray-700 text-sm break-words leading-snug">
-                  {col.render(u)}
                 </td>
-              ))}
-              <td className="px-4 py-3">
-                <StatusPill status={status}>{label}</StatusPill>
-              </td>
-              <td className="px-4 py-3 text-right">
-                <div className="inline-flex items-center gap-1">
-                  {u.status === "pending_setup" && onResendInvite && (
-                    <button
-                      onClick={() => onResendInvite(u)}
-                      title="Resend Invitation Email"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition"
-                    >
-                      <RotateCcw size={13} />
-                    </button>
-                  )}
-                  {!hideEdit && (
-                    <button
-                      onClick={() => onEdit(u)}
-                      title="Edit"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition"
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                  )}
-                  {!hideDelete && (
-                    <button
-                      onClick={() => onDelete(u.id)}
-                      title="Delete"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+                {columns.map((col) => (
+                  <td key={col.header} className="px-4 py-3 text-gray-700 text-sm break-words leading-snug">
+                    {col.render(u)}
+                  </td>
+                ))}
+                <td className="px-4 py-3">
+                  <StatusPill status={status}>{label}</StatusPill>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <div className="inline-flex items-center gap-1">
+                    {u.status === "pending_setup" && (
+                      <button
+                        onClick={() => onEdit(u)}
+                        title="Re-edit account creation & resend invitation"
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition"
+                      >
+                        <RotateCcw size={13} />
+                      </button>
+                    )}
+                    {!hideEdit && u.status !== "pending_setup" && (
+                      <button
+                        onClick={() => onEdit(u)}
+                        title="Edit user"
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                    )}
+                    {!hideDelete && (
+                      <button
+                        onClick={() => onDelete(u.id)}
+                        title="Ban account"
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -286,7 +287,7 @@ export default function ManageUsers() {
   const pagedRows = activeRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const checkEmailAvailability = async (emailToTest) => {
-    if (!emailToTest || !emailToTest.trim() || !isInstitutionalEmail(emailToTest)) {
+    if (!emailToTest || !emailToTest.trim() || !isValidEmail(emailToTest)) {
       setEmailInUse(false);
       return false;
     }
@@ -336,8 +337,8 @@ export default function ManageUsers() {
       if (!createForm.firstName.trim()) return setCreateError("First name is required.");
       if (!createForm.middleName.trim()) return setCreateError("Middle name is required.");
       if (!createForm.lastName.trim()) return setCreateError("Last name is required.");
-      if (!createForm.email.trim()) return setCreateError("Institutional email is required.");
-      if (!isInstitutionalEmail(createForm.email)) return setCreateError(`Email must end with ${STAFF_EMAIL_DOMAINS.join(" or ")}.`);
+      if (!createForm.email.trim()) return setCreateError("Email address is required.");
+      if (!isValidEmail(createForm.email)) return setCreateError("Please enter a valid email address.");
 
       const inUse = await checkEmailAvailability(createForm.email);
       if (inUse) {
@@ -452,6 +453,7 @@ export default function ManageUsers() {
     } else if (editModal.user.role === "college_rep") {
       updates.college = editForm.college;
       updates.department = editForm.department;
+      updates.employeeId = editForm.employeeId;
     }
     setBusy(true);
     const res = await updateUser(editModal.user.id, updates);
@@ -459,11 +461,27 @@ export default function ManageUsers() {
     if (res.success) {
       setEditModal({ open: false, user: null });
       setCorModalOpen(false);
-      setMessage({ type: "success", text: "User updated successfully" });
+      const isPending = editModal.user.status === "pending_setup";
+      const inviteSent = res.data?.inviteSent;
+      if (isPending) {
+        if (inviteSent === false) {
+          setMessage({
+            type: "error",
+            text: `Account updated, but email delivery failed (SMTP authentication error). Please verify EMAIL_PASS in backend .env.`,
+          });
+        } else {
+          setMessage({
+            type: "success",
+            text: `Account updated! Confirmation invitation email resent to ${editForm.email}.`,
+          });
+        }
+      } else {
+        setMessage({ type: "success", text: "User updated successfully" });
+      }
     } else {
       setMessage({ type: "error", text: res.message || "Failed to update user" });
     }
-    setTimeout(() => setMessage(null), 3000);
+    setTimeout(() => setMessage(null), 5000);
   };
 
   const openDeleteConfirm = (userId) => setDeleteConfirm({ open: true, userId });
@@ -634,7 +652,7 @@ export default function ManageUsers() {
           onEdit={openEditModal}
           onDelete={openDeleteConfirm}
           onResendInvite={handleResendInvite}
-          hideEdit={activeTab === "student" || activeTab === "counselor" || activeTab === "college_rep"}
+          hideEdit={activeTab === "student"}
           hideDelete={activeTab === "admin"}
           emptyText={
             activeTab === "student" ? "No students match your search"
@@ -769,7 +787,7 @@ export default function ManageUsers() {
                 />
               </div>
               <div>
-                <label className={LABEL}>Institutional Email *</label>
+                <label className={LABEL}>Email Address *</label>
                 <input
                   type="email"
                   className={`${INPUT} ${emailInUse ? "border-red-500 bg-red-50/50 focus:border-red-500 focus:ring-red-200" : ""}`}
@@ -784,7 +802,7 @@ export default function ManageUsers() {
                       checkEmailAvailability(e.target.value);
                     }
                   }}
-                  placeholder="username@s.msumain.edu.ph"
+                  placeholder="username@example.com"
                 />
                 {checkingEmail && (
                   <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
@@ -917,11 +935,15 @@ export default function ManageUsers() {
           setEditModal({ open: false, user: null });
           setCorModalOpen(false);
         }}
-        title="Edit user"
+        title={
+          editModal.user?.status === "pending_setup"
+            ? `Re-edit ${editModal.user.role === "counselor" ? "counselor" : editModal.user.role === "college_rep" ? "college" : "user"} account`
+            : `Edit ${editModal.user?.name || "user"}`
+        }
         subtitle={
-          editModal.user
-            ? `Role: ${editModal.user.role?.replace("_", " ")}`
-            : ""
+          editModal.user?.status === "pending_setup"
+            ? "Modify account details (name, email, role info). Saving will automatically resend the invitation setup email."
+            : "Update user credentials and profile details."
         }
         size="2xl"
         align="top"
@@ -1146,6 +1168,16 @@ export default function ManageUsers() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Employee ID</label>
+                  <input
+                    type="text"
+                    className={INPUT}
+                    value={editForm.employeeId}
+                    onChange={(e) => setEditForm({ ...editForm, employeeId: e.target.value })}
+                    placeholder="e.g. EMP-00123"
+                  />
                 </div>
                 <div>
                   <label className={LABEL}>Department</label>

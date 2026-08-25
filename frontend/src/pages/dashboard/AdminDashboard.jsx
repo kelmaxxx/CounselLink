@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import WelcomeHero from "../../components/WelcomeHero";
+import PubmatViewer from "../../components/PubmatViewer";
 import {
   PageHeader,
   BigStat,
@@ -206,6 +207,18 @@ export default function AdminDashboard() {
   );
 }
 
+const getScheduleStatus = (item) => {
+  if (!item) return null;
+  const now = new Date();
+  if (item.removeAt && new Date(item.removeAt) <= now) {
+    return { label: "Expired", color: "bg-red-50 text-red-700 border-red-200" };
+  }
+  if (item.postAt && new Date(item.postAt) > now) {
+    return { label: "Scheduled", color: "bg-blue-50 text-blue-700 border-blue-200" };
+  }
+  return { label: "Active", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+};
+
 function AnnouncementsPanel({ token }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -371,24 +384,42 @@ function AnnouncementsPanel({ token }) {
                     </div>
                   </div>
                 ) : (
-                  <>
-                    {item.imageUrl && (
-                      <div className="mb-2 rounded-lg overflow-hidden border border-gray-100">
+                  <>                    {item.imageUrl && (
+                      <div
+                        onClick={() => setViewOpen(true)}
+                        className="mb-3 rounded-lg overflow-hidden border border-gray-100 cursor-pointer group relative"
+                        title="Click to view announcement details"
+                      >
                         <img
                           src={resolveImageUrl(item.imageUrl)}
                           alt={title}
-                          className="w-full max-h-48 object-cover"
+                          className="w-full max-h-48 object-cover group-hover:scale-105 transition-transform duration-200"
                         />
                       </div>
                     )}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
-                          {title || "(untitled)"}
-                        </p>
+                      <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setViewOpen(true)}>
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <p className="text-sm font-semibold text-gray-900 truncate hover:text-maroon-700 transition">
+                            {title || "(untitled)"}
+                          </p>
+                          {(() => {
+                            const status = getScheduleStatus(item);
+                            return status ? (
+                              <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold uppercase tracking-wider ${status.color}`}>
+                                {status.label}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                         <p className="text-xs text-gray-500 tabular-nums">
                           {item.adminName ? `by ${item.adminName} · ` : ""}
-                          {item.date_posted ? new Date(item.date_posted).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+                          {item.postAt
+                            ? `Posts: ${new Date(item.postAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
+                            : item.date_posted
+                            ? new Date(item.date_posted).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+                            : ""}
+                          {item.removeAt ? ` · Removes: ${new Date(item.removeAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}
                         </p>
                       </div>
                       <div className="flex gap-1 shrink-0">
@@ -456,19 +487,31 @@ function AnnouncementsPanel({ token }) {
         <Modal
           open={viewOpen}
           onClose={() => setViewOpen(false)}
-          title={splitContent(currentItem.content).title || "(untitled)"}
+          title={
+            <div className="flex items-center gap-2 flex-wrap">
+              <span>{splitContent(currentItem.content).title || "(untitled)"}</span>
+              {(() => {
+                const status = getScheduleStatus(currentItem);
+                return status ? (
+                  <span className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-wider ${status.color}`}>
+                    {status.label}
+                  </span>
+                ) : null;
+              })()}
+            </div>
+          }
           subtitle={
-            `${currentItem.adminName ? `by ${currentItem.adminName} · ` : ""}` +
-            (currentItem.date_posted ? new Date(currentItem.date_posted).toLocaleString() : "")
+            `${currentItem.adminName ? `Created by ${currentItem.adminName}` : ""}` +
+            `${currentItem.postAt ? ` · Post schedule: ${new Date(currentItem.postAt).toLocaleString()}` : currentItem.date_posted ? ` · Posted: ${new Date(currentItem.date_posted).toLocaleString()}` : ""}` +
+            `${currentItem.removeAt ? ` · Auto-removal: ${new Date(currentItem.removeAt).toLocaleString()}` : ""}`
           }
           size="lg"
         >
           {currentItem.imageUrl && (
-            <div className="mb-3 rounded-lg overflow-hidden border border-gray-100">
-              <img
+            <div className="mb-4">
+              <PubmatViewer
                 src={resolveImageUrl(currentItem.imageUrl)}
                 alt={splitContent(currentItem.content).title}
-                className="w-full max-h-80 object-cover"
               />
             </div>
           )}

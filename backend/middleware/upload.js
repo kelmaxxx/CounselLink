@@ -110,7 +110,7 @@ const pubmatStorage = multer.diskStorage({
 export const pubmatUpload = multer({
   storage: pubmatStorage,
   fileFilter: avatarFileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 25 * 1024 * 1024 },
 });
 
 const testResultsDir = path.join(uploadsDir, "test-results");

@@ -18,6 +18,9 @@ const SELECT_FIELDS = `
 
 const FIELD_TO_COLUMN = {
   name: "name",
+  firstName: "first_name",
+  middleName: "middle_name",
+  lastName: "last_name",
   email: "email",
   phone: "phone",
   bio: "bio",
@@ -48,7 +51,7 @@ const SELF_UPDATABLE = {
 };
 
 const ADMIN_UPDATABLE = [
-  "name", "email", "phone", "bio", "college", "program", "studentId",
+  "name", "firstName", "middleName", "lastName", "email", "phone", "bio", "college", "program", "studentId",
   "department", "specialization", "position", "employeeId",
   ...AVATAR_FIELDS, ...SIGNATURE_FIELDS,
 ];
@@ -233,15 +236,18 @@ async function createAndSendInvitation(user) {
     </div>
   `;
 
+  let emailSent = false;
   try {
     await sendEmail({
       to: user.email,
       subject: "CounselLink Account Invitation - Set Your Password",
       html,
     });
+    emailSent = true;
   } catch (err) {
     console.error("Failed to send invitation email:", err);
   }
+  return emailSent;
 }
 
 export const adminCreateUser = async (req, res) => {
@@ -273,13 +279,19 @@ export const adminCreateUser = async (req, res) => {
 
   if (isCounselorOrRep) {
     if (!fName || !mName || !lName || !email) {
-      return res.status(400).json({ message: "First name, middle name, last name, and institutional email are required." });
+      return res.status(400).json({ message: "First name, middle name, last name, and email address are required." });
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email).trim())) {
+      return res.status(400).json({ message: "Please enter a valid email address." });
     }
     fullName = `${fName} ${mName} ${lName}`;
   } else {
     fullName = String(nameProp || "").trim() || `${fName} ${mName} ${lName}`.trim();
     if (!fullName || !email) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email).trim())) {
+      return res.status(400).json({ message: "Please enter a valid email address." });
     }
   }
 
@@ -356,6 +368,24 @@ export const resendInvitation = async (req, res) => {
 
 export const adminUpdateUser = async (req, res) => {
   const { id } = req.params;
+
+  const existing = await query("SELECT id, role, status FROM users WHERE id = ?", [id]);
+  if (!existing.length) return res.status(404).json({ message: "User not found" });
+
+  const targetUser = existing[0];
+  if ((targetUser.role === "counselor" || targetUser.role === "college_rep") && targetUser.status !== "pending_setup") {
+    return res.status(403).json({
+      message: "Once a counselor or college representative account is activated, their profile can no longer be edited by admin.",
+    });
+  }
+
+  if ("name" in req.body && req.body.name && !("firstName" in req.body)) {
+    const parts = String(req.body.name).trim().split(/\s+/);
+    req.body.firstName = parts[0] || "";
+    req.body.lastName = parts.length > 1 ? parts[parts.length - 1] : "";
+    req.body.middleName = parts.length > 2 ? parts.slice(1, -1).join(" ") : "";
+  }
+
   const built = buildUpdate(ADMIN_UPDATABLE, req.body);
   if (built.error) return res.status(400).json({ message: built.error });
   if (!built.updates.length) return res.status(400).json({ message: "No valid fields to update" });
@@ -373,7 +403,21 @@ export const adminUpdateUser = async (req, res) => {
   await logAction(req, "update_user", "user", id, { changedFields: Object.keys(req.body) });
   const rows = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [id]);
   if (!rows.length) return res.status(404).json({ message: "User not found" });
-  return res.json(rows[0]);
+
+  const updatedUser = rows[0];
+  let inviteSent = false;
+  if (updatedUser.status === "pending_setup") {
+    try {
+      inviteSent = await createAndSendInvitation(updatedUser);
+    } catch (inviteErr) {
+      console.error("Failed to resend invitation after update:", inviteErr);
+    }
+  }
+
+  return res.json({
+    ...updatedUser,
+    inviteSent,
+  });
 };
 
 export const adminDeleteUser = async (req, res) => {

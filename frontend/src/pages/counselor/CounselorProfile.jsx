@@ -131,6 +131,10 @@ export default function CounselorProfile() {
       setMessage({ type: "error", text: "Name and email are required" });
       return;
     }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.email.trim())) {
+      setMessage({ type: "error", text: "Please enter a valid email address" });
+      return;
+    }
     if (formData.phone && !isValidPhMobile(formData.phone)) {
       setMessage({ type: "error", text: `Contact number: ${PHONE_HINT}` });
       return;
