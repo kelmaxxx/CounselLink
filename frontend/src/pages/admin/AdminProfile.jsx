@@ -27,10 +27,9 @@ import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/ph
 const DSA_OFFICE = "Division of Student Affairs";
 const DSA_UNIT = "DSA - Office of the Director · System Administration";
 
-const STAFF_EMAIL_DOMAINS = ["@s.msumain.edu.ph"];
-const isInstitutionalEmail = (email) => {
-  const lower = String(email || "").trim().toLowerCase();
-  return STAFF_EMAIL_DOMAINS.some((d) => lower.endsWith(d));
+const isValidEmail = (email) => {
+  const str = String(email || "").trim();
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(str);
 };
 
 
@@ -58,7 +57,7 @@ export default function AdminProfile() {
     phone: myRecord?.phone || "",
     employeeId: myRecord?.employeeId || "",
   });
-  const emailHint = `Must end with ${STAFF_EMAIL_DOMAINS.join(" or ")}`;
+
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -106,11 +105,11 @@ export default function AdminProfile() {
 
   const handleSave = async () => {
     if (!formData.name || !formData.email) {
-      setMessage({ type: "error", text: "Name and institutional email are required" });
+      setMessage({ type: "error", text: "Name and email address are required" });
       return;
     }
-    if (!isInstitutionalEmail(formData.email)) {
-      setMessage({ type: "error", text: emailHint });
+    if (!isValidEmail(formData.email)) {
+      setMessage({ type: "error", text: "Please enter a valid email address" });
       return;
     }
     if (formData.phone && !isValidPhMobile(formData.phone)) {
@@ -230,15 +229,14 @@ export default function AdminProfile() {
                   placeholder="Enter your name"
                 />
               </Field>
-              <Field icon={Mail} label="Institutional Email *">
+              <Field icon={Mail} label="Email Address *">
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className={INPUT}
-                  placeholder={`username@msu.edu.ph`}
+                  placeholder="username@example.com"
                 />
-                <p className="text-xs text-gray-400 mt-1">{emailHint}</p>
               </Field>
               <Field icon={Phone} label="Phone number">
                 <input
@@ -264,7 +262,7 @@ export default function AdminProfile() {
           ) : (
             <dl className="space-y-2.5 text-sm">
               <Readout icon={User} label="Name" value={myRecord?.name} />
-              <Readout icon={Mail} label="Institutional Email" value={myRecord?.email} />
+              <Readout icon={Mail} label="Email Address" value={myRecord?.email} />
               <Readout icon={Phone} label="Phone" value={myRecord?.phone || "Not provided"} />
               <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
               <Readout icon={Shield} label="Role" value="System Administrator" />

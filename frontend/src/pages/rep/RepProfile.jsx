@@ -25,10 +25,9 @@ import ProfileHero from "../../components/ProfileHero";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
-const STAFF_EMAIL_DOMAINS = ["@msu.edu.ph", "@msumain.edu.ph"];
-const isInstitutionalEmail = (email) => {
-  const lower = String(email || "").trim().toLowerCase();
-  return STAFF_EMAIL_DOMAINS.some((d) => lower.endsWith(d));
+const isValidEmail = (email) => {
+  const str = String(email || "").trim();
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(str);
 };
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -50,7 +49,7 @@ export default function RepProfile() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  const emailHint = `Must end with ${STAFF_EMAIL_DOMAINS.join(" or ")}`;
+
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
     phone: myRecord?.phone || "",
@@ -107,8 +106,8 @@ export default function RepProfile() {
       setMessage({ type: "error", text: "Name is required" });
       return;
     }
-    if (formData.email && !isInstitutionalEmail(formData.email)) {
-      setMessage({ type: "error", text: emailHint });
+    if (formData.email && !isValidEmail(formData.email)) {
+      setMessage({ type: "error", text: "Please enter a valid email address" });
       return;
     }
     if (formData.phone && !isValidPhMobile(formData.phone)) {
@@ -254,15 +253,14 @@ export default function RepProfile() {
         <SectionCard title="Professional information" subtitle="College affiliation and role">
           {isEditing ? (
             <div className="space-y-3">
-              <Field icon={Mail} label="Institutional Email *">
+              <Field icon={Mail} label="Email Address *">
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className={INPUT}
-                  placeholder="username@msu.edu.ph"
+                  placeholder="username@example.com"
                 />
-                <p className="text-xs text-gray-400 mt-1">{emailHint}</p>
               </Field>
               <Field icon={Hash} label="Employee ID">
                 <input
@@ -281,7 +279,7 @@ export default function RepProfile() {
             </div>
           ) : (
             <dl className="space-y-2.5 text-sm">
-              <Readout icon={Mail} label="Institutional Email" value={myRecord?.email} />
+              <Readout icon={Mail} label="Email Address" value={myRecord?.email} />
               <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
               <Readout icon={GraduationCap} label="College" value={myRecord?.college || "Not assigned"} />
               <Readout icon={Building2} label="Department" value={myRecord?.department || "Not assigned"} />

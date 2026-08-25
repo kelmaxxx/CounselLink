@@ -352,8 +352,8 @@ export const requestPasswordReset = async (req, res) => {
     return res.status(400).json({ message: "Email is required" });
   }
 
-  if (!isAllowedStudentEmail(email)) {
-    return res.status(400).json({ message: "Please use your MSU institutional email (e.g., name@s.msumain.edu.ph)" });
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email).trim())) {
+    return res.status(400).json({ message: "Please enter a valid email address." });
   }
 
   const genericMessage =

@@ -20,6 +20,8 @@ export default function CreateAnnouncement() {
     title: "",
     message: "",
     sendTo: "all",
+    postAt: "",
+    removeAt: "",
   });
   const [pubmatFile, setPubmatFile] = useState(null);
   const [pubmatPreview, setPubmatPreview] = useState(null);
@@ -66,15 +68,17 @@ export default function CreateAnnouncement() {
         message: form.message,
         sendTo: form.sendTo,
         imageUrl,
+        postAt: form.postAt || null,
+        removeAt: form.removeAt || null,
       });
       setFeedback({
         type: "success",
-        text: `Announcement sent to ${result.recipientCount} user${result.recipientCount === 1 ? "" : "s"}.`,
+        text: `Announcement created! ${result.recipientCount ? `Sent to ${result.recipientCount} user(s).` : ""}`,
       });
-      setForm({ title: "", message: "", sendTo: "all" });
+      setForm({ title: "", message: "", sendTo: "all", postAt: "", removeAt: "" });
       removePubmat();
     } catch (err) {
-      setFeedback({ type: "error", text: err.message || "Failed to send announcement" });
+      setFeedback({ type: "error", text: err.message || "Failed to create announcement" });
     } finally {
       setSubmitting(false);
       setTimeout(() => setFeedback(null), 4000);
@@ -134,7 +138,7 @@ export default function CreateAnnouncement() {
                 <span className="text-sm text-gray-600">
                   Upload an event poster (Pubmat) to make this announcement more engaging
                 </span>
-                <span className="text-xs text-gray-400">JPG, PNG, or WEBP — up to 5MB</span>
+                <span className="text-xs text-gray-400">JPG, PNG, or WEBP — up to 25MB</span>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
@@ -181,6 +185,29 @@ export default function CreateAnnouncement() {
               <option value="counselors">Counselors only</option>
               <option value="reps">Colleges only</option>
             </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={LABEL}>Schedule Post Time (optional)</label>
+              <input
+                type="datetime-local"
+                className={INPUT}
+                value={form.postAt}
+                onChange={(e) => setForm({ ...form, postAt: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-1">Leave blank to post immediately</p>
+            </div>
+            <div>
+              <label className={LABEL}>Schedule Removal Time (optional)</label>
+              <input
+                type="datetime-local"
+                className={INPUT}
+                value={form.removeAt}
+                onChange={(e) => setForm({ ...form, removeAt: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-1">Leave blank to keep active indefinitely</p>
+            </div>
           </div>
 
           <div className="flex justify-end pt-2">

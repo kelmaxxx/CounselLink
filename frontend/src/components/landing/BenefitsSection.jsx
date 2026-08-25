@@ -1,6 +1,6 @@
 // src/components/landing/BenefitsSection.jsx
 import React from "react";
-import { CheckCircle2, GraduationCap, Stethoscope, Building2 } from "lucide-react";
+import { CheckCircle2, GraduationCap, Stethoscope, Building2, ShieldCheck } from "lucide-react";
 
 const STUDENT_BENEFITS = [
   "Easily request counseling appointments online.",
@@ -26,6 +26,14 @@ const COLLEGE_BENEFITS = [
   "Strengthen collaboration between colleges and the Guidance and Counseling Office.",
 ];
 
+const ADMIN_BENEFITS = [
+  "Manage user accounts, roles, and system permissions securely.",
+  "Oversee system-wide counseling statistics and evaluation analytics.",
+  "Monitor audit logs and track administrative activities.",
+  "Configure platform settings, and announcements.",
+  "Ensure seamless system operations across all university departments.",
+];
+
 const CARDS = [
   {
     icon: GraduationCap,
@@ -44,6 +52,12 @@ const CARDS = [
     title: "For Colleges",
     benefits: COLLEGE_BENEFITS,
     bg: "bg-gradient-to-br from-indigo-500 to-indigo-700",
+  },
+  {
+    icon: ShieldCheck,
+    title: "For Administration",
+    benefits: ADMIN_BENEFITS,
+    bg: "bg-gradient-to-br from-purple-600 to-purple-800",
   },
 ];
 
@@ -90,13 +104,13 @@ export default function BenefitsSection() {
             Built for Everyone
           </h2>
           <p className="text-gray-500 max-w-xl mx-auto text-lg">
-            CounceLink serves students, counselors, and college representatives
+            CounceLink serves students, counselors, college representatives, and administrators
             with tools designed for each role.
           </p>
         </div>
 
-        {/* Three cards — responsive grid */}
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {/* Four cards — responsive grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {CARDS.map((card) => (
             <BenefitCard key={card.title} {...card} />
           ))}
@@ -109,8 +123,8 @@ export default function BenefitsSection() {
               Ready to experience CounceLink?
             </h4>
             <p className="text-gray-500 text-sm">
-              Join the growing community of MSU students, counselors, and college
-              representatives already using the platform.
+              Join the growing community of MSU students, counselors, college
+              representatives, and administrators already using the platform.
             </p>
           </div>
           <a

@@ -11,8 +11,15 @@ const ROLE_MAP = {
   college_rep: "college_rep",
 };
 
+const parseDatetime = (val) => {
+  if (!val) return null;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 19).replace("T", " ");
+};
+
 export const createAnnouncement = async (req, res) => {
-  const { title, message, sendTo, imageUrl } = req.body;
+  const { title, message, sendTo, imageUrl, postAt, removeAt } = req.body;
   const adminId = req.user?.id;
 
   if (!title?.trim() || !message?.trim()) {
@@ -21,10 +28,12 @@ export const createAnnouncement = async (req, res) => {
 
   const targetRole = ROLE_MAP[sendTo ?? "all"];
   const pubmatUrl = imageUrl || null;
+  const dbPostAt = parseDatetime(postAt);
+  const dbRemoveAt = parseDatetime(removeAt);
 
   const result = await query(
-    "INSERT INTO announcements (admin_id, content, image_url) VALUES (?, ?, ?)",
-    [adminId, `${title}\n\n${message}`, pubmatUrl]
+    "INSERT INTO announcements (admin_id, content, image_url, post_at, remove_at) VALUES (?, ?, ?, ?, ?)",
+    [adminId, `${title}\n\n${message}`, pubmatUrl, dbPostAt, dbRemoveAt]
   );
 
   const recipients = targetRole
@@ -44,10 +53,12 @@ export const createAnnouncement = async (req, res) => {
     title,
     sendTo: sendTo ?? "all",
     recipientCount: recipients.length,
+    postAt: dbPostAt,
+    removeAt: dbRemoveAt,
   });
 
   return res.status(201).json({
-    message: "Announcement sent",
+    message: "Announcement created",
     id: result.insertId,
     recipientCount: recipients.length,
   });
@@ -55,7 +66,7 @@ export const createAnnouncement = async (req, res) => {
 
 export const listAnnouncements = async (_req, res) => {
   const rows = await query(
-    `SELECT a.id, a.content, a.image_url AS imageUrl, a.date_posted, u.name AS adminName
+    `SELECT a.id, a.content, a.image_url AS imageUrl, a.date_posted, a.post_at AS postAt, a.remove_at AS removeAt, u.name AS adminName
      FROM announcements a
      LEFT JOIN users u ON a.admin_id = u.id
      ORDER BY a.date_posted DESC`
@@ -65,22 +76,26 @@ export const listAnnouncements = async (_req, res) => {
 
 export const updateAnnouncement = async (req, res) => {
   const { id } = req.params;
-  const { title, message, imageUrl } = req.body;
+  const { title, message, imageUrl, postAt, removeAt } = req.body;
 
   if (!title?.trim() || !message?.trim()) {
     return res.status(400).json({ message: "Title and message are required" });
   }
 
-  const existing = await query("SELECT id, image_url AS imageUrl FROM announcements WHERE id = ?", [id]);
+  const existing = await query("SELECT id, image_url AS imageUrl, post_at AS postAt, remove_at AS removeAt FROM announcements WHERE id = ?", [id]);
   if (!existing.length) {
     return res.status(404).json({ message: "Announcement not found" });
   }
 
   const pubmatUrl = imageUrl !== undefined ? (imageUrl || null) : existing[0].imageUrl;
+  const dbPostAt = postAt !== undefined ? parseDatetime(postAt) : existing[0].postAt;
+  const dbRemoveAt = removeAt !== undefined ? parseDatetime(removeAt) : existing[0].removeAt;
 
-  await query("UPDATE announcements SET content = ?, image_url = ? WHERE id = ?", [
+  await query("UPDATE announcements SET content = ?, image_url = ?, post_at = ?, remove_at = ? WHERE id = ?", [
     `${title}\n\n${message}`,
     pubmatUrl,
+    dbPostAt,
+    dbRemoveAt,
     id,
   ]);
 
@@ -105,9 +120,11 @@ export const deleteAnnouncement = async (req, res) => {
 export const listPublicAnnouncements = async (_req, res) => {
   try {
     const rows = await query(
-      `SELECT a.id, a.content, a.image_url AS imageUrl, a.date_posted
+      `SELECT a.id, a.content, a.image_url AS imageUrl, a.date_posted, a.post_at AS postAt, a.remove_at AS removeAt
        FROM announcements a
        WHERE a.image_url IS NOT NULL AND a.image_url != ''
+         AND (a.post_at IS NULL OR a.post_at <= NOW())
+         AND (a.remove_at IS NULL OR a.remove_at > NOW())
        ORDER BY a.date_posted DESC`
     );
     return res.json(rows);

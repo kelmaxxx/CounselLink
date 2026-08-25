@@ -1379,9 +1379,9 @@ function ForgotPasswordModal({ onClose }) {
       return;
     }
     const emailLower = email.trim().toLowerCase();
-    const isInstitutional = ["@s.msumain.edu.ph", "@msu.edu.ph", "@msumain.edu.ph"].some(domain => emailLower.endsWith(domain));
-    if (!isInstitutional) {
-      setError("Please use your MSU institutional email (e.g., name@s.msumain.edu.ph)");
+    const isValidFormat = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailLower);
+    if (!isValidFormat) {
+      setError("Please enter a valid email address.");
       return;
     }
     setLoading(true);
