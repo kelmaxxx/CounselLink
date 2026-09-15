@@ -151,13 +151,22 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                 <td className="px-4 py-3 text-right">
                   <div className="inline-flex items-center gap-1">
                     {u.status === "pending_setup" && (
-                      <button
-                        onClick={() => onEdit(u)}
-                        title="Re-edit account creation & resend invitation"
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition"
-                      >
-                        <RotateCcw size={13} />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => onEdit(u)}
+                          title="Re-edit account details & resend invitation"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          onClick={() => onResendInvite(u)}
+                          title="Resend invitation email"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                        >
+                          <RotateCcw size={13} />
+                        </button>
+                      </>
                     )}
                     {!hideEdit && u.status !== "pending_setup" && (
                       <button
