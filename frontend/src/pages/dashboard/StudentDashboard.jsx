@@ -225,7 +225,7 @@ export default function StudentDashboard() {
   return (
     <>
       <WelcomeHero userName={firstName} />
-      <div className="px-6 py-6 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
         <PageHeader
           eyebrow="Overview"
           title={`Welcome back, ${firstName}`}
@@ -375,7 +375,24 @@ export default function StudentDashboard() {
               />
             ) : (
               <>
-              <div className="overflow-x-auto">
+              {/* Mobile */}
+              <div className="sm:hidden divide-y divide-gray-100">
+                {upcoming.slice((upcomingPage - 1) * DASH_PAGE_SIZE, upcomingPage * DASH_PAGE_SIZE).map((appt) => {
+                  const counselor = users?.find((u) => u.id === appt.counselor_id);
+                  const counselorDisplay = counselor?.name || appt.counselorName || "TBD";
+                  return (
+                    <div key={appt.id} className="px-4 py-3 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-gray-900 tabular-nums">{formatDate(appt.scheduledDate || appt.preferredDate)}</p>
+                        <StatusPill status={appt.status} />
+                      </div>
+                      <p className="text-xs text-gray-500">{appt.scheduledTimeSlot || appt.preferredSlots?.[0] || "—"} · {counselorDisplay}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Desktop */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -391,15 +408,9 @@ export default function StudentDashboard() {
                       const counselorDisplay = counselor?.name || appt.counselorName || "TBD";
                       return (
                         <tr key={appt.id} className="hover:bg-gray-50/70 transition">
-                          <td className="px-4 py-2.5 text-gray-900 tabular-nums">
-                            {formatDate(appt.scheduledDate || appt.preferredDate)}
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-700 tabular-nums">
-                            {appt.scheduledTimeSlot || appt.preferredSlots?.[0] || "—"}
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <StatusPill status={appt.status} />
-                          </td>
+                          <td className="px-4 py-2.5 text-gray-900 tabular-nums">{formatDate(appt.scheduledDate || appt.preferredDate)}</td>
+                          <td className="px-4 py-2.5 text-gray-700 tabular-nums">{appt.scheduledTimeSlot || appt.preferredSlots?.[0] || "—"}</td>
+                          <td className="px-4 py-2.5"><StatusPill status={appt.status} /></td>
                           <td className="px-4 py-2.5 text-gray-700">{counselorDisplay}</td>
                         </tr>
                       );
@@ -407,11 +418,7 @@ export default function StudentDashboard() {
                   </tbody>
                 </table>
               </div>
-              <Pagination
-                page={upcomingPage}
-                totalPages={Math.ceil(upcoming.length / DASH_PAGE_SIZE)}
-                onPageChange={setUpcomingPage}
-              />
+              <Pagination page={upcomingPage} totalPages={Math.ceil(upcoming.length / DASH_PAGE_SIZE)} onPageChange={setUpcomingPage} />
               </>
             )}
           </SectionCard>
@@ -437,7 +444,26 @@ export default function StudentDashboard() {
               />
             ) : (
               <>
-              <div className="overflow-x-auto">
+              {/* Mobile */}
+              <div className="sm:hidden divide-y divide-gray-100">
+                {unfinishedTests.slice((testsPage - 1) * DASH_PAGE_SIZE, testsPage * DASH_PAGE_SIZE).map((test) => {
+                  const counselorId = test.counselor_id || test.counselorId;
+                  const cName = test.counselorName || users?.find((u) => u.id === counselorId)?.name;
+                  const dateVal = test.scheduledDate || test.scheduled_date || test.preferredDate || test.preferred_date;
+                  const timeVal = test.scheduledTimeSlot || test.scheduled_time || (Array.isArray(test.preferredSlots) ? test.preferredSlots[0] : null) || (test.preferred_slots ? test.preferred_slots.split(",")[0] : null);
+                  return (
+                    <div key={test.id} className="px-4 py-3 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-gray-900 tabular-nums">{formatDate(dateVal, "TBD")}</p>
+                        <StatusPill status={test.status} />
+                      </div>
+                      <p className="text-xs text-gray-500">{timeVal || "—"} · {cName || "TBD"}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Desktop */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -450,40 +476,22 @@ export default function StudentDashboard() {
                   <tbody className="divide-y divide-gray-100">
                     {unfinishedTests.slice((testsPage - 1) * DASH_PAGE_SIZE, testsPage * DASH_PAGE_SIZE).map((test) => {
                       const counselorId = test.counselor_id || test.counselorId;
-                      const cName =
-                        test.counselorName ||
-                        users?.find((u) => u.id === counselorId)?.name;
+                      const cName = test.counselorName || users?.find((u) => u.id === counselorId)?.name;
                       const dateVal = test.scheduledDate || test.scheduled_date || test.preferredDate || test.preferred_date;
-                      const timeVal =
-                        test.scheduledTimeSlot ||
-                        test.scheduled_time ||
-                        (Array.isArray(test.preferredSlots) ? test.preferredSlots[0] : null) ||
-                        (test.preferred_slots ? test.preferred_slots.split(",")[0] : null);
+                      const timeVal = test.scheduledTimeSlot || test.scheduled_time || (Array.isArray(test.preferredSlots) ? test.preferredSlots[0] : null) || (test.preferred_slots ? test.preferred_slots.split(",")[0] : null);
                       return (
                         <tr key={test.id} className="hover:bg-gray-50/70 transition">
-                          <td className="px-4 py-2.5 text-gray-900 tabular-nums">
-                            {formatDate(dateVal, "TBD")}
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-700 tabular-nums">
-                            {timeVal || "—"}
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <StatusPill status={test.status} />
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-700">
-                            {cName || "TBD"}
-                          </td>
+                          <td className="px-4 py-2.5 text-gray-900 tabular-nums">{formatDate(dateVal, "TBD")}</td>
+                          <td className="px-4 py-2.5 text-gray-700 tabular-nums">{timeVal || "—"}</td>
+                          <td className="px-4 py-2.5"><StatusPill status={test.status} /></td>
+                          <td className="px-4 py-2.5 text-gray-700">{cName || "TBD"}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-              <Pagination
-                page={testsPage}
-                totalPages={Math.ceil(unfinishedTests.length / DASH_PAGE_SIZE)}
-                onPageChange={setTestsPage}
-              />
+              <Pagination page={testsPage} totalPages={Math.ceil(unfinishedTests.length / DASH_PAGE_SIZE)} onPageChange={setTestsPage} />
               </>
             )}
           </SectionCard>
@@ -508,3 +516,4 @@ export default function StudentDashboard() {
     </>
   );
 }
+

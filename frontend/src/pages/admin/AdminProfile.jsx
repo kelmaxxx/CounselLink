@@ -145,7 +145,7 @@ export default function AdminProfile() {
   };
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="Administrator"
         title="My profile"
@@ -298,3 +298,4 @@ function Readout({ icon: Icon, label, value }) {
     </div>
   );
 }
+

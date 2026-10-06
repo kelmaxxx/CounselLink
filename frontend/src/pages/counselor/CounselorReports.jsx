@@ -392,7 +392,7 @@ export default function CounselorReports() {
   );
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="Counselor"
         title="Reports"
@@ -535,7 +535,43 @@ export default function CounselorReports() {
             />
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Mobile cards */}
+              <div className="sm:hidden divide-y divide-gray-100">
+                {pagedRequests.map((r) => (
+                  <div key={r.id} className="px-4 py-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        {r.request_type === "college" ? (
+                          <p className="text-sm font-medium text-gray-900 flex items-center gap-1"><Building2 size={12} className="text-maroon-600 flex-shrink-0" /> College-wide summary</p>
+                        ) : r.request_type === "department" ? (
+                          <p className="text-sm font-medium text-gray-900 flex items-center gap-1"><ClipboardList size={12} className="text-maroon-600 flex-shrink-0" /> {r.department || "Department"} summary</p>
+                        ) : (
+                          <p className="text-sm font-medium text-gray-900 truncate">{r.student_name}</p>
+                        )}
+                        {r.student_identifier && <p className="text-xs text-gray-400">{r.student_identifier}</p>}
+                      </div>
+                      <StatusPill status={r.status} />
+                    </div>
+                    <div className="text-xs text-gray-600 space-y-0.5">
+                      <p><span className="text-gray-400">From: </span>{r.requesterName || "—"}{r.requesterCollege ? ` · ${r.requesterCollege}` : ""}</p>
+                      <p className="line-clamp-2">{r.reason}</p>
+                      {r.response_note && <p className="text-gray-400"><span className="font-medium">Your note:</span> {r.response_note}</p>}
+                      <p className="text-gray-400 tabular-nums">{new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
+                    </div>
+                    {r.status === "pending" && (r.request_type === "college" || r.request_type === "department") && (
+                      <div className="flex gap-1 pt-1">
+                        <button onClick={() => currentUser?.signatureUrl ? openGenerate(r) : undefined} disabled={!currentUser?.signatureUrl} className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${currentUser?.signatureUrl ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`} title={currentUser?.signatureUrl ? "Generate & send summary" : "Set up your eSign in your Profile first"}><Check size={13} /> Generate</button>
+                        <button onClick={() => openRespond(r, "declined")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><X size={13} /> Decline</button>
+                      </div>
+                    )}
+                    {r.status === "pending" && r.request_type === "individual" && (
+                      <button onClick={() => currentUser?.signatureUrl ? handleSendIndividual(r) : undefined} disabled={sendingId === r.id || !currentUser?.signatureUrl} className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${currentUser?.signatureUrl ? "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}><Send size={13} /> {sendingId === r.id ? "Sending…" : "Send"}</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -552,85 +588,39 @@ export default function CounselorReports() {
                       <tr key={r.id} className="hover:bg-gray-50/70 transition align-top">
                         <td className="px-4 py-3">
                           {r.request_type === "college" ? (
-                            <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
-                              <Building2 size={13} className="text-maroon-600" />
-                              College-wide summary
-                            </div>
+                            <div className="inline-flex items-center gap-1.5 font-medium text-gray-900"><Building2 size={13} className="text-maroon-600" /> College-wide summary</div>
                           ) : r.request_type === "department" ? (
-                            <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
-                              <ClipboardList size={13} className="text-maroon-600" />
-                              {r.department || "Department"} summary
-                            </div>
+                            <div className="inline-flex items-center gap-1.5 font-medium text-gray-900"><ClipboardList size={13} className="text-maroon-600" /> {r.department || "Department"} summary</div>
                           ) : (
                             <div className="inline-flex items-start gap-1.5">
                               <User size={13} className="text-gray-400 mt-0.5" />
                               <span>
-                                <span className="block font-medium text-gray-900">
-                                  {r.student_name}
-                                </span>
-                                {r.student_identifier && (
-                                  <span className="block text-xs text-gray-500 tabular-nums">
-                                    {r.student_identifier}
-                                  </span>
-                                )}
+                                <span className="block font-medium text-gray-900">{r.student_name}</span>
+                                {r.student_identifier && <span className="block text-xs text-gray-500 tabular-nums">{r.student_identifier}</span>}
                               </span>
                             </div>
                           )}
                         </td>
                         <td className="px-4 py-3 text-gray-700">
                           <div>{r.requesterName || "—"}</div>
-                          {r.requesterCollege && (
-                            <div className="text-xs text-gray-500">{r.requesterCollege}</div>
-                          )}
+                          {r.requesterCollege && <div className="text-xs text-gray-500">{r.requesterCollege}</div>}
                         </td>
                         <td className="px-4 py-3 max-w-sm">
                           <p className="text-gray-700 line-clamp-2">{r.reason}</p>
-                          {r.response_note && (
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              <span className="font-medium">Your note:</span> {r.response_note}
-                            </p>
-                          )}
+                          {r.response_note && <p className="text-xs text-gray-500 mt-0.5"><span className="font-medium">Your note:</span> {r.response_note}</p>}
                         </td>
-                        <td className="px-4 py-3">
-                          <StatusPill status={r.status} />
-                        </td>
+                        <td className="px-4 py-3"><StatusPill status={r.status} /></td>
                         <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
-                          {new Date(r.created_at).toLocaleString(undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {new Date(r.created_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </td>
                         <td className="px-4 py-3 text-right">
                           {r.status === "pending" && (r.request_type === "college" || r.request_type === "department") ? (
                             <div className="inline-flex gap-1">
-                              <button
-                                onClick={() => currentUser?.signatureUrl ? openGenerate(r) : undefined}
-                                disabled={!currentUser?.signatureUrl}
-                                className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${currentUser?.signatureUrl ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
-                                title={currentUser?.signatureUrl ? "Generate & send summary" : "Set up your eSign in your Profile first"}
-                              >
-                                <Check size={13} /> Generate
-                              </button>
-                              <button
-                                onClick={() => openRespond(r, "declined")}
-                                className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                                title="Decline request"
-                              >
-                                <X size={13} /> Decline
-                              </button>
+                              <button onClick={() => currentUser?.signatureUrl ? openGenerate(r) : undefined} disabled={!currentUser?.signatureUrl} className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${currentUser?.signatureUrl ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`} title={currentUser?.signatureUrl ? "Generate & send summary" : "Set up your eSign in your Profile first"}><Check size={13} /> Generate</button>
+                              <button onClick={() => openRespond(r, "declined")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition" title="Decline request"><X size={13} /> Decline</button>
                             </div>
                           ) : r.status === "pending" && r.request_type === "individual" ? (
-                            <button
-                              onClick={() => currentUser?.signatureUrl ? handleSendIndividual(r) : undefined}
-                              disabled={sendingId === r.id || !currentUser?.signatureUrl}
-                              className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${currentUser?.signatureUrl ? "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
-                              title={currentUser?.signatureUrl ? "Send this student's finalized session report" : "Set up your eSign in your Profile first"}
-                            >
-                              <Send size={13} /> {sendingId === r.id ? "Sending…" : "Send"}
-                            </button>
+                            <button onClick={() => currentUser?.signatureUrl ? handleSendIndividual(r) : undefined} disabled={sendingId === r.id || !currentUser?.signatureUrl} className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${currentUser?.signatureUrl ? "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`} title={currentUser?.signatureUrl ? "Send this student's finalized session report" : "Set up your eSign in your Profile first"}><Send size={13} /> {sendingId === r.id ? "Sending…" : "Send"}</button>
                           ) : (
                             <span className="text-xs text-gray-400">No action</span>
                           )}
@@ -640,6 +630,7 @@ export default function CounselorReports() {
                   </tbody>
                 </table>
               </div>
+
               <Pagination
                 page={requestsPage}
                 totalPages={Math.ceil(filteredRequests.length / REPORTS_PER_PAGE)}
@@ -670,7 +661,40 @@ export default function CounselorReports() {
             />
           ) : (
             <>
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {pagedSentReports.map((r) => {
+                const payload = parsePayload(r.report_payload);
+                const isCollege = payload?.type === "college_summary";
+                const student = payload?.studentName || "—";
+                return (
+                  <div key={r.id} className="px-4 py-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          {isCollege ? <Building2 size={14} /> : initialsOf(student)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 text-sm truncate">{isCollege ? "College summary" : student}</p>
+                          <p className="text-xs text-gray-500 truncate">{isCollege ? payload?.college || "—" : payload?.studentCollege || "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-600 space-y-0.5">
+                      <p><span className="text-gray-400">To: </span>{r.recipientName || "—"}{r.recipientCollege ? ` · ${r.recipientCollege}` : ""}</p>
+                      <p className="font-medium text-gray-700">{r.title}</p>
+                      <p className="text-gray-400 tabular-nums">{new Date(r.sent_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
+                    </div>
+                    <div className="pt-1 flex justify-end">
+                      <ReportActions report={r} onView={() => setActiveReport(r)} signatureUrl={currentUser?.signatureUrl} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -772,7 +796,36 @@ export default function CounselorReports() {
             />
           ) : (
             <>
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {pagedFinalizedSessions.map((s) => (
+                <div key={s.id} className="px-4 py-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 text-sm truncate">{s.studentName}</p>
+                      <p className="text-xs text-gray-500">{s.studentCollege || s.studentNumber || "—"}</p>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-600 space-y-0.5">
+                    <p><span className="text-gray-400">Session date: </span>{(s.sessionDate || "").split("T")[0]}</p>
+                    <p><span className="text-gray-400">Finalized: </span>{s.finalizedAt ? new Date(s.finalizedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—"}</p>
+                  </div>
+                  <div className="pt-1 flex justify-end">
+                    <SessionDownloadButtons session={s} signatureUrl={currentUser?.signatureUrl} onView={() => setActiveReport({
+                      id: `session-${s.id}`,
+                      title: `Session Report — ${s.studentName} (${(s.sessionDate || "").split("T")[0]})`,
+                      sent_at: s.finalizedAt,
+                      recipientName: null,
+                      recipientCollege: null,
+                      report_payload: JSON.stringify(s),
+                    })} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -1074,5 +1127,6 @@ function SessionDownloadButtons({ session, onView, signatureUrl }) {
     </div>
   );
 }
+
 
 

@@ -280,7 +280,7 @@ export default function SystemEvaluationTally() {
   }
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto space-y-6">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto space-y-6">
       <PageHeader
         eyebrow="Researchers Access Portal"
         title="System Usability Scale (SUS) Tally"
@@ -518,3 +518,4 @@ export default function SystemEvaluationTally() {
     </div>
   );
 }
+

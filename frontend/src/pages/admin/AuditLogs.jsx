@@ -109,7 +109,7 @@ export default function AuditLogs() {
   const hasActiveFilters = filterAction || filterRole;
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="Administrator"
         title={
@@ -214,7 +214,39 @@ export default function AuditLogs() {
         ) : logs.length === 0 ? (
           <EmptyState icon={Shield} title="No audit log entries found" />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile cards */}
+          <div className="sm:hidden divide-y divide-gray-100">
+            {logs.map((log) => (
+              <div key={log.id} className="px-4 py-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{log.actorId == null ? "Public (unauthenticated)" : log.actorName || "(deleted user)"}</p>
+                    <p className="text-[10px] text-gray-400">{ROLE_LABELS[log.actorRole] || log.actorRole || "—"} · {formatDate(log.createdAt)}</p>
+                  </div>
+                  <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200 whitespace-nowrap flex-shrink-0">
+                    {ACTION_LABELS[log.action] || log.action}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                  {log.targetType && <span className="font-mono">{log.targetType}#{log.targetId ?? "—"}</span>}
+                  {log.ipAddress && <span className="font-mono">{log.ipAddress}</span>}
+                  {log.details && (
+                    <button onClick={() => setExpandedId(expandedId === log.id ? null : log.id)} className="text-xs font-medium text-maroon-600 hover:text-maroon-700 transition">
+                      {expandedId === log.id ? "Hide details" : "View details"}
+                    </button>
+                  )}
+                </div>
+                {expandedId === log.id && log.details && (
+                  <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all font-mono bg-gray-100 rounded-md p-3 mt-1">
+                    {JSON.stringify(log.details, null, 2)}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/40 border-b border-gray-100">
@@ -230,47 +262,28 @@ export default function AuditLogs() {
                 {logs.map((log) => (
                   <React.Fragment key={log.id}>
                     <tr className="hover:bg-gray-50/70 transition">
-                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap text-xs tabular-nums">
-                        {formatDate(log.createdAt)}
+                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap text-xs tabular-nums">{formatDate(log.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-gray-900">{log.actorId == null ? "Public (unauthenticated)" : log.actorName || "(deleted user)"}</div>
+                        <div className="text-xs text-gray-500">{ROLE_LABELS[log.actorRole] || log.actorRole || "—"}</div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900">
-                          {log.actorId == null ? "Public (unauthenticated)" : log.actorName || "(deleted user)"}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {ROLE_LABELS[log.actorRole] || log.actorRole || "—"}
-                        </div>
+                        <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">{ACTION_LABELS[log.action] || log.action}</span>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
-                          {ACTION_LABELS[log.action] || log.action}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 text-xs font-mono">
-                        {log.targetType ? `${log.targetType}#${log.targetId ?? "—"}` : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs font-mono">
-                        {log.ipAddress || "—"}
-                      </td>
+                      <td className="px-4 py-3 text-gray-700 text-xs font-mono">{log.targetType ? `${log.targetType}#${log.targetId ?? "—"}` : "—"}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs font-mono">{log.ipAddress || "—"}</td>
                       <td className="px-4 py-3">
                         {log.details ? (
-                          <button
-                            onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                            className="text-xs font-medium text-maroon-600 hover:text-maroon-700 transition"
-                          >
+                          <button onClick={() => setExpandedId(expandedId === log.id ? null : log.id)} className="text-xs font-medium text-maroon-600 hover:text-maroon-700 transition">
                             {expandedId === log.id ? "Hide" : "View"}
                           </button>
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
-                        )}
+                        ) : <span className="text-xs text-gray-400">—</span>}
                       </td>
                     </tr>
                     {expandedId === log.id && log.details && (
                       <tr className="bg-gray-50/60">
                         <td colSpan={6} className="px-4 py-3">
-                          <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all font-mono">
-                            {JSON.stringify(log.details, null, 2)}
-                          </pre>
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all font-mono">{JSON.stringify(log.details, null, 2)}</pre>
                         </td>
                       </tr>
                     )}
@@ -279,6 +292,8 @@ export default function AuditLogs() {
               </tbody>
             </table>
           </div>
+          </>
+
         )}
 
         <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 flex justify-between items-center">
@@ -304,3 +319,4 @@ export default function AuditLogs() {
     </div>
   );
 }
+

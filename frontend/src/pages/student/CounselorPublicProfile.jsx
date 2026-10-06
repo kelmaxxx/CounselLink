@@ -72,7 +72,7 @@ export default function CounselorPublicProfile() {
   }, [id, token, lookupUser]);
 
   return (
-    <div className="px-6 py-6 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-4xl mx-auto">
       <Link
         to="/student/counselors"
         className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 mb-4 transition"
@@ -179,3 +179,4 @@ function Row({ icon: Icon, label, value }) {
     </div>
   );
 }
+

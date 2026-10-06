@@ -88,7 +88,7 @@ export default function CounselingData() {
   );
 
   return (
-    <div className="px-6 py-6 max-w-6xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-6xl mx-auto">
       <PageHeader
         eyebrow="College"
         title="Counseling data"
@@ -122,7 +122,46 @@ export default function CounselingData() {
           />
         ) : (
           <>
-            <div className="overflow-x-auto">
+          <>
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {pagedReports.map((r) => {
+                const payload = parsePayload(r.report_payload);
+                const college = isCollegeSummary(payload);
+                const fullPayload = {
+                  ...payload,
+                  counselorName: payload?.counselorName || payload?.counselor_name || r.senderName,
+                  counselorSignatureUrl: payload?.counselorSignatureUrl || payload?.counselor_signature_url || r.senderSignatureUrl,
+                  senderName: r.senderName,
+                  senderSignatureUrl: r.senderSignatureUrl,
+                };
+                return (
+                  <div key={r.id} className="px-4 py-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">{initialsOf(r.senderName)}</div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{r.senderName}</p>
+                          <p className="text-[10px] text-gray-400 tabular-nums">{new Date(r.sent_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
+                        </div>
+                      </div>
+                      {college ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-maroon-50 text-maroon-700 whitespace-nowrap flex-shrink-0"><Building2 size={11} /> Summary</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 whitespace-nowrap flex-shrink-0"><User size={11} /> Session</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-700">{r.title}</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setActiveReport(r)} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><Eye size={12} /> View</button>
+                      <button onClick={() => saveReportAsPdfFile(fullPayload, { title: r.title })} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><FileDown size={12} /> Download</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -148,61 +187,30 @@ export default function CounselingData() {
                       <tr key={r.id} className="hover:bg-gray-50/70 transition">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                              {initialsOf(r.senderName)}
-                            </div>
-                            <div className="font-medium text-gray-900 text-sm truncate">
-                              {r.senderName}
-                            </div>
+                            <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">{initialsOf(r.senderName)}</div>
+                            <div className="font-medium text-gray-900 text-sm truncate">{r.senderName}</div>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           {college ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-maroon-50 text-maroon-700">
-                              <Building2 size={12} /> College summary
-                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-maroon-50 text-maroon-700"><Building2 size={12} /> College summary</span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                              <User size={12} /> Session report
-                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700"><User size={12} /> Session report</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-gray-900">{r.title}</td>
                         <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
-                          {new Date(r.sent_at).toLocaleString(undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {new Date(r.sent_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <div
-                            ref={openPopover === r.id ? popoverRef : null}
-                            className="relative inline-block"
-                          >
-                            <button
-                              onClick={() => setOpenPopover(openPopover === r.id ? null : r.id)}
-                              className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
-                              title="Actions"
-                            >
+                          <div ref={openPopover === r.id ? popoverRef : null} className="relative inline-block">
+                            <button onClick={() => setOpenPopover(openPopover === r.id ? null : r.id)} className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition" title="Actions">
                               <MoreVertical size={14} />
                             </button>
                             {openPopover === r.id && (
                               <div className="absolute right-0 top-full mt-1 z-30 w-40 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
-                                <button
-                                  onClick={() => { setActiveReport(r); setOpenPopover(null); }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
-                                >
-                                  <Eye size={13} /> View report
-                                </button>
-                                <button
-                                  onClick={() => { saveReportAsPdfFile(fullPayload, { title: r.title }); setOpenPopover(null); }}
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
-                                >
-                                  <FileDown size={13} /> Download
-                                </button>
+                                <button onClick={() => { setActiveReport(r); setOpenPopover(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"><Eye size={13} /> View report</button>
+                                <button onClick={() => { saveReportAsPdfFile(fullPayload, { title: r.title }); setOpenPopover(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"><FileDown size={13} /> Download</button>
                               </div>
                             )}
                           </div>
@@ -213,6 +221,7 @@ export default function CounselingData() {
                 </tbody>
               </table>
             </div>
+
 
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-xs text-gray-500">
               <span>
@@ -283,3 +292,4 @@ export default function CounselingData() {
     </div>
   );
 }
+

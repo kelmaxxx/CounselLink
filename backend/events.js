@@ -23,6 +23,7 @@ export const addClient = (user, res) => {
   return () => {
     set.delete(res);
     if (set.size === 0) clients.delete(user.id);
+
   };
 };
 

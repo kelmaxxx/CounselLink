@@ -190,7 +190,7 @@ export default function RequestStudentData() {
   };
 
   return (
-    <div className="px-6 py-6 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-4xl mx-auto">
       <PageHeader
         eyebrow="College"
         title="Request a report from a counselor"
@@ -356,7 +356,35 @@ export default function RequestStudentData() {
           />
         ) : (
           <>
-            <div className="overflow-x-auto">
+          <>
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {pagedRequests.map((r) => (
+                <div key={r.id} className="px-4 py-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      {r.request_type === "college" ? (
+                        <p className="text-sm font-medium text-gray-900 flex items-center gap-1"><Building2 size={12} className="text-maroon-600 flex-shrink-0" /> College-wide summary</p>
+                      ) : r.request_type === "department" ? (
+                        <p className="text-sm font-medium text-gray-900 flex items-center gap-1"><ClipboardList size={12} className="text-maroon-600 flex-shrink-0" /> {r.department || "Department"} summary</p>
+                      ) : (
+                        <p className="text-sm font-medium text-gray-900 truncate">{r.student_name}</p>
+                      )}
+                      {r.student_identifier && <p className="text-xs text-gray-400 tabular-nums">{r.student_identifier}</p>}
+                    </div>
+                    <StatusPill status={r.status} />
+                  </div>
+                  <div className="text-xs text-gray-600 space-y-0.5">
+                    <p><span className="text-gray-400">Counselor: </span>{r.status === "pending" ? <span className="italic text-gray-400">To Be Reviewed</span> : (r.counselorName || <span className="italic text-gray-400">No Data</span>)}</p>
+                    <p className="line-clamp-2">{r.reason}</p>
+                    {r.response_note && <p className="text-gray-400"><span className="font-medium">Note:</span> {r.response_note}</p>}
+                    <p className="text-gray-400 tabular-nums">{new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -372,60 +400,33 @@ export default function RequestStudentData() {
                     <tr key={r.id} className="hover:bg-gray-50/70 transition">
                       <td className="px-4 py-3">
                         {r.request_type === "college" ? (
-                          <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
-                            <Building2 size={13} className="text-maroon-600" />
-                            College-wide summary
-                          </div>
+                          <div className="inline-flex items-center gap-1.5 font-medium text-gray-900"><Building2 size={13} className="text-maroon-600" /> College-wide summary</div>
                         ) : r.request_type === "department" ? (
-                          <div className="inline-flex items-center gap-1.5 font-medium text-gray-900">
-                            <ClipboardList size={13} className="text-maroon-600" />
-                            {r.department || "Department"} summary
-                          </div>
+                          <div className="inline-flex items-center gap-1.5 font-medium text-gray-900"><ClipboardList size={13} className="text-maroon-600" /> {r.department || "Department"} summary</div>
                         ) : (
                           <>
                             <div className="font-medium text-gray-900">{r.student_name}</div>
-                            {r.student_identifier && (
-                              <div className="text-xs text-gray-500 tabular-nums">
-                                {r.student_identifier}
-                              </div>
-                            )}
+                            {r.student_identifier && <div className="text-xs text-gray-500 tabular-nums">{r.student_identifier}</div>}
                           </>
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-700">
-                        {r.status === "pending" ? (
-                          <span className="text-gray-400 italic text-xs">To Be Reviewed</span>
-                        ) : r.counselorName ? (
-                          r.counselorName
-                        ) : (
-                          <span className="text-gray-400 italic text-xs">No Data</span>
-                        )}
+                        {r.status === "pending" ? <span className="text-gray-400 italic text-xs">To Be Reviewed</span> : r.counselorName ? r.counselorName : <span className="text-gray-400 italic text-xs">No Data</span>}
                       </td>
                       <td className="px-4 py-3 max-w-sm">
                         <p className="text-gray-700 line-clamp-2">{r.reason}</p>
-                        {r.response_note && (
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            <span className="font-medium">Note:</span> {r.response_note}
-                          </p>
-                        )}
+                        {r.response_note && <p className="text-xs text-gray-500 mt-0.5"><span className="font-medium">Note:</span> {r.response_note}</p>}
                       </td>
-                      <td className="px-4 py-3">
-                        <StatusPill status={r.status} />
-                      </td>
+                      <td className="px-4 py-3"><StatusPill status={r.status} /></td>
                       <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
-                        {new Date(r.created_at).toLocaleString(undefined, {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(r.created_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
 
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-xs text-gray-500">
               <span>
@@ -456,3 +457,4 @@ export default function RequestStudentData() {
     </div>
   );
 }
+
