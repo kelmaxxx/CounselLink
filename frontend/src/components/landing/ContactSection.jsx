@@ -14,7 +14,7 @@ const CONTACT_CARDS = [
     icon: Facebook,
     label: "Facebook Page",
     value: "MSU DSA Guidance and Counseling Section",
-    href: "https://www.facebook.com", // Placeholder URL or direct facebook URL if needed, linking to facebook generally is great
+    href: "https://web.facebook.com/profile.php?id=100093457297912",
     color: "bg-indigo-50 text-indigo-600",
   },
   {
@@ -116,7 +116,7 @@ export default function ContactSection() {
                 Email Us
               </a>
               <a
-                href="https://www.facebook.com"
+                href="https://web.facebook.com/profile.php?id=100093457297912"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-sm"
