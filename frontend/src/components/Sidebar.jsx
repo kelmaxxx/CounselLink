@@ -1,5 +1,5 @@
 // src/components/Sidebar.jsx
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -7,7 +7,44 @@ import {
   ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft, X
 } from "lucide-react";
 import { useMessages } from "../context/MessagesContext";
+import { useReferrals } from "../context/ReferralsContext";
+import { useRealtime } from "../context/RealtimeContext";
 import Avatar from "./Avatar";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
+// Lightweight hook: keeps a count of pending report-requests for the sidebar
+// badge. Refetches on mount and whenever the server sends a "notification"
+// SSE event (which is fired after every report-request action).
+function usePendingReportRequests(role, token) {
+  const [count, setCount] = useState(0);
+  const { subscribe } = useRealtime();
+
+  const fetchCount = useCallback(async () => {
+    if (!token || !["counselor", "college_rep"].includes(role)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/report-requests?status=pending`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setCount(Array.isArray(data) ? data.length : 0);
+    } catch {
+      // silently ignore — it's just a sidebar badge
+    }
+  }, [token, role]);
+
+  useEffect(() => {
+    fetchCount();
+  }, [fetchCount]);
+
+  // Re-fetch when the server signals a notification change (fires on report-request create/respond/send)
+  useEffect(() => {
+    return subscribe("notification", () => fetchCount());
+  }, [subscribe, fetchCount]);
+
+  return count;
+}
 
 function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogout, open = false, onClose }) {
   const { currentUser: ctxUser, users } = useAuth();
@@ -16,6 +53,26 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
   const currentUser = propUser || ctxUser;
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Referral pending count — from the global context (already fetched on app init)
+  const referralsCtx = useReferrals?.();
+  const allReferrals = referralsCtx?.referrals || [];
+
+  // For counselors: incoming pending referrals (not yet assigned to someone else)
+  const pendingReferralCount =
+    currentUser?.role === "counselor"
+      ? allReferrals.filter(
+          (r) =>
+            r.status === "pending" &&
+            (r.receiving_counselor_id === null || r.receiving_counselor_id === currentUser?.id)
+        ).length
+      : currentUser?.role === "college_rep"
+      ? allReferrals.filter((r) => r.status === "pending").length
+      : 0;
+
+  // Pending report-requests badge (counselor sees all unassigned + assigned-to-them; rep sees their own)
+  const { token } = useAuth();
+  const pendingReportCount = usePendingReportRequests(currentUser?.role, token);
 
   const pendingCount = users?.filter(u => u.role === "student" && u.status === "pending_approval").length || 0;
 
@@ -167,6 +224,21 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     open ? "translate-x-0" : "-translate-x-full"
   }`;
 
+  // Determine the badge value for each nav item
+  const getBadge = (itemId) => {
+    if (itemId === "pending-registrations" && pendingCount > 0) return pendingCount;
+    if (itemId === "messages" && unreadMessages > 0) return unreadMessages;
+    // Counselor: incoming pending referrals
+    if (itemId === "referrals" && pendingReferralCount > 0) return pendingReferralCount;
+    // Counselor: pending report requests
+    if (itemId === "generate-reports" && pendingReportCount > 0) return pendingReportCount;
+    // College Rep: pending referrals they sent that are waiting
+    if (itemId === "rep-referrals" && pendingReferralCount > 0) return pendingReferralCount;
+    // College Rep: their own pending report requests
+    if (itemId === "request-report" && pendingReportCount > 0) return pendingReportCount;
+    return 0;
+  };
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -227,8 +299,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const showPendingBadge = item.id === "pending-registrations" && pendingCount > 0;
-                const showMessagesBadge = item.id === "messages" && unreadMessages > 0;
+                const badge = getBadge(item.id);
                 const itemPath = idToPath[item.id] || "/";
                 const isActive =
                   location.pathname === itemPath ||
@@ -252,9 +323,9 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
                     )}
                     <Icon size={18} className="flex-shrink-0" />
                     <span className="flex-1 text-left truncate">{item.label}</span>
-                    {(showPendingBadge || showMessagesBadge) && (
+                    {badge > 0 && (
                       <span className="bg-amber-400 text-maroon-900 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
-                        {showPendingBadge ? pendingCount : unreadMessages}
+                        {badge > 99 ? "99+" : badge}
                       </span>
                     )}
                   </button>
