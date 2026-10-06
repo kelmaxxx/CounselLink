@@ -194,18 +194,12 @@ export default function HeroSection() {
             </p>
 
             <div className="flex flex-wrap gap-4">
-              <button
-                onClick={handleGetStarted}
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-maroon-600 font-semibold text-base hover:bg-maroon-50 transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-              >
-                Get Started
-                <ArrowRight size={18} />
-              </button>
               <Link
                 to="/login"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-transparent border-2 border-white/50 text-white font-semibold text-base hover:border-white hover:bg-white/10 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-maroon-600 font-semibold text-base hover:bg-maroon-50 transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
                 Login to Portal
+                <ArrowRight size={18} />
               </Link>
             </div>
 

@@ -214,6 +214,7 @@ export default function ManageUsers() {
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [editModal, setEditModal] = useState({ open: false, user: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, userId: null });
+  const [banReason, setBanReason] = useState("");
   const [corModalOpen, setCorModalOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const actionsRef = useRef(null);
@@ -493,17 +494,22 @@ export default function ManageUsers() {
     setTimeout(() => setMessage(null), 5000);
   };
 
-  const openDeleteConfirm = (userId) => setDeleteConfirm({ open: true, userId });
+  const openDeleteConfirm = (userId) => {
+    setBanReason("");
+    setDeleteConfirm({ open: true, userId });
+  };
 
   const editDepartments = getDepartments(editForm.college);
   const editPrograms = getPrograms(editForm.college, editForm.department);
 
   const handleDelete = async () => {
+    if (!banReason.trim()) return;
     const userId = deleteConfirm.userId;
     setDeleteConfirm({ open: false, userId: null });
-    const res = await banUser(userId);
+    const res = await banUser(userId, banReason.trim());
+    setBanReason("");
     if (res.success) {
-      setMessage({ type: "success", text: "Account banned. The user can no longer log in." });
+      setMessage({ type: "success", text: "Account banned. The user has been notified via email." });
     } else {
       setMessage({ type: "error", text: res.message || "Failed to ban account" });
     }
@@ -1259,28 +1265,48 @@ export default function ManageUsers() {
       {/* Delete/ban confirmation */}
       <Modal
         open={deleteConfirm.open}
-        onClose={() => setDeleteConfirm({ open: false, userId: null })}
+        onClose={() => { setDeleteConfirm({ open: false, userId: null }); setBanReason(""); }}
         title="Ban user"
         subtitle="The account will be suspended immediately."
         danger
         footer={
           <>
             <button
-              onClick={() => setDeleteConfirm({ open: false, userId: null })}
+              onClick={() => { setDeleteConfirm({ open: false, userId: null }); setBanReason(""); }}
               className={BTN.secondary}
             >
               Cancel
             </button>
-            <button onClick={handleDelete} className={BTN.danger}>
+            <button
+              onClick={handleDelete}
+              className={BTN.danger}
+              disabled={!banReason.trim()}
+              title={!banReason.trim() ? "Please provide a reason for banning" : ""}
+            >
               <Trash2 size={14} /> Ban account
             </button>
           </>
         }
       >
-        <p className="text-sm text-gray-700">
-          The user will be blocked from logging in and will see a message to contact the DSA admin.
+        <p className="text-sm text-gray-700 mb-4">
+          The user will be blocked from logging in and will be notified via email with the reason below.
           You can restore the account at any time from <strong>Recover account</strong>.
         </p>
+        <div>
+          <label className={LABEL}>Reason for banning *</label>
+          <textarea
+            className={`${INPUT} min-h-[100px] resize-y`}
+            placeholder="Explain why this account is being banned…"
+            value={banReason}
+            onChange={(e) => setBanReason(e.target.value)}
+            autoFocus
+          />
+          {!banReason.trim() && (
+            <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+              <AlertCircle size={12} /> A reason is required to ban this account.
+            </p>
+          )}
+        </div>
       </Modal>
 
       {/* Recover Account modal */}
