@@ -158,45 +158,78 @@ export default function CounselorDashboard() {
   };
   const todayStr = getLocalTodayStr();
 
-  const isPastTime = (dateStr, timeSlot) => {
-    if (!dateStr) return false;
-    let justDate = "";
-    try {
-      justDate = new Date(dateStr).toISOString().split("T")[0];
-    } catch (e) {
-      justDate = String(dateStr).split("T")[0];
-    }
-    if (justDate < todayStr) return true;
-    if (justDate > todayStr) return false;
-    const h = new Date().getHours();
-    if (!timeSlot) return h >= 17;
-    if (["morning", "9:00-10:00", "10:00-11:00", "11:00-12:00"].includes(timeSlot)) return h >= 12;
-    return h >= 17;
+  // Safely extract a YYYY-MM-DD string without UTC conversion.
+  // new Date("YYYY-MM-DD") treats it as UTC midnight which becomes the
+  // previous calendar day in UTC+8 (Philippines). We strip the T-part
+  // directly from the ISO string or use the raw string if it's already
+  // in YYYY-MM-DD form.
+  const toDateStr = (value) => {
+    if (!value) return "";
+    const s = String(value);
+    // If it's a full ISO timestamp, take the date portion directly
+    if (s.includes("T")) return s.split("T")[0];
+    // Already a date string YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // Fallback: parse and re-format in local time
+    const d = new Date(s);
+    if (isNaN(d)) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
 
-  const isSameDay = (value) => {
-    if (!value) return false;
-    const d = new Date(value);
-    const today = new Date();
-    return (
-      d.getFullYear() === today.getFullYear() &&
-      d.getMonth() === today.getMonth() &&
-      d.getDate() === today.getDate()
-    );
+  // Returns the end-hour of a time slot (the hour at which the slot is over).
+  const slotEndHour = (timeSlot) => {
+    if (!timeSlot) return 17;
+    const s = String(timeSlot).toLowerCase();
+    if (s === "morning") return 12;
+    if (s === "9:00-10:00") return 10;
+    if (s === "10:00-11:00") return 11;
+    if (s === "11:00-12:00") return 12;
+    if (s === "1:00-2:00") return 14;
+    if (s === "2:00-3:00") return 15;
+    if (s === "3:00-4:00") return 16;
+    if (s === "4:00-5:00") return 17;
+    // afternoon / PM blocks
+    if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return 17;
+    return 17;
   };
-  // "Today's appointments" — scheduled to actually happen today.
-  const todayAppointments = myAppointments.filter(
-    (a) => (a.status === "approved" || a.status === "rescheduled") && isSameDay(a.scheduledDate)
-  ).length;
-  // "Incoming appointments" — every appointment still ahead of us.
-  const incomingAppointments = myAppointments.filter(
-    (a) =>
-      (a.status === "approved" || a.status === "rescheduled") &&
-      !isPastTime(
-        a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date,
-        a.scheduledTime || a.scheduled_time || a.preferredTime || a.preferred_time || a.timeSlot || a.time_slot
-      )
-  ).length;
+
+  // True if the appointment date+slot is entirely in the past.
+  const isPastTime = (dateStr, timeSlot) => {
+    if (!dateStr) return false;
+    const justDate = toDateStr(dateStr);
+    if (!justDate) return false;
+    if (justDate < todayStr) return true;  // past day
+    if (justDate > todayStr) return false; // future day
+    // Same day — check if the time slot has already ended
+    return new Date().getHours() >= slotEndHour(timeSlot);
+  };
+
+  // "Today's appointments" — scheduled for today AND the time slot hasn't passed yet.
+  const getApptDate = (a) =>
+    a.scheduledDate || a.scheduled_date || null;
+  const getApptTimeSlot = (a) =>
+    a.scheduledTimeSlot || a.scheduled_time || a.scheduledTime || null;
+
+  const todayAppointments = myAppointments.filter((a) => {
+    if (a.status !== "approved" && a.status !== "rescheduled") return false;
+    const dateStr = toDateStr(getApptDate(a));
+    if (!dateStr || dateStr !== todayStr) return false;
+    // Exclude slots that have already ended
+    return !isPastTime(dateStr, getApptTimeSlot(a));
+  }).length;
+
+  // "Incoming appointments" — approved/rescheduled and not yet past.
+  const incomingAppointments = myAppointments.filter((a) => {
+    if (a.status !== "approved" && a.status !== "rescheduled") return false;
+    const dateStr = toDateStr(
+      a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date
+    );
+    const slot =
+      a.scheduledTimeSlot || a.scheduled_time || a.scheduledTime ||
+      a.preferredTime || a.preferred_time || a.timeSlot || a.time_slot;
+    return !isPastTime(dateStr, slot);
+  }).length;
 
   const topColleges = Object.entries(studentsByCollege).sort((a, b) => b[1] - a[1]);
 
