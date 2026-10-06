@@ -246,7 +246,48 @@ export default function SystemLogs() {
         ) : logs.length === 0 ? (
           <EmptyState icon={Shield} title="No log entries found" hint="Try adjusting the filters above." />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* ── Mobile card view (< sm) ──────────────────────────── */}
+          <div className="sm:hidden divide-y divide-gray-100">
+            {logs.map((log) => {
+              const isStudent = log.actorRole === "student";
+              const actorName = log.actorId == null
+                ? "Public (unauthenticated)"
+                : isStudent
+                  ? censorName(log.actorName || "(deleted user)")
+                  : (log.actorName || "(deleted user)");
+              return (
+                <div key={log.id} className="px-4 py-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className={`text-sm font-medium text-gray-900 ${isStudent ? "font-mono" : ""}`}>{actorName}</p>
+                      <p className="text-[10px] text-gray-400">{ROLE_LABELS[log.actorRole] || log.actorRole || "—"} · {formatTs(log.createdAt)}</p>
+                    </div>
+                    <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200 whitespace-nowrap flex-shrink-0">
+                      {ACTION_LABELS[log.action] || log.action}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                    {log.targetType && <span className="font-mono">{log.targetType}#{log.targetId ?? "—"}</span>}
+                    {log.ipAddress && <span className="font-mono">{log.ipAddress}</span>}
+                    {log.details && (
+                      <button onClick={() => setExpandedId(expandedId === log.id ? null : log.id)} className="text-xs font-medium text-maroon-600 hover:text-maroon-700 transition">
+                        {expandedId === log.id ? "Hide details" : "View details"}
+                      </button>
+                    )}
+                  </div>
+                  {expandedId === log.id && log.details && (
+                    <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all font-mono bg-gray-100 rounded-md p-3 mt-1">
+                      {JSON.stringify(log.details, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Desktop table (sm+) ──────────────────────────────── */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/40 border-b border-gray-100">
@@ -269,16 +310,10 @@ export default function SystemLogs() {
                   return (
                     <React.Fragment key={log.id}>
                       <tr className="hover:bg-gray-50/70 transition">
-                        <td className="px-4 py-3 text-gray-600 text-xs tabular-nums whitespace-nowrap">
-                          {formatTs(log.createdAt)}
-                        </td>
+                        <td className="px-4 py-3 text-gray-600 text-xs tabular-nums whitespace-nowrap">{formatTs(log.createdAt)}</td>
                         <td className="px-4 py-3">
-                          <p className={`text-sm font-medium text-gray-900 break-words ${isStudent ? "font-mono" : ""}`}>
-                            {actorName}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {ROLE_LABELS[log.actorRole] || log.actorRole || "—"}
-                          </p>
+                          <p className={`text-sm font-medium text-gray-900 break-words ${isStudent ? "font-mono" : ""}`}>{actorName}</p>
+                          <p className="text-xs text-gray-500">{ROLE_LABELS[log.actorRole] || log.actorRole || "—"}</p>
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200 whitespace-nowrap">
@@ -293,10 +328,7 @@ export default function SystemLogs() {
                         </td>
                         <td className="px-4 py-3">
                           {log.details ? (
-                            <button
-                              onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                              className="text-xs font-medium text-maroon-600 hover:text-maroon-700 transition"
-                            >
+                            <button onClick={() => setExpandedId(expandedId === log.id ? null : log.id)} className="text-xs font-medium text-maroon-600 hover:text-maroon-700 transition">
                               {expandedId === log.id ? "Hide" : "View"}
                             </button>
                           ) : (
@@ -319,6 +351,8 @@ export default function SystemLogs() {
               </tbody>
             </table>
           </div>
+          </>
+
         )}
 
         <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 flex justify-between items-center">

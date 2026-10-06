@@ -140,7 +140,31 @@ export default function Appointments() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile card view */}
+          <div className="sm:hidden divide-y divide-gray-100">
+            {appointments.map((apt) => (
+              <div key={apt.id} className="px-4 py-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{apt.controlNo}</p>
+                    <p className="text-xs text-gray-500">{currentUser?.role === "student" ? apt.counselorName || "TBD" : apt.studentName}</p>
+                  </div>
+                  <StatusBadge status={apt.status} />
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                  <span><span className="font-medium">Preferred:</span> {apt.preferredDate || "—"}</span>
+                  <span><span className="font-medium">Scheduled:</span> {apt.scheduledDate || "—"}</span>
+                </div>
+                {apt.reason && <p className="text-xs text-gray-500 truncate">{(apt.reason || "").substring(0, 80)}</p>}
+                {currentUser?.role === "student" && ["pending", "approved", "accepted", "rescheduled"].includes(String(apt.status).toLowerCase()) && (
+                  <button onClick={() => handleCancel(apt.id)} className="text-red-500 hover:text-red-700 text-xs font-medium transition">Cancel</button>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
@@ -166,22 +190,14 @@ export default function Appointments() {
                     </td>
                     <td className="py-3 px-4 text-gray-700">{apt.preferredDate || "—"}</td>
                     <td className="py-3 px-4 text-gray-700">{apt.scheduledDate || "—"}</td>
-                    <td className="py-3 px-4">
-                      <StatusBadge status={apt.status} />
-                    </td>
+                    <td className="py-3 px-4"><StatusBadge status={apt.status} /></td>
                     <td className="py-3 px-4 text-gray-600 max-w-xs truncate" title={apt.reason || ""}>
-                      {(apt.reason || "").substring(0, 50)}
-                      {(apt.reason || "").length > 50 ? "..." : ""}
+                      {(apt.reason || "").substring(0, 50)}{(apt.reason || "").length > 50 ? "..." : ""}
                     </td>
                     {currentUser?.role === "student" && (
                       <td className="py-3 px-4">
                         {["pending", "approved", "accepted", "rescheduled"].includes(String(apt.status).toLowerCase()) && (
-                          <button
-                            onClick={() => handleCancel(apt.id)}
-                            className="text-red-500 hover:text-red-700 text-sm font-medium transition"
-                          >
-                            Cancel
-                          </button>
+                          <button onClick={() => handleCancel(apt.id)} className="text-red-500 hover:text-red-700 text-sm font-medium transition">Cancel</button>
                         )}
                       </td>
                     )}
@@ -190,6 +206,8 @@ export default function Appointments() {
               </tbody>
             </table>
           </div>
+          </>
+
         )}
       </div>
 
