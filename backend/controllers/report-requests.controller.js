@@ -275,6 +275,14 @@ export const sendIndividualReport = async (req, res) => {
   }
   const session = sessionRows[0];
 
+  // Require the counselor's digital signature before sending any report.
+  const [sender] = await query("SELECT signature_url FROM users WHERE id = ?", [counselorId]);
+  if (!sender?.signature_url) {
+    return res.status(400).json({
+      message: "You must upload your digital signature (eSign) in your Profile before sending a report.",
+    });
+  }
+
   const payload = buildSessionReportPayload(session);
   const sessionDateStr2 = (session.session_date instanceof Date ? session.session_date.toISOString() : String(session.session_date || "")).split("T")[0];
   const title = `Session Report — ${session.studentName} (${sessionDateStr2})`;

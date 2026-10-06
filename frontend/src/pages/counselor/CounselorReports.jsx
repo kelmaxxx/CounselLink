@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import {
@@ -16,6 +17,8 @@ import {
   Check,
   X,
   Search,
+  AlertTriangle,
+  PenLine,
 } from "lucide-react";
 import {
   PageHeader,
@@ -45,6 +48,7 @@ const REPORTS_PER_PAGE = 10;
 
 export default function CounselorReports() {
   const { token, currentUser } = useAuth();
+  const navigate = useNavigate();
   const { sessions, fetchSessions } = useCounselingSessions();
 
   const [sentReports, setSentReports] = useState([]);
@@ -426,6 +430,27 @@ export default function CounselorReports() {
         />
       </div>
 
+      {!currentUser?.signatureUrl && (
+        <div className="mb-4 px-4 py-3 rounded-xl border border-amber-300 bg-amber-50 flex items-start gap-3">
+          <AlertTriangle size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
+          <div className="text-sm">
+            <p className="font-semibold text-amber-800">Digital signature (eSign) required</p>
+            <p className="text-amber-700 mt-0.5">
+              You must set up your eSign before you can send reports or data to Colleges.
+              Go to your{" "}
+              <button
+                type="button"
+                onClick={() => navigate("/counselor/profile")}
+                className="underline font-medium text-amber-900 hover:text-amber-950 transition"
+              >
+                Profile page
+              </button>{" "}
+              and draw your digital signature.
+            </p>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="mb-3 px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 text-sm">
           {error}
@@ -582,9 +607,10 @@ export default function CounselorReports() {
                           {r.status === "pending" && (r.request_type === "college" || r.request_type === "department") ? (
                             <div className="inline-flex gap-1">
                               <button
-                                onClick={() => openGenerate(r)}
-                                className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
-                                title="Generate & send summary"
+                                onClick={() => currentUser?.signatureUrl ? openGenerate(r) : undefined}
+                                disabled={!currentUser?.signatureUrl}
+                                className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${currentUser?.signatureUrl ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                                title={currentUser?.signatureUrl ? "Generate & send summary" : "Set up your eSign in your Profile first"}
                               >
                                 <Check size={13} /> Generate
                               </button>
@@ -598,10 +624,10 @@ export default function CounselorReports() {
                             </div>
                           ) : r.status === "pending" && r.request_type === "individual" ? (
                             <button
-                              onClick={() => handleSendIndividual(r)}
-                              disabled={sendingId === r.id}
-                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition disabled:opacity-60"
-                              title="Send this student's finalized session report"
+                              onClick={() => currentUser?.signatureUrl ? handleSendIndividual(r) : undefined}
+                              disabled={sendingId === r.id || !currentUser?.signatureUrl}
+                              className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${currentUser?.signatureUrl ? "bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+                              title={currentUser?.signatureUrl ? "Send this student's finalized session report" : "Set up your eSign in your Profile first"}
                             >
                               <Send size={13} /> {sendingId === r.id ? "Sending…" : "Send"}
                             </button>
