@@ -306,8 +306,12 @@ export function AuthProvider({ children }) {
     return { success: true };
   };
 
-  const banUser = async (id) => {
-    const response = await authFetch(`${apiBase}/api/users/${id}/ban`, { method: "PATCH" });
+  const banUser = async (id, reason) => {
+    const response = await authFetch(`${apiBase}/api/users/${id}/ban`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
     const data = await parseResponseJson(response);
     if (!response.ok) return { success: false, message: data.message || "Failed to ban user" };
     setUsers((prev) => prev.map((u) => (u.id === data.id ? data : u)));

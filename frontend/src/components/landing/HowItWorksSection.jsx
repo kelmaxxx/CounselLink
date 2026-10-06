@@ -96,16 +96,6 @@ export default function HowItWorksSection() {
             ))}
           </div>
         </div>
-
-        {/* CTA */}
-        <div className="text-center mt-14">
-          <a
-            href="/login"
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-maroon-500 text-white font-semibold text-base hover:bg-maroon-600 transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5"
-          >
-            Get Started Now
-          </a>
-        </div>
       </div>
     </section>
   );
