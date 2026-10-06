@@ -356,7 +356,6 @@ export default function RequestStudentData() {
           />
         ) : (
           <>
-          <>
             {/* Mobile cards */}
             <div className="sm:hidden divide-y divide-gray-100">
               {pagedRequests.map((r) => (

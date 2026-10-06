@@ -122,7 +122,6 @@ export default function CounselingData() {
           />
         ) : (
           <>
-          <>
             {/* Mobile cards */}
             <div className="sm:hidden divide-y divide-gray-100">
               {pagedReports.map((r) => {

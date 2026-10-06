@@ -661,7 +661,6 @@ export default function CounselorReports() {
             />
           ) : (
             <>
-            <>
             {/* Mobile cards */}
             <div className="sm:hidden divide-y divide-gray-100">
               {pagedSentReports.map((r) => {
@@ -795,7 +794,6 @@ export default function CounselorReports() {
               hint={search.trim() ? "Try a different name or clear the search." : "Submit a session as the final report from the counseling form."}
             />
           ) : (
-            <>
             <>
             {/* Mobile cards */}
             <div className="sm:hidden divide-y divide-gray-100">
