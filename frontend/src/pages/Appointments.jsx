@@ -236,7 +236,38 @@ export default function Appointments() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile cards */}
+          <div className="sm:hidden divide-y divide-gray-100">
+            {tests.map((test) => (
+              <div key={test.id} className="py-4 space-y-2">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{test.testType}</p>
+                    <p className="text-xs text-gray-500 font-mono">{test.controlNo}</p>
+                  </div>
+                  <StatusBadge status={test.status} />
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 bg-gray-50 p-2 rounded-lg">
+                  <div>
+                    <span className="block text-gray-400 mb-0.5">Pref Date</span>
+                    {test.preferredDate}
+                  </div>
+                  <div>
+                    <span className="block text-gray-400 mb-0.5">Scheduled</span>
+                    {test.scheduledDate || "—"}
+                  </div>
+                </div>
+                {currentUser?.role === "student" && ["pending", "approved", "accepted", "rescheduled"].includes(String(test.status).toLowerCase()) && (
+                  <div className="pt-2 flex justify-end">
+                    <button onClick={() => handleCancel(test.id)} className="text-red-500 hover:text-red-700 text-sm font-medium transition">Cancel</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
@@ -279,8 +310,10 @@ export default function Appointments() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>
   );
 }
+

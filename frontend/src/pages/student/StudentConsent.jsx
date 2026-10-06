@@ -48,7 +48,7 @@ export default function StudentConsent() {
 
   if (currentUser?.role !== "student") {
     return (
-      <div className="px-6 py-6 max-w-3xl mx-auto">
+      <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-3xl mx-auto">
         <div className="px-3 py-2 rounded-md border border-amber-200 bg-amber-50 text-amber-800 text-sm">
           This page is only available to students.
         </div>
@@ -57,7 +57,7 @@ export default function StudentConsent() {
   }
 
   return (
-    <div className="px-6 py-6 max-w-4xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-4xl mx-auto">
       <PageHeader
         eyebrow="Student"
         title="My Records"
@@ -374,3 +374,4 @@ function CounselingResultCard({ session, studentName, token, alreadyFeedback, on
     </li>
   );
 }
+

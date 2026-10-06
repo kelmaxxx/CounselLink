@@ -101,7 +101,7 @@ export default function CounselorReferrals() {
   };
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="Counselor"
         title="Referrals"
@@ -156,7 +156,41 @@ export default function CounselorReferrals() {
           />
         ) : (
           <>
-          <div className="overflow-x-auto">
+          {/* Mobile cards */}
+          <div className="sm:hidden divide-y divide-gray-100">
+            {pagedReferrals.map((r) => (
+              <div key={r.id} className="px-4 py-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">{initialsOf(r.studentName)}</div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{r.studentName}</p>
+                      <p className="text-xs text-gray-500 truncate">{r.studentCollege || r.studentEmail || "—"}</p>
+                    </div>
+                  </div>
+                  <StatusPill status={r.status} />
+                </div>
+                <div className="text-xs text-gray-600 space-y-0.5">
+                  <p><span className="font-medium text-gray-500">By: </span>{r.referrerName}{r.referrerCollege ? ` · ${r.referrerCollege}` : ""}</p>
+                  <p className="line-clamp-2">{r.reason}</p>
+                  {r.decision_note && <p className="text-gray-400"><span className="font-medium">Note:</span> {r.decision_note}</p>}
+                  <p className="text-gray-400 tabular-nums">{new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
+                </div>
+                {activeTab === "incoming" && r.status === "pending" && (
+                  <div className="flex gap-1 pt-1">
+                    <button onClick={() => openDecision(r, "accepted")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition">
+                      <CheckCircle2 size={13} /> Accept
+                    </button>
+                    <button onClick={() => openDecision(r, "rejected")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition">
+                      <XCircle size={13} /> Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -173,61 +207,31 @@ export default function CounselorReferrals() {
                   <tr key={r.id} className="hover:bg-gray-50/70 transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                          {initialsOf(r.studentName)}
-                        </div>
+                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">{initialsOf(r.studentName)}</div>
                         <div className="min-w-0">
-                          <div className="font-medium text-gray-900 text-sm truncate">
-                            {r.studentName}
-                          </div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {r.studentCollege || r.studentEmail || "—"}
-                          </div>
+                          <div className="font-medium text-gray-900 text-sm truncate">{r.studentName}</div>
+                          <div className="text-xs text-gray-500 truncate">{r.studentCollege || r.studentEmail || "—"}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-700">
                       <div>{r.referrerName}</div>
-                      {r.referrerCollege && (
-                        <div className="text-xs text-gray-500">{r.referrerCollege}</div>
-                      )}
+                      {r.referrerCollege && <div className="text-xs text-gray-500">{r.referrerCollege}</div>}
                     </td>
                     <td className="px-4 py-3 max-w-sm">
                       <p className="text-gray-700 line-clamp-2">{r.reason}</p>
-                      {r.decision_note && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          <span className="font-medium">Note:</span> {r.decision_note}
-                        </p>
-                      )}
+                      {r.decision_note && <p className="text-xs text-gray-500 mt-0.5"><span className="font-medium">Note:</span> {r.decision_note}</p>}
                     </td>
-                    <td className="px-4 py-3">
-                      <StatusPill status={r.status} />
-                    </td>
+                    <td className="px-4 py-3"><StatusPill status={r.status} /></td>
                     <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
-                      {new Date(r.created_at).toLocaleString(undefined, {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {new Date(r.created_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </td>
                     {activeTab === "incoming" && (
                       <td className="px-4 py-3 text-right">
                         {r.status === "pending" && (
                           <div className="inline-flex gap-1">
-                            <button
-                              onClick={() => openDecision(r, "accepted")}
-                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"
-                            >
-                              <CheckCircle2 size={13} /> Accept
-                            </button>
-                            <button
-                              onClick={() => openDecision(r, "rejected")}
-                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition"
-                            >
-                              <XCircle size={13} /> Reject
-                            </button>
+                            <button onClick={() => openDecision(r, "accepted")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"><CheckCircle2 size={13} /> Accept</button>
+                            <button onClick={() => openDecision(r, "rejected")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition"><XCircle size={13} /> Reject</button>
                           </div>
                         )}
                       </td>
@@ -237,14 +241,11 @@ export default function CounselorReferrals() {
               </tbody>
             </table>
           </div>
-          <Pagination
-            page={currentPage}
-            totalPages={Math.ceil(filtered.length / REFERRALS_PER_PAGE)}
-            onPageChange={setCurrentPage}
-          />
+          <Pagination page={currentPage} totalPages={Math.ceil(filtered.length / REFERRALS_PER_PAGE)} onPageChange={setCurrentPage} />
           </>
         )}
       </SectionCard>
+
 
       <Modal
         open={decisionModal.open}
@@ -377,3 +378,4 @@ function TabBtn({ active, onClick, children, icon, count }) {
     </button>
   );
 }
+

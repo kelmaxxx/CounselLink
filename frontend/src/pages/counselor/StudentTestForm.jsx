@@ -667,3 +667,4 @@ function ReviewLine({ label, value }) {
 function ReviewParagraph({ value }) {
   return <p className="text-sm text-gray-700 whitespace-pre-wrap">{value || "—"}</p>;
 }
+

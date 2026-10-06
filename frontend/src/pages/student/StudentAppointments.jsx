@@ -125,7 +125,7 @@ export default function StudentAppointments() {
   }, [mine, activeTab]);
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="Student"
         title="My appointments"
@@ -434,3 +434,4 @@ function InfoItem({ label, value, className = "" }) {
     </div>
   );
 }
+

@@ -86,7 +86,7 @@ export default function CreateAnnouncement() {
   };
 
   return (
-    <div className="px-6 py-6 max-w-3xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-3xl mx-auto">
       <PageHeader
         eyebrow="Administrator"
         title="Create announcement"
@@ -220,3 +220,4 @@ export default function CreateAnnouncement() {
     </div>
   );
 }
+

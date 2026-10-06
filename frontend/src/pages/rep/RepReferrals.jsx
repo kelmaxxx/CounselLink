@@ -62,7 +62,7 @@ export default function RepReferrals() {
   };
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="College"
         title="Referrals"
@@ -123,7 +123,35 @@ export default function RepReferrals() {
             }
           />
         ) : (
-          <div className="overflow-x-auto">
+        <>
+          {/* Mobile cards */}
+          <div className="sm:hidden divide-y divide-gray-100">
+            {filtered.map((r) => (
+              <div key={r.id} className="px-4 py-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">{initialsOf(r.studentName)}</div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{r.studentName}</p>
+                      <p className="text-xs text-gray-500 truncate">{r.studentDepartment || r.studentCollege || "—"}</p>
+                    </div>
+                  </div>
+                  <StatusPill status={r.status} />
+                </div>
+                <div className="text-xs text-gray-600 space-y-0.5">
+                  <p><span className="font-medium text-gray-500">Counselor: </span>{r.receivingCounselorName || <span className="italic text-gray-400">TBA</span>}</p>
+                  <p className="line-clamp-2">{r.reason}</p>
+                  {r.decision_note && <p className="text-gray-400"><span className="font-medium">Note:</span> {r.decision_note}</p>}
+                  <p className="text-gray-400 tabular-nums">{new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
+                </div>
+                {activeTab === "pending" && r.status === "pending" && (
+                  <button onClick={() => setCancelId(r.id)} className="inline-flex items-center h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition">Cancel</button>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -140,55 +168,28 @@ export default function RepReferrals() {
                   <tr key={r.id} className="hover:bg-gray-50/70 transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                          {initialsOf(r.studentName)}
-                        </div>
+                        <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">{initialsOf(r.studentName)}</div>
                         <div className="min-w-0">
-                          <div className="font-medium text-gray-900 text-sm truncate">
-                            {r.studentName}
-                          </div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {r.studentDepartment || r.studentCollege || "—"}
-                          </div>
+                          <div className="font-medium text-gray-900 text-sm truncate">{r.studentName}</div>
+                          <div className="text-xs text-gray-500 truncate">{r.studentDepartment || r.studentCollege || "—"}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {r.receivingCounselorName ? (
-                        <span className="text-gray-700">{r.receivingCounselorName}</span>
-                      ) : (
-                        <span className="text-gray-400 italic text-xs">To Be Approve</span>
-                      )}
+                      {r.receivingCounselorName ? <span className="text-gray-700">{r.receivingCounselorName}</span> : <span className="text-gray-400 italic text-xs">To Be Approve</span>}
                     </td>
                     <td className="px-4 py-3 max-w-sm">
                       <p className="text-gray-700 line-clamp-2">{r.reason}</p>
-                      {r.decision_note && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          <span className="font-medium">Note:</span> {r.decision_note}
-                        </p>
-                      )}
+                      {r.decision_note && <p className="text-xs text-gray-500 mt-0.5"><span className="font-medium">Note:</span> {r.decision_note}</p>}
                     </td>
-                    <td className="px-4 py-3">
-                      <StatusPill status={r.status} />
-                    </td>
+                    <td className="px-4 py-3"><StatusPill status={r.status} /></td>
                     <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
-                      {new Date(r.created_at).toLocaleString(undefined, {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {new Date(r.created_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </td>
                     {activeTab === "pending" && (
                       <td className="px-4 py-3 text-right">
                         {r.status === "pending" && (
-                          <button
-                            onClick={() => setCancelId(r.id)}
-                            className="inline-flex items-center h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                          >
-                            Cancel
-                          </button>
+                          <button onClick={() => setCancelId(r.id)} className="inline-flex items-center h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition">Cancel</button>
                         )}
                       </td>
                     )}
@@ -197,6 +198,8 @@ export default function RepReferrals() {
               </tbody>
             </table>
           </div>
+        </>
+
         )}
       </SectionCard>
 
@@ -623,3 +626,4 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
     </Modal>
   );
 }
+
