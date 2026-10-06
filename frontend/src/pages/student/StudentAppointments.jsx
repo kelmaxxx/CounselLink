@@ -172,7 +172,47 @@ export default function StudentAppointments() {
           />
         ) : (
           <>
-          <div className="overflow-x-auto">
+          {/* ── Mobile card view (< sm) ─────────────────────────── */}
+          <div className="sm:hidden divide-y divide-gray-100">
+            {visible.slice((page - 1) * APPTS_PER_PAGE, page * APPTS_PER_PAGE).map((a) => (
+              <div key={a.isTest ? `test-${a.id}` : `apt-${a.id}`} className="px-4 py-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 tabular-nums">
+                      {formatDate(a.scheduledDate || a.preferredDate)}
+                    </p>
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                      <Clock size={11} />
+                      {a.scheduledTimeSlot || (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : a.timeSlot) || "—"}
+                    </p>
+                  </div>
+                  <StatusPill status={a.status} />
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                  <span><span className="font-medium text-gray-500">Type: </span>{a.isTest ? "Psychological" : "Counseling"}</span>
+                  <span><span className="font-medium text-gray-500">Counselor: </span>{a.counselorName || "TBD"}</span>
+                  {(a.queueNumber || a.queue_number) && (
+                    <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full tabular-nums ${a.isTest ? "bg-blue-100 text-blue-700" : "bg-sky-100 text-sky-700"}`}>
+                      {(a.queueSlot || a.queue_slot) || ""} #{a.queueNumber || a.queue_number}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button onClick={() => setSelected(a)} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition">
+                    <FileText size={13} /> View
+                  </button>
+                  {["pending", "approved", "accepted", "rescheduled"].includes(String(a.status).toLowerCase()) && (
+                    <button onClick={() => handleCancel(a.id)} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-red-300 bg-red-50 text-xs text-red-700 hover:bg-red-100 transition">
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Desktop table (sm+) ──────────────────────────────── */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
@@ -188,45 +228,29 @@ export default function StudentAppointments() {
                 {visible.slice((page - 1) * APPTS_PER_PAGE, page * APPTS_PER_PAGE).map((a) => (
                   <tr key={a.isTest ? `test-${a.id}` : `apt-${a.id}`} className="hover:bg-gray-50/70 transition">
                     <td className="px-4 py-3">
-                      <div className="text-sm font-medium text-gray-900 tabular-nums">
-                        {formatDate(a.scheduledDate || a.preferredDate)}
-                      </div>
+                      <div className="text-sm font-medium text-gray-900 tabular-nums">{formatDate(a.scheduledDate || a.preferredDate)}</div>
                       <div className="text-xs text-gray-500 inline-flex items-center gap-1 tabular-nums">
                         <Clock size={11} />
-                        {a.scheduledTimeSlot ||
-                          (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : a.timeSlot) ||
-                          "—"}
+                        {a.scheduledTimeSlot || (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : a.timeSlot) || "—"}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {a.isTest ? "Psychological" : "counseling"}
-                    </td>
+                    <td className="px-4 py-3 text-gray-700">{a.isTest ? "Psychological" : "counseling"}</td>
                     <td className="px-4 py-3 text-gray-700">{a.counselorName || "TBD"}</td>
                     <td className="px-4 py-3">
                       {(a.queueNumber || a.queue_number) ? (
                         <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${a.isTest ? "bg-blue-100 text-blue-700" : "bg-sky-100 text-sky-700"}`}>
                           {(a.queueSlot || a.queue_slot) || ""} #{a.queueNumber || a.queue_number}
                         </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">—</span>
-                      )}
+                      ) : <span className="text-xs text-gray-400">—</span>}
                     </td>
-                    <td className="px-4 py-3">
-                      <StatusPill status={a.status} />
-                    </td>
+                    <td className="px-4 py-3"><StatusPill status={a.status} /></td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setSelected(a)}
-                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
-                        >
+                        <button onClick={() => setSelected(a)} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition">
                           <FileText size={13} /> View
                         </button>
                         {["pending", "approved", "accepted", "rescheduled"].includes(String(a.status).toLowerCase()) && (
-                          <button
-                            onClick={() => handleCancel(a.id)}
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-red-300 bg-red-50 text-xs text-red-700 hover:bg-red-100 transition"
-                          >
+                          <button onClick={() => handleCancel(a.id)} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-red-300 bg-red-50 text-xs text-red-700 hover:bg-red-100 transition">
                             Cancel
                           </button>
                         )}
@@ -237,12 +261,10 @@ export default function StudentAppointments() {
               </tbody>
             </table>
           </div>
-          <Pagination
-            page={page}
-            totalPages={Math.ceil(visible.length / APPTS_PER_PAGE)}
-            onPageChange={setPage}
-          />
+
+          <Pagination page={page} totalPages={Math.ceil(visible.length / APPTS_PER_PAGE)} onPageChange={setPage} />
           </>
+
         )}
       </SectionCard>
 

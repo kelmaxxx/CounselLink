@@ -113,89 +113,125 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
     return <EmptyState title={emptyText} />;
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm min-w-[640px]">
-        <thead>
-          <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
-            <th className="px-4 py-2.5">Name</th>
-            {columns.map((col) => (
-              <th key={col.header} className="px-4 py-2.5">
-                {col.header}
-              </th>
-            ))}
-            <th className="px-4 py-2.5">Status</th>
-            <th className="px-4 py-2.5 w-24 text-right">Action</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {rows.map((u) => {
-            const { status, label } = statusInfo(u);
-            return (
-              <tr key={u.id} className="hover:bg-gray-50/70 transition">
-                <td className="px-4 py-3">
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">
-                      {initialsOf(u.name)}
-                    </div>
-                    <span className="font-medium text-gray-900 text-sm break-words leading-snug">{u.name}</span>
+    <>
+      {/* ── Mobile card view (< sm) ─────────────────────────────── */}
+      <div className="sm:hidden divide-y divide-gray-100">
+        {rows.map((u) => {
+          const { status, label } = statusInfo(u);
+          return (
+            <div key={u.id} className="px-4 py-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                    {initialsOf(u.name)}
                   </div>
-                </td>
+                  <p className="text-sm font-semibold text-gray-900 truncate">{u.name}</p>
+                </div>
+                <StatusPill status={status}>{label}</StatusPill>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 pl-10">
                 {columns.map((col) => (
-                  <td key={col.header} className="px-4 py-3 text-gray-700 text-sm break-words leading-snug">
+                  <span key={col.header}>
+                    <span className="font-medium text-gray-500">{col.header}: </span>
                     {col.render(u)}
-                  </td>
+                  </span>
                 ))}
-                <td className="px-4 py-3">
-                  <StatusPill status={status}>{label}</StatusPill>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="inline-flex items-center gap-1">
-                    {u.status === "pending_setup" && (
-                      <>
-                        <button
-                          onClick={() => onEdit(u)}
-                          title="Re-edit account details & resend invitation"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition"
-                        >
+              </div>
+              <div className="flex items-center gap-1 pl-10">
+                {u.status === "pending_setup" && (
+                  <>
+                    <button onClick={() => onEdit(u)} title="Re-edit & resend" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition">
+                      <Edit2 size={13} />
+                    </button>
+                    <button onClick={() => onResendInvite(u)} title="Resend invitation" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
+                      <RotateCcw size={13} />
+                    </button>
+                  </>
+                )}
+                {!hideEdit && u.status !== "pending_setup" && (
+                  <button onClick={() => onEdit(u)} title="Edit user" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition">
+                    <Edit2 size={13} />
+                  </button>
+                )}
+                {!hideDelete && (
+                  <button onClick={() => onDelete(u.id)} title="Ban account" className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition">
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Desktop table (sm+) ──────────────────────────────────── */}
+      <div className="hidden sm:block overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
+          <thead>
+            <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+              <th className="px-4 py-2.5">Name</th>
+              {columns.map((col) => (
+                <th key={col.header} className="px-4 py-2.5">{col.header}</th>
+              ))}
+              <th className="px-4 py-2.5">Status</th>
+              <th className="px-4 py-2.5 w-24 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {rows.map((u) => {
+              const { status, label } = statusInfo(u);
+              return (
+                <tr key={u.id} className="hover:bg-gray-50/70 transition">
+                  <td className="px-4 py-3">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">
+                        {initialsOf(u.name)}
+                      </div>
+                      <span className="font-medium text-gray-900 text-sm break-words leading-snug">{u.name}</span>
+                    </div>
+                  </td>
+                  {columns.map((col) => (
+                    <td key={col.header} className="px-4 py-3 text-gray-700 text-sm break-words leading-snug">
+                      {col.render(u)}
+                    </td>
+                  ))}
+                  <td className="px-4 py-3">
+                    <StatusPill status={status}>{label}</StatusPill>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="inline-flex items-center gap-1">
+                      {u.status === "pending_setup" && (
+                        <>
+                          <button onClick={() => onEdit(u)} title="Re-edit account details & resend invitation" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition">
+                            <Edit2 size={13} />
+                          </button>
+                          <button onClick={() => onResendInvite(u)} title="Resend invitation email" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
+                            <RotateCcw size={13} />
+                          </button>
+                        </>
+                      )}
+                      {!hideEdit && u.status !== "pending_setup" && (
+                        <button onClick={() => onEdit(u)} title="Edit user" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition">
                           <Edit2 size={13} />
                         </button>
-                        <button
-                          onClick={() => onResendInvite(u)}
-                          title="Resend invitation email"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
-                        >
-                          <RotateCcw size={13} />
+                      )}
+                      {!hideDelete && (
+                        <button onClick={() => onDelete(u.id)} title="Ban account" className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition">
+                          <Trash2 size={13} />
                         </button>
-                      </>
-                    )}
-                    {!hideEdit && u.status !== "pending_setup" && (
-                      <button
-                        onClick={() => onEdit(u)}
-                        title="Edit user"
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition"
-                      >
-                        <Edit2 size={13} />
-                      </button>
-                    )}
-                    {!hideDelete && (
-                      <button
-                        onClick={() => onDelete(u.id)}
-                        title="Ban account"
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
+
 
 export default function ManageUsers() {
   const { users, createUser, updateUser, deleteUser, banUser, unbanUser } = useAuth();
