@@ -32,10 +32,28 @@ import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/ph
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const TIME_BLOCKS = [
-  { label: "9:00 AM – 12:00 PM", value: "9:00-12:00", description: "Morning slot" },
-  { label: "1:00 PM – 5:00 PM", value: "1:00-5:00", description: "Afternoon slot" },
+  { label: "9:00 AM – 12:00 PM", value: "9:00-12:00", description: "Morning slot", cutoffHour: 12 },
+  { label: "1:00 PM – 5:00 PM",  value: "1:00-5:00",  description: "Afternoon slot", cutoffHour: 17 },
 ];
 const slotLabel = (value) => TIME_BLOCKS.find((s) => s.value === value)?.label || value;
+
+// Returns true if the slot's time window has already closed for a given date.
+// If dateISO is not today, always returns false (future dates are fine).
+const isSlotPast = (block, dateISO) => {
+  const pad = (n) => String(n).padStart(2, "0");
+  const d = new Date();
+  const todayISO = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  if (dateISO !== todayISO) return false;
+  return d.getHours() >= block.cutoffHour;
+};
+
+// True if today still has at least one valid (not-yet-past) slot.
+const todayHasSlots = () => {
+  const pad = (n) => String(n).padStart(2, "0");
+  const d = new Date();
+  const todayISO = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return TIME_BLOCKS.some((b) => !isSlotPast(b, todayISO));
+};
 
 const STEPS = [
   { id: "details", title: "Your details" },
@@ -68,7 +86,17 @@ const startOfToday = () => {
   return d;
 };
 const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
-const isSelectableDate = (d) => d >= startOfToday() && !isWeekend(d);
+// A date is selectable if it's not a weekend, not before today, and — if it IS
+// today — it still has at least one time slot that hasn't passed yet.
+const isSelectableDate = (d) => {
+  if (d < startOfToday() || isWeekend(d)) return false;
+  const pad = (n) => String(n).padStart(2, "0");
+  const now = new Date();
+  const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const dISO = toISO(d);
+  if (dISO === todayISO) return todayHasSlots();
+  return true;
+};
 const formatLong = (iso) =>
   iso
     ? new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
@@ -79,7 +107,7 @@ const formatLong = (iso) =>
     })
     : "";
 
-// First open weekday from today (skips weekends/past).
+// First open weekday from today (skips weekends, past, and today-if-all-slots-gone).
 const firstAvailableDate = () => {
   const d = startOfToday();
   while (!isSelectableDate(d)) d.setDate(d.getDate() + 1);
@@ -688,24 +716,38 @@ function ScheduleStep({ form, setField, selectSlot, firstAvail, quickBook }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {TIME_BLOCKS.map((block) => {
             const active = form.preferredSlots.includes(block.value);
+            const past = form.date ? isSlotPast(block, form.date) : false;
+            const disabled = !form.date || past;
             return (
               <button
                 key={block.value}
                 type="button"
-                disabled={!form.date}
-                onClick={() => selectSlot(block.value)}
+                disabled={disabled}
+                onClick={() => !disabled && selectSlot(block.value)}
                 className={[
-                  "rounded-xl border p-4 text-left transition",
-                  active
+                  "rounded-xl border p-4 text-left transition relative",
+                  active && !past
                     ? "bg-maroon-500 border-maroon-500 ring-2 ring-maroon-300"
+                    : past
+                    ? "bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed"
+                    : disabled
+                    ? "opacity-50 cursor-not-allowed hover:bg-white hover:border-gray-200 bg-white border-gray-200"
                     : "bg-white border-gray-200 hover:border-maroon-300 hover:bg-maroon-50",
-                  !form.date ? "opacity-50 cursor-not-allowed hover:bg-white hover:border-gray-200" : "",
                 ].join(" ")}
               >
-                <p className={`text-sm font-semibold mb-0.5 ${active ? "text-white" : "text-gray-900"}`}>
-                  {block.description.split(" ")[0]}
-                </p>
-                <p className={`text-xs ${active ? "text-maroon-100" : "text-gray-500"}`}>{block.label}</p>
+                <div className="flex items-start justify-between gap-1">
+                  <div>
+                    <p className={`text-sm font-semibold mb-0.5 ${active && !past ? "text-white" : "text-gray-900"}`}>
+                      {block.description.split(" ")[0]}
+                    </p>
+                    <p className={`text-xs ${active && !past ? "text-maroon-100" : "text-gray-500"}`}>{block.label}</p>
+                  </div>
+                  {past && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 flex-shrink-0">
+                      Passed
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
