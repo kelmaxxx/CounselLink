@@ -6,49 +6,44 @@ import {
   Users,
   FileText,
   ArrowRightLeft,
-  BarChart3,
-  Building2,
-  BookOpen,
   ClipboardList,
   Stethoscope,
   Brain,
+  Building2,
+  BookOpen,
+  Calendar,
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  LabelList,
-} from "recharts";
-import { PageHeader, BigStat, SectionCard, BTN } from "../../components/ui";
+import { PageHeader, BigStat, SectionCard, BTN, DonutStat, RankedBarChart, VerticalBarChart, TrendAreaChart, EmptyState } from "../../components/ui";
 import WelcomeHero from "../../components/WelcomeHero";
 import { getCollege } from "../../data/msuColleges";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-// Custom Tooltip for Recharts
-function CustomChartTooltip({ active, payload, label }) {
-  if (active && payload && payload.length) {
-    const item = payload[0];
-    const data = item.payload;
-    return (
-      <div className="bg-white p-3 rounded-xl shadow-lg border border-gray-100 text-xs">
-        <p className="font-semibold text-gray-900 mb-1">{data.name || label}</p>
-        <p className="text-gray-600 flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: item.fill || item.color }} />
-          Count: <span className="font-bold text-gray-900">{item.value}</span>
-        </p>
-        {data.students !== undefined && (
-          <p className="text-gray-500 mt-1">Unique Students: <span className="font-semibold text-gray-700">{data.students}</span></p>
-        )}
-      </div>
-    );
-  }
-  return null;
+// Short label for column charts ("BS Psychology (BSP)" -> "BSP",
+// "Bachelor of Science in Computer Science" -> "BSCS").
+function shortOf(name = "") {
+  const paren = name.match(/\(([^)]+)\)/);
+  if (paren) return paren[1].slice(0, 8);
+  const stop = new Set(["of", "in", "and", "major", "the", "for", "program", "bachelor", "master", "science", "arts"]);
+  const words = name.split(/[\s/-]+/).filter(Boolean);
+  const initials = words
+    .filter((w) => !stop.has(w.toLowerCase()))
+    .map((w) => w[0].toUpperCase())
+    .join("")
+    .slice(0, 5);
+  return initials || name.slice(0, 5);
+}
+
+// YYYY-MM-DD without UTC shift (matches CounselorDashboard helper).
+function toDateStr(value) {
+  if (!value) return "";
+  const s = String(value);
+  if (s.includes("T")) return s.split("T")[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  if (isNaN(d)) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export default function RepresentativeDashboard() {
@@ -60,7 +55,6 @@ export default function RepresentativeDashboard() {
   const [testingApps, setTestingApps] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("all");
 
   const canonicalCollege = useMemo(() => getCollege(myCollege), [myCollege]);
 
@@ -103,27 +97,6 @@ export default function RepresentativeDashboard() {
       return c === collegeName || (collegeCode && c === collegeCode);
     });
   }, [studentsList, myCollege, canonicalCollege]);
-
-  // 1. Data for Request Types Bar Chart (Counseling vs Psychological Testing)
-  const requestTypesBarData = useMemo(() => {
-    const uniqueCounselingStudents = new Set(counselingApps.map((a) => a.student_id)).size;
-    const uniqueTestingStudents = new Set(testingApps.map((a) => a.student_id)).size;
-
-    return [
-      {
-        name: "Counseling Requests",
-        value: counselingApps.length,
-        students: uniqueCounselingStudents,
-        color: "#800000", // Maroon
-      },
-      {
-        name: "Psychological Testing Requests",
-        value: testingApps.length,
-        students: uniqueTestingStudents,
-        color: "#0284c7", // Sky blue
-      },
-    ];
-  }, [counselingApps, testingApps]);
 
   // 2. Data for Department Breakdown Bar Chart (in rep's college only)
   const deptBarData = useMemo(() => {
@@ -184,6 +157,62 @@ export default function RepresentativeDashboard() {
       }));
   }, [canonicalCollege, collegeStudents]);
 
+  // ── Chart-ready derivatives: one visual language per card ─────────────
+  // Requests (2 slices) -> donut · Departments (long names) -> ranked
+  // horizontal bars · Courses (many programs) -> vertical columns with
+  // short codes · Volume over time -> gradient area trend.
+  const uniqueCounselingStudents = useMemo(
+    () => new Set(counselingApps.map((a) => a.student_id)).size,
+    [counselingApps]
+  );
+  const uniqueTestingStudents = useMemo(
+    () => new Set(testingApps.map((a) => a.student_id)).size,
+    [testingApps]
+  );
+  const requestDonutData = useMemo(
+    () => [
+      { name: "Counseling", value: counselingApps.length, color: "#800000" },
+      { name: "Psych testing", value: testingApps.length, color: "#0284c7" },
+    ],
+    [counselingApps.length, testingApps.length]
+  );
+  const requestTotal = counselingApps.length + testingApps.length;
+
+  const courseVerticalData = useMemo(
+    () =>
+      courseBarData.map((d) => ({
+        ...d,
+        short: shortOf(d.name),
+      })),
+    [courseBarData]
+  );
+
+  const requestTrend = useMemo(() => {
+    const days = [];
+    for (let i = 13; i >= 0; i -= 1) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const pad = (n) => String(n).padStart(2, "0");
+      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      days.push({
+        key,
+        label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        appointments: 0,
+        tests: 0,
+      });
+    }
+    const byKey = Object.fromEntries(days.map((d) => [d.key, d]));
+    counselingApps.forEach((a) => {
+      const k = toDateStr(a.createdAt || a.created_at || a.preferredDate || a.preferred_date);
+      if (k && byKey[k]) byKey[k].appointments += 1;
+    });
+    testingApps.forEach((t) => {
+      const k = toDateStr(t.createdAt || t.created_at || t.preferredDate);
+      if (k && byKey[k]) byKey[k].tests += 1;
+    });
+    return days;
+  }, [counselingApps, testingApps]);
+
   const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Representative";
 
   return (
@@ -240,229 +269,86 @@ export default function RepresentativeDashboard() {
           </Link>
         </div>
 
-        {/* Analytics & Demographics Bar Charts Section */}
-        <SectionCard
-          title={
-            <div className="flex items-center gap-2">
-              <BarChart3 size={18} className="text-maroon-600" />
-              <span>College Demographics & Request Analytics</span>
-            </div>
-          }
-          subtitle={`Visual distribution for ${myCollege || "your college"} only`}
-          action={
-            <div className="flex items-center bg-gray-100 p-1 rounded-xl gap-1 text-xs">
-              <button
-                onClick={() => setActiveTab("all")}
-                className={`px-3 py-1.5 rounded-lg font-medium transition ${activeTab === "all"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
-                  }`}
-              >
-                All Bar Charts
-              </button>
-              <button
-                onClick={() => setActiveTab("requests")}
-                className={`px-3 py-1.5 rounded-lg font-medium transition ${activeTab === "requests"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
-                  }`}
-              >
-                Requests
-              </button>
-              <button
-                onClick={() => setActiveTab("department")}
-                className={`px-3 py-1.5 rounded-lg font-medium transition ${activeTab === "department"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
-                  }`}
-              >
-                By Department
-              </button>
-              <button
-                onClick={() => setActiveTab("course")}
-                className={`px-3 py-1.5 rounded-lg font-medium transition ${activeTab === "course"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
-                  }`}
-              >
-                By Course
-              </button>
-            </div>
-          }
-        >
-          {loading ? (
+        {/* Analytics — one visual per card: donut + ranked bars + columns + trend */}
+        {loading ? (
+          <SectionCard title="College analytics" subtitle={`Visual distribution for ${myCollege || "your college"} only`}>
             <div className="py-12 text-center text-sm text-gray-500">Loading college analytics…</div>
-          ) : (
-            <div className="space-y-8 py-2">
-              {/* 1. Request Types Bar Chart */}
-              {(activeTab === "all" || activeTab === "requests") && (
-                <div className="bg-gray-50/70 p-5 rounded-2xl border border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                        <Stethoscope size={16} className="text-maroon-600" />
-                        Counseling vs. Psychological Testing Requests
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Total student requests submitted in {myCollege || "your college"}
-                      </p>
-                    </div>
-                    <div className="text-right text-xs text-gray-500">
-                      <span className="font-semibold text-gray-900">
-                        {counselingApps.length + testingApps.length}
-                      </span>{" "}
-                      Total Requests
-                    </div>
+          </SectionCard>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              <SectionCard
+                className="lg:col-span-2"
+                title="Request mix"
+                subtitle={`Counseling vs. testing in ${myCollege || "your college"}`}
+              >
+                <DonutStat
+                  data={requestDonutData}
+                  total={requestTotal}
+                  centerLabel="requests"
+                  emptyIcon={Stethoscope}
+                  emptyTitle="No requests yet"
+                  stack
+                />
+                <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+                  <div className="rounded-xl bg-gray-50 px-3 py-2">
+                    <p className="text-lg font-semibold text-gray-900 tabular-nums">{uniqueCounselingStudents}</p>
+                    <p className="text-[11px] text-gray-500">Unique students · counseling</p>
                   </div>
-                  <div style={{ width: "100%", height: 180 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={requestTypesBarData}
-                        layout="vertical"
-                        margin={{ top: 10, right: 40, left: 10, bottom: 10 }}
-                        barCategoryGap="25%"
-                      >
-                        <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} />
-                        <YAxis
-                          type="category"
-                          dataKey="name"
-                          width={210}
-                          tick={{ fontSize: 12, fill: "#334155", fontWeight: 500 }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <Tooltip content={<CustomChartTooltip />} />
-                        <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={28}>
-                          {requestTypesBarData.map((d) => (
-                            <Cell key={d.name} fill={d.color} />
-                          ))}
-                          <LabelList
-                            dataKey="value"
-                            position="right"
-                            style={{ fontSize: 13, fill: "#1e293b", fontWeight: 600 }}
-                          />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="rounded-xl bg-gray-50 px-3 py-2">
+                    <p className="text-lg font-semibold text-gray-900 tabular-nums">{uniqueTestingStudents}</p>
+                    <p className="text-[11px] text-gray-500">Unique students · testing</p>
                   </div>
                 </div>
-              )}
+              </SectionCard>
 
-              {/* 2. Department Breakdown Bar Chart */}
-              {(activeTab === "all" || activeTab === "department") && (
-                <div className="bg-gray-50/70 p-5 rounded-2xl border border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                        <Building2 size={16} className="text-emerald-600" />
-                        Student Distribution by Department
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Students registered in every department under {myCollege || "your college"}
-                      </p>
-                    </div>
-                    <div className="text-right text-xs text-gray-500">
-                      <span className="font-semibold text-gray-900">{collegeStudents.length}</span> Total Students
-                    </div>
-                  </div>
-                  {deptBarData.length === 0 ? (
-                    <p className="text-xs text-gray-400 py-4 text-center">No department data recorded yet.</p>
-                  ) : (
-                    <div style={{ width: "100%", height: Math.max(deptBarData.length * 45, 160) }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={deptBarData}
-                          layout="vertical"
-                          margin={{ top: 10, right: 40, left: 10, bottom: 10 }}
-                          barCategoryGap="20%"
-                        >
-                          <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} />
-                          <YAxis
-                            type="category"
-                            dataKey="name"
-                            width={220}
-                            tick={{ fontSize: 12, fill: "#334155" }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
-                          <Tooltip content={<CustomChartTooltip />} />
-                          <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={24}>
-                            {deptBarData.map((d) => (
-                              <Cell key={d.name} fill={d.color} />
-                            ))}
-                            <LabelList
-                              dataKey="value"
-                              position="right"
-                              style={{ fontSize: 12, fill: "#1e293b", fontWeight: 600 }}
-                            />
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 3. Course / Program Breakdown Bar Chart */}
-              {(activeTab === "all" || activeTab === "course") && (
-                <div className="bg-gray-50/70 p-5 rounded-2xl border border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                        <BookOpen size={16} className="text-sky-600" />
-                        Student Distribution by Course / Program
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Students registered in every course offered under {myCollege || "your college"}
-                      </p>
-                    </div>
-                    <div className="text-right text-xs text-gray-500">
-                      <span className="font-semibold text-gray-900">{courseBarData.length}</span> Courses Listed
-                    </div>
-                  </div>
-                  {courseBarData.length === 0 ? (
-                    <p className="text-xs text-gray-400 py-4 text-center">No course data recorded yet.</p>
-                  ) : (
-                    <div style={{ width: "100%", height: Math.max(courseBarData.length * 42, 180) }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={courseBarData}
-                          layout="vertical"
-                          margin={{ top: 10, right: 40, left: 10, bottom: 10 }}
-                          barCategoryGap="18%"
-                        >
-                          <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} />
-                          <YAxis
-                            type="category"
-                            dataKey="name"
-                            width={240}
-                            tick={{ fontSize: 11, fill: "#334155" }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
-                          <Tooltip content={<CustomChartTooltip />} />
-                          <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={22}>
-                            {courseBarData.map((d) => (
-                              <Cell key={d.name} fill={d.color} />
-                            ))}
-                            <LabelList
-                              dataKey="value"
-                              position="right"
-                              style={{ fontSize: 12, fill: "#1e293b", fontWeight: 600 }}
-                            />
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </div>
-              )}
+              <SectionCard
+                className="lg:col-span-3"
+                title="Students by department"
+                subtitle={`${collegeStudents.length} students across ${deptBarData.length} departments`}
+              >
+                {deptBarData.length === 0 ? (
+                  <EmptyState icon={Building2} title="No department data yet" hint="Students registered under your college will appear here." />
+                ) : (
+                  <RankedBarChart
+                    data={deptBarData}
+                    labelWidth={130}
+                    maxRows={6}
+                    emptyIcon={Building2}
+                    emptyTitle="No department data yet"
+                    title="Students by Department"
+                  />
+                )}
+              </SectionCard>
             </div>
-          )}
-        </SectionCard>
+
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-4">
+              <SectionCard
+                className="lg:col-span-2"
+                title="Students by course"
+                subtitle={`${courseBarData.length} courses · hover a column for the full name`}
+              >
+                <VerticalBarChart
+                  data={courseVerticalData}
+                  emptyIcon={BookOpen}
+                  emptyTitle="No course data yet"
+                />
+              </SectionCard>
+
+              <SectionCard
+                className="lg:col-span-3"
+                title="Request volume"
+                subtitle="Counseling vs. testing · last 14 days"
+              >
+                <TrendAreaChart
+                  data={requestTrend}
+                  emptyIcon={Calendar}
+                  emptyTitle="No activity yet"
+                />
+              </SectionCard>
+            </div>
+          </>
+        )}
       </div>
     </>
   );

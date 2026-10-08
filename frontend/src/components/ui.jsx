@@ -14,6 +14,8 @@ import {
   YAxis,
   CartesianGrid,
   LabelList,
+  AreaChart,
+  Area,
 } from "recharts";
 
 export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }) {
@@ -322,6 +324,128 @@ export function RankedBarChart({
         </div>
       </Modal>
     </>
+  );
+}
+
+// ── 14-day activity trend (area chart) ─────────────────────────────────
+// Time-series view with soft gradient fills. `data` items:
+// { label, appointments, tests }. Renders its own legend + empty state.
+export function TrendAreaChart({ data, emptyIcon, emptyTitle = "No activity yet" }) {
+  const hasData = (data || []).some((d) => (d.appointments || 0) + (d.tests || 0) > 0);
+  if (!data?.length || !hasData) {
+    return <EmptyState icon={emptyIcon} title={emptyTitle} hint="New requests will show up here as a daily trend." />;
+  }
+  return (
+    <div>
+      <div className="flex items-center gap-4 px-1 pb-2 text-xs text-gray-500">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#0B6623" }} />
+          Appointments
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#0ea5e9" }} />
+          Tests
+        </span>
+      </div>
+      <div style={{ width: "100%", height: 250 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="trendAppt" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#0B6623" stopOpacity={0.28} />
+                <stop offset="100%" stopColor="#0B6623" stopOpacity={0.02} />
+              </linearGradient>
+              <linearGradient id="trendTest" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.28} />
+                <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} stroke="#f1f5f9" />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 11, fill: "#6b7280" }}
+              tickLine={false}
+              axisLine={false}
+              minTickGap={28}
+            />
+            <YAxis
+              allowDecimals={false}
+              width={30}
+              tick={{ fontSize: 11, fill: "#6b7280" }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip
+              contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}
+              labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+            />
+            <Area
+              type="monotone"
+              dataKey="appointments"
+              name="Appointments"
+              stroke="#0B6623"
+              strokeWidth={2.5}
+              fill="url(#trendAppt)"
+              dot={false}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+            />
+            <Area
+              type="monotone"
+              dataKey="tests"
+              name="Tests"
+              stroke="#0ea5e9"
+              strokeWidth={2.5}
+              fill="url(#trendTest)"
+              dot={false}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// ── Vertical demand bars ─────────────────────────────────────────────
+// Compact column chart for few short-labeled categories (e.g. time slots).
+// `data` items: { name, short, value, color }.
+export function VerticalBarChart({ data, emptyIcon, emptyTitle = "No data yet", height = 250 }) {
+  if (!data?.length || data.every((d) => !d.value)) {
+    return <EmptyState icon={emptyIcon} title={emptyTitle} />;
+  }
+  return (
+    <div style={{ width: "100%", height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 12, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%">
+          <CartesianGrid vertical={false} stroke="#f1f5f9" />
+          <XAxis
+            dataKey="short"
+            tick={{ fontSize: 11, fill: "#4b5563" }}
+            tickLine={false}
+            axisLine={{ stroke: "#e5e7eb" }}
+            interval={0}
+          />
+          <YAxis
+            allowDecimals={false}
+            width={30}
+            tick={{ fontSize: 11, fill: "#6b7280" }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <Tooltip
+            cursor={{ fill: "#f8fafc" }}
+            contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}
+            formatter={(value, _name, props) => [value, props?.payload?.name || "Requests"]}
+          />
+          <Bar dataKey="value" radius={[8, 8, 3, 3]} maxBarSize={46}>
+            {data.map((d) => (
+              <Cell key={d.name} fill={d.color} />
+            ))}
+            <LabelList dataKey="value" position="top" style={{ fontSize: 11, fill: "#374151", fontWeight: 700 }} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 

@@ -25,7 +25,7 @@ import ProfileViewModal from "../../components/ProfileViewModal";
 import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
 import { useReferrals } from "../../context/ReferralsContext";
-import { SectionCard, EmptyState, BigStat, RankedBarChart, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
+import { SectionCard, EmptyState, BigStat, RankedBarChart, DonutStat, TrendAreaChart, VerticalBarChart, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
 
 const COLLEGE_COLORS = [
   "#0B6623", "#1d4ed8", "#c2410c", "#7e22ce", "#0e7490", "#9f1239",
@@ -276,6 +276,78 @@ export default function CounselorDashboard() {
       value,
     }));
   }, [myAppointments, myTests, referrals, currentUser]);
+
+  // ── Chart-ready derivatives (varied visuals: bars + donut + trend) ────
+  const statusDonutData = useMemo(
+    () =>
+      appointmentStatusBreakdown.map((entry) => ({
+        name: entry.name,
+        value: entry.value,
+        color: STATUS_COLORS[entry.name.toLowerCase()] || "#94a3b8",
+      })),
+    [appointmentStatusBreakdown]
+  );
+  const statusTotal = useMemo(
+    () => statusDonutData.reduce((sum, d) => sum + d.value, 0),
+    [statusDonutData]
+  );
+
+  // Last-14-days request volume, split into two series so the area chart
+  // has depth instead of a single flat line.
+  const activityTrend = useMemo(() => {
+    const days = [];
+    for (let i = 13; i >= 0; i -= 1) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const pad = (n) => String(n).padStart(2, "0");
+      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      days.push({
+        key,
+        label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        appointments: 0,
+        tests: 0,
+      });
+    }
+    const byKey = Object.fromEntries(days.map((d) => [d.key, d]));
+    myAppointments.forEach((a) => {
+      const k = toDateStr(a.createdAt || a.created_at || a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date);
+      if (k && byKey[k]) byKey[k].appointments += 1;
+    });
+    myTests.forEach((t) => {
+      const k = toDateStr(t.createdAt || t.created_at || t.preferredDate);
+      if (k && byKey[k]) byKey[k].tests += 1;
+    });
+    return days;
+  }, [myAppointments, myTests]);
+
+  // Demand by time slot — vertical columns, a different read than the
+  // horizontal ranked bars above.
+  const slotDemand = useMemo(() => {
+    const defs = [
+      { key: "9:00-10:00", name: "9:00 – 10:00 AM", short: "9–10a", color: "#0B6623" },
+      { key: "10:00-11:00", name: "10:00 – 11:00 AM", short: "10–11a", color: "#1d4ed8" },
+      { key: "11:00-12:00", name: "11:00 – 12:00 PM", short: "11–12p", color: "#0e7490" },
+      { key: "1:00-2:00", name: "1:00 – 2:00 PM", short: "1–2p", color: "#c2410c" },
+      { key: "2:00-3:00", name: "2:00 – 3:00 PM", short: "2–3p", color: "#7e22ce" },
+      { key: "3:00-4:00", name: "3:00 – 4:00 PM", short: "3–4p", color: "#be185d" },
+      { key: "4:00-5:00", name: "4:00 – 5:00 PM", short: "4–5p", color: "#b45309" },
+    ];
+    const counts = Object.fromEntries(defs.map((d) => [d.key, 0]));
+    const pickSlot = (a) =>
+      a.scheduledTimeSlot || a.scheduled_time || a.scheduledTime ||
+      a.preferredTime || a.preferred_time || a.timeSlot || a.time_slot ||
+      (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : null) ||
+      (typeof a.preferred_slots === "string" ? a.preferred_slots.split(",")[0] : null);
+    myAppointments.forEach((a) => {
+      const raw = String(pickSlot(a) || "").trim();
+      if (counts[raw] !== undefined) counts[raw] += 1;
+    });
+    myTests.forEach((t) => {
+      const raw = String(Array.isArray(t.preferredSlots) ? t.preferredSlots[0] : t.preferredTime || "").trim();
+      if (counts[raw] !== undefined) counts[raw] += 1;
+    });
+    return defs.map((d) => ({ ...d, value: counts[d.key] }));
+  }, [myAppointments, myTests]);
 
   // ── Handlers ─────────────────────────────────────────────────────────
   const handleAccept = async (id) => {
@@ -539,11 +611,12 @@ export default function CounselorDashboard() {
         />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      {/* Charts — mixed visuals: ranked bars + donut + trend */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
         <SectionCard
+          className="lg:col-span-3"
           title="Students by college"
-          subtitle="Distribution of your caseload"
+          subtitle="Ranked distribution of your caseload"
         >
           <RankedBarChart
             data={topColleges
@@ -562,19 +635,44 @@ export default function CounselorDashboard() {
         </SectionCard>
 
         <SectionCard
+          className="lg:col-span-2"
           title="Appointment status"
-          subtitle="Breakdown of your appointments by current status"
+          subtitle="Share of each status · total in the middle"
         >
-          <RankedBarChart
-            data={appointmentStatusBreakdown.map((entry) => ({
-              name: entry.name,
-              value: entry.value,
-              color: STATUS_COLORS[entry.name.toLowerCase()] || "#94a3b8",
-            }))}
-            labelWidth={100}
+          <DonutStat
+            data={statusDonutData}
+            total={statusTotal}
+            centerLabel="requests"
             emptyIcon={Calendar}
             emptyTitle="No appointments yet"
-            title="Appointment Status Breakdown"
+            stack
+            compact
+          />
+        </SectionCard>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+        <SectionCard
+          className="lg:col-span-3"
+          title="Request volume"
+          subtitle="Appointments vs. tests · last 14 days"
+        >
+          <TrendAreaChart
+            data={activityTrend}
+            emptyIcon={Calendar}
+            emptyTitle="No activity yet"
+          />
+        </SectionCard>
+
+        <SectionCard
+          className="lg:col-span-2"
+          title="Demand by time slot"
+          subtitle="When students prefer to meet"
+        >
+          <VerticalBarChart
+            data={slotDemand}
+            emptyIcon={Clock3}
+            emptyTitle="No slot data yet"
           />
         </SectionCard>
       </div>
