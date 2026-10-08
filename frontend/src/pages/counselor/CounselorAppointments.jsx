@@ -764,7 +764,7 @@ export default function CounselorAppointments() {
       {activeTab === "sessions" && (
         <SectionCard className="mb-6" title="Counseling sessions" subtitle={`${filteredSessions.length} scheduled`} noBodyPadding>
           {/* Sub-tab bar */}
-          <div className="flex items-center gap-1 border-b border-gray-100 px-4 pt-3 overflow-x-auto">
+          <div className="flex items-center gap-1 border-b border-gray-100 px-4 pt-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {SESSION_SUB_TABS.map((st) => {
               let cnt;
               switch (st.id) {
@@ -960,14 +960,14 @@ export default function CounselorAppointments() {
 
                         {/* Right actions: profile · message · open form · 3-dot popover (non-missing) */}
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <button onClick={() => openProfile(studentId, a.studentName)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="View profile">
+                          <button onClick={() => openProfile(studentId, a.studentName)} className="hidden sm:inline-flex w-8 h-8 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="View profile">
                             <User2 size={15} />
                           </button>
-                          <button onClick={() => openChat(studentId, a.studentName)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="Message">
+                          <button onClick={() => openChat(studentId, a.studentName)} className="hidden sm:inline-flex w-8 h-8 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="Message">
                             <MessageCircle size={15} />
                           </button>
                           <a href={`/counselor/appointments/${a.id}/form`} className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition">
-                            <FileText size={13} /> Open form
+                            <FileText size={13} /><span className="hidden sm:inline">Open form</span>
                           </a>
                           {!isMissing && (() => {
                             const sessPopoverId = `sess-${a.id}`;
@@ -1027,7 +1027,7 @@ export default function CounselorAppointments() {
       {activeTab === "tests" && (
         <SectionCard className="mb-6" title="Psychological tests" subtitle={`${upcomingTests.length} scheduled`} noBodyPadding>
           {/* Sub-tab bar */}
-          <div className="flex items-center gap-1 border-b border-gray-100 px-4 pt-3 overflow-x-auto">
+          <div className="flex items-center gap-1 border-b border-gray-100 px-4 pt-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {TEST_SUB_TABS.map((st) => {
               let cnt;
               switch (st.id) {
@@ -1101,9 +1101,9 @@ export default function CounselorAppointments() {
                           )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <button onClick={() => openProfile(studentId, t.studentName)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="View profile"><User2 size={15} /></button>
-                          <button onClick={() => openChat(studentId, t.studentName)} className="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="Message"><MessageCircle size={15} /></button>
-                          <a href={`/counselor/tests/${t.id}/form`} className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"><FileText size={13} /> Open form</a>
+                          <button onClick={() => openProfile(studentId, t.studentName)} className="hidden sm:inline-flex w-8 h-8 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="View profile"><User2 size={15} /></button>
+                          <button onClick={() => openChat(studentId, t.studentName)} className="hidden sm:inline-flex w-8 h-8 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="Message"><MessageCircle size={15} /></button>
+                          <a href={`/counselor/tests/${t.id}/form`} className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition"><FileText size={13} /><span className="hidden sm:inline">Open form</span></a>
                         </div>
                       </div>
                     </li>
