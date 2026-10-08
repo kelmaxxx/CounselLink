@@ -567,27 +567,27 @@ export default function ManageUsers() {
               <UserPlus size={14} /> Actions <ChevronDown size={13} className={`transition-transform ${actionsOpen ? "rotate-180" : ""}`} />
             </button>
             {actionsOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-50 py-1 overflow-hidden" style={{ minWidth: "13rem" }}>
                 <button
                   onClick={() => { openCreateModal("counselor"); setActionsOpen(false); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
                 >
-                  <UserPlus size={14} className="text-gray-400" /> Create counselor
+                  <UserPlus size={14} className="text-gray-400 flex-shrink-0" /> <span>Create counselor</span>
                 </button>
                 <button
                   onClick={() => { openCreateModal("college_rep"); setActionsOpen(false); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
                 >
-                  <UserPlus size={14} className="text-gray-400" /> Create college
+                  <UserPlus size={14} className="text-gray-400 flex-shrink-0" /> <span>Create college</span>
                 </button>
                 <div className="border-t border-gray-100 my-1" />
                 <button
                   onClick={() => { setRecoverOpen(true); setActionsOpen(false); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
                 >
-                  <RotateCcw size={14} className="text-gray-400" /> Recover account
+                  <RotateCcw size={14} className="text-gray-400 flex-shrink-0" /> <span>Recover account</span>
                   {bannedUsers.length > 0 && (
-                    <span className="ml-auto bg-amber-400 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                    <span className="ml-auto bg-amber-400 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">
                       {bannedUsers.length}
                     </span>
                   )}

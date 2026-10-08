@@ -551,39 +551,32 @@ export default function ManageStudents() {
                     </span>
                   </div>
                   <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
-                    <table className="w-full text-sm table-fixed">
-                      <colgroup>
-                        <col style={{ width: "22%" }} />
-                        <col style={{ width: "18%" }} />
-                        <col style={{ width: "11%" }} />
-                        <col style={{ width: "11%" }} />
-                        <col style={{ width: "11%" }} />
-                        <col style={{ width: "11%" }} />
-                        <col style={{ width: "16%" }} />
-                      </colgroup>
-                      <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">College / ID</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventory</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Authorize</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Consent</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sessions</th>
-                          <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 text-sm">
-                        {folderStudents.length === 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm min-w-[640px]">
+                        <thead className="bg-gray-50 border-b border-gray-100">
                           <tr>
-                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                              No students found.
-                            </td>
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">College / ID</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventory</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Authorize</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Consent</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sessions</th>
+                            <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                           </tr>
-                        ) : (
-                          folderStudents.map(renderStudent)
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 text-sm">
+                          {folderStudents.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                                No students found.
+                              </td>
+                            </tr>
+                          ) : (
+                            folderStudents.map(renderStudent)
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               );
@@ -804,67 +797,61 @@ export default function ManageStudents() {
 
                 {/* Table */}
                 <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
-                  <table className="w-full text-sm table-fixed">
-                    <colgroup>
-                      <col style={{ width: "11%" }} />
-                      <col style={{ width: "17%" }} />
-                      <col style={{ width: "22%" }} />
-                      <col style={{ width: "22%" }} />
-                      <col style={{ width: "16%" }} />
-                      <col style={{ width: "12%" }} />
-                    </colgroup>
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                      <tr>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {deptFiltered.length === 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[600px]">
+                      <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                            {deptSessions.length === 0
-                              ? "No session records for this department yet."
-                              : "No records match your filters."}
-                          </td>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                          <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
-                      ) : deptFiltered.map((s) => (
-                        <tr key={s.id} className="hover:bg-gray-50/70 align-top">
-                          <td className="px-4 py-2.5 whitespace-nowrap text-xs text-gray-600">{formatDate(s.sessionDate)}</td>
-                          <td className="px-4 py-2.5 min-w-0">
-                            <div className="font-medium text-sm text-gray-900 truncate">{s.studentName}</div>
-                            <div className="text-xs text-gray-500 truncate">{s.studentNumber || "—"} · {s.studentCollege || "N/A"}</div>
-                          </td>
-                          <td className="px-4 py-2.5 min-w-0">
-                            <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.presentingConcern || "—"}</p>
-                          </td>
-                          <td className="px-4 py-2.5 min-w-0">
-                            <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.summary || "—"}</p>
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <span className={`inline-flex text-xs px-2 py-1 rounded-full whitespace-nowrap ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
-                              {NEXT_LABELS[s.nextSession] || s.nextSession}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-right">
-                            <div ref={(el) => { sessionButtonRefs.current[s.id] = el; }} className="inline-block">
-                              <button
-                                onClick={(e) => toggleSessionPopover(e, s)}
-                                className="p-1.5 rounded hover:bg-gray-100 transition"
-                                title="Actions"
-                              >
-                                <MoreVertical size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {deptFiltered.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                              {deptSessions.length === 0
+                                ? "No session records for this department yet."
+                                : "No records match your filters."}
+                            </td>
+                          </tr>
+                        ) : deptFiltered.map((s) => (
+                          <tr key={s.id} className="hover:bg-gray-50/70 align-top">
+                            <td className="px-4 py-2.5 whitespace-nowrap text-xs text-gray-600">{formatDate(s.sessionDate)}</td>
+                            <td className="px-4 py-2.5 min-w-0">
+                              <div className="font-medium text-sm text-gray-900 truncate max-w-[140px]">{s.studentName}</div>
+                              <div className="text-xs text-gray-500 truncate max-w-[140px]">{s.studentNumber || "—"} · {s.studentCollege || "N/A"}</div>
+                            </td>
+                            <td className="px-4 py-2.5 min-w-0 max-w-[180px]">
+                              <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.presentingConcern || "—"}</p>
+                            </td>
+                            <td className="px-4 py-2.5 min-w-0 max-w-[180px]">
+                              <p className="line-clamp-2 text-sm text-gray-700 break-words">{s.summary || "—"}</p>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span className={`inline-flex text-xs px-2 py-1 rounded-full whitespace-nowrap ${s.nextSession === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
+                                {NEXT_LABELS[s.nextSession] || s.nextSession}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              <div ref={(el) => { sessionButtonRefs.current[s.id] = el; }} className="inline-block">
+                                <button
+                                  onClick={(e) => toggleSessionPopover(e, s)}
+                                  className="p-1.5 rounded hover:bg-gray-100 transition"
+                                  title="Actions"
+                                >
+                                  <MoreVertical size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             );
@@ -1275,9 +1262,9 @@ export default function ManageStudents() {
 
 function ViewRow({ label, value }) {
   return (
-    <div className="py-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-      <dt className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</dt>
-      <dd className="sm:col-span-2 text-sm text-gray-900 whitespace-pre-wrap">
+    <div className="py-2.5 flex flex-col sm:grid sm:grid-cols-3 gap-0.5 sm:gap-2">
+      <dt className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</dt>
+      <dd className="sm:col-span-2 text-sm text-gray-900 whitespace-pre-wrap break-words">
         {value || <span className="text-gray-400">—</span>}
       </dd>
     </div>
