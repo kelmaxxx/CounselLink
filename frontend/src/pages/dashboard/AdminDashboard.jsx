@@ -20,10 +20,14 @@ import {
 import { Link } from "react-router-dom";
 import WelcomeHero from "../../components/WelcomeHero";
 import PubmatViewer from "../../components/PubmatViewer";
+import { collegeColor } from "../../data/sagayanColors";
 import {
   PageHeader,
   BigStat,
   RankedBarChart,
+  DonutStat,
+  TreemapChart,
+  TrendLineChart,
   SectionCard,
   EmptyState,
   Modal,
@@ -34,7 +38,6 @@ import {
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const PIE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce"];
 const COLLEGE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce", "#0e7490", "#9f1239"];
-const APPT_COLORS = ["#7e22ce", "#c2410c", "#0e7490", "#0B6623", "#1d4ed8", "#15803d", "#9f1239"];
 
 const splitContent = (content) => {
   const [title, ...rest] = String(content || "").split("\n\n");
@@ -44,6 +47,18 @@ const splitContent = (content) => {
 const resolveImageUrl = (url) => {
   if (!url) return null;
   return url.startsWith("/") ? `${API_BASE}${url}` : url;
+};
+
+// YYYY-MM-DD without UTC shift.
+const toDateStr = (value) => {
+  if (!value) return "";
+  const s = String(value);
+  if (s.includes("T")) return s.split("T")[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
 export default function AdminDashboard() {
@@ -57,6 +72,7 @@ export default function AdminDashboard() {
     users?.filter((u) => u.role === "student" && u.status === "pending_approval").length || 0;
 
   const [apptStats, setApptStats] = useState({ totalCompleted: 0, byCollege: [] });
+  const [allAppointments, setAllAppointments] = useState([]);
   useEffect(() => {
     if (!token) return;
     fetch(`${API_BASE}/api/appointments/stats`, {
@@ -64,6 +80,12 @@ export default function AdminDashboard() {
     })
       .then((r) => r.json())
       .then((d) => { if (d.totalCompleted !== undefined) setApptStats(d); })
+      .catch(() => { });
+    fetch(`${API_BASE}/api/appointments`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setAllAppointments(Array.isArray(d) ? d : []))
       .catch(() => { });
   }, [token]);
 
@@ -87,6 +109,63 @@ export default function AdminDashboard() {
       .filter(([, v]) => v > 0)
       .sort((a, b) => b[1] - a[1]);
   }, [students]);
+
+  // ── Chart-ready derivatives: one visual per card ─────────────────────
+  // Roles (4 slices) -> donut · Students by college (many, long names) ->
+  // ranked horizontal bars · Completed by college -> vertical columns ·
+  // Demand vs. throughput -> animated racing lines.
+  const roleDonutData = useMemo(
+    () =>
+      pieData.map((entry, idx) => ({
+        name: entry.name,
+        value: entry.value,
+        color: PIE_COLORS[idx % PIE_COLORS.length],
+      })),
+    [pieData]
+  );
+  const roleTotal = useMemo(
+    () => roleDonutData.reduce((sum, d) => sum + d.value, 0),
+    [roleDonutData]
+  );
+
+  const completedCollegeColumns = useMemo(
+    () =>
+      (apptStats.byCollege || []).map((r) => ({
+        name: r.college,
+        short: r.college,
+        value: Number(r.total),
+        color: collegeColor(r.college),
+      })),
+    [apptStats.byCollege]
+  );
+
+  // Last-14-days: new requests created vs. sessions completed (completed
+  // dated by updated_at, when the status flipped). The two lines race.
+  const throughputTrend = useMemo(() => {
+    const days = [];
+    for (let i = 13; i >= 0; i -= 1) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const pad = (n) => String(n).padStart(2, "0");
+      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      days.push({
+        key,
+        label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        created: 0,
+        completed: 0,
+      });
+    }
+    const byKey = Object.fromEntries(days.map((d) => [d.key, d]));
+    allAppointments.forEach((a) => {
+      const ck = toDateStr(a.createdAt || a.created_at);
+      if (ck && byKey[ck]) byKey[ck].created += 1;
+      if (a.status === "completed") {
+        const dk = toDateStr(a.updatedAt || a.updated_at || a.scheduledDate || a.scheduled_date);
+        if (dk && byKey[dk]) byKey[dk].completed += 1;
+      }
+    });
+    return days;
+  }, [allAppointments]);
 
   const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Admin";
 
@@ -148,27 +227,27 @@ export default function AdminDashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        {/* Charts — mixed visuals: donut + ranked bars + columns + racing lines */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
           <SectionCard
+            className="lg:col-span-2"
             title="User role distribution"
-            subtitle="System breakdown by role"
+            subtitle="Share of each role · total in the middle"
           >
-            <RankedBarChart
-              data={pieData.map((entry, idx) => ({
-                name: entry.name,
-                value: entry.value,
-                color: PIE_COLORS[idx % PIE_COLORS.length],
-              }))}
-              labelWidth={90}
+            <DonutStat
+              data={roleDonutData}
+              total={roleTotal}
+              centerLabel="users"
               emptyIcon={Users}
               emptyTitle="No users yet"
-              title="User Role Distribution"
+              stack
             />
           </SectionCard>
 
           <SectionCard
+            className="lg:col-span-3"
             title="Students by college"
-            subtitle="Distribution of enrolled students"
+            subtitle="Ranked distribution of enrolled students"
           >
             <RankedBarChart
               data={topColleges.map(([name, value], i) => ({
@@ -182,21 +261,34 @@ export default function AdminDashboard() {
               title="Students by College"
             />
           </SectionCard>
+        </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
           <SectionCard
-            title="Appointments by college"
-            subtitle="Completed sessions per college"
+            className="lg:col-span-2"
+            title="Completed sessions by college"
+            subtitle="Cell size = finished sessions · hover for counts"
           >
-            <RankedBarChart
-              data={apptStats.byCollege.map((r, i) => ({
-                name: r.college,
-                value: Number(r.total),
-                color: APPT_COLORS[i % APPT_COLORS.length],
-              }))}
-              maxRows={7}
+            <TreemapChart
+              data={completedCollegeColumns}
               emptyIcon={CalendarCheck}
               emptyTitle="No completed appointments yet"
-              title="Appointments by College"
+            />
+          </SectionCard>
+
+          <SectionCard
+            className="lg:col-span-3"
+            title="Demand vs. throughput"
+            subtitle="Requests created vs. sessions completed · last 14 days"
+          >
+            <TrendLineChart
+              data={throughputTrend}
+              series={[
+                { key: "created", name: "Requests created", color: "#1d4ed8" },
+                { key: "completed", name: "Sessions completed", color: "#0B6623" },
+              ]}
+              emptyIcon={CalendarCheck}
+              emptyTitle="No session activity yet"
             />
           </SectionCard>
         </div>

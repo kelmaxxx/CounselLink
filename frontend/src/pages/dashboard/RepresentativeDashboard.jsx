@@ -19,19 +19,43 @@ import { getCollege } from "../../data/msuColleges";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-// Short label for column charts ("BS Psychology (BSP)" -> "BSP",
-// "Bachelor of Science in Computer Science" -> "BSCS").
+// Short label for column charts: major in parens wins ("BS Information
+// Technology (Database Systems)" -> "Database"), otherwise degree +
+// initials ("BS Computer Science" -> "BSCS"). Full name stays in tooltip.
 function shortOf(name = "") {
   const paren = name.match(/\(([^)]+)\)/);
-  if (paren) return paren[1].slice(0, 8);
-  const stop = new Set(["of", "in", "and", "major", "the", "for", "program", "bachelor", "master", "science", "arts"]);
+  if (paren) {
+    const first = paren[1].split(/\s+/).filter(Boolean)[0];
+    if (first) return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+  }
+  const stop = new Set(["of", "in", "and", "the", "for", "major", "program"]);
   const words = name.split(/[\s/-]+/).filter(Boolean);
-  const initials = words
+  if (!words.length) return "";
+  const head = words[0].toUpperCase();
+  const tail = words
+    .slice(1)
     .filter((w) => !stop.has(w.toLowerCase()))
     .map((w) => w[0].toUpperCase())
-    .join("")
-    .slice(0, 5);
-  return initials || name.slice(0, 5);
+    .join("");
+  return (head + tail).slice(0, 6) || name.slice(0, 6);
+}
+
+// Collapse free-text variants onto canonical programs so a typo can't
+// spawn a phantom "course" bar ("BS Computer Sciences" -> "BS Computer
+// Science"). Case-insensitive; genuinely new values pass through as-is.
+const PROGRAM_ALIASES = {
+  "bs computer sciences": "BS Computer Science",
+};
+
+function normalizeProgram(value, canonicalPrograms) {
+  const clean = String(value || "").trim().replace(/\s+/g, " ");
+  if (!clean) return null;
+  const lower = clean.toLowerCase();
+  const exact = canonicalPrograms.find((p) => p.toLowerCase() === lower);
+  if (exact) return exact;
+  const alias = PROGRAM_ALIASES[lower];
+  if (alias && canonicalPrograms.includes(alias)) return alias;
+  return clean;
 }
 
 // YYYY-MM-DD without UTC shift (matches CounselorDashboard helper).
@@ -139,11 +163,8 @@ export default function RepresentativeDashboard() {
 
     collegeStudents.forEach((s) => {
       if (!s.program) return;
-      const studentProg = s.program.trim();
-      const matched = canonicalPrograms.find(
-        (p) => p.toLowerCase() === studentProg.toLowerCase()
-      );
-      const key = matched || studentProg;
+      const key = normalizeProgram(s.program, canonicalPrograms);
+      if (!key) return;
       counts[key] = (counts[key] || 0) + 1;
     });
 
