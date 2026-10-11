@@ -1,38 +1,63 @@
 // src/components/landing/FAQSection.jsx
 import React, { useState } from "react";
 import Reveal from "./Reveal";
+import { FloatingKeycaps3D } from "./FloatingKeycaps3D";
 import { ChevronDown } from "lucide-react";
 
 const FAQS = [
   {
-    question: "How do I request a counseling appointment?",
+    question: "What kinds of concerns can I discuss with a counselor?",
     answer:
-      "After logging in with your MSU student account, navigate to the 'Request Appointment' page. Select your preferred counselor, choose an available date and time slot, describe your concern, and submit your request. You'll receive a notification once your counselor approves or responds.",
+      "You can discuss academic stress, personal challenges, relationships, career guidance, mental wellness, and any concern affecting your studies or daily life. All sessions are supportive, non-judgmental, and tailored to your needs.",
+    category: "Wellness",
   },
   {
-    question: "Can I reschedule or cancel an appointment?",
+    question: "What should I expect in my first counseling session?",
     answer:
-      "Yes. You can reschedule or cancel an appointment as long as it hasn't been completed yet. Go to 'My Appointments', find the appointment you'd like to change, and select the reschedule or cancel option. Your counselor will be notified of any changes.",
+      "Your first session is a relaxed getting-to-know-you conversation. Your counselor will explain confidentiality, listen to your concerns, and work with you to set goals. There is no pressure — you share only what you are comfortable with.",
+    category: "Wellness",
   },
   {
     question: "Is my counseling information kept confidential?",
     answer:
       "Absolutely. CounceLink uses role-based access control to ensure that your counseling records are only accessible to your assigned counselor and authorized administrators. Student data is never shared without consent and is handled in accordance with the university's data privacy policies.",
+    category: "Confidentiality",
+  },
+  {
+    question: "How is my personal data protected on this platform?",
+    answer:
+      "Your account requires your MSU institutional email, admin verification, and secure login. Only your assigned counselor can view your session details, and all records are handled under the university's data privacy policies.",
+    category: "Confidentiality",
+  },
+  {
+    question: "How do I request a counseling appointment?",
+    answer:
+      "After logging in with your MSU student account, navigate to the 'Request Appointment' page. Select your preferred counselor, choose an available date and time slot, describe your concern, and submit your request. You'll receive a notification once your counselor approves or responds.",
+    category: "Appointments",
+  },
+  {
+    question: "Can I reschedule or cancel an appointment?",
+    answer:
+      "Yes. You can reschedule or cancel an appointment as long as it hasn't been completed yet. Go to 'My Appointments', find the appointment you'd like to change, and select the reschedule or cancel option. Your counselor will be notified of any changes.",
+    category: "Appointments",
   },
   {
     question: "What happens if I miss an appointment?",
     answer:
       "If you miss a scheduled appointment, it will be marked as 'No Show' in the system. You may request a new appointment from your counselor. Repeated no-shows may affect your ability to book future appointments, so please cancel in advance if you cannot attend.",
+    category: "Appointments",
   },
   {
     question: "How do counselors approve appointment requests?",
     answer:
       "Counselors receive real-time notifications for new appointment requests. They can log in to their dashboard, review the request details, and choose to approve, propose a new time, or decline. Once a decision is made, the student is notified immediately through the platform.",
+    category: "Policies",
   },
   {
     question: "Who can use CounceLink?",
     answer:
       "CounceLink is designed for students, guidance counselors, college representatives, and administrators at Mindanao State University – Marawi City. Students must register using their MSU institutional email (@s.msumain.edu.ph) and wait for admin approval before they can book appointments.",
+    category: "Policies",
   },
 ];
 
@@ -81,6 +106,11 @@ export default function FAQSection() {
   return (
     <section id="faq" className="py-24 bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Decorative 3D floating keycaps */}
+        <Reveal className="mb-2">
+          <FloatingKeycaps3D />
+        </Reveal>
+
         {/* Header */}
         <Reveal className="text-center mb-14">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
