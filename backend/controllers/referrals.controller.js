@@ -254,10 +254,10 @@ export const decideReferral = async (req, res) => {
   const userId = req.user?.id;
   const { status, decisionNote, scheduledDate, scheduledTime } = req.body || {};
 
-  if (!["accepted", "rejected"].includes(status)) {
+  if (!["accepted", "rejected", "rescheduled"].includes(status)) {
     return res
       .status(400)
-      .json({ message: "status must be 'accepted' or 'rejected'" });
+      .json({ message: "status must be 'accepted', 'rejected' or 'rescheduled'" });
   }
   if (status === "rejected" && !decisionNote?.trim()) {
     return res
@@ -268,6 +268,16 @@ export const decideReferral = async (req, res) => {
     return res
       .status(400)
       .json({ message: "Scheduled date and time are required when accepting" });
+  }
+  if (status === "rescheduled" && (!scheduledDate || !scheduledTime)) {
+    return res
+      .status(400)
+      .json({ message: "Proposed date and time are required when rescheduling" });
+  }
+  if (status === "rescheduled" && !decisionNote?.trim()) {
+    return res
+      .status(400)
+      .json({ message: "A note is required when rescheduling (reason / what changed)" });
   }
 
   const [referral] = await query(
@@ -288,8 +298,8 @@ export const decideReferral = async (req, res) => {
     return res.status(409).json({ message: `Referral is already ${referral.status}` });
   }
 
-  const normalizedDate = status === "accepted" ? normalizeDate(scheduledDate) : null;
-  const trimmedTime = status === "accepted" ? String(scheduledTime).trim() : null;
+  const normalizedDate = status === "accepted" || status === "rescheduled" ? normalizeDate(scheduledDate) : null;
+  const trimmedTime = status === "accepted" || status === "rescheduled" ? String(scheduledTime).trim() : null;
 
   const getQueueSlot = (slot) => {
     const s = (slot || "").toLowerCase();
@@ -304,7 +314,7 @@ export const decideReferral = async (req, res) => {
       [status, decisionNote?.trim() || null, userId, id]
     );
 
-    if (status !== "accepted") return null;
+    if (status !== "accepted" && status !== "rescheduled") return null;
 
     const queueSlot = getQueueSlot(trimmedTime);
     let queueNumber = null;
@@ -317,15 +327,17 @@ export const decideReferral = async (req, res) => {
       if (cnt < 10) queueNumber = cnt + 1;
     }
 
+    const appointmentStatus = status === "rescheduled" ? "rescheduled" : "approved";
     const insertResult = await q(
       `INSERT INTO appointments
          (student_id, counselor_id, referral_id, appointment_type, status, reason,
           scheduled_date, scheduled_time, queue_date, queue_slot, queue_number)
-       VALUES (?, ?, ?, 'counseling', 'approved', ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, 'counseling', ?, ?, ?, ?, ?, ?, ?)`,
       [
         referral.student_id,
         userId,
         referral.id,
+        appointmentStatus,
         referral.reason,
         normalizedDate,
         trimmedTime,
@@ -340,6 +352,8 @@ export const decideReferral = async (req, res) => {
   const repMessage =
     status === "accepted"
       ? `Your referral was accepted. A session is scheduled for ${normalizedDate} at ${trimmedTime}.`
+      : status === "rescheduled"
+      ? `Your referral was rescheduled to ${normalizedDate} at ${trimmedTime}. Reason: ${(decisionNote || "").trim().slice(0, 120)}`
       : decisionNote?.trim()
       ? `Your referral was rejected. Reason: ${decisionNote.trim().slice(0, 120)}`
       : "Your referral was rejected.";
@@ -376,13 +390,16 @@ export const decideReferral = async (req, res) => {
   notifyUser(userId, { type: "appointments" });
 
   if (appointmentId) {
+    const isResched = status === "rescheduled";
     await createNotification({
       userId: referral.student_id,
-      title: "Counseling session scheduled",
-      message: `A counselor has scheduled a counseling session for you on ${normalizedDate} at ${trimmedTime}.`,
+      title: isResched ? "Counseling session rescheduled" : "Counseling session scheduled",
+      message: isResched
+        ? `A counselor has rescheduled your counseling session to ${normalizedDate} at ${trimmedTime}.`
+        : `A counselor has scheduled a counseling session for you on ${normalizedDate} at ${trimmedTime}.`,
       link: `/student/appointments`,
     });
-    // The accept created an appointment for the student — refresh their list.
+    // The accept/reschedule created an appointment for the student — refresh their list.
     notifyUser(referral.student_id, { type: "appointments" });
   }
 
