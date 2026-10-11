@@ -1,5 +1,6 @@
 // src/components/landing/FAQSection.jsx
 import React, { useState } from "react";
+import Reveal from "./Reveal";
 import { ChevronDown } from "lucide-react";
 
 const FAQS = [
@@ -81,7 +82,7 @@ export default function FAQSection() {
     <section id="faq" className="py-24 bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-14">
+        <Reveal className="text-center mb-14">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
             FAQ
           </span>
@@ -92,11 +93,12 @@ export default function FAQSection() {
             Have a question about CounceLink? Here are answers to the most
             common questions from students and counselors.
           </p>
-        </div>
+        </Reveal>
 
         {/* Accordion list */}
         <div className="space-y-3">
           {FAQS.map((faq, idx) => (
+            <Reveal key={faq.question} variant="up" delay={Math.min(idx, 5) * 60}>
             <FAQItem
               key={faq.question}
               question={faq.question}
@@ -104,6 +106,7 @@ export default function FAQSection() {
               isOpen={openIdx === idx}
               onToggle={() => setOpenIdx(openIdx === idx ? -1 : idx)}
             />
+            </Reveal>
           ))}
         </div>
       </div>

@@ -1,5 +1,6 @@
 // src/components/landing/HowItWorksSection.jsx
 import React from "react";
+import Reveal from "./Reveal";
 import {
   UserPlus,
   CalendarPlus,
@@ -51,7 +52,7 @@ export default function HowItWorksSection() {
     <section id="how-it-works" className="py-24 bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-16">
+        <Reveal className="text-center mb-16">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
             How It Works
           </span>
@@ -62,7 +63,7 @@ export default function HowItWorksSection() {
             From registration to your counseling session, the entire process is
             streamlined and transparent.
           </p>
-        </div>
+        </Reveal>
 
         {/* Steps */}
         <div className="relative">
@@ -71,7 +72,7 @@ export default function HowItWorksSection() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-8">
             {STEPS.map(({ step, icon: Icon, title, description }, idx) => (
-              <div key={step} className="relative flex flex-col items-center text-center group">
+              <Reveal key={step} variant="up" delay={idx * 100} className="relative flex flex-col items-center text-center group">
                 {/* Number + icon circle */}
                 <div className="relative z-10 mb-5">
                   <div className="w-28 h-28 rounded-full bg-white shadow-md border-2 border-maroon-100 flex flex-col items-center justify-center group-hover:border-maroon-400 group-hover:shadow-lg transition-all duration-300">
@@ -92,7 +93,7 @@ export default function HowItWorksSection() {
                 <p className="text-sm text-gray-500 leading-relaxed">
                   {description}
                 </p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>

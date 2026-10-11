@@ -1,5 +1,6 @@
 // src/components/landing/ContactSection.jsx
 import React from "react";
+import Reveal from "./Reveal";
 import { Mail, Phone, Clock, MapPin, Building2, Facebook } from "lucide-react";
 
 const GMAIL_COMPOSE_URL =
@@ -44,7 +45,7 @@ export default function ContactSection() {
     <section id="contact" className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-16">
+        <Reveal className="text-center mb-16">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
             Contact Us
           </span>
@@ -55,11 +56,11 @@ export default function ContactSection() {
             Have questions or need assistance? Reach out to the Guidance and
             Counseling Section directly.
           </p>
-        </div>
+        </Reveal>
 
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           {/* Left — office info */}
-          <div>
+          <Reveal variant="left">
             {/* Office header card */}
             <div className="bg-gradient-to-br from-maroon-500 to-maroon-700 rounded-3xl p-8 text-white mb-6">
               <div className="flex items-start gap-4">
@@ -143,10 +144,10 @@ export default function ContactSection() {
               <img src="/dsa-logo.png?v=2" alt="Division of Student Affairs" className="h-14 object-contain" />
               <img src="/guidance-logo.jpg" alt="Guidance Office" className="h-14 object-contain rounded-lg" />
             </div>
-          </div>
+          </Reveal>
 
           {/* Right — Google Map */}
-          <div className="rounded-3xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
+          <Reveal variant="right" delay={120} className="rounded-3xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
             <iframe
               title="MSU Division of Student Affairs — Guidance and Counseling Section"
               src="https://www.google.com/maps?q=MSU%20Division%20of%20Student%20Affairs%2C%20Mindanao%20State%20University%20Marawi%207.9992142%2C124.258914&z=19&output=embed"
@@ -189,7 +190,7 @@ export default function ContactSection() {
                 </a>
               </div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>
