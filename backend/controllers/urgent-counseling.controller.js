@@ -117,9 +117,9 @@ export const createUrgentCounselingRequest = async (req, res) => {
     [queueDate, queueSlot]
   );
 
-  if (cnt >= 10) {
+  if (cnt >= 50) {
     return res.status(429).json({
-      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue is full (10 appointments) for today. Please proceed to the counseling office directly.`,
+      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue is full (50 appointments) for today. Please proceed to the counseling office directly.`,
     });
   }
 

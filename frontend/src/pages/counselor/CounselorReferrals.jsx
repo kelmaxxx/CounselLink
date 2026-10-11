@@ -16,14 +16,15 @@ import {
   Pagination,
 } from "../../components/ui";
 
-const TIME_LABEL = {
-  "9:00-10:00": "9:00 – 10:00 AM",
-  "10:00-11:00": "10:00 – 11:00 AM",
-  "11:00-12:00": "11:00 – 12:00 PM",
-  "1:00-2:00": "1:00 – 2:00 PM",
-  "2:00-3:00": "2:00 – 3:00 PM",
-  "3:00-4:00": "3:00 – 4:00 PM",
-  "4:00-5:00": "4:00 – 5:00 PM",
+const TIME_BLOCKS = {
+  "9:00-12:00": "9:00 AM – 12:00 PM",
+  "1:00-5:00": "1:00 PM – 5:00 PM",
+};
+const isWeekendISO = (iso) => {
+  if (!iso) return false;
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d)) return false;
+  return d.getDay() === 0 || d.getDay() === 6;
 };
 
 export default function CounselorReferrals() {
@@ -81,6 +82,17 @@ export default function CounselorReferrals() {
     if ((status === "accepted" || status === "rescheduled") && (!scheduledDate || !scheduledTime)) {
       setDecisionError("Please pick a date and time slot for the appointment.");
       return;
+    }
+    if (scheduledDate) {
+      const todayISO = new Date().toISOString().split("T")[0];
+      if (scheduledDate < todayISO) {
+        setDecisionError("Cannot schedule on a past date.");
+        return;
+      }
+      if (isWeekendISO(scheduledDate)) {
+        setDecisionError("Appointments cannot be scheduled on Saturday or Sunday.");
+        return;
+      }
     }
     if (status === "rescheduled" && !decisionNote.trim()) {
       setDecisionError("Please explain why the referral is being rescheduled (required).");
@@ -337,6 +349,7 @@ export default function CounselorReferrals() {
                     min={new Date().toISOString().split("T")[0]}
                     onChange={(e) => setScheduledDate(e.target.value)}
                   />
+                  <p className="text-[11px] text-gray-400 mt-1">Weekends & past dates unavailable</p>
                 </div>
                 <div>
                   <label className={LABEL}>Time slot *</label>
@@ -346,7 +359,7 @@ export default function CounselorReferrals() {
                     onChange={(e) => setScheduledTime(e.target.value)}
                   >
                     <option value="">Select a slot</option>
-                    {Object.entries(TIME_LABEL).map(([k, v]) => (
+                    {Object.entries(TIME_BLOCKS).map(([k, v]) => (
                       <option key={k} value={k}>
                         {v}
                       </option>

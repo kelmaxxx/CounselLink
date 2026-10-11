@@ -43,7 +43,11 @@ const STATUS_COLORS = {
   referral: "#8b5cf6",
 };
 
-const TIME_LABEL = {
+const TIME_BLOCKS = {
+  "9:00-12:00": "9:00 AM – 12:00 PM",
+  "1:00-5:00": "1:00 PM – 5:00 PM",
+};
+const LEGACY_LABEL = {
   "9:00-10:00": "9:00 – 10:00 AM",
   "10:00-11:00": "10:00 – 11:00 AM",
   "11:00-12:00": "11:00 – 12:00 PM",
@@ -53,9 +57,15 @@ const TIME_LABEL = {
   "4:00-5:00": "4:00 – 5:00 PM",
 };
 const timeLabel = (slot) => {
-  if (slot === "morning") return "9:00 AM – 12:00 PM";
-  if (slot === "afternoon") return "1:00 PM – 5:00 PM";
-  return TIME_LABEL[slot] || slot || "—";
+  if (slot === "morning" || slot === "9:00-12:00") return "9:00 AM – 12:00 PM";
+  if (slot === "afternoon" || slot === "1:00-5:00") return "1:00 PM – 5:00 PM";
+  return TIME_BLOCKS[slot] || LEGACY_LABEL[slot] || slot || "—";
+};
+const isWeekendISO = (iso) => {
+  if (!iso) return false;
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d)) return false;
+  return d.getDay() === 0 || d.getDay() === 6;
 };
 
 export default function CounselorDashboard() {
@@ -181,7 +191,7 @@ export default function CounselorDashboard() {
   const slotEndHour = (timeSlot) => {
     if (!timeSlot) return 17;
     const s = String(timeSlot).toLowerCase();
-    if (s === "morning") return 12;
+    if (s === "morning" || s === "9:00-12:00") return 12;
     if (s === "9:00-10:00") return 10;
     if (s === "10:00-11:00") return 11;
     if (s === "11:00-12:00") return 12;
@@ -189,8 +199,10 @@ export default function CounselorDashboard() {
     if (s === "2:00-3:00") return 15;
     if (s === "3:00-4:00") return 16;
     if (s === "4:00-5:00") return 17;
-    // afternoon / PM blocks
-    if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return 17;
+    // afternoon / PM blocks (new two-block + legacy)
+    if (s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return 17;
+    // AM blocks (new two-block + legacy)
+    if (s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:")) return 12;
     return 17;
   };
 
@@ -324,27 +336,29 @@ export default function CounselorDashboard() {
   // horizontal ranked bars above.
   const slotDemand = useMemo(() => {
     const defs = [
-      { key: "9:00-10:00", name: "9:00 – 10:00 AM", short: "9–10a", color: "#0B6623" },
-      { key: "10:00-11:00", name: "10:00 – 11:00 AM", short: "10–11a", color: "#1d4ed8" },
-      { key: "11:00-12:00", name: "11:00 – 12:00 PM", short: "11–12p", color: "#0e7490" },
-      { key: "1:00-2:00", name: "1:00 – 2:00 PM", short: "1–2p", color: "#c2410c" },
-      { key: "2:00-3:00", name: "2:00 – 3:00 PM", short: "2–3p", color: "#7e22ce" },
-      { key: "3:00-4:00", name: "3:00 – 4:00 PM", short: "3–4p", color: "#be185d" },
-      { key: "4:00-5:00", name: "4:00 – 5:00 PM", short: "4–5p", color: "#b45309" },
+      { key: "9:00-12:00", name: "9:00 AM – 12:00 PM", short: "AM", color: "#0B6623" },
+      { key: "1:00-5:00", name: "1:00 PM – 5:00 PM", short: "PM", color: "#c2410c" },
     ];
     const counts = Object.fromEntries(defs.map((d) => [d.key, 0]));
+    // Legacy hourly slots map into their AM/PM block
+    const toBlock = (raw) => {
+      const s = String(raw || "").trim().toLowerCase();
+      if (s === "morning" || s === "9:00-12:00" || s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:")) return "9:00-12:00";
+      if (s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return "1:00-5:00";
+      return null;
+    };
     const pickSlot = (a) =>
       a.scheduledTimeSlot || a.scheduled_time || a.scheduledTime ||
       a.preferredTime || a.preferred_time || a.timeSlot || a.time_slot ||
       (Array.isArray(a.preferredSlots) ? a.preferredSlots[0] : null) ||
       (typeof a.preferred_slots === "string" ? a.preferred_slots.split(",")[0] : null);
     myAppointments.forEach((a) => {
-      const raw = String(pickSlot(a) || "").trim();
-      if (counts[raw] !== undefined) counts[raw] += 1;
+      const block = toBlock(pickSlot(a));
+      if (block && counts[block] !== undefined) counts[block] += 1;
     });
     myTests.forEach((t) => {
-      const raw = String(Array.isArray(t.preferredSlots) ? t.preferredSlots[0] : t.preferredTime || "").trim();
-      if (counts[raw] !== undefined) counts[raw] += 1;
+      const block = toBlock(Array.isArray(t.preferredSlots) ? t.preferredSlots[0] : t.preferredTime || "");
+      if (block && counts[block] !== undefined) counts[block] += 1;
     });
     return defs.map((d) => ({ ...d, value: counts[d.key] }));
   }, [myAppointments, myTests]);
@@ -410,6 +424,14 @@ export default function CounselorDashboard() {
       alert("Select date and time");
       return;
     }
+    if (rescheduleModal.date < todayStr) {
+      alert("Cannot reschedule to a past date");
+      return;
+    }
+    if (isWeekendISO(rescheduleModal.date)) {
+      alert("Appointments cannot be scheduled on Saturday or Sunday");
+      return;
+    }
     const result = await rescheduleAppointment({
       id: rescheduleModal.apptId,
       date: rescheduleModal.date,
@@ -449,6 +471,14 @@ export default function CounselorDashboard() {
   const submitRescheduleTest = async () => {
     if (!rescheduleTestModal.date || !rescheduleTestModal.timeSlot) {
       alert("Select date and time");
+      return;
+    }
+    if (rescheduleTestModal.date < todayStr) {
+      alert("Cannot reschedule to a past date");
+      return;
+    }
+    if (isWeekendISO(rescheduleTestModal.date)) {
+      alert("Appointments cannot be scheduled on Saturday or Sunday");
       return;
     }
     const result = await rescheduleTest({
@@ -877,9 +907,11 @@ export default function CounselorDashboard() {
             <input
               type="date"
               className={INPUT}
+              min={todayStr}
               value={rescheduleModal.date}
               onChange={(e) => setRescheduleModal((s) => ({ ...s, date: e.target.value }))}
             />
+            <p className="text-[11px] text-gray-400 mt-1">Weekends & past dates unavailable</p>
           </div>
           <div>
             <label className={LABEL}>New time slot</label>
@@ -889,7 +921,7 @@ export default function CounselorDashboard() {
               onChange={(e) => setRescheduleModal((s) => ({ ...s, timeSlot: e.target.value }))}
             >
               <option value="">Select a slot</option>
-              {Object.entries(TIME_LABEL).map(([k, v]) => (
+              {Object.entries(TIME_BLOCKS).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>
@@ -934,9 +966,11 @@ export default function CounselorDashboard() {
             <input
               type="date"
               className={INPUT}
+              min={todayStr}
               value={rescheduleTestModal.date}
               onChange={(e) => setRescheduleTestModal((s) => ({ ...s, date: e.target.value }))}
             />
+            <p className="text-[11px] text-gray-400 mt-1">Weekends & past dates unavailable</p>
           </div>
           <div>
             <label className={LABEL}>New time slot</label>
@@ -946,7 +980,7 @@ export default function CounselorDashboard() {
               onChange={(e) => setRescheduleTestModal((s) => ({ ...s, timeSlot: e.target.value }))}
             >
               <option value="">Select a slot</option>
-              {Object.entries(TIME_LABEL).map(([k, v]) => (
+              {Object.entries(TIME_BLOCKS).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>

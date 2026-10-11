@@ -301,9 +301,16 @@ export const decideReferral = async (req, res) => {
   const normalizedDate = status === "accepted" || status === "rescheduled" ? normalizeDate(scheduledDate) : null;
   const trimmedTime = status === "accepted" || status === "rescheduled" ? String(scheduledTime).trim() : null;
 
+  if (normalizedDate) {
+    const wd = new Date(`${normalizedDate}T00:00:00`);
+    if (!isNaN(wd) && (wd.getDay() === 0 || wd.getDay() === 6)) {
+      return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+    }
+  }
+
   const getQueueSlot = (slot) => {
     const s = (slot || "").toLowerCase();
-    if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:")) return "PM";
+    if (s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return "PM";
     if (!s) return null;
     return "AM";
   };
@@ -324,7 +331,7 @@ export const decideReferral = async (req, res) => {
          WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
         [normalizedDate, queueSlot]
       );
-      if (cnt < 10) queueNumber = cnt + 1;
+      if (cnt < 50) queueNumber = cnt + 1;
     }
 
     const appointmentStatus = status === "rescheduled" ? "rescheduled" : "approved";

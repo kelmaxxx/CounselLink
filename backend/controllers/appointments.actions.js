@@ -15,12 +15,20 @@ const normalizeDate = (value) => {
   return value;
 };
 
+const QUEUE_LIMIT = 50;
+
+const isWeekendDate = (value) => {
+  if (!value) return false;
+  const d = new Date(`${String(value).split("T")[0]}T00:00:00`);
+  if (isNaN(d)) return false;
+  return d.getDay() === 0 || d.getDay() === 6;
+};
+
 const getQueueSlot = (slot) => {
   const s = (slot || "").toLowerCase();
-  // Broad afternoon block (new) or legacy hour-by-hour afternoon slots
+  // Two-block system: AM = 9AM-12PM, PM = 1PM-5PM (+ legacy hourly slots)
   if (s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return "PM";
   if (!s) return null;
-  // Broad morning block (new) and all other values → AM
   return "AM";
 };
 
@@ -34,6 +42,10 @@ export const acceptAppointment = async (req, res) => {
 
   if (!isUrgent && (!date || !timeSlot)) {
     return res.status(400).json({ message: "Date and time slot are required" });
+  }
+
+  if (!isUrgent && isWeekendDate(date)) {
+    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
   }
 
   const normalizedDate = isUrgent ? null : normalizeDate(date);
@@ -53,9 +65,9 @@ export const acceptAppointment = async (req, res) => {
       [queueDate, queueSlot]
     );
 
-    if (cnt >= 10) {
+    if (cnt >= QUEUE_LIMIT) {
       return res.status(409).json({
-        message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue for ${queueDate} is full (10 appointments). Please reschedule to a different date or time slot.`,
+        message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue for ${queueDate} is full (50 appointments). Please reschedule to a different date or time slot.`,
       });
     }
 
@@ -198,6 +210,10 @@ export const rescheduleAppointment = async (req, res) => {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
 
+  if (isWeekendDate(date)) {
+    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  }
+
   const normalizedDate = normalizeDate(date);
 
   // ── Assign a queue number (same logic as acceptAppointment) ──────────
@@ -210,9 +226,9 @@ export const rescheduleAppointment = async (req, res) => {
     [queueDate, queueSlot, id]
   );
 
-  if (cnt >= 10) {
+  if (cnt >= QUEUE_LIMIT) {
     return res.status(409).json({
-      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue for ${queueDate} is full (10 appointments). Please choose a different date or time slot.`,
+      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue for ${queueDate} is full (50 appointments). Please choose a different date or time slot.`,
     });
   }
 

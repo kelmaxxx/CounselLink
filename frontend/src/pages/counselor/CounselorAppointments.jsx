@@ -37,7 +37,12 @@ import {
   Pagination,
 } from "../../components/ui";
 
-const TIME_LABEL = {
+const TIME_BLOCKS = {
+  "9:00-12:00": "9:00 AM – 12:00 PM",
+  "1:00-5:00": "1:00 PM – 5:00 PM",
+};
+// Legacy hourly slots (old records) → display only, mapped to block labels
+const LEGACY_LABEL = {
   "9:00-10:00": "9:00 – 10:00 AM",
   "10:00-11:00": "10:00 – 11:00 AM",
   "11:00-12:00": "11:00 – 12:00 PM",
@@ -47,14 +52,25 @@ const TIME_LABEL = {
   "4:00-5:00": "4:00 – 5:00 PM",
 };
 const timeLabel = (slot) => {
-  if (slot === "morning") return "9:00 AM – 12:00 PM";
-  if (slot === "afternoon") return "1:00 PM – 5:00 PM";
-  return TIME_LABEL[slot] || slot || "—";
+  if (slot === "morning" || slot === "9:00-12:00") return "9:00 AM – 12:00 PM";
+  if (slot === "afternoon" || slot === "1:00-5:00") return "1:00 PM – 5:00 PM";
+  return TIME_BLOCKS[slot] || LEGACY_LABEL[slot] || slot || "—";
+};
+
+const getTodayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const isWeekendISO = (iso) => {
+  if (!iso) return false;
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d)) return false;
+  return d.getDay() === 0 || d.getDay() === 6;
 };
 
 const getTimeBlock = (slot) => {
-  if (!slot || slot === "morning" || slot.startsWith("9:") || slot.startsWith("10:") || slot.startsWith("11:"))
-    return "AM";
+  const s = String(slot || "").toLowerCase();
+  if (!s || s === "morning" || s === "9:00-12:00" || s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:")) return "AM";
   return "PM";
 };
 
@@ -197,6 +213,8 @@ export default function CounselorAppointments() {
 
   const submitReschedule = async () => {
     if (!rescheduleModal.date || !rescheduleModal.timeSlot) { alert("Select a date and time slot"); return; }
+    if (rescheduleModal.date < today) { alert("Cannot reschedule to a past date"); return; }
+    if (isWeekendISO(rescheduleModal.date)) { alert("Appointments cannot be scheduled on Saturday or Sunday"); return; }
     setBusyId(rescheduleModal.apptId);
     const res = await rescheduleAppointment({ id: rescheduleModal.apptId, date: rescheduleModal.date, timeSlot: rescheduleModal.timeSlot, note: rescheduleModal.note || null });
     setBusyId(null);
@@ -267,8 +285,8 @@ export default function CounselorAppointments() {
   const isSlotOver = (slot) => {
     const mins = now.getHours() * 60 + now.getMinutes();
     const s = (slot || "").toLowerCase();
-    const isAM = s === "morning" || s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:");
-    const isPM = s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:");
+    const isAM = s === "morning" || s === "9:00-12:00" || s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:");
+    const isPM = s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:");
     if (isAM) return mins >= 12 * 60;
     if (isPM) return mins >= 17 * 60;
     return mins >= 17 * 60;
@@ -1176,13 +1194,14 @@ export default function CounselorAppointments() {
         <div className="space-y-3">
           <div>
             <label className={LABEL}>New date</label>
-            <input type="date" className={INPUT} value={rescheduleModal.date} onChange={(e) => setRescheduleModal((s) => ({ ...s, date: e.target.value }))} />
+            <input type="date" className={INPUT} min={today} value={rescheduleModal.date} onChange={(e) => setRescheduleModal((s) => ({ ...s, date: e.target.value }))} />
+            <p className="text-[11px] text-gray-400 mt-1">Weekends & past dates unavailable</p>
           </div>
           <div>
             <label className={LABEL}>New time slot</label>
             <select className={INPUT} value={rescheduleModal.timeSlot} onChange={(e) => setRescheduleModal((s) => ({ ...s, timeSlot: e.target.value }))}>
               <option value="">Select a slot</option>
-              {Object.entries(TIME_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(TIME_BLOCKS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
           <div>
