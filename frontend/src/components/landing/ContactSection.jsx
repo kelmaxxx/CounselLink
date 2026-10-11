@@ -2,19 +2,24 @@
 import React from "react";
 import { Mail, Phone, Clock, MapPin, Building2, Facebook } from "lucide-react";
 
+const GMAIL_COMPOSE_URL =
+  "https://mail.google.com/mail/?view=cm&fs=1&to=msudsa70@gmail.com&su=Inquiry%20via%20CounceLink";
+
 const CONTACT_CARDS = [
   {
     icon: Mail,
     label: "Email",
     value: "msudsa70@gmail.com",
-    href: "mailto:msudsa70@gmail.com",
+    href: GMAIL_COMPOSE_URL,
+    external: true,
     color: "bg-blue-50 text-blue-600",
   },
   {
     icon: Facebook,
     label: "Facebook Page",
     value: "MSU DSA Guidance and Counseling Section",
-    href: "https://web.facebook.com/profile.php?id=100093457297912",
+    href: "https://www.facebook.com/profile.php?id=61574715717322",
+    external: true,
     color: "bg-indigo-50 text-indigo-600",
   },
   {
@@ -22,6 +27,7 @@ const CONTACT_CARDS = [
     label: "Contact Number",
     value: "0948-509-4731",
     href: "tel:09485094731",
+    external: false,
     color: "bg-maroon-50 text-maroon-600",
   },
   {
@@ -77,7 +83,7 @@ export default function ContactSection() {
 
             {/* Contact cards */}
             <div className="space-y-4 mb-6">
-              {CONTACT_CARDS.map(({ icon: Icon, label, value, href, color }) => (
+              {CONTACT_CARDS.map(({ icon: Icon, label, value, href, external, color }) => (
                 <div
                   key={label}
                   className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100"
@@ -92,8 +98,10 @@ export default function ContactSection() {
                     {href ? (
                       <a
                         href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        {...(external
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                        title={label === "Email" ? "Compose in Gmail to msudsa70@gmail.com" : value}
                         className="text-sm font-semibold text-gray-800 hover:text-maroon-600 transition-colors block truncate"
                       >
                         {value}
@@ -109,14 +117,17 @@ export default function ContactSection() {
             {/* Quick Contact Buttons */}
             <div className="flex flex-wrap gap-3 mb-8">
               <a
-                href="mailto:msudsa70@gmail.com"
+                href={GMAIL_COMPOSE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Compose in Gmail to msudsa70@gmail.com"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-maroon-500 hover:bg-maroon-600 text-white text-sm font-semibold transition-colors shadow-sm"
               >
                 <Mail size={16} />
-                Email Us
+                Email Us via Gmail
               </a>
               <a
-                href="https://web.facebook.com/profile.php?id=100093457297912"
+                href="https://www.facebook.com/profile.php?id=61574715717322"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-sm"
