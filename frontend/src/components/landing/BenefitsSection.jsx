@@ -1,5 +1,6 @@
 // src/components/landing/BenefitsSection.jsx
 import React from "react";
+import Reveal from "./Reveal";
 import { CheckCircle2, GraduationCap, Stethoscope, Building2, ShieldCheck } from "lucide-react";
 
 const STUDENT_BENEFITS = [
@@ -63,10 +64,10 @@ const CARDS = [
 
 function BenefitCard({ icon: Icon, title, benefits, bg }) {
   return (
-    <div className={`relative rounded-3xl ${bg} p-8 overflow-hidden`}>
+    <div className={`lift-hover relative rounded-3xl ${bg} p-8 overflow-hidden hover:shadow-xl`}>
       {/* Decorative blobs */}
-      <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/10" />
-      <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/10" />
+      <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/10 animate-blob-drift" />
+      <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/10 animate-blob-drift" style={{ animationDelay: "3s" }} />
 
       <div className="relative z-10">
         {/* Icon + title */}
@@ -96,7 +97,7 @@ export default function BenefitsSection() {
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-16">
+        <Reveal className="text-center mb-16">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
             Benefits
           </span>
@@ -107,17 +108,19 @@ export default function BenefitsSection() {
             CounceLink serves students, counselors, college representatives, and administrators
             with tools designed for each role.
           </p>
-        </div>
+        </Reveal>
 
         {/* Four cards — responsive grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {CARDS.map((card) => (
-            <BenefitCard key={card.title} {...card} />
+          {CARDS.map((card, i) => (
+            <Reveal key={card.title} variant="up" delay={(i % 4) * 90}>
+              <BenefitCard {...card} />
+            </Reveal>
           ))}
         </div>
 
         {/* Bottom promo strip */}
-        <div className="mt-10 rounded-2xl bg-gradient-to-r from-maroon-50 to-indigo-50 border border-maroon-100 p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <Reveal variant="scale" className="mt-10 rounded-2xl bg-gradient-to-r from-maroon-50 to-indigo-50 border border-maroon-100 p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div>
             <h4 className="text-lg font-bold text-gray-900 mb-1">
               Ready to experience CounceLink?
@@ -129,11 +132,11 @@ export default function BenefitsSection() {
           </div>
           <a
             href="/login"
-            className="shrink-0 px-6 py-3 rounded-xl bg-maroon-500 text-white font-semibold text-sm hover:bg-maroon-600 transition-all duration-200 shadow-sm"
+            className="shrink-0 px-6 py-3 rounded-xl bg-maroon-500 text-white font-semibold text-sm hover:bg-maroon-600 hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
           >
             Login Now
           </a>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

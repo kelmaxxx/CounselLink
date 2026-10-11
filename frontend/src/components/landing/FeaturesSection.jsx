@@ -1,5 +1,6 @@
 // src/components/landing/FeaturesSection.jsx
 import React from "react";
+import Reveal from "./Reveal";
 import {
   CalendarDays,
   ShieldCheck,
@@ -75,7 +76,7 @@ export default function FeaturesSection() {
     <section id="features" className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-16">
+        <Reveal className="text-center mb-16">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
             Features
           </span>
@@ -86,14 +87,16 @@ export default function FeaturesSection() {
             From scheduling to records management, CounceLink covers the full
             lifecycle of guidance counseling services.
           </p>
-        </div>
+        </Reveal>
 
         {/* Feature cards grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {FEATURES.map(({ icon: Icon, title, description, color }) => (
-            <div
+          {FEATURES.map(({ icon: Icon, title, description, color }, i) => (
+            <Reveal
               key={title}
-              className="group relative bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-default"
+              variant="up"
+              delay={(i % 4) * 80}
+              className="group relative bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg lift-hover cursor-default"
             >
               {/* Icon */}
               <div
@@ -112,7 +115,7 @@ export default function FeaturesSection() {
 
               {/* Hover accent line */}
               <div className="absolute bottom-0 inset-x-0 h-0.5 bg-gradient-to-r from-maroon-500 to-maroon-300 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-b-2xl" />
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>

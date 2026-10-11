@@ -30,7 +30,7 @@ export default function LandingNavbar() {
 
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled
+      className={`animate-navbar-drop fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled
           ? "bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-100"
           : "bg-transparent"
         }`}
@@ -99,7 +99,7 @@ export default function LandingNavbar() {
 
         {/* Mobile dropdown */}
         {open && (
-          <div className="md:hidden bg-white border-t border-gray-100 shadow-lg rounded-b-2xl overflow-hidden">
+          <div className="animate-pop-in md:hidden bg-white border-t border-gray-100 shadow-lg rounded-b-2xl overflow-hidden">
             <ul className="py-2 px-3">
               {NAV_LINKS.map((link) => (
                 <li key={link.href}>

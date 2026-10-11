@@ -1,5 +1,6 @@
 // src/components/landing/SpecialistsSection.jsx
 import React, { useState } from "react";
+import Reveal from "./Reveal";
 import { Mail, Phone, ZoomIn, X, Users } from "lucide-react";
 
 export default function SpecialistsSection() {
@@ -20,7 +21,7 @@ export default function SpecialistsSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
-        <div className="text-center mb-16">
+        <Reveal className="text-center mb-16">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
             Meet the Specialists
           </span>
@@ -30,11 +31,11 @@ export default function SpecialistsSection() {
           <p className="text-gray-500 max-w-2xl mx-auto text-lg">
             Get to know the dedicated guidance services specialists at MSU Marawi's Division of Student Affairs (DSA).
           </p>
-        </div>
+        </Reveal>
 
         <div className="grid lg:grid-cols-12 gap-12 items-center">
           {/* Left - Information & Assignments */}
-          <div className="lg:col-span-5 space-y-6">
+          <Reveal variant="left" className="lg:col-span-5 space-y-6">
             <div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3 flex items-center gap-2">
                 <Users className="text-maroon-600" size={24} />
@@ -76,7 +77,7 @@ export default function SpecialistsSection() {
               <div className="space-y-2.5 text-sm text-gray-600">
                 <div className="flex items-center gap-3">
                   <Mail size={16} className="text-gray-400" />
-                  <a href="mailto:msudsa70@gmail.com" className="hover:text-maroon-600 transition">msudsa70@gmail.com</a>
+                  <a href="https://mail.google.com/mail/?view=cm&fs=1&to=msudsa70@gmail.com&su=Inquiry%20via%20CounceLink" target="_blank" rel="noopener noreferrer" className="hover:text-maroon-600 transition">msudsa70@gmail.com</a>
                 </div>
                 <div className="flex items-center gap-3">
                   <Phone size={16} className="text-gray-400" />
@@ -84,10 +85,10 @@ export default function SpecialistsSection() {
                 </div>
               </div>
             </div>
-          </div>
+          </Reveal>
 
           {/* Right - Image Showcase with click to zoom */}
-          <div className="lg:col-span-7">
+          <Reveal variant="right" delay={120} className="lg:col-span-7">
             <div 
               onClick={() => setIsZoomed(true)}
               className="group relative cursor-pointer rounded-2xl overflow-hidden shadow-2xl border-4 border-white bg-white hover:-translate-y-1 transition duration-300"
@@ -105,7 +106,7 @@ export default function SpecialistsSection() {
                 </div>
               </div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </div>
 

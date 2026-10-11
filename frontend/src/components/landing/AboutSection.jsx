@@ -1,6 +1,7 @@
 // src/components/landing/AboutSection.jsx
 import React from "react";
 import { CheckCircle2, BookOpen, Users, Heart } from "lucide-react";
+import Reveal from "./Reveal";
 
 const BENEFITS = [
   "Digitizing the entire appointment scheduling process end-to-end",
@@ -15,7 +16,7 @@ export default function AboutSection() {
     <section id="about" className="py-24 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section label */}
-        <div className="text-center mb-16">
+        <Reveal className="text-center mb-16">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
             About CounceLink
           </span>
@@ -26,11 +27,11 @@ export default function AboutSection() {
             A modern digital solution built for Mindanao State University –
             Marawi City's Division of Student Affairs.
           </p>
-        </div>
+        </Reveal>
 
         <div className="grid lg:grid-cols-2 gap-14 items-center">
           {/* Left — visual */}
-          <div className="relative">
+          <Reveal variant="left" className="relative">
             {/* Card grid */}
             <div className="grid grid-cols-2 gap-4">
               {[
@@ -57,7 +58,7 @@ export default function AboutSection() {
               ].map(({ icon: Icon, label, color }) => (
                 <div
                   key={label}
-                  className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex flex-col items-center gap-3 text-center"
+                  className="lift-hover bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md flex flex-col items-center gap-3 text-center"
                 >
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
                     <Icon size={24} />
@@ -83,10 +84,10 @@ export default function AboutSection() {
                 </p>
               </div>
             </div>
-          </div>
+          </Reveal>
 
           {/* Right — text */}
-          <div>
+          <Reveal variant="right" delay={120}>
             <h3 className="text-2xl font-bold text-gray-900 mb-5">
               What CounceLink Does for the Guidance Office
             </h3>
@@ -98,14 +99,14 @@ export default function AboutSection() {
             </p>
 
             <ul className="space-y-4">
-              {BENEFITS.map((text) => (
-                <li key={text} className="flex gap-3">
+              {BENEFITS.map((text, i) => (
+                <Reveal key={text} variant="up" delay={i * 70} as="li" className="flex gap-3">
                   <CheckCircle2
                     size={20}
                     className="text-maroon-500 shrink-0 mt-0.5"
                   />
                   <span className="text-gray-700">{text}</span>
-                </li>
+                </Reveal>
               ))}
             </ul>
 
@@ -121,7 +122,7 @@ export default function AboutSection() {
                 className="h-14 object-contain"
               />
             </div>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>
