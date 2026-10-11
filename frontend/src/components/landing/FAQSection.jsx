@@ -1,5 +1,6 @@
 // src/components/landing/FAQSection.jsx
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Reveal from "./Reveal";
 import { ChevronDown } from "lucide-react";
 
@@ -39,73 +40,55 @@ const FAQS = [
 function FAQItem({ question, answer, isOpen, onToggle }) {
   return (
     <div
-      className={`border rounded-2xl overflow-hidden transition-all duration-200 ${
+      className={`border rounded-2xl overflow-hidden transition-all duration-200 backdrop-blur-xl ${
         isOpen
-          ? "border-maroon-200 shadow-sm"
-          : "border-gray-100 hover:border-gray-200"
+          ? "border-emerald-200 dark:border-emerald-500/30 shadow-lg bg-white dark:bg-white/[0.05]"
+          : "border-gray-100 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20 bg-white/70 dark:bg-white/[0.03]"
       }`}
     >
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left bg-white hover:bg-gray-50/60 transition-colors"
+        className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left hover:bg-gray-50/60 dark:hover:bg-white/5 transition-colors"
         aria-expanded={isOpen}
       >
-        <span className="font-semibold text-gray-900 leading-snug">
-          {question}
-        </span>
-        <ChevronDown
-          size={18}
-          className={`shrink-0 text-gray-400 transition-transform duration-300 ${
-            isOpen ? "rotate-180 text-maroon-500" : ""
-          }`}
-        />
+        <span className="font-semibold text-gray-900 dark:text-white leading-snug">{question}</span>
+        <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
+          <ChevronDown size={18} className={`shrink-0 ${isOpen ? "text-emerald-500" : "text-gray-400"}`} aria-hidden="true" />
+        </motion.span>
       </button>
-
-      {/* Accordion body */}
-      <div
-        className={`overflow-hidden transition-all duration-300 ${
-          isOpen ? "max-h-96" : "max-h-0"
-        }`}
-      >
-        <div className="px-6 pb-5 pt-1 bg-white border-t border-gray-50">
-          <p className="text-gray-600 leading-relaxed text-sm">{answer}</p>
-        </div>
-      </div>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="px-6 pb-5 pt-1 border-t border-gray-50 dark:border-white/10">
+              <p className="text-gray-600 dark:text-gray-300 leading-[1.8] text-sm">{answer}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 export default function FAQSection() {
   const [openIdx, setOpenIdx] = useState(0);
-
   return (
-    <section id="faq" className="py-24 bg-gray-50">
+    <section id="faq" aria-label="Frequently asked questions" className="py-24 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <Reveal className="text-center mb-14">
-          <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
-            FAQ
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Frequently Asked Questions
-          </h2>
-          <p className="text-gray-500 max-w-xl mx-auto text-lg">
-            Have a question about CounceLink? Here are answers to the most
-            common questions from students and counselors.
-          </p>
+          <span className="inline-block px-4 py-1.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-sm font-bold mb-4 tracking-wide uppercase">FAQ</span>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">Frequently Asked Questions</h2>
+          <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg leading-relaxed">Have a question about CounceLink? Here are answers to the most common questions from students and counselors.</p>
         </Reveal>
-
-        {/* Accordion list */}
         <div className="space-y-3">
           {FAQS.map((faq, idx) => (
             <Reveal key={faq.question} variant="up" delay={Math.min(idx, 5) * 60}>
-            <FAQItem
-              key={faq.question}
-              question={faq.question}
-              answer={faq.answer}
-              isOpen={openIdx === idx}
-              onToggle={() => setOpenIdx(openIdx === idx ? -1 : idx)}
-            />
+              <FAQItem question={faq.question} answer={faq.answer} isOpen={openIdx === idx} onToggle={() => setOpenIdx(openIdx === idx ? -1 : idx)} />
             </Reveal>
           ))}
         </div>
