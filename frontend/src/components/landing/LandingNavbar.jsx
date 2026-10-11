@@ -1,5 +1,5 @@
 // src/components/landing/LandingNavbar.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
@@ -15,12 +15,34 @@ const NAV_LINKS = [
 export default function LandingNavbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const lastY = useRef(0);
+  const openRef = useRef(false);
+  openRef.current = open;
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50);
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 50);
+      // Hide on scroll down, show on scroll up. Always show near top or when menu open.
+      if (y < 80 || openRef.current) {
+        setVisible(true);
+      } else if (y > lastY.current + 4) {
+        setVisible(false);
+      } else if (y < lastY.current - 4) {
+        setVisible(true);
+      }
+      lastY.current = y;
+    };
+    lastY.current = window.scrollY;
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Keep bar visible while mobile menu is open
+  useEffect(() => {
+    if (open) setVisible(true);
+  }, [open ]);
 
   const handleNavClick = (href) => {
     setOpen(false);
@@ -30,7 +52,9 @@ export default function LandingNavbar() {
 
   return (
     <header
-      className={`animate-navbar-drop fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled
+      className={`fixed top-0 inset-x-0 z-50 transition-transform duration-300 ease-out will-change-transform ${
+        visible ? "translate-y-0" : "-translate-y-full"
+      } ${scrolled
           ? "bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-100"
           : "bg-transparent"
         }`}
