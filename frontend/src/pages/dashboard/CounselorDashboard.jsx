@@ -24,6 +24,7 @@ import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
+import ReschedulePicker from "../../components/ReschedulePicker";
 import { useReferrals } from "../../context/ReferralsContext";
 import { SectionCard, EmptyState, BigStat, RankedBarChart, DonutStat, TrendAreaChart, VerticalBarChart, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
 
@@ -886,6 +887,7 @@ export default function CounselorDashboard() {
         onClose={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}
         title="Reschedule appointment"
         subtitle="Propose a new date and time. The student will be notified."
+        size="lg"
         footer={
           <>
             <button
@@ -901,33 +903,13 @@ export default function CounselorDashboard() {
           </>
         }
       >
-        <div className="space-y-3">
-          <div>
-            <label className={LABEL}>New date</label>
-            <input
-              type="date"
-              className={INPUT}
-              min={todayStr}
-              value={rescheduleModal.date}
-              onChange={(e) => setRescheduleModal((s) => ({ ...s, date: e.target.value }))}
-            />
-            <p className="text-[11px] text-gray-400 mt-1">Weekends & past dates unavailable</p>
-          </div>
-          <div>
-            <label className={LABEL}>New time slot</label>
-            <select
-              className={INPUT}
-              value={rescheduleModal.timeSlot}
-              onChange={(e) => setRescheduleModal((s) => ({ ...s, timeSlot: e.target.value }))}
-            >
-              <option value="">Select a slot</option>
-              {Object.entries(TIME_BLOCKS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="space-y-4">
+          <ReschedulePicker
+            date={rescheduleModal.date}
+            timeSlot={rescheduleModal.timeSlot}
+            onDateChange={(iso) => setRescheduleModal((s) => ({ ...s, date: iso }))}
+            onTimeSlotChange={(val) => setRescheduleModal((s) => ({ ...s, timeSlot: val }))}
+          />
           <div>
             <label className={LABEL}>Note (optional)</label>
             <textarea
@@ -945,6 +927,7 @@ export default function CounselorDashboard() {
         onClose={() => setRescheduleTestModal({ open: false, testId: null, date: "", timeSlot: "", note: "" })}
         title="Reschedule test"
         subtitle="Propose a new date and time for the psychological test."
+        size="lg"
         footer={
           <>
             <button
@@ -960,33 +943,13 @@ export default function CounselorDashboard() {
           </>
         }
       >
-        <div className="space-y-3">
-          <div>
-            <label className={LABEL}>New date</label>
-            <input
-              type="date"
-              className={INPUT}
-              min={todayStr}
-              value={rescheduleTestModal.date}
-              onChange={(e) => setRescheduleTestModal((s) => ({ ...s, date: e.target.value }))}
-            />
-            <p className="text-[11px] text-gray-400 mt-1">Weekends & past dates unavailable</p>
-          </div>
-          <div>
-            <label className={LABEL}>New time slot</label>
-            <select
-              className={INPUT}
-              value={rescheduleTestModal.timeSlot}
-              onChange={(e) => setRescheduleTestModal((s) => ({ ...s, timeSlot: e.target.value }))}
-            >
-              <option value="">Select a slot</option>
-              {Object.entries(TIME_BLOCKS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="space-y-4">
+          <ReschedulePicker
+            date={rescheduleTestModal.date}
+            timeSlot={rescheduleTestModal.timeSlot}
+            onDateChange={(iso) => setRescheduleTestModal((s) => ({ ...s, date: iso }))}
+            onTimeSlotChange={(val) => setRescheduleTestModal((s) => ({ ...s, timeSlot: val }))}
+          />
           <div>
             <label className={LABEL}>Note (optional)</label>
             <textarea

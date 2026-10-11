@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
+import ReschedulePicker from "../../components/ReschedulePicker";
 import {
   PageHeader,
   SectionCard,
@@ -1184,6 +1185,7 @@ export default function CounselorAppointments() {
         onClose={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}
         title="Reschedule appointment"
         subtitle="Propose a new date and time. The student will be notified."
+        size="lg"
         footer={
           <>
             <button type="button" className={BTN.secondary} onClick={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}>Cancel</button>
@@ -1191,19 +1193,13 @@ export default function CounselorAppointments() {
           </>
         }
       >
-        <div className="space-y-3">
-          <div>
-            <label className={LABEL}>New date</label>
-            <input type="date" className={INPUT} min={today} value={rescheduleModal.date} onChange={(e) => setRescheduleModal((s) => ({ ...s, date: e.target.value }))} />
-            <p className="text-[11px] text-gray-400 mt-1">Weekends & past dates unavailable</p>
-          </div>
-          <div>
-            <label className={LABEL}>New time slot</label>
-            <select className={INPUT} value={rescheduleModal.timeSlot} onChange={(e) => setRescheduleModal((s) => ({ ...s, timeSlot: e.target.value }))}>
-              <option value="">Select a slot</option>
-              {Object.entries(TIME_BLOCKS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
+        <div className="space-y-4">
+          <ReschedulePicker
+            date={rescheduleModal.date}
+            timeSlot={rescheduleModal.timeSlot}
+            onDateChange={(iso) => setRescheduleModal((s) => ({ ...s, date: iso }))}
+            onTimeSlotChange={(val) => setRescheduleModal((s) => ({ ...s, timeSlot: val }))}
+          />
           <div>
             <label className={LABEL}>Note (optional)</label>
             <textarea rows={3} className={`${INPUT} resize-none`} value={rescheduleModal.note} onChange={(e) => setRescheduleModal((s) => ({ ...s, note: e.target.value }))} />

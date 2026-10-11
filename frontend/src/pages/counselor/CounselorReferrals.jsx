@@ -15,11 +15,8 @@ import {
   initialsOf,
   Pagination,
 } from "../../components/ui";
+import ReschedulePicker from "../../components/ReschedulePicker";
 
-const TIME_BLOCKS = {
-  "9:00-12:00": "9:00 AM – 12:00 PM",
-  "1:00-5:00": "1:00 PM – 5:00 PM",
-};
 const isWeekendISO = (iso) => {
   if (!iso) return false;
   const d = new Date(`${iso}T00:00:00`);
@@ -270,6 +267,7 @@ export default function CounselorReferrals() {
       <Modal
         open={decisionModal.open}
         onClose={() => setDecisionModal({ open: false, referral: null, status: null })}
+        size="lg"
         title={
           decisionModal.status === "accepted"
             ? "Accept referral"
@@ -339,33 +337,13 @@ export default function CounselorReferrals() {
             </div>
 
             {(decisionModal.status === "accepted" || decisionModal.status === "rescheduled") && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className={LABEL}>Appointment date *</label>
-                  <input
-                    type="date"
-                    className={INPUT}
-                    value={scheduledDate}
-                    min={new Date().toISOString().split("T")[0]}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                  />
-                  <p className="text-[11px] text-gray-400 mt-1">Weekends & past dates unavailable</p>
-                </div>
-                <div>
-                  <label className={LABEL}>Time slot *</label>
-                  <select
-                    className={INPUT}
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                  >
-                    <option value="">Select a slot</option>
-                    {Object.entries(TIME_BLOCKS).map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="mb-3">
+                <ReschedulePicker
+                  date={scheduledDate}
+                  timeSlot={scheduledTime}
+                  onDateChange={setScheduledDate}
+                  onTimeSlotChange={setScheduledTime}
+                />
               </div>
             )}
 
