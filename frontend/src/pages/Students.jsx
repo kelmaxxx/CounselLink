@@ -46,7 +46,7 @@ const blankForm = () => ({
 
 export default function ManageStudents() {
   const { currentUser, fetchUsersByRole } = useAuth();
-  const { sessions, fetchSessions, createSession, updateSession, deleteSession } = useCounselingSessions();
+  const { sessions, fetchSessions, createSession, updateSession, deleteSession, finalizeSession } = useCounselingSessions();
   const { getRecords } = useStudentRecords();
   const location = useLocation();
 
@@ -61,6 +61,7 @@ export default function ManageStudents() {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmSubmit, setConfirmSubmit] = useState(null);
 
   // Drawer state
   const [drawerStudent, setDrawerStudent] = useState(null);
@@ -339,6 +340,44 @@ export default function ManageStudents() {
     setBusy(false);
     setConfirmDelete(null);
     showFeedback(res.success ? "success" : "error", res.success ? "Session deleted" : (res.message || "Failed to delete"));
+  };
+
+  // Submit a draft as the final Session Report (immutable + visible to student).
+  // Saves the current edit-modal form first so no typed changes are lost.
+  const handleConfirmSubmit = async () => {
+    const target = confirmSubmit || editing;
+    if (!target?.id) return;
+    if (target.finalizedAt) {
+      setConfirmSubmit(null);
+      showFeedback("error", "This report has already been submitted.");
+      return;
+    }
+    setBusy(true);
+    // Persist any edits made in the modal before finalizing.
+    if (confirmSubmit && editing?.id === confirmSubmit.id) {
+      const payload = {
+        ...form,
+        studentId: Number(form.studentId),
+        appointmentId: form.appointmentId ? Number(form.appointmentId) : null,
+      };
+      const saveRes = await updateSession(editing.id, payload);
+      if (!saveRes.success) {
+        setBusy(false);
+        showFeedback("error", saveRes.message || "Failed to save before submitting");
+        return;
+      }
+      setEditing(saveRes.session);
+    }
+    const res = await finalizeSession(target.id);
+    setBusy(false);
+    setConfirmSubmit(null);
+    if (res.success) {
+      if (editing?.id === target.id) setEditing(res.session || { ...target, finalizedAt: new Date().toISOString() });
+      closeModal();
+      showFeedback("success", "Session Report submitted — now visible to the student and read-only.");
+    } else {
+      showFeedback("error", res.message || "Failed to submit report");
+    }
   };
 
   return (
@@ -988,6 +1027,12 @@ export default function ManageStudents() {
                   <Edit size={13} /> Edit
                 </button>
                 <button
+                  onClick={() => { setConfirmSubmit(popSess); setOpenSessionPopoverId(null); setSessionPopoverData(null); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition text-left"
+                >
+                  <CheckCircle2 size={13} /> Submit
+                </button>
+                <button
                   onClick={() => { setConfirmDelete(popSess); setOpenSessionPopoverId(null); setSessionPopoverData(null); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition text-left"
                 >
@@ -1024,14 +1069,26 @@ export default function ManageStudents() {
               {recordStep === 0 ? "Cancel" : (<><ArrowLeft size={14} /> Back</>)}
             </button>
             {isLastRecordStep ? (
-              <button
-                type="submit"
-                form="session-record-form"
-                disabled={busy}
-                className={BTN.primary}
-              >
-                {busy ? "Saving…" : editing?.id ? "Save changes" : "Add record"}
-              </button>
+              <div className="flex items-center gap-2">
+                {editing?.id && !editing.finalizedAt && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmSubmit(editing)}
+                    disabled={busy}
+                    className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <CheckCircle2 size={14} /> {busy ? "Submitting…" : "Submit"}
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  form="session-record-form"
+                  disabled={busy}
+                  className={BTN.primary}
+                >
+                  {busy ? "Saving…" : editing?.id ? "Save changes" : "Add record"}
+                </button>
+              </div>
             ) : (
               <button type="button" onClick={goRecordNext} className={BTN.primary}>
                 Continue <ArrowRight size={14} />
@@ -1212,6 +1269,7 @@ export default function ManageStudents() {
           readOnly={currentUser?.role !== "counselor"}
           onEditSession={(s) => openEdit(s)}
           onDeleteSession={(s) => setConfirmDelete(s)}
+          onSubmitSession={(s) => setConfirmSubmit(s)}
         />
       )}
 
@@ -1264,6 +1322,38 @@ export default function ManageStudents() {
             <ViewRow label="Signed by" value={viewSession.counselorSignature} />
           </dl>
         )}
+      </Modal>
+
+      {/* Submit draft confirm */}
+      <Modal
+        open={Boolean(confirmSubmit)}
+        onClose={() => setConfirmSubmit(null)}
+        title="Submit Session Report?"
+        subtitle={
+          confirmSubmit
+            ? `${confirmSubmit.studentName} · ${(confirmSubmit.sessionDate || "").split("T")[0]}`
+            : ""
+        }
+        footer={
+          <>
+            <button onClick={() => setConfirmSubmit(null)} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button onClick={handleConfirmSubmit} disabled={busy} className={BTN.primary}>
+              {busy ? "Submitting…" : "Confirm Submit"}
+            </button>
+          </>
+        }
+      >
+        <div className="flex items-start gap-3">
+          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex-shrink-0">
+            <CheckCircle2 size={16} />
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            Submit this draft as the final Session Report? Once submitted the record becomes
+            visible to the student and can no longer be edited or deleted.
+          </p>
+        </div>
       </Modal>
 
       {/* Delete confirm */}

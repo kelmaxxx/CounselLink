@@ -321,8 +321,11 @@ export default function CounselorAppointments() {
   });
 
   // Missed — no-shows + overdue follow-ups (violet) + overdue urgents (red)
+  // NOTE: only "rescheduled" counts as overdue here — approved is excluded
+  // (a past approved slot is either rescheduled by the counselor or swept to
+  // no_show by the backend, where it still shows under Missing).
   const overdueAppts = myAppointments.filter((a) => {
-    if (a.status !== "approved" && a.status !== "rescheduled") return false;
+    if (a.status !== "rescheduled") return false;
     const sched = standardizeDate(a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date);
     if (!sched) return false;
     if (sched < today) return true;
@@ -346,7 +349,7 @@ export default function CounselorAppointments() {
   const completedTests = myTests.filter((t) => t.status === "completed");
 
   const overdueTests = myTests.filter((t) => {
-    if (t.status !== "approved" && t.status !== "rescheduled") return false;
+    if (t.status !== "rescheduled") return false;
     const sched = standardizeDate(t.scheduledDate || t.scheduled_date || t.preferredDate || t.preferred_date);
     if (!sched) return false;
     if (sched < today) return true;

@@ -328,7 +328,7 @@ export const decideReferral = async (req, res) => {
     if (queueSlot && normalizedDate) {
       const [{ cnt }] = await q(
         `SELECT COUNT(*) AS cnt FROM appointments
-         WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+         WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL`,
         [normalizedDate, queueSlot]
       );
       if (cnt < 50) queueNumber = cnt + 1;

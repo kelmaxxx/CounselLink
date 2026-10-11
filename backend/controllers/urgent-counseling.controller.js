@@ -113,7 +113,7 @@ export const createUrgentCounselingRequest = async (req, res) => {
 
   const [{ cnt }] = await query(
     `SELECT COUNT(*) AS cnt FROM appointments
-     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL`,
     [queueDate, queueSlot]
   );
 

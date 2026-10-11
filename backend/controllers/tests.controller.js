@@ -147,7 +147,7 @@ export const acceptTest = async (req, res) => {
 
   const [{ cnt }] = await query(
     `SELECT COUNT(*) AS cnt FROM appointments
-     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'psychological_test'`,
+     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL`,
     [queueDate, queueSlot]
   );
 
@@ -229,7 +229,7 @@ export const rescheduleTest = async (req, res) => {
 
   const [{ cnt }] = await query(
     `SELECT COUNT(*) AS cnt FROM appointments
-     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'psychological_test' AND id <> ?`,
+     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND id <> ?`,
     [queueDate, queueSlot, id]
   );
 

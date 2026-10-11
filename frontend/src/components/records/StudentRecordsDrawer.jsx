@@ -545,6 +545,12 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
                   <Edit size={13} /> Edit
                 </button>
                 <button
+                  onClick={() => { onSubmitSession?.(popSess); setOpenPopoverId(null); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition text-left"
+                >
+                  <CheckCircle2 size={13} /> Submit
+                </button>
+                <button
                   onClick={() => { onDeleteSession?.(popSess); setOpenPopoverId(null); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition text-left"
                 >
@@ -566,7 +572,7 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
   );
 }
 
-export default function StudentRecordsDrawer({ student, onClose, onRecordsChanged, onEditSession, onDeleteSession, readOnly = false, initialTab = "inventory" }) {
+export default function StudentRecordsDrawer({ student, onClose, onRecordsChanged, onEditSession, onDeleteSession, onSubmitSession, readOnly = false, initialTab = "inventory" }) {
   const {
     getRecords,
     upsertInventory, uploadInventoryScan, deleteInventoryScan,
