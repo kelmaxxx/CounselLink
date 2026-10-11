@@ -80,6 +80,30 @@ const initialForm = {
 // ── Date helpers (local, timezone-safe) ──────────────────────────────
 const pad2 = (n) => String(n).padStart(2, "0");
 const toISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+// Duty time mirrors the backend (backend/utils/office-hours.js):
+// Monday–Friday, 9:00 AM – 5:00 PM. Urgent requests follow the same
+// schedule as regular appointments — no weekends, no after-hours.
+const OFFICE_HOURS_LABEL = "Monday – Friday, 9:00 AM – 5:00 PM";
+const getUrgentOfficeStatus = (now = new Date()) => {
+  const day = now.getDay();
+  const hour = now.getHours();
+  if (day === 0 || day === 6)
+    return {
+      isOpen: false,
+      reason: "weekend",
+      message:
+        "No counseling duty on weekends. Urgent requests cannot be submitted right now because there is no duty counselor.",
+    };
+  if (hour < 9 || hour >= 17)
+    return {
+      isOpen: false,
+      reason: "after-hours",
+      message:
+        "No counseling duty outside office hours (9:00 AM – 5:00 PM). Urgent requests cannot be submitted right now because there is no duty counselor.",
+    };
+  return { isOpen: true, reason: null, message: null };
+};
 const startOfToday = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -271,6 +295,16 @@ export default function RequestAppointment() {
     if (!createAppointment) {
       alert("Appointment system not initialized.");
       return;
+    }
+    // Duty-hours guard: urgent follows the same schedule as regular
+    // appointments — block same-day urgent submits on weekends / after 5PM
+    // (the server enforces this too and returns the same message).
+    if (form.isUrgent) {
+      const officeStatus = getUrgentOfficeStatus(new Date());
+      if (!officeStatus.isOpen) {
+        alert(`${officeStatus.message} Office hours are ${OFFICE_HOURS_LABEL}.`);
+        return;
+      }
     }
     if (!form.date || !form.reason || !form.phoneNumber || (!form.isUrgent && !form.preferredSlots.length)) {
       alert("Please complete all required fields before submitting.");
@@ -584,12 +618,30 @@ function DetailsStep({ currentUser, myRecord, form, setField }) {
    Step: Priority
 ──────────────────────────────────────────────────────────────────── */
 function PriorityStep({ form, setField }) {
+  const officeStatus = getUrgentOfficeStatus(new Date());
   return (
     <StepCard
       icon={Zap}
       title="How soon do you need this?"
       subtitle="Mark as urgent only if you need immediate attention."
     >
+      {!officeStatus.isOpen && (
+        <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-semibold text-amber-800">
+              {officeStatus.reason === "weekend"
+                ? "No counseling duty on weekends"
+                : "No counseling duty right now"}
+            </p>
+            <p className="text-xs text-amber-700 leading-relaxed mt-0.5">
+              {officeStatus.message} Office hours are {OFFICE_HOURS_LABEL}. Please
+              choose <span className="font-semibold">Normal</span> or come back during
+              office hours.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <PriorityOption
           active={!form.isUrgent}
@@ -600,17 +652,26 @@ function PriorityStep({ form, setField }) {
         />
         <PriorityOption
           active={form.isUrgent}
-          onClick={() => setField({ isUrgent: true, date: toISO(new Date()), preferredSlots: [] })}
+          onClick={() => {
+            if (!officeStatus.isOpen) return;
+            setField({ isUrgent: true, date: toISO(new Date()), preferredSlots: [] });
+          }}
           title="Urgent"
           desc="Immediate attention required — attended today."
           tone="red"
+          disabled={!officeStatus.isOpen}
+          disabledHint={
+            officeStatus.reason === "weekend"
+              ? "Unavailable on weekends"
+              : "Unavailable after office hours"
+          }
         />
       </div>
     </StepCard>
   );
 }
 
-function PriorityOption({ active, onClick, title, desc, tone }) {
+function PriorityOption({ active, onClick, title, desc, tone, disabled, disabledHint }) {
   const ring =
     tone === "red"
       ? active
@@ -620,7 +681,15 @@ function PriorityOption({ active, onClick, title, desc, tone }) {
         ? "border-maroon-300 bg-maroon-50 ring-2 ring-maroon-200"
         : "border-gray-200 hover:bg-gray-50";
   return (
-    <button type="button" onClick={onClick} className={`text-left rounded-xl border p-4 transition ${ring}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={disabled ? disabledHint : undefined}
+      className={`text-left rounded-xl border p-4 transition ${ring} ${
+        disabled ? "opacity-50 cursor-not-allowed" : ""
+      }`}
+    >
       <div className="flex items-center gap-2 mb-1">
         {tone === "red" ? (
           <AlertTriangle size={16} className={active ? "text-red-600" : "text-gray-400"} />
@@ -630,6 +699,11 @@ function PriorityOption({ active, onClick, title, desc, tone }) {
         <span className={`text-sm font-semibold ${active ? "text-gray-900" : "text-gray-700"}`}>
           {title}
         </span>
+        {disabled && disabledHint && (
+          <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 whitespace-nowrap">
+            {disabledHint}
+          </span>
+        )}
       </div>
       <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
     </button>

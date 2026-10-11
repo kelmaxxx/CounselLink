@@ -3,6 +3,7 @@ import { notifyRole, notifyUser } from "../events.js";
 import { notifyUsers, createNotification } from "../utils/notify.js";
 import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { isValidPhMobile } from "../utils/validators.js";
+import { getOfficeHoursStatus } from "../utils/office-hours.js";
 
 const QUEUE_LIMIT = 50;
 
@@ -34,6 +35,20 @@ export const createAppointment = async (req, res) => {
 
   if (!isCounselor && !isValidPhMobile(finalPhoneNumber)) {
     return res.status(400).json({ message: "Phone number must start with 09 and have 11 digits" });
+  }
+
+  // Duty-hours guard for logged-in urgent requests: same schedule as regular
+  // appointments — no weekends, no submissions outside 9AM–5PM. Reject
+  // before assigning a queue number.
+  if (isUrgent && !isCounselor) {
+    const officeStatus = getOfficeHoursStatus(new Date());
+    if (!officeStatus.isOpen) {
+      return res.status(403).json({
+        message: officeStatus.message,
+        officeClosed: true,
+        reason: officeStatus.reason,
+      });
+    }
   }
 
   const slots = Array.isArray(preferredSlots) ? preferredSlots.join(",") : preferredSlots;

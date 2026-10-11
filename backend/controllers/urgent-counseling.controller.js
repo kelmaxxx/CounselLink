@@ -5,6 +5,7 @@ import { notifyUsers } from "../utils/notify.js";
 import { notifyRole } from "../events.js";
 import { logAction } from "../utils/audit.js";
 import { sendEmail } from "../services/email.service.js";
+import { getOfficeHoursStatus } from "../utils/office-hours.js";
 
 const ALREADY_PENDING_MESSAGE =
   "You have already submitted an urgent counseling request today. Only one request is allowed per day. Please proceed to the Division of Student Affairs Office.";
@@ -28,6 +29,18 @@ export const createUrgentCounselingRequest = async (req, res) => {
 
   if (!trimmed.firstName || !trimmed.middleName || !trimmed.familyName || !trimmed.studentIdNumber || !trimmed.description) {
     return res.status(400).json({ message: "Please complete all required fields." });
+  }
+
+  // Duty-hours guard: urgent requests follow the same schedule as regular
+  // appointments — no weekends, no submissions outside 9AM–5PM. Reject
+  // before any duplicate check / insert so no queue number is assigned.
+  const officeStatus = getOfficeHoursStatus(new Date());
+  if (!officeStatus.isOpen) {
+    return res.status(403).json({
+      message: officeStatus.message,
+      officeClosed: true,
+      reason: officeStatus.reason,
+    });
   }
 
 
@@ -146,9 +159,9 @@ export const createUrgentCounselingRequest = async (req, res) => {
   const title = "Urgent Counseling Request";
   const message = `An urgent counseling request was submitted on ${timestamp}.`;
   const detailLines = [
-    `Name: ${trimmed.fullName}`,
+    `Name: ${fullName}`,
     `Student ID: ${trimmed.studentIdNumber}`,
-    `Institutional Email: ${trimmed.institutionalEmail}`,
+    `Institutional Email: ${trimmed.institutionalEmail || "N/A"}`,
     `Queue #: ${queueNumber}`,
     `Description: ${trimmed.description}`,
   ];

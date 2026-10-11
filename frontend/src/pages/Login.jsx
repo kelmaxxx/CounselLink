@@ -17,6 +17,7 @@ import {
   Phone,
   ArrowLeft,
   AlertTriangle,
+  Clock,
   Home,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL } from "../components/ui";
@@ -894,14 +895,27 @@ const EMPTY_URGENT_FORM = {
   description: "",
 };
 
+// Duty time mirrors the backend (backend/utils/office-hours.js):
+// Monday–Friday, 9:00 AM – 5:00 PM. Urgent requests follow the same
+// schedule as regular appointments — no weekends, no after-hours.
+const OFFICE_HOURS_LABEL = "Monday – Friday, 9:00 AM – 5:00 PM";
+const getUrgentOfficeStatus = (now = new Date()) => {
+  const day = now.getDay();
+  const hour = now.getHours();
+  if (day === 0 || day === 6) return { isOpen: false, reason: "weekend" };
+  if (hour < 9 || hour >= 17) return { isOpen: false, reason: "after-hours" };
+  return { isOpen: true, reason: null };
+};
+
 function AuthShell({ children }) {
-  const [urgentModal, setUrgentModal] = useState(null); // null | "notice" | "form" | "confirm" | "success" | "duplicate"
+  const [urgentModal, setUrgentModal] = useState(null); // null | "notice" | "form" | "confirm" | "success" | "duplicate" | "closed"
   const [urgentForm, setUrgentForm] = useState(EMPTY_URGENT_FORM);
   const [urgentFormErrors, setUrgentFormErrors] = useState({});
   const [urgentLoading, setUrgentLoading] = useState(false);
   const [urgentError, setUrgentError] = useState("");
   const [urgentQueueNumber, setUrgentQueueNumber] = useState(null);
   const [urgentSubmittedAt, setUrgentSubmittedAt] = useState(null);
+  const [urgentClosedReason, setUrgentClosedReason] = useState(null);
 
   const openUrgentFlow = () => {
     setUrgentForm(EMPTY_URGENT_FORM);
@@ -909,6 +923,15 @@ function AuthShell({ children }) {
     setUrgentError("");
     setUrgentQueueNumber(null);
     setUrgentSubmittedAt(null);
+    // Duty-hours guard: warn immediately when there is no duty counselor
+    // (weekends / outside 9AM–5PM) instead of letting the request queue.
+    const status = getUrgentOfficeStatus(new Date());
+    if (!status.isOpen) {
+      setUrgentClosedReason(status.reason);
+      setUrgentModal("closed");
+      return;
+    }
+    setUrgentClosedReason(null);
     setUrgentModal("notice");
   };
 
@@ -941,6 +964,14 @@ function AuthShell({ children }) {
     setUrgentLoading(true);
     setUrgentError("");
     try {
+      // Re-check duty time at submit (the form may have been left open
+      // past 5PM or over the weekend).
+      const status = getUrgentOfficeStatus(new Date());
+      if (!status.isOpen) {
+        setUrgentClosedReason(status.reason);
+        setUrgentModal("closed");
+        return;
+      }
       const res = await fetch(`${API_BASE}/api/urgent-counseling-requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -954,6 +985,13 @@ function AuthShell({ children }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // Backend duty-hours rejection (403 + officeClosed) → show the
+        // "office closed" warning instead of a generic error.
+        if (res.status === 403 && data.officeClosed) {
+          setUrgentClosedReason(data.reason || "after-hours");
+          setUrgentModal("closed");
+          return;
+        }
         setUrgentError(data.message || "Unable to submit request. Please try again.");
         return;
       }
@@ -1076,6 +1114,7 @@ function AuthShell({ children }) {
           error={urgentError}
           queueNumber={urgentQueueNumber}
           submittedAt={urgentSubmittedAt}
+          closedReason={urgentClosedReason}
         />
       )}
     </div>
@@ -1096,7 +1135,39 @@ function UrgentCounselingModal({
   error,
   queueNumber,
   submittedAt,
+  closedReason,
 }) {
+  if (step === "closed") {
+    const isWeekend = closedReason === "weekend";
+    return (
+      <Modal open onClose={onClose} title="Office Closed — No Duty Counselor" danger size="md">
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <Clock size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800">
+              {isWeekend
+                ? "No counseling duty on weekends"
+                : "No counseling duty right now"}
+            </p>
+            <p className="text-sm text-amber-700 leading-relaxed mt-1">
+              {isWeekend
+                ? "The Guidance and Counseling Office is closed every Saturday and Sunday. Urgent requests cannot be queued right now because there is no duty counselor."
+                : "The Guidance and Counseling Office is closed outside duty hours. Urgent requests cannot be queued right now because there is no duty counselor."}
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-700 leading-relaxed mt-3">
+          Office hours are <span className="font-semibold">{OFFICE_HOURS_LABEL}</span>.{" "}
+          Please come back during office hours, or proceed to the Division of Student
+          Affairs Office on the next working day for assistance.
+        </p>
+        <div className="flex justify-end mt-5">
+          <button type="button" onClick={onClose} className={BTN.primary}>Understood</button>
+        </div>
+      </Modal>
+    );
+  }
+
   if (step === "notice") {
     return (
       <Modal open onClose={onClose} title="URGENT COUNSELING NOTICE" danger size="md">
@@ -1108,8 +1179,8 @@ function UrgentCounselingModal({
           Regular counseling concerns should be scheduled through the appointment system.
         </p>
         <p className="text-sm text-gray-700 leading-relaxed mt-3">
-          Counseling services are available only from Monday to Friday. No counseling
-          appointments are conducted during Saturdays and Sundays.
+          Counseling services are available only from Monday to Friday, 9:00 AM – 5:00 PM.
+          No counseling appointments are conducted during Saturdays, Sundays, or after office hours.
         </p>
         <p className="text-sm text-gray-700 leading-relaxed mt-3">
           Click "Proceed" if you require immediate counseling assistance.
