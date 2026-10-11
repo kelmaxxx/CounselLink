@@ -52,7 +52,15 @@ export default function LandingFooter() {
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2 text-gray-400">
                 <Mail size={14} className="text-maroon-400 shrink-0" />
-                <span>msudsa70@gmail.com</span>
+                <a
+                  href="https://mail.google.com/mail/?view=cm&fs=1&to=msudsa70@gmail.com&su=Inquiry%20via%20CounceLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Compose in Gmail to msudsa70@gmail.com"
+                  className="hover:text-maroon-300 transition-colors"
+                >
+                  msudsa70@gmail.com
+                </a>
               </li>
               <li className="flex items-center gap-2 text-gray-400">
                 <Phone size={14} className="text-maroon-400 shrink-0" />
