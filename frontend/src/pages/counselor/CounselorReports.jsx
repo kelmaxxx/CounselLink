@@ -19,6 +19,7 @@ import {
   Search,
   AlertTriangle,
   PenLine,
+  ScrollText,
 } from "lucide-react";
 import {
   PageHeader,
@@ -33,8 +34,10 @@ import {
   LABEL,
   initialsOf,
 } from "../../components/ui";
-import { downloadReportAsPdf, saveReportAsPdfFile } from "../../utils/sessionReport";
+import { saveReportAsPdfFile } from "../../utils/sessionReport";
 import ReportPreview from "../../components/records/ReportPreview";
+import LetterPreview from "../../components/records/LetterPreview";
+import { letterFromRequest, saveLetterAsPdfFile } from "../../utils/requestLetter";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -55,6 +58,7 @@ export default function CounselorReports() {
   const [loadingReports, setLoadingReports] = useState(false);
   const [error, setError] = useState("");
   const [activeReport, setActiveReport] = useState(null);
+  const [letterTarget, setLetterTarget] = useState(null); // request row viewed as a formal letter
 
   // Incoming report requests from Colleges.
   const [requests, setRequests] = useState([]);
@@ -558,6 +562,9 @@ export default function CounselorReports() {
                       {r.response_note && <p className="text-gray-400"><span className="font-medium">Your note:</span> {r.response_note}</p>}
                       <p className="text-gray-400 tabular-nums">{new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
                     </div>
+                    <div className="pt-1">
+                      <button type="button" onClick={() => setLetterTarget(r)} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><ScrollText size={13} /> View letter</button>
+                    </div>
                     {r.status === "pending" && (r.request_type === "college" || r.request_type === "department") && (
                       <div className="flex gap-1 pt-1">
                         <button onClick={() => currentUser?.signatureUrl ? openGenerate(r) : undefined} disabled={!currentUser?.signatureUrl} className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition ${currentUser?.signatureUrl ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`} title={currentUser?.signatureUrl ? "Generate & send summary" : "Set up your eSign in your Profile first"}><Check size={13} /> Generate</button>
@@ -580,6 +587,7 @@ export default function CounselorReports() {
                       <th className="px-4 py-2.5">Reason</th>
                       <th className="px-4 py-2.5">Status</th>
                       <th className="px-4 py-2.5">Submitted</th>
+                      <th className="px-4 py-2.5">Letter</th>
                       <th className="px-4 py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -612,6 +620,9 @@ export default function CounselorReports() {
                         <td className="px-4 py-3"><StatusPill status={r.status} /></td>
                         <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
                           {new Date(r.created_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button type="button" onClick={() => setLetterTarget(r)} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition" title="View formal request letter"><ScrollText size={13} /> Letter</button>
                         </td>
                         <td className="px-4 py-3 text-right">
                           {r.status === "pending" && (r.request_type === "college" || r.request_type === "department") ? (
@@ -1061,6 +1072,36 @@ export default function CounselorReports() {
             {genError && <p className="text-sm text-red-600">{genError}</p>}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={!!letterTarget}
+        onClose={() => setLetterTarget(null)}
+        title={letterTarget ? (letterFromRequest(letterTarget).subject || "Request letter") : "Request letter"}
+        subtitle={letterTarget ? `Filed by ${letterTarget.requesterName || "—"}${letterTarget.requesterCollege ? ` · ${letterTarget.requesterCollege}` : ""}` : ""}
+        size="5xl"
+        align="top"
+        footer={
+          letterTarget && (
+            <div className="flex items-center gap-2">
+              <button className={BTN.secondary} onClick={() => saveLetterAsPdfFile(letterFromRequest(letterTarget))}><FileDown size={14} /> Download</button>
+              <button className={BTN.primary} onClick={() => setLetterTarget(null)}>Close</button>
+            </div>
+          )
+        }
+      >
+        {letterTarget && letterTarget.request_type === "individual" && letterTarget.studentConsent !== "yes" && (
+          <div className="mb-3 px-3 py-2 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-sm flex items-start gap-2">
+            <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
+            <p>The student has not allowed sharing of counseling details — this letter will stay auto-declined until consent is given.</p>
+          </div>
+        )}
+        {letterTarget && letterTarget.request_type === "individual" && letterTarget.studentConsent === "yes" && !letterTarget.hasFinalizedSession && (
+          <div className="mb-3 px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-blue-800 text-sm">No finalized session is on file for this student yet — nothing can be released until one exists.</div>
+        )}
+        <div className="max-h-[75vh] overflow-auto pr-1">
+          {letterTarget ? <LetterPreview letter={letterFromRequest(letterTarget)} height={750} /> : null}
+        </div>
       </Modal>
     </div>
   );

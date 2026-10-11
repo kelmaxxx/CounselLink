@@ -1,23 +1,27 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { ClipboardList, Info, Send, History, User, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useSearchParams, Link } from "react-router-dom";
+import { ClipboardList, Info, Send, History, User, Building2, ChevronLeft, ChevronRight, Eye, FileDown, PenLine, ScrollText } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import {
   PageHeader,
   SectionCard,
   EmptyState,
+  Modal,
   StatusPill,
   BTN,
   INPUT,
   LABEL,
 } from "../../components/ui";
 import { getDepartments } from "../../data/msuColleges";
+import { draftLetterFromForm, letterFromRequest, saveLetterAsPdfFile } from "../../utils/requestLetter";
+import LetterPreview from "../../components/records/LetterPreview";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const REQUESTS_PAGE_SIZE = 10;
 
 export default function RequestStudentData() {
-  const { token, currentUser } = useAuth();
+  const { token, currentUser, refreshCurrentUser } = useAuth();
+  const [letterModal, setLetterModal] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [students, setStudents] = useState([]);
@@ -103,7 +107,19 @@ export default function RequestStudentData() {
     }
   };
 
-  useEffect(() => { loadRequests(); }, [token]);
+  useEffect(() => { loadRequests(); refreshCurrentUser?.().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const selectedStudent = useMemo(
+    () => students.find((st) => String(st.id) === String(form.studentId)) || null,
+    [students, form.studentId]
+  );
+
+  const draftLetter = useMemo(
+    () => draftLetterFromForm(form, currentUser, selectedStudent),
+    [form, currentUser, selectedStudent]
+  );
 
   const myRequests = useMemo(
     () => requests.filter((r) => r.requester_id === currentUser?.id),
@@ -140,6 +156,10 @@ export default function RequestStudentData() {
     setError("");
     if (!form.reason.trim()) {
       setError("Reason is required.");
+      return;
+    }
+    if (!currentUser?.signatureUrl) {
+      setError("Draw your signature in your Profile first — it is stamped onto the request letter.");
       return;
     }
     if (isIndividual && !form.studentId) {
@@ -320,6 +340,23 @@ export default function RequestStudentData() {
               }
             />
           </div>
+          <div className="rounded-xl border border-gray-200 bg-gray-50/60 px-3 py-2.5 flex items-center gap-3 flex-wrap">
+            <div className="w-40 h-16 rounded-lg border border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden">
+              {currentUser?.signatureUrl ? (
+                <img src={`${API_BASE}${currentUser.signatureUrl}`} alt="Your saved signature" className="max-h-full max-w-full object-contain" />
+              ) : (
+                <span className="text-xs text-gray-400 inline-flex items-center gap-1.5"><PenLine size={13} /> No signature yet</span>
+              )}
+            </div>
+            <div className="text-xs text-gray-600 flex-1 min-w-[200px]">
+              <p className="font-medium text-gray-800">Letter e-signature {currentUser?.signatureUrl ? "ready" : "required"}</p>
+              {currentUser?.signatureUrl ? (
+                <p>Saved from your profile — stamped onto the request letter automatically, so you never sign twice.</p>
+              ) : (
+                <p>Draw it once in your <Link to="/rep/profile" className="underline font-medium text-maroon-700">Profile</Link>, then file the letter.</p>
+              )}
+            </div>
+          </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="pt-1">
             <button type="submit" disabled={submitting} className={BTN.primary}>
@@ -327,6 +364,18 @@ export default function RequestStudentData() {
             </button>
           </div>
         </form>
+      </SectionCard>
+
+      <SectionCard
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            <ScrollText size={14} className="text-maroon-600" /> Formal letter preview
+          </span>
+        }
+        subtitle="Exactly what the counselor receives — auto-filled from this form and your saved signature"
+        className="mb-4"
+      >
+        <LetterPreview letter={draftLetter} height={640} />
       </SectionCard>
 
       <div className="flex items-start gap-2 px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-sm text-blue-800 mb-6">
@@ -378,6 +427,7 @@ export default function RequestStudentData() {
                     <p className="line-clamp-2">{r.reason}</p>
                     {r.response_note && <p className="text-gray-400"><span className="font-medium">Note:</span> {r.response_note}</p>}
                     <p className="text-gray-400 tabular-nums">{new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
+                    <button type="button" onClick={() => setLetterModal(letterFromRequest(r))} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition mt-1"><Eye size={13} /> View letter</button>
                   </div>
                 </div>
               ))}
@@ -391,6 +441,7 @@ export default function RequestStudentData() {
                     <th className="px-4 py-2.5">Counselor</th>
                     <th className="px-4 py-2.5">Reason</th>
                     <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5">Letter</th>
                     <th className="px-4 py-2.5">Submitted</th>
                   </tr>
                 </thead>
@@ -417,6 +468,9 @@ export default function RequestStudentData() {
                         {r.response_note && <p className="text-xs text-gray-500 mt-0.5"><span className="font-medium">Note:</span> {r.response_note}</p>}
                       </td>
                       <td className="px-4 py-3"><StatusPill status={r.status} /></td>
+                      <td className="px-4 py-3">
+                        <button type="button" onClick={() => setLetterModal(letterFromRequest(r))} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition" title="View filed letter"><Eye size={13} /> Letter</button>
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
                         {new Date(r.created_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </td>
@@ -453,6 +507,27 @@ export default function RequestStudentData() {
           </>
         )}
       </SectionCard>
+
+      <Modal
+        open={!!letterModal}
+        onClose={() => setLetterModal(null)}
+        title={letterModal?.subject || "Request letter"}
+        subtitle="Filed copy — with your e-signature and the counselor\u2019s remarks once decided"
+        size="5xl"
+        align="top"
+        footer={
+          letterModal && (
+            <div className="flex items-center gap-2">
+              <button className={BTN.secondary} onClick={() => saveLetterAsPdfFile(letterModal)}><FileDown size={14} /> Download</button>
+              <button className={BTN.primary} onClick={() => setLetterModal(null)}>Close</button>
+            </div>
+          )
+        }
+      >
+        <div className="max-h-[75vh] overflow-auto pr-1">
+          {letterModal ? <LetterPreview letter={letterModal} height={750} /> : null}
+        </div>
+      </Modal>
     </div>
   );
 }

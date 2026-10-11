@@ -23,6 +23,7 @@ import {
 } from "../../components/ui";
 import ProfileHero from "../../components/ProfileHero";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
+import SignatureUploadCard from "../../components/SignatureUploadCard";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
 const isValidEmail = (email) => {
@@ -288,6 +289,11 @@ export default function RepProfile() {
           )}
         </SectionCard>
       </div>
+
+      <SignatureUploadCard
+        className="mb-6"
+        subtitle="Signed onto every data-request letter you file — draw it once, reused automatically"
+      />
     </div>
   );
 }

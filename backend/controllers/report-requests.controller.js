@@ -6,15 +6,29 @@ import { buildSessionReportPayload } from "./counseling-sessions.controller.js";
 
 const baseSelect = `
   SELECT rr.id, rr.requester_id, rr.counselor_id, rr.request_type,
-         rr.student_name, rr.student_identifier, rr.department,
+         rr.student_id, rr.student_name, rr.student_identifier, rr.department,
          rr.reason, rr.status, rr.response_note, rr.responded_at,
          rr.created_at, rr.updated_at,
+         rr.letter_snapshot, rr.rep_signature_url, rr.privacy_ack_at,
          req.name AS requesterName, req.college AS requesterCollege,
-         cou.name AS counselorName
+         req.department AS requesterDepartment, req.position AS requesterPosition,
+         req.signature_url AS requesterSignatureUrl,
+         cou.name AS counselorName, cou.position AS counselorPosition,
+         cou.signature_url AS counselorSignatureUrl,
+         sc.referral_sharing_consent AS studentConsent,
+         EXISTS(SELECT 1 FROM counseling_sessions cs WHERE cs.student_id = rr.student_id AND cs.finalized_at IS NOT NULL) AS hasFinalizedSession
   FROM report_requests rr
   LEFT JOIN users req ON rr.requester_id = req.id
   LEFT JOIN users cou ON rr.counselor_id = cou.id
+  LEFT JOIN student_consents sc ON sc.student_id = rr.student_id
 `;
+
+const subjectForType = (type) =>
+  type === "college"
+    ? "Request for College Counseling Data"
+    : type === "department"
+    ? "Request for Department Counseling Data"
+    : "Request for Individual Counseling Data";
 
 export const createReportRequest = async (req, res) => {
   const requesterId = req.user?.id;
@@ -49,17 +63,49 @@ export const createReportRequest = async (req, res) => {
   let student = null;
   if (type === "individual") {
     const studentRows = await query(
-      "SELECT id, name, student_id AS studentNumber FROM users WHERE id = ? AND role = 'student'",
+      "SELECT id, name, student_id AS studentNumber, program, department, college FROM users WHERE id = ? AND role = 'student'",
       [studentId]
     );
     student = studentRows[0];
     if (!student) return res.status(404).json({ message: "Student not found" });
   }
 
+  // Formal letter snapshot: freeze who asked for what, with the rep's saved
+  // e-signature, so the counselor reviews a signed letter (not a raw row).
+  // The rep sets this once in their Profile; it is reused on every request.
+  const [requester] = await query(
+    "SELECT name, college, department, position, signature_url FROM users WHERE id = ?",
+    [requesterId]
+  );
+  if (!requester?.signature_url) {
+    return res.status(400).json({
+      message: "Draw your signature in your Profile before submitting a request letter.",
+    });
+  }
+  const repCollege = requester.college || req.user?.college || null;
+  const letterSnapshot = {
+    subject: subjectForType(type),
+    scopeType: type,
+    studentName: student?.name || null,
+    studentIdentifier: student?.studentNumber || null,
+    studentProgram: student?.program || null,
+    studentDepartment: student?.department || null,
+    studentCollege: student?.college || null,
+    department: type === "department" ? department.trim() : null,
+    college: type === "college" ? repCollege : null,
+    reason: reason.trim(),
+    requesterName: requester.name,
+    requesterPosition: requester.position || "College Representative",
+    requesterDepartment: requester.department || null,
+    requesterCollege: repCollege,
+    repSignatureUrl: requester.signature_url,
+    requestedAt: new Date().toISOString(),
+  };
+
   const result = await query(
     `INSERT INTO report_requests
-       (requester_id, counselor_id, request_type, student_id, student_name, student_identifier, department, reason, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+       (requester_id, counselor_id, request_type, student_id, student_name, student_identifier, department, reason, status, letter_snapshot, rep_signature_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
     [
       requesterId,
       resolvedCounselorId,
@@ -69,6 +115,8 @@ export const createReportRequest = async (req, res) => {
       student?.studentNumber || null,
       type === "department" ? department.trim() : null,
       reason.trim(),
+      JSON.stringify(letterSnapshot),
+      requester.signature_url,
     ]
   );
   const requestId = result.insertId;
@@ -154,6 +202,7 @@ export const createReportRequest = async (req, res) => {
     const session = referralSessionRows[0];
     if (canShare) {
       const payload = buildSessionReportPayload(session);
+      payload.requestId = requestId;
       const sessionDateStr = (session.session_date instanceof Date ? session.session_date.toISOString() : String(session.session_date || "")).split("T")[0];
       const title = `Session Report — ${session.studentName} (${sessionDateStr})`;
       const summaryText = (session.summary || session.presenting_concern || "").slice(0, 200) || null;
@@ -284,6 +333,7 @@ export const sendIndividualReport = async (req, res) => {
   }
 
   const payload = buildSessionReportPayload(session);
+  payload.requestId = Number(id);
   const sessionDateStr2 = (session.session_date instanceof Date ? session.session_date.toISOString() : String(session.session_date || "")).split("T")[0];
   const title = `Session Report — ${session.studentName} (${sessionDateStr2})`;
   const summaryText = (session.summary || session.presenting_concern || "").slice(0, 200) || null;
@@ -414,4 +464,24 @@ export const cancelReportRequest = async (req, res) => {
   await query("UPDATE report_requests SET status = 'cancelled' WHERE id = ?", [id]);
   await logAction(req, "report_request_cancelled", "report_request", id, {});
   return res.json({ message: "Report request cancelled", id: Number(id) });
+};
+
+
+// Single request with its frozen formal-letter snapshot — visible to the
+// requesting rep, the assigned counselor (or any counselor when unassigned),
+// and admins.
+export const getReportRequest = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id;
+  const role = req.user?.role;
+  const rows = await query(`${baseSelect} WHERE rr.id = ?`, [id]);
+  if (!rows.length) return res.status(404).json({ message: "Report request not found" });
+  const request = rows[0];
+  const isRequester = request.requester_id === userId;
+  const isAssignee = request.counselor_id === userId;
+  const isBroadcastCounselor = role === "counselor" && request.counselor_id === null;
+  if (!isRequester && !isAssignee && !isBroadcastCounselor && role !== "admin") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  return res.json(request);
 };
