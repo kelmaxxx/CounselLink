@@ -13,14 +13,17 @@ import ContactSection from "../components/landing/ContactSection";
 import LandingFooter from "../components/landing/LandingFooter";
 
 export default function LandingPage() {
+  // Ensure page always starts at the top
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.documentElement.classList.remove("dark");
   }, []);
 
   return (
-    <div className="min-h-screen font-sans antialiased bg-white">
+    <div className="min-h-screen font-sans antialiased">
+      {/* Fixed navigation */}
       <LandingNavbar />
+
+      {/* Page sections */}
       <main>
         <HeroSection />
         <AboutSection />
@@ -32,7 +35,10 @@ export default function LandingPage() {
         <FAQSection />
         <ContactSection />
       </main>
+
+      {/* Footer */}
       <LandingFooter />
     </div>
   );
 }
+

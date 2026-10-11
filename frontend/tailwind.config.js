@@ -1,6 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: "class",
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -20,16 +19,6 @@ export default {
         lg: '0.875rem',
         xl: '1rem',
         '2xl': '1.25rem',
-        '3xl': '1.75rem',
-      },
-      boxShadow: {
-        glow: '0 0 24px rgba(11, 102, 35, 0.45), 0 8px 40px rgba(7, 67, 23, 0.35)',
-        'glow-lg': '0 0 40px rgba(89, 170, 107, 0.5), 0 20px 60px rgba(7, 67, 23, 0.4)',
-        glass: '0 8px 32px rgba(0, 0, 0, 0.12)',
-      },
-      animation: {
-        'float-soft': 'float-soft 4s ease-in-out infinite',
-        'blob-drift': 'blob-drift 9s ease-in-out infinite',
       },
       spacing: {
         '25': '6.25rem', // 100px
