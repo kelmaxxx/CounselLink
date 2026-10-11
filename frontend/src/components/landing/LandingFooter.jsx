@@ -1,7 +1,7 @@
 // src/components/landing/LandingFooter.jsx
 import React from "react";
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin, Facebook, Twitter, Instagram } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 
 const QUICK_LINKS = [
   { label: "Home", href: "#home" },
@@ -26,10 +26,22 @@ export default function LandingFooter() {
   };
 
   return (
-    <footer className="bg-gray-900 text-gray-300">
+    <footer className="relative overflow-hidden bg-[#0b0b0c] text-gray-300">
+      {/* Giant watermark wordmark (right side, cropped) */}
+      <div
+        aria-hidden
+        className="pointer-events-none select-none absolute inset-x-0 bottom-0 flex justify-end overflow-hidden"
+      >
+        <p className="text-right font-black leading-[0.82] tracking-tight text-white/[0.07] text-[26vw] lg:text-[12.5rem] pr-2 sm:pr-6 translate-y-[16%] whitespace-nowrap">
+          Counce
+          <br />
+          Link
+        </p>
+      </div>
+
       {/* Main footer content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-10">
           {/* Brand column */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2.5 mb-4">
@@ -73,43 +85,8 @@ export default function LandingFooter() {
             </ul>
           </div>
 
-          {/* Quick links */}
+          {/* Portal access */}
           <div>
-            <h4 className="text-white font-semibold mb-5 text-sm uppercase tracking-wider">
-              Quick Links
-            </h4>
-            <ul className="space-y-2.5">
-              {QUICK_LINKS.map((link) => (
-                <li key={link.href}>
-                  <button
-                    onClick={() => handleScroll(link.href)}
-                    className="text-sm text-gray-400 hover:text-maroon-300 transition-colors"
-                  >
-                    {link.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Legal + Portal */}
-          <div>
-            <h4 className="text-white font-semibold mb-5 text-sm uppercase tracking-wider">
-              Legal
-            </h4>
-            <ul className="space-y-2.5 mb-8">
-              {LEGAL_LINKS.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-sm text-gray-400 hover:text-maroon-300 transition-colors"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-
             <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">
               Portal Access
             </h4>
@@ -121,10 +98,45 @@ export default function LandingFooter() {
             </Link>
           </div>
         </div>
+
+        {/* Inline link row (left) — like the reference's Google row */}
+        <div className="mt-12 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          <span className="flex items-center gap-2 font-bold text-white">
+            <img src="/counselink-round.png" alt="" className="h-5 w-5 object-contain" />
+            CounceLink
+          </span>
+          {QUICK_LINKS.slice(1, 4).map((link) => (
+            <button
+              key={link.href}
+              onClick={() => handleScroll(link.href)}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              {link.label}
+            </button>
+          ))}
+          {LEGAL_LINKS.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+          <button
+            onClick={() => handleScroll("#faq")}
+            className="inline-flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors"
+          >
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-500 text-[10px] font-bold">
+              ?
+            </span>
+            Help
+          </button>
+        </div>
       </div>
 
       {/* Bottom bar */}
-      <div className="border-t border-gray-800">
+      <div className="relative z-10 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-gray-500 text-center sm:text-left">
             © {year} CounceLink — Division of Student Affairs, Mindanao State

@@ -1,6 +1,5 @@
 // src/components/landing/HowItWorksSection.jsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import Reveal from "./Reveal";
 import {
   UserPlus,
   CalendarPlus,
@@ -48,39 +47,55 @@ const STEPS = [
 ];
 
 /**
- * Scroll-sequenced How It Works.
- * The section is tall (300vh) with a sticky viewport inside.
- * Scroll progress drives `activeStep`:
- *   enter -> Step 1 pops in, scroll more -> Step 2 pops, etc.
- * One scroll segment = one step, giving the "pop each time you scroll" feel.
+ * Pinned Horizontal Card Track (scroll-jacked horizontal slider).
+ * Vertical page scroll drives a horizontal track inside a sticky viewport.
+ * Tall wrapper (~450vh) = slow, clean scroll — one viewport, no section jumps.
  */
 export default function HowItWorksSection() {
   const wrapRef = useRef(null);
+  const trackRef = useRef(null);
+  const barRef = useRef(null);
   const [activeStep, setActiveStep] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const ticking = useRef(false);
+  const activeRef = useRef(0);
 
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
       setReducedMotion(true);
-      setActiveStep(STEPS.length - 1);
     }
   }, []);
 
   const update = useCallback(() => {
     ticking.current = false;
-    const el = wrapRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
+    const wrap = wrapRef.current;
+    const track = trackRef.current;
+    if (!wrap || !track) return;
+
+    const rect = wrap.getBoundingClientRect();
     const total = rect.height - window.innerHeight;
     if (total <= 0) return;
     const scrolled = Math.min(Math.max(-rect.top, 0), total);
     const p = scrolled / total;
-    // Map 0..1 across steps so each step gets its own scroll segment.
-    // Slight bias so the first step is already visible on entry.
-    const float = p * STEPS.length;
-    const idx = Math.min(STEPS.length - 1, Math.max(0, Math.floor(float)));
-    setActiveStep((prev) => (prev === idx ? prev : idx));
+
+    // Horizontal distance: track width minus visible viewport
+    const maxX = Math.max(0, track.scrollWidth - window.innerWidth + 48);
+    const x = p * maxX;
+    track.style.transform = `translate3d(${-x}px, 0, 0)`;
+
+    if (barRef.current) {
+      barRef.current.style.transform = `scaleX(${p})`;
+    }
+
+    const nearest = Math.min(
+      STEPS.length - 1,
+      Math.round(p * (STEPS.length - 1))
+    );
+    const next = nearest;
+    if (activeRef.current !== next) {
+      activeRef.current = next;
+      setActiveStep(next);
+    }
   }, []);
 
   useEffect(() => {
@@ -94,9 +109,12 @@ export default function HowItWorksSection() {
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
+    // Re-measure after fonts/images settle
+    const t = setTimeout(update, 300);
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      clearTimeout(t);
     };
   }, [update, reducedMotion]);
 
@@ -105,197 +123,166 @@ export default function HowItWorksSection() {
     if (!el) return;
     const top = el.getBoundingClientRect().top + window.scrollY;
     const total = el.offsetHeight - window.innerHeight;
-    const target = top + (total * (i + 0.5)) / STEPS.length;
+    const target = top + (total * i) / (STEPS.length - 1);
     window.scrollTo({ top: target, behavior: "smooth" });
   };
 
-  const ActiveIcon = STEPS[activeStep].icon;
-  const fillPct = ((activeStep + 1) / STEPS.length) * 100;
+  // Reduced-motion fallback: normal stacked layout, no pin transform
+  if (reducedMotion) {
+    return (
+      <section id="how-it-works" className="relative bg-gray-50 py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight text-gray-900 text-center mb-14">
+            Simple Steps to Get Counseling Support
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
+            {STEPS.map(({ step, icon: Icon, title, description }) => (
+              <div key={step} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                <span className="text-5xl font-black text-maroon-500/15 tabular-nums">{step}</span>
+                <div className="w-12 h-12 rounded-2xl bg-maroon-500 text-white flex items-center justify-center my-4">
+                  <Icon size={22} />
+                </div>
+                <h3 className="font-bold text-gray-900 mb-2">{title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
       id="how-it-works"
       ref={wrapRef}
-      className="relative bg-gradient-to-b from-gray-50 via-white to-gray-50 lg:h-[340vh] h-[310vh]"
+      className="relative bg-gradient-to-b from-gray-50 via-white to-gray-50"
+      style={{ height: "450vh" }}
     >
-      <div className="sticky top-0 min-h-screen flex items-center overflow-hidden py-20">
-        {/* Giant background step number — changes per step */}
+      {/* Pinned viewport */}
+      <div className="sticky top-0 h-screen flex flex-col justify-center overflow-hidden">
+        {/* Giant background number */}
         <div
           key={activeStep}
           aria-hidden
           className="animate-step-ghost pointer-events-none absolute inset-0 flex items-center justify-center select-none"
         >
-          <span className="text-[38vw] lg:text-[26rem] font-black leading-none text-maroon-500/[0.06] tabular-nums">
+          <span className="text-[38vw] lg:text-[24rem] font-black leading-none text-maroon-500/[0.06] tabular-nums">
             {STEPS[activeStep].step}
           </span>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          {/* Header */}
-          <Reveal className="text-center mb-8 lg:mb-10">
-            <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">
-              How It Works
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+        {/* Large heading — no badge, no helper subtitle */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-20">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8 lg:mb-12">
+            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight text-gray-900 leading-[1.02] max-w-3xl">
               Simple Steps to Get Counseling Support
             </h2>
-            <p className="text-gray-500 max-w-xl mx-auto text-base lg:text-lg">
-              Scroll slowly — each step pops in as you go.
-            </p>
-          </Reveal>
-
-          {/* Desktop stepper — sequential pop driven by scroll */}
-          <div className="relative hidden lg:block">
-            {/* Track + fill connector */}
-            <div className="absolute top-14 left-[8%] right-[8%] h-1 rounded-full bg-maroon-100/80 overflow-visible">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-maroon-400 via-maroon-500 to-maroon-600 transition-all duration-500 ease-out relative"
-                style={{ width: `${fillPct}%` }}
-              >
-                <span className="absolute -right-2 -top-1.5 w-4 h-4 rounded-full bg-maroon-500 border-4 border-white shadow-md animate-step-ping" />
-              </div>
-            </div>
-
-            <div className="grid lg:grid-cols-5 gap-8">
-              {STEPS.map(({ step, icon: Icon, title, description }, idx) => {
-                const revealed = reducedMotion || idx <= activeStep;
-                const isActive = idx === activeStep;
-                const isDone = idx < activeStep;
-                return (
-                  <div
-                    key={step}
-                    className={`relative flex flex-col items-center text-center transition-all duration-500 ease-out ${
-                      revealed
-                        ? "opacity-100 translate-y-0 scale-100 blur-0"
-                        : "opacity-0 translate-y-10 scale-90 blur-[3px] pointer-events-none"
+            <div className="shrink-0 flex items-center gap-4">
+              <span className="text-sm font-bold text-maroon-600 tabular-nums">
+                {String(activeStep + 1).padStart(2, "0")} / {String(STEPS.length).padStart(2, "0")}
+              </span>
+              <div className="flex items-center gap-2">
+                {STEPS.map((s, i) => (
+                  <button
+                    key={s.step}
+                    onClick={() => jumpToStep(i)}
+                    aria-label={`Go to step ${i + 1}`}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      i === activeStep ? "w-8 bg-maroon-500" : i < activeStep ? "w-2 bg-maroon-300" : "w-2 bg-gray-200 hover:bg-gray-300"
                     }`}
-                    style={{ transitionDelay: revealed ? "60ms" : "0ms" }}
-                  >
-                    <div className="relative z-10 mb-5">
-                      {/* Glow ring behind active card */}
-                      {isActive && (
-                        <span className="absolute -inset-3 rounded-full bg-maroon-400/20 blur-xl animate-step-glow" />
-                      )}
-                      <div
-                        key={`${step}-${isActive ? "on" : "off"}`}
-                        className={`relative w-28 h-28 rounded-full bg-white flex flex-col items-center justify-center border-2 transition-all duration-500 ${
-                          isActive
-                            ? "border-maroon-500 shadow-xl shadow-maroon-500/20 scale-110 animate-step-pop"
-                            : isDone
-                              ? "border-maroon-300 shadow-md"
-                              : "border-maroon-100 shadow-md"
-                        }`}
-                      >
-                        <span
-                          className={`text-[11px] font-bold tracking-widest mb-1 ${
-                            isActive ? "text-maroon-600" : "text-maroon-400"
-                          }`}
-                        >
-                          STEP {step}
-                        </span>
-                        <Icon
-                          size={28}
-                          className={isActive ? "text-maroon-600" : "text-maroon-500"}
-                        />
-                      </div>
-                      {/* Check badge for completed steps */}
-                      <span
-                        className={`absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all duration-500 ${
-                          isDone
-                            ? "bg-maroon-500 text-white border-maroon-500 opacity-100 scale-100"
-                            : "bg-white text-gray-300 border-gray-200 opacity-0 scale-75"
-                        }`}
-                      >
-                        ✓ DONE
-                      </span>
-                    </div>
-
-                    <h3
-                      className={`text-base font-bold mb-2 transition-colors ${
-                        isActive ? "text-maroon-700" : "text-gray-900"
-                      }`}
-                    >
-                      {title}
-                    </h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">{description}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Mobile / tablet — focused active-step card */}
-          <div className="lg:hidden">
-            <div className="relative max-w-md mx-auto">
-              <div className="absolute inset-x-8 top-10 h-1 rounded-full bg-maroon-100">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-maroon-400 to-maroon-600 transition-all duration-500"
-                  style={{ width: `${fillPct}%` }}
-                />
-              </div>
-              <div
-                key={activeStep}
-                className="animate-step-pop relative bg-white rounded-3xl border-2 border-maroon-500 shadow-xl shadow-maroon-500/10 p-6 pt-8 text-center"
-              >
-                <div className="mx-auto -mt-14 mb-4 w-20 h-20 rounded-full bg-white border-2 border-maroon-500 shadow-lg flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-bold text-maroon-500 tracking-widest">
-                    STEP {STEPS[activeStep].step}
-                  </span>
-                  <ActiveIcon size={24} className="text-maroon-600" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
-                  {STEPS[activeStep].title}
-                </h3>
-                <p className="text-sm text-gray-500 leading-relaxed mb-5">
-                  {STEPS[activeStep].description}
-                </p>
-                <div className="flex items-center justify-center gap-2">
-                  {STEPS.map((s, i) => (
-                    <button
-                      key={s.step}
-                      onClick={() => jumpToStep(i)}
-                      aria-label={`Go to step ${i + 1}`}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        i === activeStep ? "w-7 bg-maroon-500" : "w-2 bg-gray-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Upcoming steps preview */}
-              <div className="mt-4 space-y-2">
-                {STEPS.map((s, i) =>
-                  i > activeStep ? (
-                    <div
-                      key={s.step}
-                      className="flex items-center gap-3 bg-white/60 backdrop-blur border border-dashed border-gray-200 rounded-2xl px-4 py-2.5 opacity-70"
-                    >
-                      <span className="text-[11px] font-black text-gray-300 tabular-nums">
-                        {s.step}
-                      </span>
-                      <span className="text-sm font-semibold text-gray-400">
-                        {s.title}
-                      </span>
-                      <span className="ml-auto text-[11px] text-gray-300 font-medium">
-                        scroll to unlock
-                      </span>
-                    </div>
-                  ) : null
-                )}
+                  />
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Screen-reader / SEO fallback: full list */}
-          <ol className="sr-only">
-            {STEPS.map((s) => (
-              <li key={s.step}>
-                Step {s.step}: {s.title} — {s.description}
-              </li>
-            ))}
-          </ol>
+          {/* Progress hairline */}
+          <div className="h-1 rounded-full bg-maroon-100/80 overflow-hidden mb-8 lg:mb-10">
+            <div
+              ref={barRef}
+              className="h-full w-full origin-left bg-gradient-to-r from-maroon-400 via-maroon-500 to-maroon-600 rounded-full"
+              style={{ transform: "scaleX(0)" }}
+            />
+          </div>
         </div>
+
+        {/* Horizontal card track — driven by vertical scroll */}
+        <div className="relative w-full">
+          <div
+            ref={trackRef}
+            className="flex gap-5 sm:gap-7 w-max px-4 sm:px-8 lg:px-[max(2rem,calc((100vw-80rem)/2+2rem))] will-change-transform"
+            style={{ transform: "translate3d(0,0,0)" }}
+          >
+            {STEPS.map(({ step, icon: Icon, title, description }, i) => {
+              const isActive = i === activeStep;
+              const isDone = i < activeStep;
+              return (
+                <article
+                  key={step}
+                  className={`relative shrink-0 w-[82vw] sm:w-[420px] lg:w-[460px] rounded-[2rem] border-2 p-7 sm:p-9 text-left transition-all duration-500 bg-white ${
+                    isActive
+                      ? "border-maroon-500 shadow-2xl shadow-maroon-500/15 scale-[1.02]"
+                      : isDone
+                        ? "border-maroon-200 shadow-lg opacity-90"
+                        : "border-gray-100 shadow-lg opacity-70"
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-6">
+                    <span
+                      className={`text-6xl sm:text-7xl font-black tabular-nums leading-none transition-colors ${
+                        isActive ? "text-maroon-500" : "text-gray-200"
+                      }`}
+                    >
+                      {step}
+                    </span>
+                    <div
+                      className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
+                        isActive ? "bg-maroon-500 text-white shadow-lg shadow-maroon-500/30" : "bg-maroon-50 text-maroon-500"
+                      }`}
+                    >
+                      <Icon size={26} />
+                    </div>
+                  </div>
+                  <h3 className={`text-2xl sm:text-[1.7rem] font-bold mb-3 leading-snug ${isActive ? "text-maroon-700" : "text-gray-900"}`}>
+                    {title}
+                  </h3>
+                  <p className="text-gray-500 leading-relaxed text-[15px] sm:text-base">
+                    {description}
+                  </p>
+                  <div className="mt-7 flex items-center justify-between">
+                    <span
+                      className={`text-[11px] font-bold tracking-widest px-2.5 py-1 rounded-full border transition-all ${
+                        isDone
+                          ? "bg-maroon-500 text-white border-maroon-500"
+                          : isActive
+                            ? "bg-maroon-50 text-maroon-600 border-maroon-200"
+                            : "bg-gray-50 text-gray-400 border-gray-200"
+                      }`}
+                    >
+                      {isDone ? "✓ DONE" : isActive ? "● CURRENT" : `STEP ${step}`}
+                    </span>
+                    <span className="text-xs font-semibold text-gray-300 tabular-nums">
+                      {i + 1} — {STEPS.length}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+
+            {/* End spacer card */}
+            <div className="shrink-0 w-[8vw] sm:w-[10vw]" aria-hidden />
+          </div>
+        </div>
+
+        {/* Screen-reader / SEO fallback */}
+        <ol className="sr-only">
+          {STEPS.map((s) => (
+            <li key={s.step}>
+              Step {s.step}: {s.title} — {s.description}
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );
