@@ -74,6 +74,11 @@ export default function HeroSection() {
     counselorsCount: 0,
     appointmentsCount: 0,
   });
+  const [displayStats, setDisplayStats] = useState({
+    studentsCount: 0,
+    counselorsCount: 0,
+    appointmentsCount: 0,
+  });
   const [slides, setSlides] = useState(DEFAULT_CAROUSEL_IMAGES);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -129,6 +134,30 @@ export default function HeroSection() {
     return () => clearInterval(interval);
   }, [isPaused, slides.length]);
 
+  // Animated count-up for stats (respects reduced motion)
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setDisplayStats(stats);
+      return;
+    }
+    const duration = 1200;
+    const start = performance.now();
+    const from = { studentsCount: 0, counselorsCount: 0, appointmentsCount: 0 };
+    let raf;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplayStats({
+        studentsCount: Math.round(from.studentsCount + (stats.studentsCount - from.studentsCount) * eased),
+        counselorsCount: Math.round(from.counselorsCount + (stats.counselorsCount - from.counselorsCount) * eased),
+        appointmentsCount: Math.round(from.appointmentsCount + (stats.appointmentsCount - from.appointmentsCount) * eased),
+      });
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [stats]);
+
   const handlePrev = () => {
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   };
@@ -143,9 +172,9 @@ export default function HeroSection() {
   };
 
   const statItems = [
-    { label: "Students Served", value: stats.studentsCount.toLocaleString() },
-    { label: "Counselors", value: stats.counselorsCount.toLocaleString() },
-    { label: "Appointments Booked", value: stats.appointmentsCount.toLocaleString() },
+    { label: "Students Served", value: displayStats.studentsCount.toLocaleString() },
+    { label: "Counselors", value: displayStats.counselorsCount.toLocaleString() },
+    { label: "Appointments Booked", value: displayStats.appointmentsCount.toLocaleString() },
   ];
 
   return (
@@ -154,12 +183,12 @@ export default function HeroSection() {
       className="relative min-h-screen flex items-center overflow-hidden"
     >
       {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-maroon-700 via-maroon-600 to-maroon-500" />
+      <div className="absolute inset-0 bg-gradient-to-br from-maroon-700 via-maroon-600 to-maroon-500 animate-gradient-pan" />
 
       {/* Decorative blobs */}
-      <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 -left-24 w-80 h-80 bg-maroon-900/30 rounded-full blur-3xl" />
-      <div className="absolute top-1/2 right-1/4 w-56 h-56 bg-white/5 rounded-full blur-2xl" />
+      <div className="absolute -top-32 -right-32 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-blob-drift" />
+      <div className="absolute bottom-0 -left-24 w-80 h-80 bg-maroon-900/30 rounded-full blur-3xl animate-blob-drift" style={{ animationDelay: "2s" }} />
+      <div className="absolute top-1/2 right-1/4 w-56 h-56 bg-white/5 rounded-full blur-2xl animate-blob-drift" style={{ animationDelay: "4s" }} />
 
       {/* Subtle grid pattern overlay */}
       <div
@@ -174,29 +203,29 @@ export default function HeroSection() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 pt-32 w-full">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left — text */}
-          <div className="animate-fade-in-up text-white">
+          <div className="text-white">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full bg-white/15 border border-white/20 text-sm font-medium backdrop-blur-sm">
+            <div className="animate-fade-in-up inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full bg-white/15 border border-white/20 text-sm font-medium backdrop-blur-sm">
               <CalendarCheck size={14} className="text-green-300" />
               <span>Guidance Counseling Made Digital</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
+            <h1 className="animate-fade-in-up text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6" style={{ animationDelay: "0.1s" }}>
               Guiding Students Towards{" "}
               <span className="text-green-300">Academic</span> and{" "}
               <span className="text-green-300">Personal</span> Success.
             </h1>
 
-            <p className="text-lg sm:text-xl text-white/80 leading-relaxed mb-10 max-w-xl">
+            <p className="animate-fade-in-up text-lg sm:text-xl text-white/80 leading-relaxed mb-10 max-w-xl" style={{ animationDelay: "0.2s" }}>
               CounceLink simplifies appointment scheduling, counseling record
               management, and communication between students and counselors at
               Mindanao State University – Marawi City.
             </p>
 
-            <div className="flex flex-wrap gap-4">
+            <div className="animate-fade-in-up flex flex-wrap gap-4" style={{ animationDelay: "0.3s" }}>
               <Link
                 to="/login"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-maroon-600 font-semibold text-base hover:bg-maroon-50 transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-maroon-600 font-semibold text-base hover:bg-maroon-50 transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
               >
                 Login to Portal
                 <ArrowRight size={18} />
@@ -204,10 +233,10 @@ export default function HeroSection() {
             </div>
 
             {/* Stats row */}
-            <div className="mt-14 flex flex-wrap gap-8">
+            <div className="animate-fade-in-up mt-14 flex flex-wrap gap-8" style={{ animationDelay: "0.45s" }}>
               {statItems.map((stat) => (
                 <div key={stat.label}>
-                  <p className="text-2xl font-bold text-white">{stat.value}</p>
+                  <p className="text-2xl font-bold text-white tabular-nums">{stat.value}</p>
                   <p className="text-sm text-white/60 mt-0.5">{stat.label}</p>
                 </div>
               ))}
@@ -297,7 +326,7 @@ export default function HeroSection() {
               </div>
 
               {/* Floating card: appointment */}
-              <div className="absolute -top-4 -left-6 z-20 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 animate-bounce-slow">
+              <div className="absolute -top-4 -left-6 z-20 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 animate-float-soft">
                 <div className="w-9 h-9 rounded-xl bg-maroon-50 flex items-center justify-center">
                   <CalendarCheck size={18} className="text-maroon-500" />
                 </div>
@@ -309,8 +338,8 @@ export default function HeroSection() {
 
               {/* Floating card: notification */}
               <div
-                className="absolute -bottom-4 -right-6 z-20 bg-white rounded-2xl shadow-xl px-4 py-3 animate-bounce-slow"
-                style={{ animationDelay: "1s" }}
+                className="absolute -bottom-4 -right-6 z-20 bg-white rounded-2xl shadow-xl px-4 py-3 animate-float-soft"
+                style={{ animationDelay: "1.2s" }}
               >
                 <p className="text-xs font-semibold text-gray-800">🔔 Session Reminder</p>
                 <p className="text-xs text-gray-400 mt-0.5">Tomorrow, 10:00 AM</p>
