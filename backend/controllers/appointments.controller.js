@@ -4,12 +4,13 @@ import { notifyUsers, createNotification } from "../utils/notify.js";
 import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { isValidPhMobile } from "../utils/validators.js";
 
+const QUEUE_LIMIT = 50;
+
 const getQueueSlot = (slot) => {
   const s = (slot || "").toLowerCase();
-  // Broad afternoon block (new) or legacy hour-by-hour afternoon slots
+  // Two-block system: AM = 9AM-12PM, PM = 1PM-5PM (+ legacy hourly slots)
   if (s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return "PM";
   if (!s) return null;
-  // Broad morning block (new) and all other values → AM
   return "AM";
 };
 
@@ -52,13 +53,13 @@ export const createAppointment = async (req, res) => {
 
     const [{ cnt }] = await query(
       `SELECT COUNT(*) AS cnt FROM appointments
-       WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+       WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL`,
       [queueDate, queueSlot]
     );
 
-    if (cnt >= 10) {
+    if (cnt >= QUEUE_LIMIT) {
       return res.status(409).json({
-        message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue is full (10 appointments) for today. Please contact the counseling office directly for urgent matters.`,
+        message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue is full (50 appointments) for today. Please contact the counseling office directly for urgent matters.`,
       });
     }
 
@@ -72,10 +73,10 @@ export const createAppointment = async (req, res) => {
     if (queueSlot) {
       const [{ cnt }] = await query(
         `SELECT COUNT(*) AS cnt FROM appointments
-         WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+         WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL`,
         [queueDate, queueSlot]
       );
-      if (cnt < 10) queueNumber = cnt + 1;
+      if (cnt < QUEUE_LIMIT) queueNumber = cnt + 1;
     }
   }
 

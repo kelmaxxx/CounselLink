@@ -113,13 +113,13 @@ export const createUrgentCounselingRequest = async (req, res) => {
 
   const [{ cnt }] = await query(
     `SELECT COUNT(*) AS cnt FROM appointments
-     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'counseling'`,
+     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL`,
     [queueDate, queueSlot]
   );
 
-  if (cnt >= 10) {
+  if (cnt >= 50) {
     return res.status(429).json({
-      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue is full (10 appointments) for today. Please proceed to the counseling office directly.`,
+      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} queue is full (50 appointments) for today. Please proceed to the counseling office directly.`,
     });
   }
 

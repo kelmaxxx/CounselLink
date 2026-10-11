@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
+import ReschedulePicker from "../../components/ReschedulePicker";
 import {
   PageHeader,
   SectionCard,
@@ -37,7 +38,12 @@ import {
   Pagination,
 } from "../../components/ui";
 
-const TIME_LABEL = {
+const TIME_BLOCKS = {
+  "9:00-12:00": "9:00 AM – 12:00 PM",
+  "1:00-5:00": "1:00 PM – 5:00 PM",
+};
+// Legacy hourly slots (old records) → display only, mapped to block labels
+const LEGACY_LABEL = {
   "9:00-10:00": "9:00 – 10:00 AM",
   "10:00-11:00": "10:00 – 11:00 AM",
   "11:00-12:00": "11:00 – 12:00 PM",
@@ -47,14 +53,25 @@ const TIME_LABEL = {
   "4:00-5:00": "4:00 – 5:00 PM",
 };
 const timeLabel = (slot) => {
-  if (slot === "morning") return "9:00 AM – 12:00 PM";
-  if (slot === "afternoon") return "1:00 PM – 5:00 PM";
-  return TIME_LABEL[slot] || slot || "—";
+  if (slot === "morning" || slot === "9:00-12:00") return "9:00 AM – 12:00 PM";
+  if (slot === "afternoon" || slot === "1:00-5:00") return "1:00 PM – 5:00 PM";
+  return TIME_BLOCKS[slot] || LEGACY_LABEL[slot] || slot || "—";
+};
+
+const getTodayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const isWeekendISO = (iso) => {
+  if (!iso) return false;
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d)) return false;
+  return d.getDay() === 0 || d.getDay() === 6;
 };
 
 const getTimeBlock = (slot) => {
-  if (!slot || slot === "morning" || slot.startsWith("9:") || slot.startsWith("10:") || slot.startsWith("11:"))
-    return "AM";
+  const s = String(slot || "").toLowerCase();
+  if (!s || s === "morning" || s === "9:00-12:00" || s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:")) return "AM";
   return "PM";
 };
 
@@ -197,6 +214,8 @@ export default function CounselorAppointments() {
 
   const submitReschedule = async () => {
     if (!rescheduleModal.date || !rescheduleModal.timeSlot) { alert("Select a date and time slot"); return; }
+    if (rescheduleModal.date < today) { alert("Cannot reschedule to a past date"); return; }
+    if (isWeekendISO(rescheduleModal.date)) { alert("Appointments cannot be scheduled on Saturday or Sunday"); return; }
     setBusyId(rescheduleModal.apptId);
     const res = await rescheduleAppointment({ id: rescheduleModal.apptId, date: rescheduleModal.date, timeSlot: rescheduleModal.timeSlot, note: rescheduleModal.note || null });
     setBusyId(null);
@@ -267,8 +286,8 @@ export default function CounselorAppointments() {
   const isSlotOver = (slot) => {
     const mins = now.getHours() * 60 + now.getMinutes();
     const s = (slot || "").toLowerCase();
-    const isAM = s === "morning" || s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:");
-    const isPM = s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:");
+    const isAM = s === "morning" || s === "9:00-12:00" || s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:");
+    const isPM = s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:");
     if (isAM) return mins >= 12 * 60;
     if (isPM) return mins >= 17 * 60;
     return mins >= 17 * 60;
@@ -302,8 +321,11 @@ export default function CounselorAppointments() {
   });
 
   // Missed — no-shows + overdue follow-ups (violet) + overdue urgents (red)
+  // NOTE: only "rescheduled" counts as overdue here — approved is excluded
+  // (a past approved slot is either rescheduled by the counselor or swept to
+  // no_show by the backend, where it still shows under Missing).
   const overdueAppts = myAppointments.filter((a) => {
-    if (a.status !== "approved" && a.status !== "rescheduled") return false;
+    if (a.status !== "rescheduled") return false;
     const sched = standardizeDate(a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date);
     if (!sched) return false;
     if (sched < today) return true;
@@ -327,7 +349,7 @@ export default function CounselorAppointments() {
   const completedTests = myTests.filter((t) => t.status === "completed");
 
   const overdueTests = myTests.filter((t) => {
-    if (t.status !== "approved" && t.status !== "rescheduled") return false;
+    if (t.status !== "rescheduled") return false;
     const sched = standardizeDate(t.scheduledDate || t.scheduled_date || t.preferredDate || t.preferred_date);
     if (!sched) return false;
     if (sched < today) return true;
@@ -1166,6 +1188,7 @@ export default function CounselorAppointments() {
         onClose={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}
         title="Reschedule appointment"
         subtitle="Propose a new date and time. The student will be notified."
+        size="lg"
         footer={
           <>
             <button type="button" className={BTN.secondary} onClick={() => setRescheduleModal({ open: false, apptId: null, date: "", timeSlot: "", note: "" })}>Cancel</button>
@@ -1173,18 +1196,13 @@ export default function CounselorAppointments() {
           </>
         }
       >
-        <div className="space-y-3">
-          <div>
-            <label className={LABEL}>New date</label>
-            <input type="date" className={INPUT} value={rescheduleModal.date} onChange={(e) => setRescheduleModal((s) => ({ ...s, date: e.target.value }))} />
-          </div>
-          <div>
-            <label className={LABEL}>New time slot</label>
-            <select className={INPUT} value={rescheduleModal.timeSlot} onChange={(e) => setRescheduleModal((s) => ({ ...s, timeSlot: e.target.value }))}>
-              <option value="">Select a slot</option>
-              {Object.entries(TIME_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
+        <div className="space-y-4">
+          <ReschedulePicker
+            date={rescheduleModal.date}
+            timeSlot={rescheduleModal.timeSlot}
+            onDateChange={(iso) => setRescheduleModal((s) => ({ ...s, date: iso }))}
+            onTimeSlotChange={(val) => setRescheduleModal((s) => ({ ...s, timeSlot: val }))}
+          />
           <div>
             <label className={LABEL}>Note (optional)</label>
             <textarea rows={3} className={`${INPUT} resize-none`} value={rescheduleModal.note} onChange={(e) => setRescheduleModal((s) => ({ ...s, note: e.target.value }))} />

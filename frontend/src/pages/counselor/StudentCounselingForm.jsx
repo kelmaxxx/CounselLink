@@ -22,6 +22,7 @@ import {
   Save,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL, initialsOf, formatDate, formatDateTime } from "../../components/ui";
+import ReschedulePicker from "../../components/ReschedulePicker";
 
 const blankReason = () => ({
   routine: false,
@@ -31,7 +32,12 @@ const blankReason = () => ({
 });
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
-const TIME_SLOTS = {
+const FOLLOWUP_BLOCKS = {
+  "9:00-12:00": "9:00 AM – 12:00 PM",
+  "1:00-5:00": "1:00 PM – 5:00 PM",
+};
+// Legacy hourly slots (old records) → display only
+const LEGACY_SLOTS = {
   "9:00-10:00": "9:00 – 10:00 AM",
   "10:00-11:00": "10:00 – 11:00 AM",
   "11:00-12:00": "11:00 – 12:00 PM",
@@ -40,7 +46,7 @@ const TIME_SLOTS = {
   "3:00-4:00": "3:00 – 4:00 PM",
   "4:00-5:00": "4:00 – 5:00 PM",
 };
-const slotLabel = (val) => TIME_SLOTS[val] || val;
+const slotLabel = (val) => FOLLOWUP_BLOCKS[val] || LEGACY_SLOTS[val] || val;
 
 const STEPS = [
   { id: "details", title: "Session details" },
@@ -728,32 +734,13 @@ function PlanStep({ form, setField, disabled }) {
             <p className="text-xs text-amber-700 leading-relaxed">
               Submitting this report will automatically create an approved follow-up appointment for the student on the date and time you select below.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL}>Follow-up date *</label>
-                <input
-                  type="date"
-                  className={INPUT}
-                  value={form.followupDate}
-                  onChange={(e) => setField({ followupDate: e.target.value })}
-                  disabled={disabled}
-                  min={new Date().toISOString().split("T")[0]}
-                />
-              </div>
-              <div>
-                <label className={LABEL}>Follow-up time slot *</label>
-                <select
-                  className={INPUT}
-                  value={form.followupTimeSlot}
-                  onChange={(e) => setField({ followupTimeSlot: e.target.value })}
-                  disabled={disabled}
-                >
-                  <option value="">Select a time slot</option>
-                  {Object.entries(TIME_SLOTS).map(([val, lbl]) => (
-                    <option key={val} value={val}>{lbl}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="rounded-xl bg-white border border-amber-100 p-4">
+              <ReschedulePicker
+                date={form.followupDate}
+                timeSlot={form.followupTimeSlot}
+                onDateChange={(iso) => !disabled && setField({ followupDate: iso })}
+                onTimeSlotChange={(val) => !disabled && setField({ followupTimeSlot: val })}
+              />
             </div>
           </div>
         )}
@@ -831,7 +818,7 @@ function ReviewStep({
           {form.nextSession === "followup" && (
             <>
               <ReviewLine label="Follow-up date" value={formatDate(form.followupDate) || "—"} />
-              <ReviewLine label="Follow-up time" value={form.followupTimeSlot ? (TIME_SLOTS[form.followupTimeSlot] || form.followupTimeSlot) : "—"} />
+              <ReviewLine label="Follow-up time" value={form.followupTimeSlot ? slotLabel(form.followupTimeSlot) : "—"} />
             </>
           )}
         </ReviewBlock>

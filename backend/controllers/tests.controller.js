@@ -15,9 +15,12 @@ const normalizeDate = (value) => {
   return value;
 };
 
+const QUEUE_LIMIT = 50;
+
 const getQueueSlot = (slot) => {
   const s = (slot || "").toLowerCase();
-  if (s === "afternoon" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:")) return "PM";
+  // Two-block system: AM = 9AM-12PM, PM = 1PM-5PM (+ legacy hourly slots)
+  if (s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return "PM";
   if (!s) return null;
   return "AM";
 };
@@ -133,19 +136,24 @@ export const acceptTest = async (req, res) => {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
 
+  const weekendCheck = new Date(`${String(date).split("T")[0]}T00:00:00`);
+  if (!isNaN(weekendCheck) && (weekendCheck.getDay() === 0 || weekendCheck.getDay() === 6)) {
+    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  }
+
   const normalizedDate = normalizeDate(date);
   const queueSlot = getQueueSlot(timeSlot);
   const queueDate = normalizedDate;
 
   const [{ cnt }] = await query(
     `SELECT COUNT(*) AS cnt FROM appointments
-     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND appointment_type = 'psychological_test'`,
+     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL`,
     [queueDate, queueSlot]
   );
 
-  if (cnt >= 10) {
+  if (cnt >= QUEUE_LIMIT) {
     return res.status(409).json({
-      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} test queue for ${queueDate} is full (10 appointments). Please reschedule to a different date or time slot.`,
+      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} test queue for ${queueDate} is full (50 appointments). Please reschedule to a different date or time slot.`,
     });
   }
 
@@ -210,11 +218,32 @@ export const rescheduleTest = async (req, res) => {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
 
+  const weekendCheck = new Date(`${String(date).split("T")[0]}T00:00:00`);
+  if (!isNaN(weekendCheck) && (weekendCheck.getDay() === 0 || weekendCheck.getDay() === 6)) {
+    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  }
+
   const normalizedDate = normalizeDate(date);
+  const queueSlot = getQueueSlot(timeSlot);
+  const queueDate = normalizedDate;
+
+  const [{ cnt }] = await query(
+    `SELECT COUNT(*) AS cnt FROM appointments
+     WHERE queue_date = ? AND queue_slot = ? AND queue_number IS NOT NULL AND id <> ?`,
+    [queueDate, queueSlot, id]
+  );
+
+  if (cnt >= QUEUE_LIMIT) {
+    return res.status(409).json({
+      message: `The ${queueSlot === "AM" ? "morning" : "afternoon"} test queue for ${queueDate} is full (50 appointments). Please choose a different date or time slot.`,
+    });
+  }
+
+  const queueNumber = cnt + 1;
 
   await query(
-    "UPDATE appointments SET status='rescheduled', counselor_id=?, scheduled_date=?, scheduled_time=?, counselor_action_note=?, updated_at=NOW() WHERE id=?",
-    [counselorId, normalizedDate, timeSlot, note || null, id]
+    "UPDATE appointments SET status='rescheduled', counselor_id=?, scheduled_date=?, scheduled_time=?, counselor_action_note=?, queue_number=?, queue_date=?, queue_slot=?, updated_at=NOW() WHERE id=?",
+    [counselorId, normalizedDate, timeSlot, note || null, queueNumber, queueDate, queueSlot, id]
   );
 
   await logAction(req, "reschedule_test", "appointment", id, { date: normalizedDate, timeSlot });
@@ -224,7 +253,7 @@ export const rescheduleTest = async (req, res) => {
     await createNotification({
       userId: rows[0].student_id,
       title: "Test Request Rescheduled",
-      message: `Your test request was rescheduled to ${normalizedDate} at ${timeSlot}.`,
+      message: `Your test request was rescheduled to ${normalizedDate} at ${timeSlot}. Your queue number is ${queueSlot} #${queueNumber}.`,
       link: "/student/tests",
     });
     notifyUser(rows[0].student_id, { type: "tests" });
