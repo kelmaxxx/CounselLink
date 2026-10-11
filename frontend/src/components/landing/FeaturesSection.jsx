@@ -9,7 +9,7 @@ import {
 
 const FEATURES = [
   { icon: CalendarDays, title: "Online Appointment Scheduling", description: "Students can book, reschedule, or cancel counseling appointments anytime, from any device.", color: "bg-blue-500/10 text-blue-600 dark:text-blue-300", glow: "group-hover:shadow-blue-500/20" },
-  { icon: ShieldCheck, title: "Secure Counseling Records", description: "All counseling notes, forms, and session details are encrypted and access-controlled.", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300", glow: "group-hover:shadow-emerald-500/20" },
+  { icon: ShieldCheck, title: "Secure Counseling Records", description: "All counseling notes, forms, and session details are encrypted and access-controlled.", color: "bg-maroon-500/10 text-maroon-500 dark:text-maroon-300", glow: "group-hover:shadow-maroon-500/20" },
   { icon: Bell, title: "Real-Time Notifications", description: "Students and counselors receive instant alerts for appointment updates, approvals, and reminders.", color: "bg-amber-500/10 text-amber-600 dark:text-amber-300", glow: "group-hover:shadow-amber-500/20" },
   { icon: ClipboardList, title: "Appointment Tracking", description: "View the full status of any appointment — pending, approved, completed, or cancelled — in one place.", color: "bg-teal-500/10 text-teal-600 dark:text-teal-300", glow: "group-hover:shadow-teal-500/20" },
   { icon: UserCircle, title: "Student Profile Management", description: "Maintain complete student profiles including academic details, contact info, and counseling history.", color: "bg-violet-500/10 text-violet-600 dark:text-violet-300", glow: "group-hover:shadow-violet-500/20" },
@@ -21,15 +21,15 @@ const FEATURES = [
 export default function FeaturesSection() {
   return (
     <section id="features" aria-label="Platform features" className="py-24 bg-white dark:bg-gray-950 relative overflow-hidden">
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-200/30 dark:bg-emerald-500/10 rounded-full blur-3xl" aria-hidden="true" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-maroon-200/30 dark:bg-maroon-500/10 rounded-full blur-3xl" aria-hidden="true" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <Reveal className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-sm font-bold mb-4 tracking-wide uppercase border border-emerald-200/60 dark:border-emerald-500/20">
+          <span className="inline-block px-4 py-1.5 rounded-2xl bg-maroon-100 dark:bg-maroon-500/15 text-maroon-600 dark:text-maroon-300 text-sm font-bold mb-4 tracking-wide uppercase border border-maroon-200/60 dark:border-maroon-500/20">
             Features
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">
             Everything You Need in{" "}
-            <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 bg-clip-text text-transparent">One Platform</span>
+            <span className="bg-gradient-to-r from-maroon-500 via-maroon-400 to-maroon-300 bg-clip-text text-transparent">One Platform</span>
           </h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
             From scheduling to records management, CounceLink covers the full
@@ -53,7 +53,7 @@ export default function FeaturesSection() {
               </div>
               <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2 leading-snug">{title}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{description}</p>
-              <div className="absolute bottom-0 inset-x-6 h-0.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full" aria-hidden="true" />
+              <div className="absolute bottom-0 inset-x-6 h-0.5 bg-gradient-to-r from-maroon-500 via-maroon-300 to-maroon-300 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full" aria-hidden="true" />
             </motion.article>
           ))}
         </div>

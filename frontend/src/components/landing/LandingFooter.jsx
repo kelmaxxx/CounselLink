@@ -9,7 +9,6 @@ const QUICK_LINKS = [
   { label: "Features", href: "#features" },
   { label: "How It Works", href: "#how-it-works" },
   { label: "Reviews", href: "#testimonials" },
-  { label: "Access", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
   { label: "Contact", href: "#contact" },
 ];
@@ -42,17 +41,17 @@ export default function LandingFooter() {
             </p>
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2 text-gray-400">
-                <Mail size={14} className="text-emerald-400 shrink-0" aria-hidden="true" />
-                <a href="https://mail.google.com/mail/?view=cm&fs=1&to=msudsa70@gmail.com&su=Inquiry%20via%20CounceLink" target="_blank" rel="noopener noreferrer" title="Compose in Gmail to msudsa70@gmail.com" className="hover:text-emerald-300 transition-colors">
+                <Mail size={14} className="text-maroon-400 shrink-0" aria-hidden="true" />
+                <a href="https://mail.google.com/mail/?view=cm&fs=1&to=msudsa70@gmail.com&su=Inquiry%20via%20CounceLink" target="_blank" rel="noopener noreferrer" title="Compose in Gmail to msudsa70@gmail.com" className="hover:text-maroon-300 transition-colors">
                   msudsa70@gmail.com
                 </a>
               </li>
               <li className="flex items-center gap-2 text-gray-400">
-                <Phone size={14} className="text-emerald-400 shrink-0" aria-hidden="true" />
+                <Phone size={14} className="text-maroon-400 shrink-0" aria-hidden="true" />
                 <span>0948-509-4731</span>
               </li>
               <li className="flex items-start gap-2 text-gray-400">
-                <MapPin size={14} className="text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
+                <MapPin size={14} className="text-maroon-400 shrink-0 mt-0.5" aria-hidden="true" />
                 <span>Mindanao State University – Marawi City, Lanao del Sur</span>
               </li>
             </ul>
@@ -63,7 +62,7 @@ export default function LandingFooter() {
             <ul className="space-y-2.5">
               {QUICK_LINKS.map((link) => (
                 <li key={link.href + link.label}>
-                  <button onClick={() => handleScroll(link.href)} className="text-sm text-gray-400 hover:text-emerald-300 transition-colors">
+                  <button onClick={() => handleScroll(link.href)} className="text-sm text-gray-400 hover:text-maroon-300 transition-colors">
                     {link.label}
                   </button>
                 </li>
@@ -76,12 +75,12 @@ export default function LandingFooter() {
             <ul className="space-y-2.5 mb-8">
               {LEGAL_LINKS.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className="text-sm text-gray-400 hover:text-emerald-300 transition-colors">{link.label}</a>
+                  <a href={link.href} className="text-sm text-gray-400 hover:text-maroon-300 transition-colors">{link.label}</a>
                 </li>
               ))}
             </ul>
             <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Portal Access</h4>
-            <Link to="/login" aria-label="Login to CounceLink portal" className="inline-block px-5 py-2.5 rounded-2xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-400 transition-all hover:scale-[1.03] shadow-glow">
+            <Link to="/login" aria-label="Login to CounceLink portal" className="inline-block px-5 py-2.5 rounded-2xl bg-maroon-500 text-white text-sm font-semibold hover:bg-maroon-400 transition-all hover:scale-[1.03] shadow-glow">
               Login to CounceLink →
             </Link>
           </div>
@@ -95,7 +94,7 @@ export default function LandingFooter() {
           </p>
           <div className="flex items-center gap-1 text-xs text-gray-600">
             <span>Built with</span>
-            <span className="text-emerald-400" aria-hidden="true">♥</span>
+            <span className="text-maroon-400" aria-hidden="true">♥</span>
             <span>for MSU students</span>
           </div>
         </div>

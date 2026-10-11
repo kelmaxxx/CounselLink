@@ -10,7 +10,7 @@ const GMAIL_COMPOSE_URL =
 const CONTACT_CARDS = [
   { icon: Mail, label: "Email", value: "msudsa70@gmail.com", href: GMAIL_COMPOSE_URL, external: true, color: "bg-blue-500/10 text-blue-600 dark:text-blue-300" },
   { icon: Facebook, label: "Facebook Page", value: "MSU DSA Guidance and Counseling Section", href: "https://www.facebook.com/profile.php?id=61574715717322", external: true, color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-300" },
-  { icon: Phone, label: "Contact Number", value: "0948-509-4731", href: "tel:09485094731", external: false, color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
+  { icon: Phone, label: "Contact Number", value: "0948-509-4731", href: "tel:09485094731", external: false, color: "bg-maroon-500/10 text-maroon-500 dark:text-maroon-300" },
   { icon: Clock, label: "Office Hours", value: "Monday – Friday: 9:00 AM – 12:00 PM, 1:00 PM – 5:00 PM", href: null, color: "bg-amber-500/10 text-amber-600 dark:text-amber-300" },
 ];
 
@@ -19,14 +19,14 @@ export default function ContactSection() {
     <section id="contact" aria-label="Contact the guidance section" className="py-24 bg-white dark:bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-sm font-bold mb-4 tracking-wide uppercase">Contact Us</span>
+          <span className="inline-block px-4 py-1.5 rounded-2xl bg-maroon-100 dark:bg-maroon-500/15 text-maroon-600 dark:text-maroon-300 text-sm font-bold mb-4 tracking-wide uppercase">Contact Us</span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">Get in Touch with the Guidance Section</h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg leading-relaxed">Have questions or need assistance? Reach out to the Guidance and Counseling Section directly.</p>
         </Reveal>
 
         <div className="grid lg:grid-cols-2 gap-8 items-start">
           <Reveal variant="left">
-            <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 rounded-2xl p-8 text-white mb-6 shadow-xl border border-white/20 relative overflow-hidden">
+            <div className="bg-gradient-to-br from-maroon-500 via-maroon-600 to-maroon-800 rounded-2xl p-8 text-white mb-6 shadow-xl border border-white/20 relative overflow-hidden">
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" aria-hidden="true" />
               <div className="flex items-start gap-4 relative">
                 <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0">
@@ -56,7 +56,7 @@ export default function ContactSection() {
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-0.5">{label}</p>
                     {href ? (
-                      <a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} title={label === "Email" ? "Compose in Gmail to msudsa70@gmail.com" : value} className="text-sm font-semibold text-gray-800 dark:text-gray-100 hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors block truncate">
+                      <a href={href} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} title={label === "Email" ? "Compose in Gmail to msudsa70@gmail.com" : value} className="text-sm font-semibold text-gray-800 dark:text-gray-100 hover:text-maroon-500 dark:hover:text-maroon-300 transition-colors block truncate">
                         {value}
                       </a>
                     ) : (
@@ -68,7 +68,7 @@ export default function ContactSection() {
             </div>
 
             <div className="flex flex-wrap gap-3 mb-8">
-              <a href={GMAIL_COMPOSE_URL} target="_blank" rel="noopener noreferrer" title="Compose in Gmail to msudsa70@gmail.com" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-all shadow-glow hover:scale-[1.03]">
+              <a href={GMAIL_COMPOSE_URL} target="_blank" rel="noopener noreferrer" title="Compose in Gmail to msudsa70@gmail.com" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-maroon-500 hover:bg-maroon-500 text-white text-sm font-semibold transition-all shadow-glow hover:scale-[1.03]">
                 <Mail size={16} aria-hidden="true" /> Email Us via Gmail
               </a>
               <a href="https://www.facebook.com/profile.php?id=61574715717322" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all shadow-lg hover:scale-[1.03]">
@@ -97,14 +97,14 @@ export default function ContactSection() {
             />
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-white/10">
               <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
-                <MapPin size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
+                <MapPin size={16} className="text-maroon-500 dark:text-maroon-400 shrink-0 mt-0.5" aria-hidden="true" />
                 <span>
                   <span className="font-semibold text-gray-800 dark:text-white">MSU – Division of Student Affairs</span><br />
                   Mindanao State University, Marawi City
                 </span>
               </div>
               <div className="flex gap-2 shrink-0 flex-wrap">
-                <a href="https://maps.app.goo.gl/Xd7hATD5kfCJyG8x9" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
+                <a href="https://maps.app.goo.gl/Xd7hATD5kfCJyG8x9" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-maroon-500 hover:bg-maroon-500 text-white text-sm font-semibold transition-colors">
                   <MapPin size={14} aria-hidden="true" /> Open in Google Maps
                 </a>
                 <a href="https://www.google.com/maps/dir/?api=1&destination=MSU+Division+of+Student+Affairs+Marawi+City+7.9992142%2C124.258914" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 dark:bg-white dark:text-gray-900 hover:bg-gray-800 text-white text-sm font-semibold transition-colors">

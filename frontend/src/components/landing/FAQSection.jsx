@@ -42,7 +42,7 @@ function FAQItem({ question, answer, isOpen, onToggle }) {
     <div
       className={`border rounded-2xl overflow-hidden transition-all duration-200 backdrop-blur-xl ${
         isOpen
-          ? "border-emerald-200 dark:border-emerald-500/30 shadow-lg bg-white dark:bg-white/[0.05]"
+          ? "border-maroon-200 dark:border-maroon-500/30 shadow-lg bg-white dark:bg-white/[0.05]"
           : "border-gray-100 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20 bg-white/70 dark:bg-white/[0.03]"
       }`}
     >
@@ -53,7 +53,7 @@ function FAQItem({ question, answer, isOpen, onToggle }) {
       >
         <span className="font-semibold text-gray-900 dark:text-white leading-snug">{question}</span>
         <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.3 }}>
-          <ChevronDown size={18} className={`shrink-0 ${isOpen ? "text-emerald-500" : "text-gray-400"}`} aria-hidden="true" />
+          <ChevronDown size={18} className={`shrink-0 ${isOpen ? "text-maroon-500" : "text-gray-400"}`} aria-hidden="true" />
         </motion.span>
       </button>
       <AnimatePresence initial={false}>
@@ -81,7 +81,7 @@ export default function FAQSection() {
     <section id="faq" aria-label="Frequently asked questions" className="py-24 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center mb-14">
-          <span className="inline-block px-4 py-1.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-sm font-bold mb-4 tracking-wide uppercase">FAQ</span>
+          <span className="inline-block px-4 py-1.5 rounded-2xl bg-maroon-100 dark:bg-maroon-500/15 text-maroon-600 dark:text-maroon-300 text-sm font-bold mb-4 tracking-wide uppercase">FAQ</span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">Frequently Asked Questions</h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg leading-relaxed">Have a question about CounceLink? Here are answers to the most common questions from students and counselors.</p>
         </Reveal>

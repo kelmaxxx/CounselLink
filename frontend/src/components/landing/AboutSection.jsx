@@ -14,7 +14,7 @@ const BENEFITS = [
 
 const MINI = [
   { icon: BookOpen, label: "Digital Records", color: "bg-blue-500/10 text-blue-600 dark:text-blue-300" },
-  { icon: CalendarCheck, label: "Smart Scheduling", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
+  { icon: CalendarCheck, label: "Smart Scheduling", color: "bg-maroon-500/10 text-maroon-500 dark:text-maroon-300" },
   { icon: Heart, label: "Student Wellness", color: "bg-rose-500/10 text-rose-500 dark:text-rose-300" },
   { icon: Users, label: "Counselor Tools", color: "bg-amber-500/10 text-amber-600 dark:text-amber-300" },
 ];
@@ -24,7 +24,7 @@ export default function AboutSection() {
     <section id="about" aria-label="About CounceLink" className="py-24 bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-sm font-bold mb-4 tracking-wide uppercase">
+          <span className="inline-block px-4 py-1.5 rounded-2xl bg-maroon-100 dark:bg-maroon-500/15 text-maroon-600 dark:text-maroon-300 text-sm font-bold mb-4 tracking-wide uppercase">
             About CounceLink
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">
@@ -53,10 +53,10 @@ export default function AboutSection() {
                 </motion.div>
               ))}
             </div>
-            <div className="mt-4 bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-700 text-white rounded-2xl p-4 shadow-lg border border-white/20 flex items-center gap-3.5">
+            <div className="mt-4 bg-gradient-to-r from-maroon-700 via-maroon-600 to-maroon-800 text-white rounded-2xl p-4 shadow-lg border border-white/20 flex items-center gap-3.5">
               <img src="/msu-logo.png" alt="MSU logo" loading="lazy" className="w-10 h-10 object-contain bg-white/15 rounded-xl p-1 shrink-0" />
               <div>
-                <p className="text-xs font-bold text-emerald-200 uppercase tracking-wider">MSU – Marawi City</p>
+                <p className="text-xs font-bold text-maroon-200 uppercase tracking-wider">MSU – Marawi City</p>
                 <p className="text-sm font-semibold text-white">Division of Student Affairs</p>
               </div>
             </div>
@@ -80,7 +80,7 @@ export default function AboutSection() {
                   transition={{ delay: i * 0.07, duration: 0.45 }}
                   className="flex gap-3 items-start bg-white/60 dark:bg-white/[0.04] border border-gray-100 dark:border-white/10 rounded-2xl px-4 py-3"
                 >
-                  <CheckCircle2 size={20} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
+                  <CheckCircle2 size={20} className="text-maroon-500 dark:text-maroon-400 shrink-0 mt-0.5" aria-hidden="true" />
                   <span className="text-gray-700 dark:text-gray-200">{text}</span>
                 </motion.li>
               ))}

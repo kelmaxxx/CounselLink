@@ -34,8 +34,8 @@ const ADMIN_BENEFITS = [
 ];
 
 const CARDS = [
-  { icon: GraduationCap, title: "For Students", benefits: STUDENT_BENEFITS, bg: "bg-gradient-to-br from-emerald-500 to-emerald-700 dark:from-emerald-600 dark:to-teal-800" },
-  { icon: Stethoscope, title: "For Counselors", benefits: COUNSELOR_BENEFITS, bg: "bg-gradient-to-br from-teal-500 to-cyan-700" },
+  { icon: GraduationCap, title: "For Students", benefits: STUDENT_BENEFITS, bg: "bg-gradient-to-br from-maroon-500 to-maroon-600 dark:from-maroon-500 dark:to-teal-800" },
+  { icon: Stethoscope, title: "For Counselors", benefits: COUNSELOR_BENEFITS, bg: "bg-gradient-to-br from-maroon-500 to-maroon-700" },
   { icon: Building2, title: "For Colleges", benefits: COLLEGE_BENEFITS, bg: "bg-gradient-to-br from-indigo-500 to-indigo-700" },
   { icon: ShieldCheck, title: "For Administration", benefits: ADMIN_BENEFITS, bg: "bg-gradient-to-br from-purple-600 to-purple-800" },
 ];
@@ -74,7 +74,7 @@ export default function BenefitsSection() {
     <section aria-label="Benefits by role" className="py-24 bg-white dark:bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-sm font-bold mb-4 tracking-wide uppercase">Benefits</span>
+          <span className="inline-block px-4 py-1.5 rounded-2xl bg-maroon-100 dark:bg-maroon-500/15 text-maroon-600 dark:text-maroon-300 text-sm font-bold mb-4 tracking-wide uppercase">Benefits</span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">Built for Everyone</h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-xl mx-auto text-lg leading-relaxed">
             CounceLink serves students, counselors, college representatives, and administrators with tools designed for each role.
@@ -87,12 +87,12 @@ export default function BenefitsSection() {
             </Reveal>
           ))}
         </div>
-        <Reveal variant="scale" className="mt-10 rounded-2xl bg-gradient-to-r from-emerald-50 to-indigo-50 dark:from-emerald-500/10 dark:to-indigo-500/10 border border-emerald-100 dark:border-white/10 p-8 flex flex-col sm:flex-row items-center justify-between gap-6 backdrop-blur-xl">
+        <Reveal variant="scale" className="mt-10 rounded-2xl bg-gradient-to-r from-maroon-50 to-indigo-50 dark:from-maroon-500/10 dark:to-indigo-500/10 border border-maroon-100 dark:border-white/10 p-8 flex flex-col sm:flex-row items-center justify-between gap-6 backdrop-blur-xl">
           <div>
             <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Ready to experience CounceLink?</h4>
             <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">Join the growing community of MSU students, counselors, college representatives, and administrators already using the platform.</p>
           </div>
-          <a href="/login" aria-label="Login now to CounceLink" className="shrink-0 px-6 py-3 rounded-2xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-500 hover:-translate-y-0.5 transition-all duration-200 shadow-glow">
+          <a href="/login" aria-label="Login now to CounceLink" className="shrink-0 px-6 py-3 rounded-2xl bg-maroon-500 text-white font-semibold text-sm hover:bg-maroon-500 hover:-translate-y-0.5 transition-all duration-200 shadow-glow">
             Login Now
           </a>
         </Reveal>

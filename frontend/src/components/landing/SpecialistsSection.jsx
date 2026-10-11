@@ -20,7 +20,7 @@ export default function SpecialistsSection() {
     <section id="specialists" aria-label="Guidance specialists" className="py-24 bg-gray-50 dark:bg-gray-900 border-y border-gray-100 dark:border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Reveal className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-sm font-bold mb-4 tracking-wide uppercase">
+          <span className="inline-block px-4 py-1.5 rounded-2xl bg-maroon-100 dark:bg-maroon-500/15 text-maroon-600 dark:text-maroon-300 text-sm font-bold mb-4 tracking-wide uppercase">
             Meet the Specialists
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">
@@ -35,7 +35,7 @@ export default function SpecialistsSection() {
           <Reveal variant="left" className="lg:col-span-5 space-y-6">
             <div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                <Users className="text-emerald-600 dark:text-emerald-400" size={24} aria-hidden="true" />
+                <Users className="text-maroon-500 dark:text-maroon-400" size={24} aria-hidden="true" />
                 College Assignments
               </h3>
               <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-6">
@@ -55,7 +55,7 @@ export default function SpecialistsSection() {
                   </div>
                   <div className="flex flex-wrap gap-1 justify-end shrink-0 max-w-[120px]">
                     {spec.colleges.map((c) => (
-                      <span key={c} className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-500/20">
+                      <span key={c} className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-maroon-50 dark:bg-maroon-500/15 text-maroon-600 dark:text-maroon-300 border border-maroon-100 dark:border-maroon-500/20">
                         {c}
                       </span>
                     ))}
@@ -64,12 +64,12 @@ export default function SpecialistsSection() {
               ))}
             </div>
 
-            <div className="bg-white/80 dark:bg-white/[0.05] backdrop-blur-xl rounded-2xl p-5 border border-emerald-100 dark:border-emerald-500/20 shadow-sm space-y-3.5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Contact Division of Student Affairs</h4>
+            <div className="bg-white/80 dark:bg-white/[0.05] backdrop-blur-xl rounded-2xl p-5 border border-maroon-100 dark:border-maroon-500/20 shadow-sm space-y-3.5">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-maroon-600 dark:text-maroon-300">Contact Division of Student Affairs</h4>
               <div className="space-y-2.5 text-sm text-gray-600 dark:text-gray-300">
                 <div className="flex items-center gap-3">
                   <Mail size={16} className="text-gray-400" aria-hidden="true" />
-                  <a href="https://mail.google.com/mail/?view=cm&fs=1&to=msudsa70@gmail.com&su=Inquiry%20via%20CounceLink" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition">msudsa70@gmail.com</a>
+                  <a href="https://mail.google.com/mail/?view=cm&fs=1&to=msudsa70@gmail.com&su=Inquiry%20via%20CounceLink" target="_blank" rel="noopener noreferrer" className="hover:text-maroon-500 transition">msudsa70@gmail.com</a>
                 </div>
                 <div className="flex items-center gap-3">
                   <Phone size={16} className="text-gray-400" aria-hidden="true" />
@@ -93,7 +93,7 @@ export default function SpecialistsSection() {
               />
               <span className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition duration-300">
                 <span className="px-5 py-2.5 rounded-full bg-white/95 text-gray-900 font-semibold text-sm shadow flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition duration-300">
-                  <ZoomIn size={16} className="text-emerald-600" aria-hidden="true" />
+                  <ZoomIn size={16} className="text-maroon-500" aria-hidden="true" />
                   Click to View Full Poster
                 </span>
               </span>

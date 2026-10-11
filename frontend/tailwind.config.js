@@ -23,8 +23,8 @@ export default {
         '3xl': '1.75rem',
       },
       boxShadow: {
-        glow: '0 0 24px rgba(16, 185, 129, 0.45), 0 8px 40px rgba(6, 95, 70, 0.35)',
-        'glow-lg': '0 0 40px rgba(45, 212, 191, 0.5), 0 20px 60px rgba(6, 95, 70, 0.4)',
+        glow: '0 0 24px rgba(11, 102, 35, 0.45), 0 8px 40px rgba(7, 67, 23, 0.35)',
+        'glow-lg': '0 0 40px rgba(89, 170, 107, 0.5), 0 20px 60px rgba(7, 67, 23, 0.4)',
         glass: '0 8px 32px rgba(0, 0, 0, 0.12)',
       },
       animation: {
