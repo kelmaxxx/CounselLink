@@ -135,10 +135,10 @@ export default function ContactSection() {
           </div>
 
           {/* Right — Google Map */}
-          <div className="rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
+          <div className="rounded-3xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
             <iframe
-              title="MSU Marawi City Location"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3943.8820430936126!2d124.2395!3d7.9986!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x32ff988a4b6b8b59%3A0x3b2f9f8b3b2f9f8b!2sMindanao%20State%20University%20-%20Marawi%20City!5e0!3m2!1sen!2sph!4v1700000000000!5m2!1sen!2sph"
+              title="MSU Division of Student Affairs — Guidance and Counseling Section"
+              src="https://www.google.com/maps?q=MSU%20Division%20of%20Student%20Affairs%2C%20Mindanao%20State%20University%20Marawi%207.9992142%2C124.258914&z=19&output=embed"
               width="100%"
               height="420"
               style={{ border: 0 }}
@@ -147,6 +147,37 @@ export default function ContactSection() {
               referrerPolicy="no-referrer-when-downgrade"
               className="w-full"
             />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between p-4 bg-white border-t border-gray-100">
+              <div className="flex items-start gap-2 text-sm text-gray-600">
+                <MapPin size={16} className="text-maroon-600 shrink-0 mt-0.5" />
+                <span>
+                  <span className="font-semibold text-gray-800">
+                    MSU – Division of Student Affairs
+                  </span>
+                  <br />
+                  Mindanao State University, Marawi City
+                </span>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <a
+                  href="https://maps.app.goo.gl/Xd7hATD5kfCJyG8x9"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-maroon-500 hover:bg-maroon-600 text-white text-sm font-semibold transition-colors"
+                >
+                  <MapPin size={14} />
+                  Open in Google Maps
+                </a>
+                <a
+                  href="https://www.google.com/maps/dir/?api=1&destination=MSU+Division+of+Student+Affairs+Marawi+City+7.9992142%2C124.258914"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold transition-colors"
+                >
+                  Get Directions
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
