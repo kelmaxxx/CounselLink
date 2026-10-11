@@ -266,6 +266,27 @@ export default function StudentCounselingForm() {
     setSubmitConfirmOpen(true);
   };
 
+  // Explicit "Save record": persist the draft to the Student Record, remove
+  // the appointment from the upcoming queue, then hand the counselor off to
+  // the student's Sessions tab for any further edits.
+  const handleSaveToRecord = async () => {
+    setActionsOpen(false);
+    const sessionId = await handleSave();
+    if (!sessionId) return;
+    try {
+      await completeAppointment({ id: apptId });
+    } catch (err) {
+      console.error("Failed to complete appointment after save:", err);
+    }
+    navigate("/students", {
+      state: {
+        openStudentId: appt.student_id || appt.studentId,
+        initialTab: "sessions",
+        savedNotice: "Report saved to the Student Record and removed from appointments.",
+      },
+    });
+  };
+
   const executeSubmitReport = async () => {
     setSubmitConfirmOpen(false);
     let sessionId = existingSessionId;
@@ -377,12 +398,13 @@ export default function StudentCounselingForm() {
       )}
       {!isFinalized && existingSessionId && !loading && (
         <p className="text-xs text-gray-500 mb-4">
-          Editing existing session record (ID #{existingSessionId}). Saving overwrites the record.
+          Editing draft session record (ID #{existingSessionId}). Saving updates the Student Record draft.
         </p>
       )}
       {!isFinalized && !existingSessionId && !loading && (
         <p className="text-xs text-gray-500 mb-4">
-          New session — saving creates a record under “Manage Students”.
+          New session — saving stores a draft under “Manage Students” and removes the
+          appointment from your upcoming list. Revisit it there to keep editing.
         </p>
       )}
       {loading && <p className="text-xs text-gray-500 mb-4">Loading existing record…</p>}
@@ -449,7 +471,7 @@ export default function StudentCounselingForm() {
                     <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
                       <button
                         type="button"
-                        onClick={() => { handleSave(); setActionsOpen(false); }}
+                        onClick={handleSaveToRecord}
                         disabled={saving}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left disabled:opacity-50"
                       >

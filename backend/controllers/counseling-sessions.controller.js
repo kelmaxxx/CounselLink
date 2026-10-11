@@ -73,12 +73,18 @@ export const listSessions = async (req, res) => {
   if (role === "student") {
     where.push("cs.student_id = ?");
     params.push(userId);
+    // Students only ever see submitted Session Reports — saved drafts stay
+    // visible to counselors until they are finalized.
+    where.push("cs.finalized_at IS NOT NULL");
   } else if (role === "college_rep") {
     const repRows = await query("SELECT college FROM users WHERE id = ?", [userId]);
     const repCollege = repRows[0]?.college;
     if (!repCollege) return res.json([]);
     where.push("s.college = ?");
     params.push(repCollege);
+    // Reps only see finalized reports (via the report fan-out); drafts are
+    // counselor-internal until submitted.
+    where.push("cs.finalized_at IS NOT NULL");
   }
   // counselor and admin: no role filter — the Guidance and Counseling
   // Section shares visibility across counselors so anyone can pull up a
@@ -109,6 +115,10 @@ export const getSession = async (req, res) => {
   const role = req.user?.role;
   const userId = req.user?.id;
   if (role === "student" && session.studentId !== userId) return res.status(403).json({ message: "Forbidden" });
+  // Drafts (saved but not yet submitted) are counselor-internal.
+  if (!session.finalizedAt && (role === "student" || role === "college_rep")) {
+    return res.status(404).json({ message: "Session not found" });
+  }
 
   return res.json(session);
 };
@@ -180,6 +190,10 @@ export const updateSession = async (req, res) => {
   );
   if (!existing.length) return res.status(404).json({ message: "Session not found" });
   if (existing[0].counselor_id !== counselorId) return res.status(403).json({ message: "You can only edit your own sessions" });
+  // Submitted Session Reports are immutable — only saved drafts can be edited.
+  if (existing[0].finalized_at) {
+    return res.status(409).json({ message: "This report has already been submitted and can no longer be edited." });
+  }
 
   const updates = [];
   const params = [];
@@ -220,6 +234,10 @@ export const deleteSession = async (req, res) => {
   );
   if (!existing.length) return res.status(404).json({ message: "Session not found" });
   if (existing[0].counselor_id !== counselorId) return res.status(403).json({ message: "You can only delete your own sessions" });
+  // Submitted Session Reports are immutable and cannot be deleted.
+  if (existing[0].finalized_at) {
+    return res.status(409).json({ message: "This report has already been submitted and can no longer be deleted." });
+  }
 
   await logAction(req, "delete_session", "counseling_session", id, {
     studentId: existing[0].student_id,

@@ -416,7 +416,12 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
             const effectiveNext = effectiveNextSession.get(s.id) ?? s.nextSession;
             return (
             <tr key={s.id} className="hover:bg-gray-50/70 align-top">
-              <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">{formatDate(s.sessionDate)}</td>
+              <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">
+                {formatDate(s.sessionDate)}
+                <span className={`mt-1 inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${s.finalizedAt ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                  {s.finalizedAt ? "Submitted" : "Draft"}
+                </span>
+              </td>
               <td className="px-3 py-2.5 min-w-0">
                 <p className="line-clamp-3 text-sm text-gray-700 break-words">{s.presentingConcern || "—"}</p>
               </td>
@@ -508,6 +513,8 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
         const popSess = studentSessions.find((x) => x.id === openPopoverId);
         if (!popSess) return null;
         const isCounselorPop = currentUser?.role === "counselor" && Number(popSess.counselorId) === Number(currentUser.id);
+        // Submitted Session Reports are immutable — drafts stay editable.
+        const canModify = isCounselorPop && !popSess.finalizedAt;
         return createPortal(
           <div
             ref={popoverRef}
@@ -528,7 +535,7 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
             >
               <FileDown size={13} /> Download
             </button>
-            {isCounselorPop && (
+            {canModify && (
               <>
                 <div className="my-1 border-t border-gray-100" />
                 <button
@@ -545,6 +552,12 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
                 </button>
               </>
             )}
+            {isCounselorPop && popSess.finalizedAt && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <p className="px-4 py-2.5 text-xs text-gray-400">Submitted — read-only</p>
+              </>
+            )}
           </div>,
           document.body
         );
@@ -553,7 +566,7 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
   );
 }
 
-export default function StudentRecordsDrawer({ student, onClose, onRecordsChanged, onEditSession, onDeleteSession, readOnly = false }) {
+export default function StudentRecordsDrawer({ student, onClose, onRecordsChanged, onEditSession, onDeleteSession, readOnly = false, initialTab = "inventory" }) {
   const {
     getRecords,
     upsertInventory, uploadInventoryScan, deleteInventoryScan,
@@ -561,7 +574,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
   } = useStudentRecords();
   const { sessions } = useCounselingSessions();
 
-  const [tab, setTab] = useState("inventory");
+  const [tab, setTab] = useState(initialTab || "inventory");
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState(null);
   const [consent, setConsent] = useState(null);
