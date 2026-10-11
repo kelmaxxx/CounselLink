@@ -11,6 +11,7 @@ import {
   listReceivedReports,
   listSentReports,
   getReport,
+  acknowledgeReport,
 } from "../controllers/reports.controller.js";
 
 const router = Router();
@@ -25,6 +26,7 @@ router.post("/college-summary", requireRole("counselor"), createCollegeSummary);
 router.post("/send", requireRole("counselor"), sendReportToRecipient);
 router.get("/sent", requireRole("counselor"), listSentReports);
 router.get("/received", requireRole("college_rep"), listReceivedReports);
+router.put("/:id/acknowledge", acknowledgeReport);
 router.get("/:id", getReport);
 
 export default router;

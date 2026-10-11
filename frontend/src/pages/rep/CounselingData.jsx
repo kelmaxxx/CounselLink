@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreVertical,
+  ShieldCheck,
 } from "lucide-react";
 import {
   PageHeader,
@@ -41,6 +42,11 @@ export default function CounselingData() {
   const [activeReport, setActiveReport] = useState(null);
   const [reportsPage, setReportsPage] = useState(1);
   const [openPopover, setOpenPopover] = useState(null);
+  const [privacyTarget, setPrivacyTarget] = useState(null);
+  const [pendingAction, setPendingAction] = useState("view");
+  const [agreed, setAgreed] = useState(false);
+  const [acking, setAcking] = useState(false);
+  const [ackError, setAckError] = useState("");
   const popoverRef = useRef(null);
 
   useEffect(() => {
@@ -80,6 +86,54 @@ export default function CounselingData() {
       senderSignatureUrl: activeReport.senderSignatureUrl,
     };
   }, [activeReport]);
+
+  const isAcked = (r) => r.status === "acknowledged" || !!r.acknowledged_at;
+
+  const payloadFor = (r) => {
+    const payload = parsePayload(r.report_payload) || {};
+    return {
+      ...payload,
+      counselorName: payload.counselorName || payload.counselor_name || r.senderName,
+      counselorSignatureUrl: payload.counselorSignatureUrl || payload.counselor_signature_url || r.senderSignatureUrl,
+      senderName: r.senderName,
+      senderSignatureUrl: r.senderSignatureUrl,
+    };
+  };
+
+  // RA 10173 gate: the rep must agree to the confidentiality notice before
+  // the released data can be viewed or downloaded for the first time.
+  const requestAccess = (r, action) => {
+    if (isAcked(r)) {
+      if (action === "download") saveReportAsPdfFile(payloadFor(r), { title: r.title });
+      else setActiveReport(r);
+      return;
+    }
+    setPrivacyTarget(r);
+    setPendingAction(action);
+    setAgreed(false);
+    setAckError("");
+  };
+
+  const confirmPrivacy = async () => {
+    if (!privacyTarget || !agreed || acking) return;
+    setAcking(true);
+    setAckError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/${privacyTarget.id}/acknowledge`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ agreed: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { setAckError(body.message || "Unable to record agreement"); return; }
+      const updated = { ...privacyTarget, status: "acknowledged", acknowledged_at: new Date().toISOString() };
+      setReports((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      const act = pendingAction;
+      setPrivacyTarget(null);
+      if (act === "download") saveReportAsPdfFile(payloadFor(updated), { title: updated.title });
+      else setActiveReport(updated);
+    } catch (err) { setAckError(err.message); } finally { setAcking(false); }
+  };
 
   const totalReportPages = Math.max(1, Math.ceil(reports.length / REPORTS_PAGE_SIZE));
   const pagedReports = reports.slice(
@@ -127,13 +181,6 @@ export default function CounselingData() {
               {pagedReports.map((r) => {
                 const payload = parsePayload(r.report_payload);
                 const college = isCollegeSummary(payload);
-                const fullPayload = {
-                  ...payload,
-                  counselorName: payload?.counselorName || payload?.counselor_name || r.senderName,
-                  counselorSignatureUrl: payload?.counselorSignatureUrl || payload?.counselor_signature_url || r.senderSignatureUrl,
-                  senderName: r.senderName,
-                  senderSignatureUrl: r.senderSignatureUrl,
-                };
                 return (
                   <div key={r.id} className="px-4 py-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -152,8 +199,8 @@ export default function CounselingData() {
                     </div>
                     <p className="text-xs text-gray-700">{r.title}</p>
                     <div className="flex gap-2">
-                      <button onClick={() => setActiveReport(r)} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><Eye size={12} /> View</button>
-                      <button onClick={() => saveReportAsPdfFile(fullPayload, { title: r.title })} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><FileDown size={12} /> Download</button>
+                      <button onClick={() => requestAccess(r, "view")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><Eye size={12} /> View</button>
+                      <button onClick={() => requestAccess(r, "download")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><FileDown size={12} /> Download</button>
                     </div>
                   </div>
                 );
@@ -175,13 +222,6 @@ export default function CounselingData() {
                   {pagedReports.map((r) => {
                     const payload = parsePayload(r.report_payload);
                     const college = isCollegeSummary(payload);
-                    const fullPayload = {
-                      ...payload,
-                      counselorName: payload?.counselorName || payload?.counselor_name || r.senderName,
-                      counselorSignatureUrl: payload?.counselorSignatureUrl || payload?.counselor_signature_url || r.senderSignatureUrl,
-                      senderName: r.senderName,
-                      senderSignatureUrl: r.senderSignatureUrl,
-                    };
                     return (
                       <tr key={r.id} className="hover:bg-gray-50/70 transition">
                         <td className="px-4 py-3">
@@ -208,8 +248,8 @@ export default function CounselingData() {
                             </button>
                             {openPopover === r.id && (
                               <div className="absolute right-0 top-full mt-1 z-30 w-40 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
-                                <button onClick={() => { setActiveReport(r); setOpenPopover(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"><Eye size={13} /> View report</button>
-                                <button onClick={() => { saveReportAsPdfFile(fullPayload, { title: r.title }); setOpenPopover(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"><FileDown size={13} /> Download</button>
+                                <button onClick={() => { requestAccess(r, "view"); setOpenPopover(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"><Eye size={13} /> View report</button>
+                                <button onClick={() => { requestAccess(r, "download"); setOpenPopover(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"><FileDown size={13} /> Download</button>
                               </div>
                             )}
                           </div>
@@ -287,6 +327,41 @@ export default function CounselingData() {
             <p className="text-sm text-gray-500 p-4">No payload available.</p>
           )}
         </div>
+      </Modal>
+
+      <Modal
+        open={!!privacyTarget}
+        onClose={acking ? undefined : () => setPrivacyTarget(null)}
+        title="Confidentiality and Data Privacy Notice"
+        subtitle="Legal Basis: Republic Act No. 10173 (Data Privacy Act of 2012)"
+        size="md"
+        align="top"
+        footer={
+          privacyTarget && (
+            <div className="flex items-center gap-2">
+              <button className={BTN.secondary} onClick={() => setPrivacyTarget(null)} disabled={acking}>Cancel</button>
+              <button className={BTN.primary} onClick={confirmPrivacy} disabled={!agreed || acking}><ShieldCheck size={14} /> {acking ? "Recording…" : "Agree & continue"}</button>
+            </div>
+          )
+        }
+      >
+        {privacyTarget && (
+          <div className="space-y-3 text-sm text-gray-700">
+            <p>Your request for student counseling-related data (<span className="font-medium">{privacyTarget.title}</span>) has been reviewed and approved by the authorized counselor of the Division of Student Affairs (DSA).</p>
+            <p>In accordance with the Data Privacy Act of 2012, you are reminded of your responsibility to protect personal and sensitive personal information from unauthorized access, use, or disclosure. By proceeding, you agree to:</p>
+            <ol className="list-decimal ml-5 space-y-1">
+              <li>Use the approved data only for the stated and authorized purpose.</li>
+              <li>Maintain strict confidentiality and do not share the information with unauthorized persons.</li>
+              <li>Do not copy, distribute, or disclose the data beyond the scope of your approved request.</li>
+              <li>Comply with applicable data privacy laws and university policies.</li>
+            </ol>
+            <label className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50/60 px-3 py-2.5 cursor-pointer">
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-red-800" />
+              <span>I have read and understood this notice, and I agree to comply with the stated confidentiality and data privacy requirements.</span>
+            </label>
+            {ackError && <p className="text-sm text-red-600">{ackError}</p>}
+          </div>
+        )}
       </Modal>
     </div>
   );

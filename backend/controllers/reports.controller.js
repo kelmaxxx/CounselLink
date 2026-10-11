@@ -275,6 +275,7 @@ export const createCollegeSummary = async (req, res) => {
 
   const payload = {
     type: "college_summary",
+    requestId,
     college: rep.college,
     department: dept,
     totals,
@@ -410,6 +411,7 @@ export const getReport = async (req, res) => {
     `SELECT r.id, r.title, r.summary, r.report_payload, r.status, r.sent_at, r.acknowledged_at,
             r.sender_id, r.recipient_id,
             sender.name AS senderName, sender.college AS senderCollege,
+            sender.signature_url AS senderSignatureUrl,
             recipient.name AS recipientName, recipient.college AS recipientCollege
      FROM report_recipients r
      LEFT JOIN users sender ON r.sender_id = sender.id
@@ -429,7 +431,7 @@ export const listReceivedReports = async (req, res) => {
   const userId = req.user?.id;
   const rows = await query(
     `SELECT r.id, r.title, r.summary, r.report_payload, r.status, r.sent_at, r.acknowledged_at,
-            u.name AS senderName, u.id AS sender_id
+            u.name AS senderName, u.id AS sender_id, u.signature_url AS senderSignatureUrl
      FROM report_recipients r
      LEFT JOIN users u ON r.sender_id = u.id
      WHERE r.recipient_id = ?
@@ -437,4 +439,34 @@ export const listReceivedReports = async (req, res) => {
     [userId]
   );
   return res.json(rows);
+};
+
+
+// College rep confirms the Confidentiality & Data Privacy Notice (RA 10173)
+// before viewing/downloading a delivered report. Records acknowledged_at on
+// the delivery and stamps privacy_ack_at on the parent request letter.
+export const acknowledgeReport = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?.id;
+  const { agreed } = req.body || {};
+  if (agreed !== true) {
+    return res.status(400).json({ message: "You must agree to the confidentiality notice before accessing this data." });
+  }
+  const rows = await query("SELECT id, recipient_id, report_payload, status FROM report_recipients WHERE id = ?", [id]);
+  if (!rows.length) return res.status(404).json({ message: "Report not found" });
+  const report = rows[0];
+  if (report.recipient_id !== userId && req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  const ip = (req.headers?.["x-forwarded-for"] || req.ip || "").toString().split(",")[0].trim() || null;
+  await query("UPDATE report_recipients SET status = 'acknowledged', acknowledged_at = NOW() WHERE id = ?", [id]);
+  try {
+    const payload = typeof report.report_payload === "string" ? JSON.parse(report.report_payload) : report.report_payload;
+    const requestId = payload?.requestId;
+    if (requestId) {
+      await query("UPDATE report_requests SET privacy_ack_at = NOW(), privacy_ack_ip = ? WHERE id = ?", [ip, requestId]);
+    }
+  } catch { /* payload without requestId — nothing to stamp */ }
+  await logAction(req, "acknowledge_report_privacy", "report_recipient", id, { ip });
+  return res.json({ message: "Acknowledged", id: Number(id) });
 };
