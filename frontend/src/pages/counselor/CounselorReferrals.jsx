@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useReferrals } from "../../context/ReferralsContext";
-import { CheckCircle2, XCircle, Inbox, History } from "lucide-react";
+import { CheckCircle2, XCircle, Inbox, History, CalendarClock } from "lucide-react";
 import {
   PageHeader,
   SectionCard,
@@ -78,16 +78,20 @@ export default function CounselorReferrals() {
       setDecisionError("A note is required when declining.");
       return;
     }
-    if (status === "accepted" && (!scheduledDate || !scheduledTime)) {
+    if ((status === "accepted" || status === "rescheduled") && (!scheduledDate || !scheduledTime)) {
       setDecisionError("Please pick a date and time slot for the appointment.");
+      return;
+    }
+    if (status === "rescheduled" && !decisionNote.trim()) {
+      setDecisionError("Please explain why the referral is being rescheduled (required).");
       return;
     }
     setDecisionBusy(true);
     const res = await decideReferral(referral.id, {
       status,
       decisionNote: decisionNote.trim() || null,
-      scheduledDate: status === "accepted" ? scheduledDate : null,
-      scheduledTime: status === "accepted" ? scheduledTime : null,
+      scheduledDate: status === "accepted" || status === "rescheduled" ? scheduledDate : null,
+      scheduledTime: status === "accepted" || status === "rescheduled" ? scheduledTime : null,
     });
     setDecisionBusy(false);
     if (!res.success) {
@@ -95,7 +99,7 @@ export default function CounselorReferrals() {
       return;
     }
     setDecisionModal({ open: false, referral: null, status: null });
-    if (status === "accepted") {
+    if (status === "accepted" || status === "rescheduled") {
       navigate(`/counselor/referrals/${referral.id}/confirmation`);
     }
   };
@@ -137,7 +141,7 @@ export default function CounselorReferrals() {
         title={activeTab === "incoming" ? "Incoming referrals" : "Referral history"}
         subtitle={
           activeTab === "history"
-            ? "Past decisions and cancelled referrals"
+            ? "Past decisions (accepted, rescheduled, declined) and cancelled referrals"
             : "Awaiting your decision"
         }
         noBodyPadding
@@ -151,7 +155,7 @@ export default function CounselorReferrals() {
             hint={
               activeTab === "incoming"
                 ? "When a College refers a student to you, it will appear here."
-                : "Resolved referrals (accepted or declined) will collect here."
+                : "Resolved referrals (accepted, rescheduled, or declined) will collect here."
             }
           />
         ) : (
@@ -177,9 +181,12 @@ export default function CounselorReferrals() {
                   <p className="text-gray-400 tabular-nums">{new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
                 </div>
                 {activeTab === "incoming" && r.status === "pending" && (
-                  <div className="flex gap-1 pt-1">
+                  <div className="flex flex-wrap gap-1 pt-1">
                     <button onClick={() => openDecision(r, "accepted")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition">
                       <CheckCircle2 size={13} /> Accept
+                    </button>
+                    <button onClick={() => openDecision(r, "rescheduled")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 transition">
+                      <CalendarClock size={13} /> Reschedule
                     </button>
                     <button onClick={() => openDecision(r, "rejected")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition">
                       <XCircle size={13} /> Reject
@@ -231,6 +238,7 @@ export default function CounselorReferrals() {
                         {r.status === "pending" && (
                           <div className="inline-flex gap-1">
                             <button onClick={() => openDecision(r, "accepted")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition"><CheckCircle2 size={13} /> Accept</button>
+                            <button onClick={() => openDecision(r, "rescheduled")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 transition"><CalendarClock size={13} /> Reschedule</button>
                             <button onClick={() => openDecision(r, "rejected")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition"><XCircle size={13} /> Reject</button>
                           </div>
                         )}
@@ -250,10 +258,18 @@ export default function CounselorReferrals() {
       <Modal
         open={decisionModal.open}
         onClose={() => setDecisionModal({ open: false, referral: null, status: null })}
-        title={decisionModal.status === "accepted" ? "Accept referral" : "Reject referral"}
+        title={
+          decisionModal.status === "accepted"
+            ? "Accept referral"
+            : decisionModal.status === "rescheduled"
+            ? "Reschedule referral"
+            : "Reject referral"
+        }
         subtitle={
           decisionModal.status === "accepted"
             ? "Set the appointment date and time slot. The student and the referring College will be notified."
+            : decisionModal.status === "rescheduled"
+            ? "Propose a new date and time slot and explain why. The student and the referring College will be notified, and a rescheduled appointment will be created."
             : "Add a short note explaining why this referral was declined. Required."
         }
         danger={decisionModal.status === "rejected"}
@@ -268,12 +284,20 @@ export default function CounselorReferrals() {
             <button
               onClick={submitDecision}
               disabled={decisionBusy}
-              className={decisionModal.status === "accepted" ? BTN.success : BTN.danger}
+              className={
+                decisionModal.status === "accepted"
+                  ? BTN.success
+                  : decisionModal.status === "rescheduled"
+                  ? "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  : BTN.danger
+              }
             >
               {decisionBusy
                 ? "Submitting…"
                 : decisionModal.status === "accepted"
                 ? "Confirm accept"
+                : decisionModal.status === "rescheduled"
+                ? "Confirm reschedule"
                 : "Confirm reject"}
             </button>
           </>
@@ -302,7 +326,7 @@ export default function CounselorReferrals() {
               </div>
             </div>
 
-            {decisionModal.status === "accepted" && (
+            {(decisionModal.status === "accepted" || decisionModal.status === "rescheduled") && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className={LABEL}>Appointment date *</label>
@@ -333,7 +357,11 @@ export default function CounselorReferrals() {
             )}
 
             <label className={LABEL}>
-              {decisionModal.status === "accepted" ? "Note (optional)" : "Note (required)"}
+              {decisionModal.status === "accepted"
+                ? "Note (optional)"
+                : decisionModal.status === "rescheduled"
+                ? "Reschedule reason (required)"
+                : "Note (required)"}
             </label>
             <textarea
               rows={3}
@@ -341,6 +369,8 @@ export default function CounselorReferrals() {
               placeholder={
                 decisionModal.status === "accepted"
                   ? "e.g. Confirmation message, instructions for the student…"
+                  : decisionModal.status === "rescheduled"
+                  ? "e.g. Conflict on the requested slot — moved to Friday AM, please confirm…"
                   : "e.g. caseload full, scope mismatch…"
               }
               value={decisionNote}

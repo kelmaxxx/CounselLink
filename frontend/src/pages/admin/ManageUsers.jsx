@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { COLLEGES } from "../../data/mockData";
-import { getDepartments, getCollegeName, getPrograms } from "../../data/msuColleges";
+import { getDepartments, getCollegeName } from "../../data/msuColleges";
 import {
   Edit2,
   Trash2,
@@ -9,8 +9,6 @@ import {
   UserPlus,
   CheckCircle,
   AlertCircle,
-  Eye,
-  FileText,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -58,18 +56,19 @@ const isValidEmail = (email) => {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(str);
 };
 
-const buildCorUrl = (user) => {
-  if (!user?.corUrl) return null;
-  if (user.corUrl.startsWith("http")) return user.corUrl;
-  return `${apiBase}${user.corUrl}`;
-};
-
 const statusInfo = (u) => {
   if (u.status === "pending_approval") return { status: "pending", label: "Pending" };
   if (u.status === "pending_setup") return { status: "pending", label: "Pending Setup" };
   if (u.status && u.status !== "approved") return { status: "rejected", label: "Rejected" };
   return { status: "active", label: "Active" };
 };
+
+// Admin can only re-edit counselor / college_rep accounts that have NOT
+// yet confirmed their account (pending_setup). Active accounts are edited
+// by the users themselves via their Profile pages.
+const canReEdit = (u) =>
+  (u?.role === "counselor" || u?.role === "college_rep") &&
+  u?.status === "pending_setup";
 
 const studentIdEmailCell = (u) => (
   <div>
@@ -108,7 +107,7 @@ const REP_COLUMNS = [
 
 const ADMIN_COLUMNS = [{ header: "Email", render: emailCell }];
 
-function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText, hideEdit = false, hideDelete = false }) {
+function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText, hideDelete = false }) {
   if (!rows.length) {
     return <EmptyState title={emptyText} />;
   }
@@ -138,7 +137,7 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                 ))}
               </div>
               <div className="flex items-center gap-1 pl-10">
-                {u.status === "pending_setup" && (
+                {canReEdit(u) && (
                   <>
                     <button onClick={() => onEdit(u)} title="Re-edit & resend" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition">
                       <Edit2 size={13} />
@@ -147,11 +146,6 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                       <RotateCcw size={13} />
                     </button>
                   </>
-                )}
-                {!hideEdit && u.status !== "pending_setup" && (
-                  <button onClick={() => onEdit(u)} title="Edit user" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition">
-                    <Edit2 size={13} />
-                  </button>
                 )}
                 {!hideDelete && (
                   <button onClick={() => onDelete(u.id)} title="Ban account" className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition">
@@ -200,7 +194,7 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex items-center gap-1">
-                      {u.status === "pending_setup" && (
+                      {canReEdit(u) && (
                         <>
                           <button onClick={() => onEdit(u)} title="Re-edit account details & resend invitation" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition">
                             <Edit2 size={13} />
@@ -209,11 +203,6 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                             <RotateCcw size={13} />
                           </button>
                         </>
-                      )}
-                      {!hideEdit && u.status !== "pending_setup" && (
-                        <button onClick={() => onEdit(u)} title="Edit user" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 transition">
-                          <Edit2 size={13} />
-                        </button>
                       )}
                       {!hideDelete && (
                         <button onClick={() => onDelete(u.id)} title="Ban account" className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition">
@@ -234,7 +223,7 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
 
 
 export default function ManageUsers() {
-  const { users, createUser, updateUser, deleteUser, banUser, unbanUser } = useAuth();
+  const { users, createUser, updateUser, banUser, unbanUser } = useAuth();
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState("student");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -251,7 +240,6 @@ export default function ManageUsers() {
   const [editModal, setEditModal] = useState({ open: false, user: null });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, userId: null });
   const [banReason, setBanReason] = useState("");
-  const [corModalOpen, setCorModalOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const actionsRef = useRef(null);
 
@@ -458,6 +446,8 @@ export default function ManageUsers() {
   };
 
   const openEditModal = (user) => {
+    // Safety guard: admin may only re-edit unconfirmed counselor / college_rep.
+    if (!canReEdit(user)) return;
     setEditForm({
       name: user.name || "",
       email: user.email || "",
@@ -475,24 +465,17 @@ export default function ManageUsers() {
 
   const handleEdit = async (e) => {
     e.preventDefault();
-    if (editModal.user.role === "student" && !/^\d{9}$/.test(editForm.studentId)) {
-      setMessage({ type: "error", text: "Student ID must be exactly 9 digits." });
+    if (!editModal.user || !canReEdit(editModal.user)) {
+      setMessage({ type: "error", text: "Only unconfirmed counselor / college accounts can be edited by admin." });
       setTimeout(() => setMessage(null), 3000);
       return;
     }
     const updates = {
       name: editForm.name,
       email: editForm.email,
+      phone: editForm.phone,
     };
-    if (editModal.user.role !== "admin") {
-      updates.phone = editForm.phone;
-    }
-    if (editModal.user.role === "student") {
-      updates.studentId = editForm.studentId;
-      updates.college = editForm.college;
-      updates.department = editForm.department;
-      updates.program = editForm.program;
-    } else if (editModal.user.role === "counselor") {
+    if (editModal.user.role === "counselor") {
       updates.employeeId = editForm.employeeId;
       updates.position = editForm.position;
       updates.specialization = editForm.specialization;
@@ -506,23 +489,17 @@ export default function ManageUsers() {
     setBusy(false);
     if (res.success) {
       setEditModal({ open: false, user: null });
-      setCorModalOpen(false);
-      const isPending = editModal.user.status === "pending_setup";
       const inviteSent = res.data?.inviteSent;
-      if (isPending) {
-        if (inviteSent === false) {
-          setMessage({
-            type: "error",
-            text: `Account updated, but email delivery failed (SMTP authentication error). Please verify EMAIL_PASS in backend .env.`,
-          });
-        } else {
-          setMessage({
-            type: "success",
-            text: `Account updated! Confirmation invitation email resent to ${editForm.email}.`,
-          });
-        }
+      if (inviteSent === false) {
+        setMessage({
+          type: "error",
+          text: `Account updated, but email delivery failed (SMTP authentication error). Please verify EMAIL_PASS in backend .env.`,
+        });
       } else {
-        setMessage({ type: "success", text: "User updated successfully" });
+        setMessage({
+          type: "success",
+          text: `Account updated! Confirmation invitation email resent to ${editForm.email}.`,
+        });
       }
     } else {
       setMessage({ type: "error", text: res.message || "Failed to update user" });
@@ -536,7 +513,6 @@ export default function ManageUsers() {
   };
 
   const editDepartments = getDepartments(editForm.college);
-  const editPrograms = getPrograms(editForm.college, editForm.department);
 
   const handleDelete = async () => {
     if (!banReason.trim()) return;
@@ -557,7 +533,7 @@ export default function ManageUsers() {
       <PageHeader
         eyebrow="Administrator"
         title="Manage user accounts"
-        subtitle="Create, edit, and delete accounts across all roles."
+        subtitle="Create counselor / college accounts and manage access. Users edit their own profiles; admin can only re-edit unconfirmed invitations."
         actions={
           <div className="relative" ref={actionsRef}>
             <button
@@ -703,7 +679,6 @@ export default function ManageUsers() {
           onEdit={openEditModal}
           onDelete={openDeleteConfirm}
           onResendInvite={handleResendInvite}
-          hideEdit={activeTab === "student"}
           hideDelete={activeTab === "admin"}
           emptyText={
             activeTab === "student" ? "No students match your search"
@@ -979,22 +954,17 @@ export default function ManageUsers() {
         </form>
       </Modal>
 
-      {/* Edit modal */}
+      {/* Re-edit modal — only for unconfirmed counselor / college_rep invitations */}
       <Modal
         open={editModal.open}
         onClose={() => {
           setEditModal({ open: false, user: null });
-          setCorModalOpen(false);
         }}
         title={
-          editModal.user?.status === "pending_setup"
-            ? `Re-edit ${editModal.user.role === "counselor" ? "counselor" : editModal.user.role === "college_rep" ? "college" : "user"} account`
-            : `Edit ${editModal.user?.name || "user"}`
+          `Re-edit ${editModal.user?.role === "counselor" ? "counselor" : "college"} account`
         }
         subtitle={
-          editModal.user?.status === "pending_setup"
-            ? "Modify account details (name, email, role info). Saving will automatically resend the invitation setup email."
-            : "Update user credentials and profile details."
+          "Modify account details (name, email, role info). Saving will automatically resend the invitation setup email."
         }
         size="2xl"
         align="top"
@@ -1004,7 +974,6 @@ export default function ManageUsers() {
               type="button"
               onClick={() => {
                 setEditModal({ open: false, user: null });
-                setCorModalOpen(false);
               }}
               className={BTN.secondary}
             >
@@ -1039,118 +1008,18 @@ export default function ManageUsers() {
               />
             </div>
           </div>
-          {editModal.user?.role !== "admin" && (
-            <div>
-              <label className={LABEL}>Phone number</label>
-              <input
-                type="tel"
-                inputMode="numeric"
-                maxLength={11}
-                className={INPUT}
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: sanitizePhoneDigits(e.target.value) })}
-                placeholder="09XXXXXXXXX"
-              />
-            </div>
-          )}
-
-          {editModal.user?.role === "student" && (
-            <div className="pt-3 border-t border-gray-100">
-              <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
-                Academic information
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className={LABEL}>Student ID</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={9}
-                    className={INPUT}
-                    value={editForm.studentId}
-                    onChange={(e) => setEditForm({ ...editForm, studentId: e.target.value.replace(/\D/g, "").slice(0, 9) })}
-                    placeholder="9-digit ID"
-                  />
-                </div>
-                <div>
-                  <label className={LABEL}>College</label>
-                  <select
-                    className={INPUT}
-                    value={editForm.college}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, college: e.target.value, department: "", program: "" })
-                    }
-                  >
-                    <option value="">Select college</option>
-                    {COLLEGES.map((c) => (
-                      <option key={c} value={c}>
-                        {c} — {getCollegeName(c)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={LABEL}>Department</label>
-                  <select
-                    className={INPUT}
-                    value={editForm.department}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, department: e.target.value, program: "" })
-                    }
-                    disabled={!editForm.college}
-                  >
-                    <option value="">
-                      {editForm.college ? "Select department" : "Select a college first"}
-                    </option>
-                    {editForm.department &&
-                      !editDepartments.some((d) => d.name === editForm.department) && (
-                        <option value={editForm.department}>{editForm.department}</option>
-                      )}
-                    {editDepartments.map((d) => (
-                      <option key={d.code} value={d.name}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={LABEL}>Course</label>
-                  <select
-                    className={INPUT}
-                    value={editForm.program}
-                    onChange={(e) => setEditForm({ ...editForm, program: e.target.value })}
-                    disabled={!editForm.department}
-                  >
-                    <option value="">
-                      {editForm.department ? "Select course" : "Select a department first"}
-                    </option>
-                    {editForm.program && !editPrograms.includes(editForm.program) && (
-                      <option value={editForm.program}>{editForm.program}</option>
-                    )}
-                    {editPrograms.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                {buildCorUrl(editModal.user) ? (
-                  <button
-                    type="button"
-                    onClick={() => setCorModalOpen(true)}
-                    className="inline-flex items-center gap-1 text-xs text-maroon-600 hover:text-maroon-700 font-medium"
-                  >
-                    <Eye size={12} /> View COR
-                  </button>
-                ) : (
-                  <p className="text-xs text-gray-500">No COR uploaded</p>
-                )}
-              </div>
-            </div>
-          )}
+          <div>
+            <label className={LABEL}>Phone number</label>
+            <input
+              type="tel"
+              inputMode="numeric"
+              maxLength={11}
+              className={INPUT}
+              value={editForm.phone}
+              onChange={(e) => setEditForm({ ...editForm, phone: sanitizePhoneDigits(e.target.value) })}
+              placeholder="09XXXXXXXXX"
+            />
+          </div>
 
           {editModal.user?.role === "counselor" && (
             <div className="pt-3 border-t border-gray-100">
@@ -1256,46 +1125,6 @@ export default function ManageUsers() {
             </div>
           )}
         </form>
-      </Modal>
-
-      {/* COR view modal */}
-      <Modal
-        open={corModalOpen && editModal.user?.role === "student"}
-        onClose={() => setCorModalOpen(false)}
-        title="Certificate of Registration"
-        subtitle={
-          editModal.user
-            ? `${editModal.user.name} · ${editForm.studentId || ""}`
-            : ""
-        }
-        size="2xl"
-        align="top"
-      >
-        {editModal.user && (
-          <>
-            {buildCorUrl(editModal.user)?.match(/\.(png|jpg|jpeg)$/i) ? (
-              <img
-                src={buildCorUrl(editModal.user)}
-                alt="Certificate of Registration"
-                className="w-full h-auto border border-gray-200 rounded-md"
-              />
-            ) : (
-              <div className="text-center p-8">
-                <FileText size={32} className="text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-3">
-                  PDF file — cannot preview in browser
-                </p>
-                <a
-                  href={buildCorUrl(editModal.user)}
-                  download={`COR_${editForm.studentId || editModal.user.id}.pdf`}
-                  className={BTN.primary}
-                >
-                  Download PDF
-                </a>
-              </div>
-            )}
-          </>
-        )}
       </Modal>
 
       {/* Delete/ban confirmation */}

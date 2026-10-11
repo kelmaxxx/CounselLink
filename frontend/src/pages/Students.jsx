@@ -5,6 +5,7 @@
 //   Overview        : analytics (existing)
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import {
   Search, Plus, Edit, Trash2, Users, FileText, FileDown, Eye, Calendar,
   TrendingUp, Activity, AlertCircle, RefreshCw, UserRound, ClipboardList, Target,
@@ -47,6 +48,7 @@ export default function ManageStudents() {
   const { currentUser, fetchUsersByRole } = useAuth();
   const { sessions, fetchSessions, createSession, updateSession, deleteSession } = useCounselingSessions();
   const { getRecords } = useStudentRecords();
+  const location = useLocation();
 
   const [students, setStudents] = useState([]);
   const [activeTab, setActiveTab] = useState("students");
@@ -62,6 +64,7 @@ export default function ManageStudents() {
 
   // Drawer state
   const [drawerStudent, setDrawerStudent] = useState(null);
+  const [drawerInitialTab, setDrawerInitialTab] = useState(null);
   const [openPopoverId, setOpenPopoverId] = useState(null);
   const [studentPopoverPos, setStudentPopoverPos] = useState(null);
   const [studentPopoverData, setStudentPopoverData] = useState(null);
@@ -110,6 +113,23 @@ export default function ManageStudents() {
     fetchSessions().catch((err) => console.error(err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.role]);
+
+  // Deep link from the counseling form's "Save record": auto-open the
+  // student's drawer (usually straight on the Sessions tab) once the list
+  // has loaded. Consumed once so back-navigation doesn't reopen it.
+  const deepLinkConsumed = useRef(false);
+  useEffect(() => {
+    const openId = location.state?.openStudentId;
+    if (!openId || deepLinkConsumed.current || students.length === 0) return;
+    deepLinkConsumed.current = true;
+    const target = students.find((s) => Number(s.id) === Number(openId));
+    if (target) {
+      setDrawerStudent(target);
+      setDrawerInitialTab(location.state?.initialTab || null);
+      if (location.state?.savedNotice) showFeedback("success", location.state.savedNotice, 5000);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, students.length]);
 
   // Fan out and fetch each student's inventory + consent so completeness
   // badges have data. Best-effort — failures fall back to "—".
@@ -219,6 +239,11 @@ export default function ManageStudents() {
   };
 
   const openEdit = (session) => {
+    // Submitted Session Reports are immutable — only drafts can be edited.
+    if (session?.id && session.finalizedAt) {
+      showFeedback("error", "This report has already been submitted and can no longer be edited.");
+      return;
+    }
     setForm({
       studentId: session.studentId,
       appointmentId: session.appointmentId || "",
@@ -277,6 +302,10 @@ export default function ManageStudents() {
       showFeedback("error", "Student and session date are required");
       return;
     }
+    if (editing?.id && editing.finalizedAt) {
+      showFeedback("error", "This report has already been submitted and can no longer be edited.");
+      return;
+    }
     setBusy(true);
     const payload = {
       ...form,
@@ -300,6 +329,11 @@ export default function ManageStudents() {
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
+    if (confirmDelete.finalizedAt) {
+      setConfirmDelete(null);
+      showFeedback("error", "This report has already been submitted and can no longer be deleted.");
+      return;
+    }
     setBusy(true);
     const res = await deleteSession(confirmDelete.id);
     setBusy(false);
@@ -944,7 +978,7 @@ export default function ManageStudents() {
             >
               <FileDown size={13} /> Download
             </button>
-            {isCounselorRow && (
+            {isCounselorRow && !popSess.finalizedAt && (
               <>
                 <div className="my-1 border-t border-gray-100" />
                 <button
@@ -959,6 +993,12 @@ export default function ManageStudents() {
                 >
                   <Trash2 size={13} /> Delete
                 </button>
+              </>
+            )}
+            {isCounselorRow && popSess.finalizedAt && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <p className="px-4 py-2.5 text-xs text-gray-400">Submitted — read-only</p>
               </>
             )}
           </div>,
@@ -1166,7 +1206,8 @@ export default function ManageStudents() {
       {drawerStudent && (
         <StudentRecordsDrawer
           student={drawerStudent}
-          onClose={() => setDrawerStudent(null)}
+          initialTab={drawerInitialTab}
+          onClose={() => { setDrawerStudent(null); setDrawerInitialTab(null); }}
           onRecordsChanged={handleRecordsChanged}
           readOnly={currentUser?.role !== "counselor"}
           onEditSession={(s) => openEdit(s)}

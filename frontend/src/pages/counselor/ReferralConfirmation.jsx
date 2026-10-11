@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { CheckCircle2, ArrowLeft } from "lucide-react";
+import { CheckCircle2, ArrowLeft, CalendarClock } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -49,14 +49,17 @@ export default function ReferralConfirmation() {
         ) : (
           <>
             <div className="flex items-center gap-3 mb-4">
-              <div className="bg-green-100 text-green-700 p-2 rounded-full">
-                <CheckCircle2 size={28} />
+              <div className={`${referral.status === "rescheduled" ? "bg-sky-100 text-sky-700" : "bg-green-100 text-green-700"} p-2 rounded-full`}>
+                {referral.status === "rescheduled" ? <CalendarClock size={28} /> : <CheckCircle2 size={28} />}
               </div>
               <div>
-                <h2 className="text-2xl font-semibold text-gray-900">Referral Confirmed</h2>
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  {referral.status === "rescheduled" ? "Referral Rescheduled" : "Referral Confirmed"}
+                </h2>
                 <p className="text-sm text-gray-600">
-                  You have accepted this referral and a scheduled appointment was created.
-                  {" "}
+                  {referral.status === "rescheduled"
+                    ? "You have rescheduled this referral and a new appointment slot was created."
+                    : "You have accepted this referral and a scheduled appointment was created."}{" "}
                   {referral.referrerName} has been notified.
                 </p>
               </div>
@@ -67,7 +70,7 @@ export default function ReferralConfirmation() {
               <Row label="Referred by" value={referral.referrerName} />
               <Row label="Reason" value={referral.reason} />
               {referral.notes && <Row label="Notes" value={referral.notes} />}
-              <Row label="Status" value={<span className="text-green-700 font-semibold">{referral.status}</span>} />
+              <Row label="Status" value={<span className={`${referral.status === "rescheduled" ? "text-sky-700" : "text-green-700"} font-semibold`}>{referral.status}</span>} />
               {referral.decision_note && <Row label="Decision note" value={referral.decision_note} />}
               <Row label="Decided at" value={referral.decided_at ? new Date(referral.decided_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"} />
             </dl>
