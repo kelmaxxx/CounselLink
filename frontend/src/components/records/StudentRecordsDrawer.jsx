@@ -338,7 +338,7 @@ function computeEffectiveNextSession(studentSessions) {
   return effective;
 }
 
-function SessionsList({ student, sessions, onEditSession, onDeleteSession }) {
+function SessionsList({ student, sessions, onEditSession, onDeleteSession, onSubmitSession }) {
   const { currentUser } = useAuth();
   const studentSessions = useMemo(
     () => sessions.filter((s) => s.studentId === student?.id),
@@ -587,6 +587,10 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
   const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
     if (!student?.id) return;
     setLoading(true);
     getRecords(student.id)
@@ -752,6 +756,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
               sessions={sessions}
               onEditSession={onEditSession}
               onDeleteSession={onDeleteSession}
+              onSubmitSession={onSubmitSession}
             />
           )}
         </div>

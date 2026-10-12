@@ -5,7 +5,7 @@
 // Counseling Form (see utils/sessionReport.js) and the appointment slip
 // (utils/appointmentSlip.js), reused here so all three look consistent.
 // Saved straight to a real .pdf file (no print dialog).
-import { OFFICIAL_HEADER_STYLES, buildOfficialHeaderHTML } from "./sessionReport.js";
+import { OFFICIAL_HEADER_STYLES, buildOfficialHeaderHTML, resolveSignatureDataUrl } from "./sessionReport.js";
 import { saveHtmlAsPdfFile } from "./htmlToPdf.js";
 
 const ESC_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -21,8 +21,12 @@ const formatDate = (value) => {
   }
 };
 
-function buildTestResultHTML(result, { studentName } = {}) {
+function buildTestResultHTML(result, { studentName, signatureImageUrl } = {}) {
   const docTitle = "Psychological Test Result";
+  const testName = result.testName ?? result.test_name ?? "";
+  const completedRaw = result.completedDate ?? result.completed_date ?? null;
+  const counselorName =
+    result.counselorName ?? result.counselor_name ?? "";
 
   return `<!doctype html>
 <html>
@@ -40,11 +44,13 @@ function buildTestResultHTML(result, { studentName } = {}) {
     .section-body { margin: 0 0 4px; min-height: 14px; white-space: pre-wrap; }
     .signature-block { margin-top: 48px; text-align: right; }
     .signature-line { border-top: 1px solid #000; width: 240px; margin: 0 0 0 auto; padding-top: 2px; }
+    .signature-img { height: 46px; display: block; margin: 0 0 0 auto; }
+    .signature-name { font-size: 10.5pt; font-weight: 700; padding-top: 2px; }
   </style>
 </head>
 <body>
   <div class="pdf-page">
-  ${buildOfficialHeaderHTML({ docCode: "Psychological Test Result", date: formatDate(result.completedDate) })}
+  ${buildOfficialHeaderHTML({ docCode: "Psychological Test Result", date: formatDate(completedRaw) })}
 
   <div class="form-title">${escapeHtml(docTitle)}</div>
 
@@ -53,13 +59,13 @@ function buildTestResultHTML(result, { studentName } = {}) {
       <td class="label">Student's Name</td><td>${formatLine(studentName)}</td>
     </tr>
     <tr>
-      <td class="label">Test</td><td>${formatLine(result.testName)}</td>
+      <td class="label">Test</td><td>${formatLine(testName)}</td>
     </tr>
     <tr>
-      <td class="label">Completed</td><td>${formatDate(result.completedDate)}</td>
+      <td class="label">Completed</td><td>${formatDate(completedRaw)}</td>
     </tr>
     <tr>
-      <td class="label">Counselor</td><td>${formatLine(result.counselorName)}</td>
+      <td class="label">Counselor</td><td>${formatLine(counselorName)}</td>
     </tr>
   </table>
 
@@ -67,7 +73,9 @@ function buildTestResultHTML(result, { studentName } = {}) {
   ${result.recommendations ? `<div class="section-label">Recommendations:</div><p class="section-body">${formatLine(result.recommendations)}</p>` : ""}
 
   <div class="signature-block">
-    <div class="signature-line">Signature of Counselor</div>
+    ${signatureImageUrl ? `<img class="signature-img" src="${signatureImageUrl}" alt="Counselor signature" />` : ""}
+    <div class="signature-line">${formatLine(counselorName)}</div>
+    <div style="font-size:9pt;color:#444;">Signature of Counselor</div>
   </div>
   </div>
 </body>
@@ -78,6 +86,15 @@ const safeFileBase = (testName, studentName) =>
   `test_result_${(testName || studentName || "result").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "")}`.toLowerCase();
 
 export async function saveTestResultAsPdfFile(result, opts = {}) {
-  const html = buildTestResultHTML(result, opts);
-  await saveHtmlAsPdfFile(html, `${safeFileBase(result.testName, opts.studentName)}.pdf`, { pageWidthIn: 8.27, pageHeightIn: 11.69 });
+  const signatureImageUrl =
+    opts.signatureImageUrl ||
+    (await resolveSignatureDataUrl(
+      opts.signatureUrl ||
+        result?.counselorSignatureUrl ||
+        result?.counselor_signature_url ||
+        result?.counselor_signatureUrl
+    ));
+  const html = buildTestResultHTML(result, { ...opts, signatureImageUrl });
+  const testName = result.testName ?? result.test_name ?? opts.studentName;
+  await saveHtmlAsPdfFile(html, `${safeFileBase(testName, opts.studentName)}.pdf`, { pageWidthIn: 8.27, pageHeightIn: 11.69 });
 }
