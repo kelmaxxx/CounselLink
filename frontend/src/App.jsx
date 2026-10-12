@@ -136,6 +136,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        {/* Legacy alias: old test notifications link to /student/tests —
+            test requests live on the appointments page. */}
+        <Route path="/student/tests" element={<Navigate to="/student/appointments" replace />} />
         <Route
           path="/student/counselors"
           element={

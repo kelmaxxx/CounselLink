@@ -31,8 +31,8 @@ const buildContent = ({ status, date, timeSlot, note, isUrgent, isTest, counselo
           subject: "Your CounselLink psychological test is complete",
           heading: "Psychological Test Completed",
           lead: "Your psychological test has been marked as <strong>completed</strong> by the counselor. You may view the details in your account.",
-          ctaPath: "/student/tests",
-          ctaLabel: "View my tests",
+          ctaPath: "/student/consent",
+          ctaLabel: "View my records",
         }
         : {
           subject: "Your CounseLink counseling session is complete",

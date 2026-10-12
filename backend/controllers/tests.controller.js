@@ -142,6 +142,10 @@ export const acceptTest = async (req, res) => {
   }
 
   const normalizedDate = normalizeDate(date);
+  const todayStr = new Date().toISOString().split("T")[0];
+  if (normalizedDate < todayStr) {
+    return res.status(400).json({ message: "Cannot approve a past date. Please reschedule to a future date instead." });
+  }
   const queueSlot = getQueueSlot(timeSlot);
   const queueDate = normalizedDate;
 
@@ -175,7 +179,7 @@ export const acceptTest = async (req, res) => {
       userId: rows[0].student_id,
       title: "Test Request Approved",
       message: `Your test request is approved for ${normalizedDate} at ${timeSlot}. Your queue number is ${queueSlot} #${queueNumber}.`,
-      link: "/student/tests",
+      link: "/student/appointments",
     });
     notifyUser(rows[0].student_id, { type: "tests" });
   }
@@ -201,7 +205,7 @@ export const rejectTest = async (req, res) => {
       userId: rows[0].student_id,
       title: "Test Request Rejected",
       message: note ? `Your test request was rejected. Reason: ${note}` : "Your test request was rejected.",
-      link: "/student/tests",
+      link: "/student/appointments",
     });
     notifyUser(rows[0].student_id, { type: "tests" });
   }
@@ -254,7 +258,7 @@ export const rescheduleTest = async (req, res) => {
       userId: rows[0].student_id,
       title: "Test Request Rescheduled",
       message: `Your test request was rescheduled to ${normalizedDate} at ${timeSlot}. Your queue number is ${queueSlot} #${queueNumber}.`,
-      link: "/student/tests",
+      link: "/student/appointments",
     });
     notifyUser(rows[0].student_id, { type: "tests" });
   }

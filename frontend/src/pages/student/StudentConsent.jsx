@@ -14,7 +14,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const TABS = [
   { id: "counseling", label: "Counseling Results", icon: FileSignature },
-  { id: "tests", label: "Test Results", icon: ClipboardList },
+  { id: "tests", label: "Psychological Test Results", icon: ClipboardList },
 ];
 
 export default function StudentConsent() {
@@ -158,7 +158,7 @@ function TestResultsSection({ studentName, token, submittedTestIds, onTestFeedba
       ) : !testResults || testResults.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title="No test results released yet"
+          title="No psychological test results released yet"
           hint="After your counselor finalizes a result it will appear here."
         />
       ) : (
