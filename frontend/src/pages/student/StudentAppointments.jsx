@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
-import { Calendar, Clock, FileText, Download } from "lucide-react";
+import { Calendar, Clock, FileText, Download, CalendarClock } from "lucide-react";
 import { saveAppointmentSlipAsPdfFile } from "../../utils/appointmentSlip";
 import { resolveSignatureDataUrl } from "../../utils/sessionReport";
+import ReschedulePicker from "../../components/ReschedulePicker";
 import {
   PageHeader,
   SectionCard,
@@ -273,6 +274,15 @@ export default function StudentAppointments() {
           appointment={selected}
           studentName={currentUser?.name}
           onClose={() => setSelected(null)}
+          onRescheduled={async () => {
+            try {
+              await fetchAppointments?.();
+            } catch { /* refreshed by context already */ }
+            try {
+              await fetchTests?.();
+            } catch { /* refreshed by context already */ }
+            setSelected(null);
+          }}
         />
       )}
 
@@ -323,11 +333,22 @@ export default function StudentAppointments() {
   );
 }
 
-function AppointmentDetailModal({ appointment, studentName, onClose }) {
+function AppointmentDetailModal({ appointment, studentName, onClose, onRescheduled }) {
+  const { requestRescheduleAppointment } = useAppointments?.() || {};
+  const { requestRescheduleTest } = useTests?.() || {};
   const [saving, setSaving] = useState(false);
   const [counselorSigDataUrl, setCounselorSigDataUrl] = useState(null);
+  const [showResched, setShowResched] = useState(false);
+  const [newDate, setNewDate] = useState("");
+  const [newSlot, setNewSlot] = useState("");
+  const [reschedBusy, setReschedBusy] = useState(false);
+  const [reschedError, setReschedError] = useState("");
+  const [reschedOk, setReschedOk] = useState("");
 
   const canSave = ["approved", "accepted", "rescheduled"].includes(appointment.status);
+  const canResched = ["pending", "approved", "accepted", "rescheduled"].includes(
+    String(appointment.status || "").toLowerCase()
+  );
 
   useEffect(() => {
     const url = appointment.counselorSignatureUrl || appointment.counselor_signature_url;
@@ -346,6 +367,29 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
     }
   };
 
+  const handleResched = async () => {
+    if (!newDate || !newSlot) {
+      setReschedError("Please pick a new date and time block.");
+      return;
+    }
+    setReschedBusy(true);
+    setReschedError("");
+    setReschedOk("");
+    const payload = { id: appointment.id, date: newDate, timeSlot: newSlot };
+    const res = appointment.isTest
+      ? await requestRescheduleTest?.(payload)
+      : await requestRescheduleAppointment?.(payload);
+    setReschedBusy(false);
+    if (res?.success) {
+      setReschedOk(res.message || "Reschedule requested — awaiting counselor approval.");
+      setTimeout(() => {
+        onRescheduled?.();
+      }, 1200);
+    } else {
+      setReschedError(res?.message || "Failed to request reschedule");
+    }
+  };
+
   const preferredSlots = Array.isArray(appointment.preferredSlots)
     ? appointment.preferredSlots.join(", ")
     : appointment.timeSlot || "—";
@@ -360,6 +404,14 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
       footer={
         <>
           <button onClick={onClose} className={BTN.secondary}>Close</button>
+          {canResched && !showResched && (
+            <button
+              onClick={() => { setShowResched(true); setReschedError(""); setReschedOk(""); }}
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-sm font-medium hover:bg-amber-100 transition"
+            >
+              <CalendarClock size={14} /> Reschedule
+            </button>
+          )}
           {canSave && (
             <button onClick={handleSave} disabled={saving} className={BTN.primary}>
               <Download size={14} /> {saving ? "Saving…" : "Save PDF"}
@@ -421,6 +473,51 @@ function AppointmentDetailModal({ appointment, studentName, onClose }) {
             </div>
           </div>
         </div>
+
+        {/* Student reschedule */}
+        {showResched && canResched && (
+          <div className="pt-3 border-t border-gray-100 space-y-3">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-900">Request a new schedule</p>
+              <p className="text-xs text-amber-700 leading-relaxed mt-0.5">
+                Pick a new preferred date and time block. Your request will go back to
+                pending so the counselor can approve the new time.
+              </p>
+            </div>
+            {reschedError && (
+              <div className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
+                {reschedError}
+              </div>
+            )}
+            {reschedOk && (
+              <div className="px-3 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-sm">
+                {reschedOk}
+              </div>
+            )}
+            <ReschedulePicker
+              date={newDate}
+              timeSlot={newSlot}
+              onDateChange={setNewDate}
+              onTimeSlotChange={setNewSlot}
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowResched(false)}
+                disabled={reschedBusy}
+                className={BTN.secondary}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResched}
+                disabled={reschedBusy || !newDate || !newSlot}
+                className={BTN.primary}
+              >
+                {reschedBusy ? "Sending…" : "Send reschedule request"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

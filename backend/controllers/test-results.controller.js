@@ -46,7 +46,7 @@ export const listTestResultsForUser = async (req, res) => {
 
   if (role === "student") {
     const rows = await query(
-      `SELECT r.*, u.name AS counselorName
+      `SELECT r.*, u.name AS counselorName, u.signature_url AS counselorSignatureUrl
        FROM test_results r
        LEFT JOIN users u ON r.counselor_id = u.id
        WHERE r.student_id = ?
@@ -61,7 +61,8 @@ export const listTestResultsForUser = async (req, res) => {
     // counselor can see a student's released test results, not just the one
     // who administered the test (mirrors counseling-sessions.controller.js).
     const rows = await query(
-      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName
+      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName,
+              c.signature_url AS counselorSignatureUrl
        FROM test_results r
        LEFT JOIN users s ON r.student_id = s.id
        LEFT JOIN users c ON r.counselor_id = c.id
@@ -76,7 +77,8 @@ export const listTestResultsForUser = async (req, res) => {
     if (!repCollege) return res.json([]);
 
     const rows = await query(
-      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName
+      `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName,
+              c.signature_url AS counselorSignatureUrl
        FROM test_results r
        JOIN users s ON r.student_id = s.id
        LEFT JOIN users c ON r.counselor_id = c.id
@@ -88,7 +90,7 @@ export const listTestResultsForUser = async (req, res) => {
   }
 
   const rows = await query(
-    `SELECT r.*, s.name AS studentName, c.name AS counselorName
+    `SELECT r.*, s.name AS studentName, c.name AS counselorName, c.signature_url AS counselorSignatureUrl
      FROM test_results r
      LEFT JOIN users s ON r.student_id = s.id
      LEFT JOIN users c ON r.counselor_id = c.id

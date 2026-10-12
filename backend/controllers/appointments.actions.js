@@ -1,6 +1,6 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
-import { createNotification } from "../utils/notify.js";
+import { createNotification, notifyUsers } from "../utils/notify.js";
 import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { notifyUser, notifyRole } from "../events.js";
 
@@ -332,4 +332,69 @@ export const deleteAppointment = async (req, res) => {
   notifyRole("counselor", { type: "appointments" });
 
   res.json({ message: "Appointment canceled successfully" });
+};
+
+// Student-initiated reschedule: the student picks a new preferred date/slot
+// for their own counseling request. Pending requests just update the
+// preference; already-approved/rescheduled ones revert to pending (clearing
+// the confirmed schedule + queue) so a counselor re-approves the new time.
+export const requestRescheduleAppointment = async (req, res) => {
+  const { id } = req.params;
+  const { date, timeSlot } = req.body;
+
+  if (!date || !timeSlot) {
+    return res.status(400).json({ message: "Date and time slot are required" });
+  }
+  if (isWeekendDate(date)) {
+    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  }
+
+  const rows = await query(
+    "SELECT id, student_id, status, is_urgent, appointment_type FROM appointments WHERE id = ?",
+    [id]
+  );
+  if (!rows.length) return res.status(404).json({ message: "Not found" });
+  const apt = rows[0];
+  if (apt.student_id !== req.user.id) {
+    return res.status(403).json({ message: "You can only reschedule your own requests" });
+  }
+  if (apt.appointment_type && apt.appointment_type !== "counseling") {
+    return res.status(400).json({ message: "Use the psychological test reschedule action for test requests" });
+  }
+  if (apt.is_urgent) {
+    return res.status(400).json({ message: "Urgent requests cannot be rescheduled" });
+  }
+  if (!["pending", "approved", "rescheduled"].includes(apt.status)) {
+    return res.status(400).json({ message: `Only pending or scheduled requests can be rescheduled (was: ${apt.status})` });
+  }
+
+  const normalizedDate = normalizeDate(date);
+  await query(
+    `UPDATE appointments
+      SET preferred_date = ?, preferred_slots = ?,
+          status = 'pending',
+          scheduled_date = NULL, scheduled_time = NULL,
+          queue_number = NULL, queue_date = NULL, queue_slot = NULL,
+          counselor_action_note = NULL, updated_at = NOW()
+      WHERE id = ?`,
+    [normalizedDate, timeSlot, id]
+  );
+
+  await logAction(req, "student_reschedule_appointment", "appointment", id, {
+    date: normalizedDate, timeSlot,
+  });
+
+  const counselorRows = await query("SELECT id FROM users WHERE role = 'counselor'");
+  const counselorIds = counselorRows.map((r) => r.id);
+  if (counselorIds.length) {
+    await notifyUsers(counselorIds, {
+      title: "Reschedule requested",
+      message: `A student requested a new schedule (${normalizedDate} at ${timeSlot}).`,
+      link: "/counselor/appointments",
+      type: "info",
+    });
+  }
+  notifyRole("counselor", { type: "appointments" });
+
+  return res.json({ message: "Reschedule requested — awaiting counselor approval" });
 };

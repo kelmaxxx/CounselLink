@@ -190,6 +190,26 @@ export function AppointmentsProvider({ children }) {
 
   const getAppointmentsForCurrentUser = () => appointments;
 
+  // Student-initiated reschedule: picks a new preferred date/slot for a
+  // pending (or scheduled) request. The request reverts to pending so a
+  // counselor re-approves the new time.
+  const requestRescheduleAppointment = async ({ id, date, timeSlot }) => {
+    const response = await fetch(`${apiBase}/api/appointments/${id}/request-reschedule`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ date, timeSlot }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: data.message || "Unable to request reschedule" };
+    }
+    await fetchAppointments();
+    return { success: true, message: data.message };
+  };
+
   const saveSessionForm = (id, data) => {
     updateAppointment(id, { sessionForm: data });
     return { success: true };
@@ -223,6 +243,7 @@ export function AppointmentsProvider({ children }) {
       completeAppointment,
       removeNoShows,
       cancelAppointment,
+      requestRescheduleAppointment,
       getAppointmentsForCurrentUser,
       fetchAppointments,
       saveSessionForm,

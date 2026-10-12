@@ -126,6 +126,24 @@ export function TestsProvider({ children }) {
     return tests;
   };
 
+  // Student-initiated reschedule for a psychological test request.
+  const requestRescheduleTest = async ({ id, date, timeSlot }) => {
+    const response = await fetch(`${apiBase}/api/tests/${id}/request-reschedule`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ date, timeSlot }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: data.message || "Unable to request reschedule" };
+    }
+    await fetchTests();
+    return { success: true, message: data.message };
+  };
+
   useEffect(() => {
     fetchTests().catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,6 +166,7 @@ export function TestsProvider({ children }) {
       acceptTest,
       rescheduleTest,
       rejectTest,
+      requestRescheduleTest,
       fetchTests,
     }}>
       {children}

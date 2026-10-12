@@ -261,3 +261,60 @@ export const rescheduleTest = async (req, res) => {
 
   return res.json({ message: "Test request rescheduled" });
 };
+
+export const requestRescheduleTest = async (req, res) => {
+  const { id } = req.params;
+  const { date, timeSlot } = req.body;
+
+  if (!date || !timeSlot) {
+    return res.status(400).json({ message: "Date and time slot are required" });
+  }
+
+  const weekendCheck = new Date(`${String(date).split("T")[0]}T00:00:00`);
+  if (!isNaN(weekendCheck) && (weekendCheck.getDay() === 0 || weekendCheck.getDay() === 6)) {
+    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  }
+
+  const rows = await query(
+    "SELECT id, student_id, status FROM appointments WHERE id = ? AND appointment_type = 'psychological_test'",
+    [id]
+  );
+  if (!rows.length) return res.status(404).json({ message: "Not found" });
+  const test = rows[0];
+  if (test.student_id !== req.user.id) {
+    return res.status(403).json({ message: "You can only reschedule your own requests" });
+  }
+  if (!["pending", "approved", "rescheduled"].includes(test.status)) {
+    return res.status(400).json({ message: `Only pending or scheduled requests can be rescheduled (was: ${test.status})` });
+  }
+
+  const normalizedDate = normalizeDate(date);
+  await query(
+    `UPDATE appointments
+      SET preferred_date = ?, preferred_slots = ?,
+          status = 'pending',
+          scheduled_date = NULL, scheduled_time = NULL,
+          queue_number = NULL, queue_date = NULL, queue_slot = NULL,
+          counselor_action_note = NULL, updated_at = NOW()
+      WHERE id = ?`,
+    [normalizedDate, timeSlot, id]
+  );
+
+  await logAction(req, "student_reschedule_test", "appointment", id, {
+    date: normalizedDate, timeSlot,
+  });
+
+  const counselorRows = await query("SELECT id FROM users WHERE role = 'counselor'");
+  const counselorIds = counselorRows.map((r) => r.id);
+  if (counselorIds.length) {
+    await notifyUsers(counselorIds, {
+      title: "Test reschedule requested",
+      message: `A student requested a new test schedule (${normalizedDate} at ${timeSlot}).`,
+      link: "/counselor/appointments",
+      type: "info",
+    });
+  }
+  notifyRole("counselor", { type: "tests" });
+
+  return res.json({ message: "Reschedule requested — awaiting counselor approval" });
+};
