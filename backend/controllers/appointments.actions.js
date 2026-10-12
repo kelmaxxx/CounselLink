@@ -51,6 +51,13 @@ export const acceptAppointment = async (req, res) => {
   const normalizedDate = isUrgent ? null : normalizeDate(date);
   const normalizedSlot = isUrgent ? null : timeSlot;
 
+  if (normalizedDate) {
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (normalizedDate < todayStr) {
+      return res.status(400).json({ message: "Cannot approve a past date. Please reschedule to a future date instead." });
+    }
+  }
+
   let queueNumber = appt?.queue_number ?? null; // preserve urgent queue numbers
   let queueDate = null;
   let queueSlot = null;
@@ -182,7 +189,7 @@ export const completeAppointment = async (req, res) => {
     message: isTest
       ? "Your psychological test has been marked as completed by the counselor."
       : "Your counseling session has been marked as completed by the counselor.",
-    link: isTest ? "/student/tests" : "/student/appointments",
+    link: isTest ? "/student/consent" : "/student/appointments",
   });
   notifyUser(appt.student_id, { type: isTest ? "tests" : "appointments" });
   sendAppointmentStatusEmail({
