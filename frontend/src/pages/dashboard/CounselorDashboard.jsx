@@ -665,6 +665,7 @@ export default function CounselorDashboard() {
           hint="Active caseload"
           icon={Users}
           tone="maroon"
+          variant="dark"
           badge={studentTrend.badge}
           trend={studentTrend.trend}
           trendDir={studentTrend.trendDir}

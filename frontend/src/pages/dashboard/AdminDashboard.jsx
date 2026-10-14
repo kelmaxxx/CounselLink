@@ -206,6 +206,7 @@ export default function AdminDashboard() {
             hint="All active accounts"
             icon={Users}
             tone="gray"
+            variant="dark"
             badge={userTrend.badge}
             trend={userTrend.trend}
             trendDir={userTrend.trendDir}

@@ -264,6 +264,7 @@ export default function RepresentativeDashboard() {
             hint="Enrolled in your college"
             icon={Users}
             tone="emerald"
+            variant="dark"
           />
           <BigStat
             label="Counseling Requests"

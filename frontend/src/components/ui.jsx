@@ -95,48 +95,58 @@ const STAT_TONES = {
   maroon: "bg-maroon-100 text-maroon-700",
 };
 
-export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, trend, trendDir = "up" }) {
+export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, trend, trendDir = "up", variant = "light" }) {
+  const dark = variant === "dark";
   return (
-    <div className="bg-white rounded-2xl p-6 border border-gray-200/80 shadow-sm transition hover:shadow-md">
+    <div className={`rounded-2xl p-6 border shadow-sm transition hover:shadow-md ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
       <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-sm font-medium text-gray-500 truncate min-w-0">{label}</span>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <span className={`text-sm font-medium truncate min-w-0 ${dark ? "text-white/70" : "text-gray-500"}`}>{label}</span>
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          {Icon && (
+            <span
+              className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${dark ? "bg-white/15 text-white" : STAT_TONES[tone] || STAT_TONES.gray}`}
+            >
+              <Icon size={18} />
+            </span>
+          )}
           {badge && (
             <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums whitespace-nowrap ${BADGE_STYLES[badge.dir] || BADGE_STYLES.neutral}`}
+              className={`inline-flex items-center gap-0.5 text-[11px] font-bold tabular-nums whitespace-nowrap ${dark ? DARK_DELTA_TEXT[badge.dir] || DARK_DELTA_TEXT.neutral : DELTA_TEXT[badge.dir] || DELTA_TEXT.neutral}`}
             >
               <BadgeIcon dir={badge.dir} />
               {badge.text}
             </span>
           )}
-          {Icon && (
-            <span
-              className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${STAT_TONES[tone] || STAT_TONES.gray}`}
-            >
-              <Icon size={18} />
-            </span>
-          )}
         </div>
       </div>
-      <div className="mt-5 text-5xl font-semibold text-gray-900 tabular-nums leading-none tracking-tight">
+      <div className={`mt-5 text-5xl font-semibold tabular-nums leading-none tracking-tight ${dark ? "text-white" : "text-gray-900"}`}>
         {value}
       </div>
       {trend && (
-        <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+        <p className={`mt-3 flex items-center gap-1.5 text-sm font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
           <TrendIcon dir={trendDir} />
           {trend}
         </p>
       )}
-      {hint && <p className={`${trend ? "mt-1" : "mt-3"} text-xs text-gray-400`}>{hint}</p>}
+      {hint && <p className={`${trend ? "mt-1" : "mt-3"} text-xs ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
     </div>
   );
 }
 
-const BADGE_STYLES = {
-  up: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  down: "border-red-200 bg-red-50 text-red-700",
-  flat: "border-gray-200 bg-gray-50 text-gray-600",
-  neutral: "border-gray-200 bg-gray-50 text-gray-600",
+// Plain colored delta text (no pill) for the under-icon badge.
+const DELTA_TEXT = {
+  up: "text-emerald-600",
+  down: "text-red-600",
+  flat: "text-gray-500",
+  neutral: "text-gray-500",
+};
+
+// Lighter variants for the dark-green hero card.
+const DARK_DELTA_TEXT = {
+  up: "text-emerald-300",
+  down: "text-red-300",
+  flat: "text-white/60",
+  neutral: "text-white/60",
 };
 
 function BadgeIcon({ dir }) {

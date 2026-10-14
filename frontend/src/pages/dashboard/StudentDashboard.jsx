@@ -246,6 +246,7 @@ export default function StudentDashboard() {
             hint={nextAppt ? `Next: ${nextAppt.date}` : "None scheduled"}
             icon={CalendarDays}
             tone="emerald"
+            variant="dark"
           />
           <BigStat
             label="Appointment completed"
