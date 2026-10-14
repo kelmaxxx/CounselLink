@@ -9,7 +9,6 @@ import {
   Save,
   X,
   Users,
-  Shield,
   GraduationCap,
   UserCheck,
   CalendarCheck,
@@ -24,16 +23,19 @@ import { collegeColor } from "../../data/sagayanColors";
 import {
   PageHeader,
   BigStat,
-  RankedBarChart,
   DonutStat,
   TreemapChart,
-  TrendLineChart,
   SectionCard,
   EmptyState,
   Modal,
   BTN,
   INPUT,
 } from "../../components/ui";
+import {
+  StudentsByCollegeCard,
+  DemandThroughputCard,
+} from "../../components/charts/counselor-charts";
+import { weekDelta, trendProps } from "../../utils/trends";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const PIE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce"];
@@ -167,6 +169,17 @@ export default function AdminDashboard() {
     return days;
   }, [allAppointments]);
 
+  // ── Stat-card trends (real week-over-week from timestamps) ─────────
+  const userDateOf = (u) => u.created_at || u.createdAt;
+  const userTrend = trendProps(weekDelta(visibleUsers, userDateOf));
+  const adminStudentTrend = trendProps(weekDelta(students, userDateOf));
+  const completedTrend = trendProps(
+    weekDelta(
+      allAppointments.filter((a) => a.status === "completed"),
+      (a) => a.updatedAt || a.updated_at || a.scheduledDate || a.scheduled_date
+    )
+  );
+
   const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Admin";
 
   return (
@@ -184,53 +197,61 @@ export default function AdminDashboard() {
           }
         />
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-          <BigStat
-            label="Total users"
-            value={visibleUsers.length}
-            hint="All active accounts"
-            icon={Users}
-            tone="gray"
-          />
-          <BigStat
-            label="Counselors"
-            value={counselors.length}
-            hint="On staff"
-            icon={Shield}
-            tone="emerald"
-          />
-          <BigStat
-            label="Colleges"
-            value={reps.length}
-            hint="Across colleges"
-            icon={GraduationCap}
-            tone="blue"
-          />
-          <BigStat
-            label="Students"
-            value={students.length}
-            hint={
-              pendingApprovals > 0
-                ? `${pendingApprovals} pending approval`
-                : "Enrolled & active"
-            }
-            icon={UserCheck}
-            tone={pendingApprovals > 0 ? "amber" : "maroon"}
-          />
-          <BigStat
-            label="Appointments"
-            value={apptStats.totalCompleted}
-            hint="Completed sessions"
-            icon={CalendarCheck}
-            tone="purple"
-          />
-        </div>
+        {/* 1. Top: 2x2 stats (8 cols) + tall donut (4 cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-stretch">
+          <div className="lg:col-span-8">
+            <div className="grid grid-cols-2 gap-4 h-full">
+              <BigStat
+                label="Total users"
+                value={visibleUsers.length}
+                hint="All active accounts"
+                icon={Users}
+                tone="gray"
+                variant="dark"
+                compact
+                badge={userTrend.badge}
+                trend={userTrend.trend}
+                trendDir={userTrend.trendDir}
+              />
+              <BigStat
+                label="Colleges"
+                value={reps.length}
+                hint="Across colleges"
+                icon={GraduationCap}
+                tone="blue"
+                compact
+              />
+              <BigStat
+                label="Students"
+                value={students.length}
+                hint={
+                  pendingApprovals > 0
+                    ? `${pendingApprovals} pending approval`
+                    : "Enrolled & active"
+                }
+                icon={UserCheck}
+                tone={pendingApprovals > 0 ? "amber" : "maroon"}
+                compact
+                badge={adminStudentTrend.badge}
+                trend={adminStudentTrend.trend}
+                trendDir={adminStudentTrend.trendDir}
+              />
+              <BigStat
+                label="Appointments"
+                value={apptStats.totalCompleted}
+                hint="Completed sessions"
+                icon={CalendarCheck}
+                tone="purple"
+                compact
+                badge={completedTrend.badge}
+                trend={completedTrend.trend}
+                trendDir={completedTrend.trendDir}
+              />
+            </div>
+          </div>
 
-        {/* Charts — mixed visuals: donut + ranked bars + columns + racing lines */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
           <SectionCard
-            className="lg:col-span-2"
+            className="lg:col-span-4 h-full"
             title="User role distribution"
             subtitle="Share of each role · total in the middle"
           >
@@ -241,15 +262,15 @@ export default function AdminDashboard() {
               emptyIcon={Users}
               emptyTitle="No users yet"
               stack
+              compact
             />
           </SectionCard>
+        </div>
 
-          <SectionCard
-            className="lg:col-span-3"
-            title="Students by college"
-            subtitle="Ranked distribution of enrolled students"
-          >
-            <RankedBarChart
+        {/* 2. Middle: bar chart (8 cols) + college breakdown (4 cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-start">
+          <div className="lg:col-span-8">
+            <StudentsByCollegeCard
               data={topColleges.map(([name, value], i) => ({
                 name,
                 value,
@@ -259,13 +280,12 @@ export default function AdminDashboard() {
               emptyIcon={Users}
               emptyTitle="No students yet"
               title="Students by College"
+              subtitle="Ranked distribution of enrolled students"
             />
-          </SectionCard>
-        </div>
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
           <SectionCard
-            className="lg:col-span-2"
+            className="lg:col-span-4"
             title="Completed sessions by college"
             subtitle="Cell size = finished sessions · hover for counts"
           >
@@ -273,24 +293,17 @@ export default function AdminDashboard() {
               data={completedCollegeColumns}
               emptyIcon={CalendarCheck}
               emptyTitle="No completed appointments yet"
+              height={320}
             />
           </SectionCard>
+        </div>
 
-          <SectionCard
-            className="lg:col-span-3"
-            title="Demand vs. throughput"
-            subtitle="Requests created vs. sessions completed · last 14 days"
-          >
-            <TrendLineChart
-              data={throughputTrend}
-              series={[
-                { key: "created", name: "Requests created", color: "#1d4ed8" },
-                { key: "completed", name: "Sessions completed", color: "#0B6623" },
-              ]}
-              emptyIcon={CalendarCheck}
-              emptyTitle="No session activity yet"
-            />
-          </SectionCard>
+        {/* 3. Lower: demand full width */}
+        <div className="mb-4">
+          <DemandThroughputCard
+            data={throughputTrend}
+            emptyIcon={CalendarCheck}
+          />
         </div>
 
         <AnnouncementsPanel token={token} />

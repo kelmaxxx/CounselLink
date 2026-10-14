@@ -1,7 +1,7 @@
 // src/components/ui.jsx
 // Shared primitives for the minimalist / professional design system.
 import React from "react";
-import { Inbox, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Inbox, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { collegeColor } from "../data/sagayanColors";
 import {
   PieChart,
@@ -95,25 +95,71 @@ const STAT_TONES = {
   maroon: "bg-maroon-100 text-maroon-700",
 };
 
-export function BigStat({ label, value, hint, icon: Icon, tone = "gray" }) {
+export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, trend, trendDir = "up", variant = "light", compact = false }) {
+  const dark = variant === "dark";
   return (
-    <div className="bg-white rounded-3xl p-6 ring-1 ring-gray-950/5 shadow-sm transition hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <span className="text-sm font-medium text-gray-500">{label}</span>
-        {Icon && (
-          <span
-            className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${STAT_TONES[tone] || STAT_TONES.gray}`}
-          >
-            <Icon size={18} />
-          </span>
-        )}
+    <div className={`rounded-2xl ${compact ? "p-4" : "p-6"} border shadow-sm transition hover:shadow-md ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <span className={`text-sm font-medium truncate min-w-0 ${dark ? "text-white/70" : "text-gray-500"}`}>{label}</span>
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          {Icon && (
+            <span
+              className={`inline-flex items-center justify-center ${compact ? "w-8 h-8" : "w-9 h-9"} rounded-xl ${dark ? "bg-white/15 text-white" : STAT_TONES[tone] || STAT_TONES.gray}`}
+            >
+              <Icon size={compact ? 16 : 18} />
+            </span>
+          )}
+          {badge && (
+            <span
+              className={`inline-flex items-center gap-0.5 ${compact ? "text-[10px]" : "text-[11px]"} font-bold tabular-nums whitespace-nowrap ${dark ? DARK_DELTA_TEXT[badge.dir] || DARK_DELTA_TEXT.neutral : DELTA_TEXT[badge.dir] || DELTA_TEXT.neutral}`}
+            >
+              <BadgeIcon dir={badge.dir} />
+              {badge.text}
+            </span>
+          )}
+        </div>
       </div>
-      <div className="mt-5 text-5xl font-semibold text-gray-900 tabular-nums leading-none tracking-tight">
+      <div className={`${compact ? "mt-4 text-4xl" : "mt-5 text-5xl"} font-semibold tabular-nums leading-none tracking-tight ${dark ? "text-white" : "text-gray-900"}`}>
         {value}
       </div>
-      {hint && <p className="mt-3 text-xs text-gray-400">{hint}</p>}
+      {trend && (
+        <p className={`${compact ? "mt-2 text-xs" : "mt-3 text-sm"} flex items-center gap-1.5 font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
+          <TrendIcon dir={trendDir} />
+          {trend}
+        </p>
+      )}
+      {hint && <p className={`${trend ? "mt-1" : compact ? "mt-2" : "mt-3"} text-xs ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
     </div>
   );
+}
+
+// Plain colored delta text (no pill) for the under-icon badge.
+const DELTA_TEXT = {
+  up: "text-emerald-600",
+  down: "text-red-600",
+  flat: "text-gray-500",
+  neutral: "text-gray-500",
+};
+
+// Lighter variants for the dark-green hero card.
+const DARK_DELTA_TEXT = {
+  up: "text-emerald-300",
+  down: "text-red-300",
+  flat: "text-white/60",
+  neutral: "text-white/60",
+};
+
+function BadgeIcon({ dir }) {
+  if (dir === "up") return <TrendingUp size={12} />;
+  if (dir === "down") return <TrendingDown size={12} />;
+  if (dir === "flat") return <Minus size={12} />;
+  return null;
+}
+
+function TrendIcon({ dir }) {
+  if (dir === "down") return <TrendingDown size={14} />;
+  if (dir === "flat") return <Minus size={14} />;
+  return <TrendingUp size={14} />;
 }
 
 // ── Center-label donut with a clean custom legend ────────────────────────
