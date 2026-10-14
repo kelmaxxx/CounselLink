@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { syncServerTime, serverTodayStr, serverHour, serverMonthStart } from "../utils/serverTime";
 
 export const RESCHED_BLOCKS = [
   { label: "9:00 AM – 12:00 PM", value: "9:00-12:00", name: "Morning", cutoffHour: 12 },
@@ -9,27 +10,30 @@ export const RESCHED_BLOCKS = [
 const pad2 = (n) => String(n).padStart(2, "0");
 const toISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const startOfToday = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const m = serverTodayStr().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
 };
 const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
 
+// Server-clock checks (synced Manila time) — the device clock can't be trusted.
 const isSlotPast = (block, dateISO) => {
-  const d = new Date();
-  const todayISO = toISO(d);
-  if (dateISO !== todayISO) return false;
-  return d.getHours() >= block.cutoffHour;
+  if (dateISO !== serverTodayStr()) return false;
+  return serverHour() >= block.cutoffHour;
 };
 
 const todayHasSlots = () => {
-  const d = new Date();
-  return RESCHED_BLOCKS.some((b) => !isSlotPast(b, toISO(d)));
+  const todayISO = serverTodayStr();
+  return RESCHED_BLOCKS.some((b) => !isSlotPast(b, todayISO));
 };
 
 const isSelectableDate = (d) => {
   if (d < startOfToday() || isWeekend(d)) return false;
-  if (toISO(d) === toISO(new Date())) return todayHasSlots();
+  if (toISO(d) === serverTodayStr()) return todayHasSlots();
   return true;
 };
 
@@ -84,10 +88,12 @@ function MonthGrid({ month, selected, onSelect }) {
 }
 
 export default function ReschedulePicker({ date, timeSlot, onDateChange, onTimeSlotChange }) {
-  const [viewMonth, setViewMonth] = useState(() => {
-    const d = startOfToday();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
-  });
+  const [viewMonth, setViewMonth] = useState(() => serverMonthStart());
+  // Re-render once the server-clock sync lands (wrong-clock devices).
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    syncServerTime().then(() => setClockTick((t) => t + 1));
+  }, []);
 
   const prevMonth = () => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
   const nextMonth = () => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));

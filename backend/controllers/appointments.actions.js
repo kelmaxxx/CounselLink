@@ -3,6 +3,7 @@ import { logAction } from "../utils/audit.js";
 import { createNotification, notifyUsers } from "../utils/notify.js";
 import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { notifyUser, notifyRole } from "../events.js";
+import { validateSchedule } from "../utils/scheduling.js";
 
 const normalizeDate = (value) => {
   if (!value) return null;
@@ -16,13 +17,6 @@ const normalizeDate = (value) => {
 };
 
 const QUEUE_LIMIT = 50;
-
-const isWeekendDate = (value) => {
-  if (!value) return false;
-  const d = new Date(`${String(value).split("T")[0]}T00:00:00`);
-  if (isNaN(d)) return false;
-  return d.getDay() === 0 || d.getDay() === 6;
-};
 
 const getQueueSlot = (slot) => {
   const s = (slot || "").toLowerCase();
@@ -44,19 +38,16 @@ export const acceptAppointment = async (req, res) => {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
 
-  if (!isUrgent && isWeekendDate(date)) {
-    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  // Server-clock validation: future weekday + block not already passed today.
+  if (!isUrgent) {
+    const schedCheck = validateSchedule(date, timeSlot);
+    if (!schedCheck.ok) {
+      return res.status(400).json({ message: schedCheck.message });
+    }
   }
 
   const normalizedDate = isUrgent ? null : normalizeDate(date);
   const normalizedSlot = isUrgent ? null : timeSlot;
-
-  if (normalizedDate) {
-    const todayStr = new Date().toISOString().split("T")[0];
-    if (normalizedDate < todayStr) {
-      return res.status(400).json({ message: "Cannot approve a past date. Please reschedule to a future date instead." });
-    }
-  }
 
   let queueNumber = appt?.queue_number ?? null; // preserve urgent queue numbers
   let queueDate = null;
@@ -217,8 +208,9 @@ export const rescheduleAppointment = async (req, res) => {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
 
-  if (isWeekendDate(date)) {
-    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  const schedCheck = validateSchedule(date, timeSlot);
+  if (!schedCheck.ok) {
+    return res.status(400).json({ message: schedCheck.message });
   }
 
   const normalizedDate = normalizeDate(date);
@@ -352,8 +344,9 @@ export const requestRescheduleAppointment = async (req, res) => {
   if (!date || !timeSlot) {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
-  if (isWeekendDate(date)) {
-    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  const schedCheck = validateSchedule(date, timeSlot);
+  if (!schedCheck.ok) {
+    return res.status(400).json({ message: schedCheck.message });
   }
 
   const rows = await query(

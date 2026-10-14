@@ -1,5 +1,5 @@
 // src/pages/student/RequestAppointment.jsx
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
@@ -25,6 +25,7 @@ import {
   PenLine,
 } from "lucide-react";
 import { BTN, INPUT, LABEL, Modal, initialsOf } from "../../components/ui";
+import { syncServerTime, serverTodayStr, serverHour, serverWeekday } from "../../utils/serverTime";
 import InformedConsentSection from "../../components/InformedConsent";
 import SignaturePad from "../../components/SignaturePad";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
@@ -39,19 +40,16 @@ const slotLabel = (value) => TIME_BLOCKS.find((s) => s.value === value)?.label |
 
 // Returns true if the slot's time window has already closed for a given date.
 // If dateISO is not today, always returns false (future dates are fine).
+// Uses the SERVER clock (synced Asia/Manila time) — the device clock can't
+// be trusted for this check.
 const isSlotPast = (block, dateISO) => {
-  const pad = (n) => String(n).padStart(2, "0");
-  const d = new Date();
-  const todayISO = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  if (dateISO !== todayISO) return false;
-  return d.getHours() >= block.cutoffHour;
+  if (dateISO !== serverTodayStr()) return false;
+  return serverHour() >= block.cutoffHour;
 };
 
 // True if today still has at least one valid (not-yet-past) slot.
 const todayHasSlots = () => {
-  const pad = (n) => String(n).padStart(2, "0");
-  const d = new Date();
-  const todayISO = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const todayISO = serverTodayStr();
   return TIME_BLOCKS.some((b) => !isSlotPast(b, todayISO));
 };
 
@@ -85,9 +83,9 @@ const toISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getD
 // Monday–Friday, 9:00 AM – 5:00 PM. Urgent requests follow the same
 // schedule as regular appointments — no weekends, no after-hours.
 const OFFICE_HOURS_LABEL = "Monday – Friday, 9:00 AM – 5:00 PM";
-const getUrgentOfficeStatus = (now = new Date()) => {
-  const day = now.getDay();
-  const hour = now.getHours();
+const getUrgentOfficeStatus = () => {
+  const day = serverWeekday();
+  const hour = serverHour();
   if (day === 0 || day === 6)
     return {
       isOpen: false,
@@ -105,20 +103,21 @@ const getUrgentOfficeStatus = (now = new Date()) => {
   return { isOpen: true, reason: null, message: null };
 };
 const startOfToday = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const m = serverTodayStr().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
 };
 const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
 // A date is selectable if it's not a weekend, not before today, and — if it IS
 // today — it still has at least one time slot that hasn't passed yet.
 const isSelectableDate = (d) => {
   if (d < startOfToday() || isWeekend(d)) return false;
-  const pad = (n) => String(n).padStart(2, "0");
-  const now = new Date();
-  const todayISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const dISO = toISO(d);
-  if (dISO === todayISO) return todayHasSlots();
+  if (dISO === serverTodayStr()) return todayHasSlots();
   return true;
 };
 const formatLong = (iso) =>
@@ -146,6 +145,13 @@ export default function RequestAppointment() {
   const { createTestRequest } = useTests?.() || {};
 
   const [step, setStep] = useState(0);
+  // Server-clock tick: booking gates read synced Manila time. Re-render
+  // once the /api/meta/time sync lands so disabled dates/slots correct
+  // themselves even on a wrong-clock device.
+  const [clockTick, setClockTick] = useState(0);
+  useEffect(() => {
+    syncServerTime().then(() => setClockTick((t) => t + 1));
+  }, []);
   const [form, setForm] = useState(() => ({
     ...initialForm,
     phoneNumber: myRecord?.phone || "",
@@ -200,7 +206,8 @@ export default function RequestAppointment() {
   const firstAvail = useMemo(() => {
     const d = firstAvailableDate();
     return { iso: toISO(d), slot: TIME_BLOCKS[0] };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clockTick]);
 
   const setField = (patch) => setForm((f) => ({ ...f, ...patch }));
 
@@ -300,7 +307,7 @@ export default function RequestAppointment() {
     // appointments — block same-day urgent submits on weekends / after 5PM
     // (the server enforces this too and returns the same message).
     if (form.isUrgent) {
-      const officeStatus = getUrgentOfficeStatus(new Date());
+      const officeStatus = getUrgentOfficeStatus();
       if (!officeStatus.isOpen) {
         alert(`${officeStatus.message} Office hours are ${OFFICE_HOURS_LABEL}.`);
         return;
@@ -618,7 +625,7 @@ function DetailsStep({ currentUser, myRecord, form, setField }) {
    Step: Priority
 ──────────────────────────────────────────────────────────────────── */
 function PriorityStep({ form, setField }) {
-  const officeStatus = getUrgentOfficeStatus(new Date());
+  const officeStatus = getUrgentOfficeStatus();
   return (
     <StepCard
       icon={Zap}
@@ -654,7 +661,7 @@ function PriorityStep({ form, setField }) {
           active={form.isUrgent}
           onClick={() => {
             if (!officeStatus.isOpen) return;
-            setField({ isUrgent: true, date: toISO(new Date()), preferredSlots: [] });
+            setField({ isUrgent: true, date: serverTodayStr(), preferredSlots: [] });
           }}
           title="Urgent"
           desc="Immediate attention required — attended today."

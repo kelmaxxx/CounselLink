@@ -2,6 +2,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { syncServerTime } from "./utils/serverTime";
 
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -80,6 +81,12 @@ function RootRoute() {
 }
 
 export default function App() {
+  // Anchor the booking gates to the server clock as early as possible, so a
+  // wrong device clock can't enable dates/slots the server would reject.
+  React.useEffect(() => {
+    syncServerTime();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>

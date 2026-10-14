@@ -29,6 +29,7 @@ import referralsRoutes from "./routes/referrals.routes.js";
 import reportRequestsRoutes from "./routes/report-requests.routes.js";
 import urgentCounselingRoutes from "./routes/urgent-counseling.routes.js";
 import systemEvaluationsRoutes from "./routes/system-evaluations.routes.js";
+import metaRoutes from "./routes/meta.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import dns from "dns";
@@ -125,6 +126,7 @@ app.use("/api/referrals", referralsRoutes);
 app.use("/api/report-requests", reportRequestsRoutes);
 app.use("/api/urgent-counseling-requests", urgentCounselingRoutes);
 app.use("/api/system-evaluations", systemEvaluationsRoutes);
+app.use("/api/meta", metaRoutes);
 
 // Central error handler. Any error thrown in a route (including async ones,
 // thanks to express-async-errors) lands here and returns a 500 for that single

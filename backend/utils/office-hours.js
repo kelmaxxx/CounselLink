@@ -1,13 +1,17 @@
 // Shared Guidance & Counseling office-hours helper.
-// Duty time: Monday–Friday, 9:00 AM – 5:00 PM (server local time).
+// Duty time: Monday–Friday, 9:00 AM – 5:00 PM (Asia/Manila — pinned
+// explicitly so a wrong server timezone can never shift the window).
 // Urgent walk-in / same-day requests must follow the same schedule as
 // regular appointments: no weekends, no after-hours submissions.
+
+import { weekdayOf, manilaHour, manilaTodayStr } from "./scheduling.js";
 
 export const OFFICE_HOURS_LABEL = "Monday – Friday, 9:00 AM – 5:00 PM";
 
 export const getOfficeHoursStatus = (now = new Date()) => {
-  const day = now.getDay(); // 0 = Sunday, 6 = Saturday
-  const hour = now.getHours();
+  const today = manilaTodayStr(now);
+  const day = weekdayOf(today); // 0 = Sunday, 6 = Saturday
+  const hour = manilaHour(now);
 
   if (day === 0 || day === 6) {
     return {
