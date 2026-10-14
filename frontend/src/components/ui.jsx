@@ -95,23 +95,23 @@ const STAT_TONES = {
   maroon: "bg-maroon-100 text-maroon-700",
 };
 
-export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, trend, trendDir = "up", variant = "light" }) {
+export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, trend, trendDir = "up", variant = "light", compact = false }) {
   const dark = variant === "dark";
   return (
-    <div className={`rounded-2xl p-6 border shadow-sm transition hover:shadow-md ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
+    <div className={`rounded-2xl ${compact ? "p-4" : "p-6"} border shadow-sm transition hover:shadow-md ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <span className={`text-sm font-medium truncate min-w-0 ${dark ? "text-white/70" : "text-gray-500"}`}>{label}</span>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           {Icon && (
             <span
-              className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${dark ? "bg-white/15 text-white" : STAT_TONES[tone] || STAT_TONES.gray}`}
+              className={`inline-flex items-center justify-center ${compact ? "w-8 h-8" : "w-9 h-9"} rounded-xl ${dark ? "bg-white/15 text-white" : STAT_TONES[tone] || STAT_TONES.gray}`}
             >
-              <Icon size={18} />
+              <Icon size={compact ? 16 : 18} />
             </span>
           )}
           {badge && (
             <span
-              className={`inline-flex items-center gap-0.5 text-[11px] font-bold tabular-nums whitespace-nowrap ${dark ? DARK_DELTA_TEXT[badge.dir] || DARK_DELTA_TEXT.neutral : DELTA_TEXT[badge.dir] || DELTA_TEXT.neutral}`}
+              className={`inline-flex items-center gap-0.5 ${compact ? "text-[10px]" : "text-[11px]"} font-bold tabular-nums whitespace-nowrap ${dark ? DARK_DELTA_TEXT[badge.dir] || DARK_DELTA_TEXT.neutral : DELTA_TEXT[badge.dir] || DELTA_TEXT.neutral}`}
             >
               <BadgeIcon dir={badge.dir} />
               {badge.text}
@@ -119,16 +119,16 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, 
           )}
         </div>
       </div>
-      <div className={`mt-5 text-5xl font-semibold tabular-nums leading-none tracking-tight ${dark ? "text-white" : "text-gray-900"}`}>
+      <div className={`${compact ? "mt-4 text-4xl" : "mt-5 text-5xl"} font-semibold tabular-nums leading-none tracking-tight ${dark ? "text-white" : "text-gray-900"}`}>
         {value}
       </div>
       {trend && (
-        <p className={`mt-3 flex items-center gap-1.5 text-sm font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
+        <p className={`${compact ? "mt-2 text-xs" : "mt-3 text-sm"} flex items-center gap-1.5 font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
           <TrendIcon dir={trendDir} />
           {trend}
         </p>
       )}
-      {hint && <p className={`${trend ? "mt-1" : "mt-3"} text-xs ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
+      {hint && <p className={`${trend ? "mt-1" : compact ? "mt-2" : "mt-3"} text-xs ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
     </div>
   );
 }

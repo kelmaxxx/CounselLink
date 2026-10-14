@@ -53,6 +53,7 @@ export function StudentsByCollegeCard({
   othersColor = "#94a3b8",
   title = "Students by College",
   subtitle = "Ranked distribution of your caseload",
+  className = "",
 }) {
   const ranked = React.useMemo(
     () => [...data].sort((a, b) => b.value - a.value),
@@ -85,7 +86,7 @@ export function StudentsByCollegeCard({
 
   if (!data.length) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle>Students by college</CardTitle>
           <CardDescription>{subtitle}</CardDescription>
@@ -133,7 +134,7 @@ export function StudentsByCollegeCard({
 
   return (
     <>
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle>Students by college</CardTitle>
           <CardDescription>{subtitle}</CardDescription>
@@ -281,6 +282,7 @@ function InteractiveAreaCard({
   emptyIcon,
   emptyTitle = "No activity yet",
   emptyHint = "New requests will show up here as a daily trend.",
+  className = "",
 }) {
   const [timeRange, setTimeRange] = React.useState("14d");
 
@@ -294,7 +296,7 @@ function InteractiveAreaCard({
   );
   if (!data?.length || !series.length || !hasData) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
           <CardDescription>{subtitle} · last 14 days</CardDescription>
@@ -321,7 +323,7 @@ function InteractiveAreaCard({
   const rangeLabel = timeRange === "7d" ? "last 7 days" : "last 14 days";
 
   return (
-    <Card className="pt-0">
+    <Card className={`pt-0 ${className}`}>
       <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
         <div className="grid flex-1 gap-1">
           <CardTitle>{title}</CardTitle>
