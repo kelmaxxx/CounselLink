@@ -1,7 +1,7 @@
 // src/components/ui.jsx
 // Shared primitives for the minimalist / professional design system.
 import React from "react";
-import { Inbox, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Inbox, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { collegeColor } from "../data/sagayanColors";
 import {
   PieChart,
@@ -95,25 +95,61 @@ const STAT_TONES = {
   maroon: "bg-maroon-100 text-maroon-700",
 };
 
-export function BigStat({ label, value, hint, icon: Icon, tone = "gray" }) {
+export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, trend, trendDir = "up" }) {
   return (
-    <div className="bg-white rounded-3xl p-6 ring-1 ring-gray-950/5 shadow-sm transition hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <span className="text-sm font-medium text-gray-500">{label}</span>
-        {Icon && (
-          <span
-            className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${STAT_TONES[tone] || STAT_TONES.gray}`}
-          >
-            <Icon size={18} />
-          </span>
-        )}
+    <div className="bg-white rounded-2xl p-6 border border-gray-200/80 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <span className="text-sm font-medium text-gray-500 truncate min-w-0">{label}</span>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {badge && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums whitespace-nowrap ${BADGE_STYLES[badge.dir] || BADGE_STYLES.neutral}`}
+            >
+              <BadgeIcon dir={badge.dir} />
+              {badge.text}
+            </span>
+          )}
+          {Icon && (
+            <span
+              className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${STAT_TONES[tone] || STAT_TONES.gray}`}
+            >
+              <Icon size={18} />
+            </span>
+          )}
+        </div>
       </div>
       <div className="mt-5 text-5xl font-semibold text-gray-900 tabular-nums leading-none tracking-tight">
         {value}
       </div>
-      {hint && <p className="mt-3 text-xs text-gray-400">{hint}</p>}
+      {trend && (
+        <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+          <TrendIcon dir={trendDir} />
+          {trend}
+        </p>
+      )}
+      {hint && <p className={`${trend ? "mt-1" : "mt-3"} text-xs text-gray-400`}>{hint}</p>}
     </div>
   );
+}
+
+const BADGE_STYLES = {
+  up: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  down: "border-red-200 bg-red-50 text-red-700",
+  flat: "border-gray-200 bg-gray-50 text-gray-600",
+  neutral: "border-gray-200 bg-gray-50 text-gray-600",
+};
+
+function BadgeIcon({ dir }) {
+  if (dir === "up") return <TrendingUp size={12} />;
+  if (dir === "down") return <TrendingDown size={12} />;
+  if (dir === "flat") return <Minus size={12} />;
+  return null;
+}
+
+function TrendIcon({ dir }) {
+  if (dir === "down") return <TrendingDown size={14} />;
+  if (dir === "flat") return <Minus size={14} />;
+  return <TrendingUp size={14} />;
 }
 
 // ── Center-label donut with a clean custom legend ────────────────────────

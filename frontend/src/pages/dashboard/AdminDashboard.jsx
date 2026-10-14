@@ -24,16 +24,19 @@ import { collegeColor } from "../../data/sagayanColors";
 import {
   PageHeader,
   BigStat,
-  RankedBarChart,
   DonutStat,
   TreemapChart,
-  TrendLineChart,
   SectionCard,
   EmptyState,
   Modal,
   BTN,
   INPUT,
 } from "../../components/ui";
+import {
+  StudentsByCollegeCard,
+  DemandThroughputCard,
+} from "../../components/charts/counselor-charts";
+import { weekDelta, trendProps } from "../../utils/trends";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const PIE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce"];
@@ -167,6 +170,17 @@ export default function AdminDashboard() {
     return days;
   }, [allAppointments]);
 
+  // ── Stat-card trends (real week-over-week from timestamps) ─────────
+  const userDateOf = (u) => u.created_at || u.createdAt;
+  const userTrend = trendProps(weekDelta(visibleUsers, userDateOf));
+  const adminStudentTrend = trendProps(weekDelta(students, userDateOf));
+  const completedTrend = trendProps(
+    weekDelta(
+      allAppointments.filter((a) => a.status === "completed"),
+      (a) => a.updatedAt || a.updated_at || a.scheduledDate || a.scheduled_date
+    )
+  );
+
   const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Admin";
 
   return (
@@ -192,6 +206,9 @@ export default function AdminDashboard() {
             hint="All active accounts"
             icon={Users}
             tone="gray"
+            badge={userTrend.badge}
+            trend={userTrend.trend}
+            trendDir={userTrend.trendDir}
           />
           <BigStat
             label="Counselors"
@@ -217,6 +234,9 @@ export default function AdminDashboard() {
             }
             icon={UserCheck}
             tone={pendingApprovals > 0 ? "amber" : "maroon"}
+            badge={adminStudentTrend.badge}
+            trend={adminStudentTrend.trend}
+            trendDir={adminStudentTrend.trendDir}
           />
           <BigStat
             label="Appointments"
@@ -224,6 +244,9 @@ export default function AdminDashboard() {
             hint="Completed sessions"
             icon={CalendarCheck}
             tone="purple"
+            badge={completedTrend.badge}
+            trend={completedTrend.trend}
+            trendDir={completedTrend.trendDir}
           />
         </div>
 
@@ -244,12 +267,8 @@ export default function AdminDashboard() {
             />
           </SectionCard>
 
-          <SectionCard
-            className="lg:col-span-3"
-            title="Students by college"
-            subtitle="Ranked distribution of enrolled students"
-          >
-            <RankedBarChart
+          <div className="lg:col-span-3">
+            <StudentsByCollegeCard
               data={topColleges.map(([name, value], i) => ({
                 name,
                 value,
@@ -259,8 +278,9 @@ export default function AdminDashboard() {
               emptyIcon={Users}
               emptyTitle="No students yet"
               title="Students by College"
+              subtitle="Ranked distribution of enrolled students"
             />
-          </SectionCard>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
@@ -276,21 +296,12 @@ export default function AdminDashboard() {
             />
           </SectionCard>
 
-          <SectionCard
-            className="lg:col-span-3"
-            title="Demand vs. throughput"
-            subtitle="Requests created vs. sessions completed · last 14 days"
-          >
-            <TrendLineChart
+          <div className="lg:col-span-3">
+            <DemandThroughputCard
               data={throughputTrend}
-              series={[
-                { key: "created", name: "Requests created", color: "#1d4ed8" },
-                { key: "completed", name: "Sessions completed", color: "#0B6623" },
-              ]}
               emptyIcon={CalendarCheck}
-              emptyTitle="No session activity yet"
             />
-          </SectionCard>
+          </div>
         </div>
 
         <AnnouncementsPanel token={token} />
