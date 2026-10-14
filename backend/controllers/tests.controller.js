@@ -3,6 +3,7 @@ import { logAction } from "../utils/audit.js";
 import { createNotification, notifyUsers } from "../utils/notify.js";
 import { notifyUser, notifyRole } from "../events.js";
 import { isValidPhMobile } from "../utils/validators.js";
+import { validateSchedule, validateScheduleSlots } from "../utils/scheduling.js";
 
 const normalizeDate = (value) => {
   if (!value) return null;
@@ -35,6 +36,12 @@ export const createTestRequest = async (req, res) => {
 
   if (!isValidPhMobile(phoneNumber)) {
     return res.status(400).json({ message: "Phone number must start with 09 and have 11 digits" });
+  }
+
+  // Schedule integrity (server clock — the device clock can't be trusted).
+  const schedCheck = validateScheduleSlots(preferredDate, preferredSlots);
+  if (!schedCheck.ok) {
+    return res.status(400).json({ message: schedCheck.message });
   }
 
   const slots = Array.isArray(preferredSlots) ? preferredSlots.join(",") : preferredSlots;
@@ -136,16 +143,12 @@ export const acceptTest = async (req, res) => {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
 
-  const weekendCheck = new Date(`${String(date).split("T")[0]}T00:00:00`);
-  if (!isNaN(weekendCheck) && (weekendCheck.getDay() === 0 || weekendCheck.getDay() === 6)) {
-    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  const schedCheck = validateSchedule(date, timeSlot);
+  if (!schedCheck.ok) {
+    return res.status(400).json({ message: schedCheck.message });
   }
 
   const normalizedDate = normalizeDate(date);
-  const todayStr = new Date().toISOString().split("T")[0];
-  if (normalizedDate < todayStr) {
-    return res.status(400).json({ message: "Cannot approve a past date. Please reschedule to a future date instead." });
-  }
   const queueSlot = getQueueSlot(timeSlot);
   const queueDate = normalizedDate;
 
@@ -222,9 +225,9 @@ export const rescheduleTest = async (req, res) => {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
 
-  const weekendCheck = new Date(`${String(date).split("T")[0]}T00:00:00`);
-  if (!isNaN(weekendCheck) && (weekendCheck.getDay() === 0 || weekendCheck.getDay() === 6)) {
-    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  const schedCheck = validateSchedule(date, timeSlot);
+  if (!schedCheck.ok) {
+    return res.status(400).json({ message: schedCheck.message });
   }
 
   const normalizedDate = normalizeDate(date);
@@ -274,9 +277,9 @@ export const requestRescheduleTest = async (req, res) => {
     return res.status(400).json({ message: "Date and time slot are required" });
   }
 
-  const weekendCheck = new Date(`${String(date).split("T")[0]}T00:00:00`);
-  if (!isNaN(weekendCheck) && (weekendCheck.getDay() === 0 || weekendCheck.getDay() === 6)) {
-    return res.status(400).json({ message: "Appointments cannot be scheduled on Saturday or Sunday" });
+  const schedCheck = validateSchedule(date, timeSlot);
+  if (!schedCheck.ok) {
+    return res.status(400).json({ message: schedCheck.message });
   }
 
   const rows = await query(

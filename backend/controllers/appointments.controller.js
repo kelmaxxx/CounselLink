@@ -4,6 +4,7 @@ import { notifyUsers, createNotification } from "../utils/notify.js";
 import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { isValidPhMobile } from "../utils/validators.js";
 import { getOfficeHoursStatus } from "../utils/office-hours.js";
+import { validateScheduleDate, validateScheduleSlots, manilaTodayStr, manilaHour } from "../utils/scheduling.js";
 
 const QUEUE_LIMIT = 50;
 
@@ -37,6 +38,17 @@ export const createAppointment = async (req, res) => {
     return res.status(400).json({ message: "Phone number must start with 09 and have 11 digits" });
   }
 
+  // Schedule integrity (server clock — the device clock can't be trusted):
+  // the requested date must be a future weekday, and when booking for
+  // today at least one preferred block must still be open.
+  // Urgent requests carry no preferred blocks, so only the date is checked.
+  const schedCheck = isUrgent
+    ? validateScheduleDate(preferredDate)
+    : validateScheduleSlots(preferredDate, preferredSlots);
+  if (!schedCheck.ok) {
+    return res.status(400).json({ message: schedCheck.message });
+  }
+
   // Duty-hours guard for logged-in urgent requests: same schedule as regular
   // appointments — no weekends, no submissions outside 9AM–5PM. Reject
   // before assigning a queue number.
@@ -61,10 +73,10 @@ export const createAppointment = async (req, res) => {
   let queueSlot = null;
 
   if (isUrgent) {
-    // Urgent requests: assign queue immediately at request time (today's date + current AM/PM)
+    // Urgent requests: assign queue immediately at request time (today's date + current AM/PM, Manila).
     const now = new Date();
-    queueSlot = now.getHours() < 12 ? "AM" : "PM";
-    queueDate = now.toISOString().split("T")[0];
+    queueSlot = manilaHour(now) < 12 ? "AM" : "PM";
+    queueDate = manilaTodayStr(now);
 
     const [{ cnt }] = await query(
       `SELECT COUNT(*) AS cnt FROM appointments
