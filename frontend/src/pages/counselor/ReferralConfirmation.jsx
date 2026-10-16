@@ -71,6 +71,12 @@ export default function ReferralConfirmation() {
               <Row label="Reason" value={referral.reason} />
               {referral.notes && <Row label="Notes" value={referral.notes} />}
               <Row label="Status" value={<span className={`${referral.status === "rescheduled" ? "text-sky-700" : "text-green-700"} font-semibold`}>{referral.status}</span>} />
+              {(referral.requestedDate || referral.requestedTime) && (
+                <Row
+                  label={referral.status === "rescheduled" ? "Requested schedule" : "Scheduled"}
+                  value={`${referral.requestedDate ? new Date(`${String(referral.requestedDate).split("T")[0]}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—"}${referral.requestedTime ? ` · ${referral.requestedTime}` : ""}`}
+                />
+              )}
               {referral.decision_note && <Row label="Decision note" value={referral.decision_note} />}
               <Row label="Decided at" value={referral.decided_at ? new Date(referral.decided_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"} />
             </dl>

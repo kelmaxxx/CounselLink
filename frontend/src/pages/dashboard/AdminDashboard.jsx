@@ -35,7 +35,6 @@ import {
   StudentsByCollegeCard,
   DemandThroughputCard,
 } from "../../components/charts/counselor-charts";
-import { weekDelta, trendProps } from "../../utils/trends";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const PIE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce"];
@@ -169,16 +168,9 @@ export default function AdminDashboard() {
     return days;
   }, [allAppointments]);
 
-  // ── Stat-card trends (real week-over-week from timestamps) ─────────
-  const userDateOf = (u) => u.created_at || u.createdAt;
-  const userTrend = trendProps(weekDelta(visibleUsers, userDateOf));
-  const adminStudentTrend = trendProps(weekDelta(students, userDateOf));
-  const completedTrend = trendProps(
-    weekDelta(
-      allAppointments.filter((a) => a.status === "completed"),
-      (a) => a.updatedAt || a.updated_at || a.scheduledDate || a.scheduled_date
-    )
-  );
+  // ── Stat-card trends removed ─────────────────────────────────────
+  // BigStat badge/trend lines were stripped per design request; counts
+  // above are rendered without week-over-week deltas.
 
   const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Admin";
 
@@ -209,9 +201,6 @@ export default function AdminDashboard() {
                 tone="gray"
                 variant="dark"
                 compact
-                badge={userTrend.badge}
-                trend={userTrend.trend}
-                trendDir={userTrend.trendDir}
               />
               <BigStat
                 label="Colleges"
@@ -232,9 +221,6 @@ export default function AdminDashboard() {
                 icon={UserCheck}
                 tone={pendingApprovals > 0 ? "amber" : "maroon"}
                 compact
-                badge={adminStudentTrend.badge}
-                trend={adminStudentTrend.trend}
-                trendDir={adminStudentTrend.trendDir}
               />
               <BigStat
                 label="Appointments"
@@ -243,9 +229,6 @@ export default function AdminDashboard() {
                 icon={CalendarCheck}
                 tone="purple"
                 compact
-                badge={completedTrend.badge}
-                trend={completedTrend.trend}
-                trendDir={completedTrend.trendDir}
               />
             </div>
           </div>

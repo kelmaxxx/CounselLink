@@ -24,6 +24,13 @@ const isWeekendISO = (iso) => {
   return d.getDay() === 0 || d.getDay() === 6;
 };
 
+// Human label for the schedule the College rep set at creation.
+const timeLabel = (slot) => {
+  if (slot === "morning" || slot === "9:00-12:00") return "Morning (9:00 AM – 12:00 PM)";
+  if (slot === "afternoon" || slot === "1:00-5:00") return "Afternoon (1:00 PM – 5:00 PM)";
+  return slot || "—";
+};
+
 export default function CounselorReferrals() {
   const { currentUser } = useAuth();
   const { referrals, loading, error, fetchReferrals, decideReferral } = useReferrals();
@@ -76,7 +83,13 @@ export default function CounselorReferrals() {
       setDecisionError("A note is required when declining.");
       return;
     }
-    if ((status === "accepted" || status === "rescheduled") && (!scheduledDate || !scheduledTime)) {
+    // Accept is a direct approve of the schedule the College rep set at
+    // creation — no schedule picker. Only Reschedule picks a new slot.
+    if (status === "accepted" && !referral.requestedDate) {
+      setDecisionError("This referral has no requested schedule — please use Reschedule to set one instead.");
+      return;
+    }
+    if (status === "rescheduled" && (!scheduledDate || !scheduledTime)) {
       setDecisionError("Please pick a date and time slot for the appointment.");
       return;
     }
@@ -99,8 +112,8 @@ export default function CounselorReferrals() {
     const res = await decideReferral(referral.id, {
       status,
       decisionNote: decisionNote.trim() || null,
-      scheduledDate: status === "accepted" || status === "rescheduled" ? scheduledDate : null,
-      scheduledTime: status === "accepted" || status === "rescheduled" ? scheduledTime : null,
+      scheduledDate: status === "rescheduled" ? scheduledDate : null,
+      scheduledTime: status === "rescheduled" ? scheduledTime : null,
     });
     setDecisionBusy(false);
     if (!res.success) {
@@ -185,6 +198,7 @@ export default function CounselorReferrals() {
                 </div>
                 <div className="text-xs text-gray-600 space-y-0.5">
                   <p><span className="font-medium text-gray-500">By: </span>{r.referrerName}{r.referrerCollege ? ` · ${r.referrerCollege}` : ""}</p>
+                  <p><span className="font-medium text-gray-500">Requested: </span>{r.requestedDate ? new Date(`${String(r.requestedDate).split("T")[0]}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—"}{r.requestedTime ? ` · ${timeLabel(r.requestedTime)}` : ""}</p>
                   <p className="line-clamp-2">{r.reason}</p>
                   {r.decision_note && <p className="text-gray-400"><span className="font-medium">Note:</span> {r.decision_note}</p>}
                   <p className="text-gray-400 tabular-nums">{new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
@@ -212,6 +226,7 @@ export default function CounselorReferrals() {
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
                   <th className="px-4 py-2.5">Student</th>
                   <th className="px-4 py-2.5">Referred by</th>
+                  <th className="px-4 py-2.5">Requested schedule</th>
                   <th className="px-4 py-2.5">Reason</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5">Created</th>
@@ -233,6 +248,10 @@ export default function CounselorReferrals() {
                     <td className="px-4 py-3 text-gray-700">
                       <div>{r.referrerName}</div>
                       {r.referrerCollege && <div className="text-xs text-gray-500">{r.referrerCollege}</div>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">
+                      {r.requestedDate ? new Date(`${String(r.requestedDate).split("T")[0]}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—"}
+                      {r.requestedTime && <div className="text-gray-500">{timeLabel(r.requestedTime)}</div>}
                     </td>
                     <td className="px-4 py-3 max-w-sm">
                       <p className="text-gray-700 line-clamp-2">{r.reason}</p>
@@ -277,7 +296,7 @@ export default function CounselorReferrals() {
         }
         subtitle={
           decisionModal.status === "accepted"
-            ? "Set the appointment date and time slot. The student and the referring College will be notified."
+            ? "Direct approve — the session is scheduled exactly as the College requested below. The student and the referring College will be notified."
             : decisionModal.status === "rescheduled"
             ? "Propose a new date and time slot and explain why. The student and the referring College will be notified, and a rescheduled appointment will be created."
             : "Add a short note explaining why this referral was declined. Required."
@@ -334,9 +353,23 @@ export default function CounselorReferrals() {
                 </span>
                 <div className="text-gray-700 text-sm">{decisionModal.referral.reason}</div>
               </div>
+              <div>
+                <span className="text-xs uppercase tracking-wider text-gray-500 font-medium">
+                  Requested schedule
+                </span>
+                <div className="text-gray-900 font-medium">
+                  {decisionModal.referral.requestedDate
+                    ? new Date(`${decisionModal.referral.requestedDate}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+                    : "—"}
+                  {decisionModal.referral.requestedTime ? ` · ${timeLabel(decisionModal.referral.requestedTime)}` : ""}
+                </div>
+                {decisionModal.status === "accepted" && (
+                  <p className="text-xs text-emerald-700 mt-1">Accept confirms this schedule as-is.</p>
+                )}
+              </div>
             </div>
 
-            {(decisionModal.status === "accepted" || decisionModal.status === "rescheduled") && (
+            {decisionModal.status === "rescheduled" && (
               <div className="mb-3">
                 <ReschedulePicker
                   date={scheduledDate}

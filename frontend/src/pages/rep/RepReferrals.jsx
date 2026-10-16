@@ -13,8 +13,20 @@ import {
   INPUT,
   LABEL,
   initialsOf,
+  formatDate,
 } from "../../components/ui";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
+import ReschedulePicker, { RESCHED_BLOCKS } from "../../components/ReschedulePicker";
+
+// "Oct 20, 2026 · Morning (9:00 AM – 12:00 PM)" — the schedule the rep set
+// at creation, which counselor Accept approves directly.
+const preferredLabel = (r) => {
+  if (!r.requestedDate && !r.requestedTime) return "—";
+  const block = RESCHED_BLOCKS.find((b) => b.value === r.requestedTime);
+  const when = r.requestedDate ? formatDate(r.requestedDate) : "";
+  const what = block ? `${block.name} (${block.label})` : r.requestedTime || "";
+  return [when, what].filter(Boolean).join(" · ");
+};
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -140,6 +152,7 @@ export default function RepReferrals() {
                 </div>
                 <div className="text-xs text-gray-600 space-y-0.5">
                   <p><span className="font-medium text-gray-500">Counselor: </span>{r.receivingCounselorName || <span className="italic text-gray-400">TBA</span>}</p>
+                  <p><span className="font-medium text-gray-500">Preferred: </span>{preferredLabel(r)}</p>
                   <p className="line-clamp-2">{r.reason}</p>
                   {r.decision_note && <p className="text-gray-400"><span className="font-medium">Note:</span> {r.decision_note}</p>}
                   <p className="text-gray-400 tabular-nums">{new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</p>
@@ -157,6 +170,7 @@ export default function RepReferrals() {
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
                   <th className="px-4 py-2.5">Student</th>
                   <th className="px-4 py-2.5">Counselor</th>
+                  <th className="px-4 py-2.5">Preferred schedule</th>
                   <th className="px-4 py-2.5">Reason</th>
                   <th className="px-4 py-2.5">Status</th>
                   <th className="px-4 py-2.5">Created</th>
@@ -177,6 +191,9 @@ export default function RepReferrals() {
                     </td>
                     <td className="px-4 py-3">
                       {r.receivingCounselorName ? <span className="text-gray-700">{r.receivingCounselorName}</span> : <span className="text-gray-400 italic text-xs">To Be Approve</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">
+                      {preferredLabel(r)}
                     </td>
                     <td className="px-4 py-3 max-w-sm">
                       <p className="text-gray-700 line-clamp-2">{r.reason}</p>
@@ -284,6 +301,8 @@ const EMPTY_REFERRAL_FORM = {
   natureOfConcern: "",
   natureOfConcernOther: "",
   description: "",
+  requestedDate: "",
+  requestedTime: "",
 };
 
 function NewReferralModal({ token, currentUser, onClose, onCreated }) {
@@ -304,6 +323,7 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
     { number: 1, title: "Student Info" },
     { number: 2, title: "Referrer Info" },
     { number: 3, title: "Concern & Details" },
+    { number: 4, title: "Schedule" },
   ];
 
   const validateStep = (s) => {
@@ -326,6 +346,9 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
       if (form.natureOfConcern === "Other" && !form.natureOfConcernOther.trim()) return "Please specify the concern.";
       if (!form.description.trim()) return "Brief description is required.";
     }
+    if (s === 4) {
+      if (!form.requestedDate || !form.requestedTime) return "Please pick a preferred date and time slot — the counselor approves this schedule directly.";
+    }
     return null;
   };
 
@@ -347,7 +370,7 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
-    const err = validateStep(3);
+    const err = validateStep(3) || validateStep(4);
     if (err) {
       setError(err);
       return;
@@ -373,6 +396,8 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
           natureOfConcern: form.natureOfConcern,
           natureOfConcernOther: form.natureOfConcernOther.trim() || null,
           description: form.description.trim(),
+          requestedDate: form.requestedDate,
+          requestedTime: form.requestedTime,
         }),
       });
       const body = await res.json();
@@ -409,7 +434,7 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
             </button>
           )}
 
-          {step < 3 ? (
+          {step < 4 ? (
             <button type="button" onClick={handleNext} className={BTN.primary}>
               Next
             </button>
@@ -443,7 +468,7 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
               <span className={`text-xs font-medium hidden sm:inline ${step === s.number ? "text-gray-900 font-semibold" : "text-gray-400"}`}>
                 {s.title}
               </span>
-              {s.number < 3 && <span className="text-gray-300 text-xs">➔</span>}
+              {s.number < 4 && <span className="text-gray-300 text-xs">➔</span>}
             </div>
           ))}
         </div>
@@ -618,6 +643,23 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
                 onChange={(e) => setField("description", e.target.value)}
               />
             </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-900">Step 4: Preferred Schedule</h4>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Pick the date and time block you want for this session. The counselor&apos;s
+              <span className="font-semibold text-gray-700"> Accept </span>
+              approves this schedule directly — only a reschedule picks a new slot.
+            </p>
+            <ReschedulePicker
+              date={form.requestedDate}
+              timeSlot={form.requestedTime}
+              onDateChange={(v) => setField("requestedDate", v)}
+              onTimeSlotChange={(v) => setField("requestedTime", v)}
+            />
           </div>
         )}
 
