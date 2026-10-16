@@ -1,18 +1,21 @@
 // src/components/records/StudentRecordsDrawer.jsx
 // Right-side drawer that opens when a counselor clicks a student in the
-// "Students" tab. Three sub-tabs:
+// "Students" tab. Four sub-tabs:
 //   - Inventory: digital MSU form + scan upload
 //   - Consent:   e-sign status, signed-paper scan, revoke
 //   - Sessions:  counseling sessions filtered to this student
+//   - Tests:     released psychological test results for this student
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, FileDown, Edit, Trash2, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, FileDown, Edit, Trash2, MoreVertical, ChevronLeft, ChevronRight, FlaskConical } from "lucide-react";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
+import { useTestResults } from "../../context/TestResultsContext";
 import { useAuth } from "../../context/AuthContext";
 import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
 import { Modal, BTN, formatDate } from "../ui";
 import { saveReportAsPdfFile } from "../../utils/sessionReport";
+import { saveTestResultAsPdfFile } from "../../utils/testResultReport";
 import ReportPreview from "./ReportPreview";
 import { createPortal } from "react-dom";
 
@@ -392,89 +395,185 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession, onSub
   const titleFor = (s) =>
     `Session Report — ${s.studentName || student?.name} (${(s.sessionDate || "").split("T")[0]})`;
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
-      <table className="w-full text-sm table-fixed">
-        <colgroup>
-          <col style={{ width: "13%" }} />
-          <col style={{ width: "34%" }} />
-          <col style={{ width: "34%" }} />
-          <col style={{ width: "11%" }} />
-          <col style={{ width: "8%" }} />
-        </colgroup>
-        <thead className="bg-gray-50 border-b border-gray-100">
-          <tr>
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Next</th>
-            <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {studentSessions.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE).map((s) => {
-            const effectiveNext = effectiveNextSession.get(s.id) ?? s.nextSession;
-            return (
-            <tr key={s.id} className="hover:bg-gray-50/70 align-top">
-              <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">
-                {formatDate(s.sessionDate)}
-                <span className={`mt-1 inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${s.finalizedAt ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
-                  {s.finalizedAt ? "Submitted" : "Draft"}
-                </span>
-              </td>
-              <td className="px-3 py-2.5 min-w-0">
-                <p className="line-clamp-3 text-sm text-gray-700 break-words">{s.presentingConcern || "—"}</p>
-              </td>
-              <td className="px-3 py-2.5 min-w-0">
-                <p className="line-clamp-3 text-sm text-gray-700 break-words">{s.summary || "—"}</p>
-              </td>
-              <td className="px-3 py-2.5">
-                <span className={`inline-flex text-xs px-2 py-1 rounded-full whitespace-nowrap ${effectiveNext === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
-                  {NEXT_LABELS[effectiveNext] || effectiveNext}
-                </span>
-              </td>
-              <td className="px-3 py-2.5 text-right">
-                <div ref={(el) => { buttonRefs.current[s.id] = el; }} className="inline-block">
-                  <button
-                    onClick={(e) => togglePopover(e, s.id)}
-                    className="p-1.5 rounded hover:bg-gray-100 transition"
-                    title="Actions"
-                  >
-                    <MoreVertical size={14} />
-                  </button>
-                </div>
-              </td>
-            </tr>
-            );
-          })}
-        </tbody>
-      </table>
+  const pageItems = studentSessions.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
-      {studentSessions.length > PAGE_SIZE && (
-        <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 text-xs text-gray-600">
-          <span>
-            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, studentSessions.length)} of {studentSessions.length} sessions
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Previous"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <button
-              onClick={() => setPage((p) => Math.min(Math.ceil(studentSessions.length / PAGE_SIZE) - 1, p + 1))}
-              disabled={(page + 1) * PAGE_SIZE >= studentSessions.length}
-              className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Next"
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
+  const downloadSession = (s) =>
+    saveReportAsPdfFile(s, { title: titleFor(s), signatureUrl: currentUser?.signatureUrl });
+
+  return (
+    <div className="space-y-3">
+      {/* ── Desktop / tablet: table (scrolls instead of squeezing) ── */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm table-fixed min-w-[680px]">
+          <colgroup>
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "32%" }} />
+            <col style={{ width: "32%" }} />
+            <col style={{ width: "12%" }} />
+            <col style={{ width: "10%" }} />
+          </colgroup>
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Next</th>
+              <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {pageItems.map((s) => {
+              const effectiveNext = effectiveNextSession.get(s.id) ?? s.nextSession;
+              return (
+              <tr key={s.id} className="hover:bg-gray-50/70 align-top">
+                <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600">
+                  {formatDate(s.sessionDate)}
+                  <span className={`mt-1 inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${s.finalizedAt ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                    {s.finalizedAt ? "Submitted" : "Draft"}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 min-w-0">
+                  <p className="line-clamp-3 text-sm text-gray-700 break-words">{s.presentingConcern || "—"}</p>
+                </td>
+                <td className="px-3 py-2.5 min-w-0">
+                  <p className="line-clamp-3 text-sm text-gray-700 break-words">{s.summary || "—"}</p>
+                </td>
+                <td className="px-3 py-2.5">
+                  <span className={`inline-flex text-xs px-2 py-1 rounded-full whitespace-nowrap ${effectiveNext === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
+                    {NEXT_LABELS[effectiveNext] || effectiveNext}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-right">
+                  <div ref={(el) => { buttonRefs.current[s.id] = el; }} className="inline-block">
+                    <button
+                      onClick={(e) => togglePopover(e, s.id)}
+                      className="p-1.5 rounded hover:bg-gray-100 transition"
+                      title="Actions"
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              );
+            })}
+          </tbody>
+        </table>
         </div>
-      )}
+
+        {studentSessions.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 text-xs text-gray-600">
+            <span>
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, studentSessions.length)} of {studentSessions.length} sessions
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Previous"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(Math.ceil(studentSessions.length / PAGE_SIZE) - 1, p + 1))}
+                disabled={(page + 1) * PAGE_SIZE >= studentSessions.length}
+                className="p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Next"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Mobile: full-width cards (no squeezed table columns) ── */}
+      <div className="md:hidden space-y-3">
+        {pageItems.map((s) => {
+          const effectiveNext = effectiveNextSession.get(s.id) ?? s.nextSession;
+          const isOwner = currentUser?.role === "counselor" && Number(s.counselorId) === Number(currentUser.id);
+          const canModify = isOwner && !s.finalizedAt;
+          return (
+            <article key={s.id} className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4 space-y-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{formatDate(s.sessionDate)}</p>
+                  <p className="text-xs text-gray-500">{s.counselorName ? `by ${s.counselorName}` : ""}</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className={`inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full ${s.finalizedAt ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                    {s.finalizedAt ? "Submitted" : "Draft"}
+                  </span>
+                  <span className={`inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full ${effectiveNext === "termination" ? "bg-gray-100 text-gray-700" : "bg-blue-100 text-blue-700"}`}>
+                    {NEXT_LABELS[effectiveNext] || effectiveNext}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">Concern</p>
+                <p className="text-sm text-gray-700 break-words whitespace-pre-wrap">{s.presentingConcern || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">Summary</p>
+                <p className="text-sm text-gray-700 break-words whitespace-pre-wrap">{s.summary || "—"}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button onClick={() => setViewing(s)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium text-gray-700 hover:bg-gray-50">
+                  <Eye size={13} /> View
+                </button>
+                <button
+                  onClick={() => currentUser?.signatureUrl && downloadSession(s)}
+                  disabled={!currentUser?.signatureUrl}
+                  title={currentUser?.signatureUrl ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  <FileDown size={13} /> PDF
+                </button>
+                {canModify && (
+                  <>
+                    <button onClick={() => onEditSession?.(s)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 text-xs font-medium text-blue-700 hover:bg-blue-50">
+                      <Edit size={13} /> Edit
+                    </button>
+                    <button onClick={() => onSubmitSession?.(s)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-200 text-xs font-medium text-emerald-700 hover:bg-emerald-50">
+                      <CheckCircle2 size={13} /> Submit
+                    </button>
+                    <button onClick={() => onDeleteSession?.(s)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50">
+                      <Trash2 size={13} /> Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            </article>
+          );
+        })}
+        {studentSessions.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between px-1 py-1 text-xs text-gray-600">
+            <span>
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, studentSessions.length)} of {studentSessions.length} sessions
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="p-2 rounded-lg border bg-white disabled:opacity-40"
+                title="Previous"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(Math.ceil(studentSessions.length / PAGE_SIZE) - 1, p + 1))}
+                disabled={(page + 1) * PAGE_SIZE >= studentSessions.length}
+                className="p-2 rounded-lg border bg-white disabled:opacity-40"
+                title="Next"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <Modal
         open={!!viewing}
@@ -568,6 +667,120 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession, onSub
           document.body
         );
       })()}
+    </div>
+  );
+}
+
+// Released psychological test results for one student — the counselor-side
+// mirror of the student's "My Records → Psychological Test Results" tab.
+// Previously released results lived only in test_results / the student view,
+// so counselors had no way to see them inside the per-student record drawer.
+function TestsList({ student }) {
+  const { testResults, fetchTestResults } = useTestResults?.() || {};
+  const { currentUser } = useAuth();
+  const [savingId, setSavingId] = useState(null);
+
+  useEffect(() => {
+    fetchTestResults?.().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.id]);
+
+  const studentTests = useMemo(() => {
+    const list = Array.isArray(testResults) ? testResults : [];
+    return list
+      .filter((r) => {
+        const sid = r.student_id ?? r.studentId ?? r.studentUserId;
+        return Number(sid) === Number(student?.id);
+      })
+      .sort((x, y) => new Date(y.completedDate || y.completed_date || 0) - new Date(x.completedDate || x.completed_date || 0));
+  }, [testResults, student?.id]);
+
+  if (!studentTests.length) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-6 text-center text-sm text-gray-500">
+        No psychological test results released for this student yet.
+      </div>
+    );
+  }
+
+  const fileHref = (r) => {
+    const url = r.resultFileUrl || r.result_file_url;
+    if (!url) return null;
+    return url.startsWith("http") ? url : `${apiBase}${url}`;
+  };
+
+  const handleSave = async (r) => {
+    setSavingId(r.id);
+    try {
+      await saveTestResultAsPdfFile(r, {
+        studentName: student?.name,
+        signatureUrl: currentUser?.signatureUrl,
+      });
+    } catch {
+      alert("Failed to save the test result as PDF. Please try again.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {studentTests.map((r) => {
+        const testName = r.testName || r.test_name || "Psychological test";
+        const completed = r.completedDate || r.completed_date;
+        const href = fileHref(r);
+        return (
+          <article key={r.id} className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4 sm:p-5 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 break-words">{testName}</p>
+                <p className="text-xs text-gray-500 tabular-nums mt-0.5">
+                  Completed {completed ? formatDate(completed) : "—"}
+                  {r.counselorName ? ` · by ${r.counselorName}` : ""}
+                </p>
+              </div>
+              <span className="inline-flex flex-shrink-0 items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                <CheckCircle2 size={12} /> Released
+              </span>
+            </div>
+            {(r.summary || r.recommendations) && (
+              <div className="grid grid-cols-1 gap-3">
+                {r.summary && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Summary</p>
+                    <p className="text-sm text-gray-700 break-words whitespace-pre-wrap">{r.summary}</p>
+                  </div>
+                )}
+                {r.recommendations && (
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Recommendations</p>
+                    <p className="text-sm text-gray-700 break-words whitespace-pre-wrap">{r.recommendations}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {href && (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <ExternalLink size={13} /> View file{r.resultFileName || r.result_file_name ? ` (${r.resultFileName || r.result_file_name})` : ""}
+                </a>
+              )}
+              <button
+                onClick={() => handleSave(r)}
+                disabled={savingId === r.id}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 disabled:opacity-50"
+              >
+                <FileDown size={13} /> {savingId === r.id ? "Saving…" : "Save PDF"}
+              </button>
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -673,16 +886,16 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40" onClick={onClose} />
-      <aside className="w-full max-w-5xl bg-gray-50 shadow-xl h-full flex flex-col">
+      <div className="flex-1 bg-black/40 hidden sm:block" onClick={onClose} />
+      <aside className="w-full sm:max-w-2xl lg:max-w-5xl bg-gray-50 shadow-xl h-full flex flex-col ml-auto">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{student?.name || "Student"}</h3>
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-start sm:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{student?.name || "Student"}</h3>
             <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               {student?.studentId && <span>ID: {student.studentId}</span>}
               {student?.studentId && (student?.email || student?.phone || student?.college) && <span className="text-gray-300">•</span>}
-              {student?.email && <span>Email: {student.email}</span>}
+              {student?.email && <span className="break-all">Email: {student.email}</span>}
               {student?.phone && (
                 <>
                   <span className="text-gray-300">•</span>
@@ -697,33 +910,36 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
               )}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => setChatOpen(true)}
               disabled={!student?.id}
               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-maroon-600 text-white rounded-lg hover:bg-maroon-700 transition font-medium disabled:opacity-50"
             >
-              <MessageCircle size={14} /> Send Message
+              <MessageCircle size={14} /> Message
             </button>
             <button onClick={onClose} className="p-2 rounded hover:bg-gray-100"><X size={20} /></button>
           </div>
         </div>
 
         {/* Sub-tabs */}
-        <div className="bg-white border-b border-gray-200 px-6 flex gap-2">
-          <button onClick={() => setTab("inventory")} className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${tab === "inventory" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 flex gap-1 sm:gap-2 overflow-x-auto">
+          <button onClick={() => setTab("inventory")} className={`px-3 sm:px-4 py-3 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${tab === "inventory" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
             <ClipboardList size={16} /> Inventory
           </button>
-          <button onClick={() => setTab("consent")} className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${tab === "consent" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
+          <button onClick={() => setTab("consent")} className={`px-3 sm:px-4 py-3 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${tab === "consent" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
             <FileSignature size={16} /> Consent
           </button>
-          <button onClick={() => setTab("sessions")} className={`px-4 py-3 font-medium text-sm flex items-center gap-2 ${tab === "sessions" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
+          <button onClick={() => setTab("sessions")} className={`px-3 sm:px-4 py-3 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${tab === "sessions" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
             <BookOpen size={16} /> Sessions
+          </button>
+          <button onClick={() => setTab("tests")} className={`px-3 sm:px-4 py-3 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${tab === "tests" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
+            <FlaskConical size={16} /> Tests
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto px-6 py-4">
+        <div className="flex-1 overflow-auto px-4 sm:px-6 py-4">
           {loading ? (
             <div className="text-sm text-gray-500">Loading records...</div>
           ) : tab === "inventory" ? (
@@ -750,7 +966,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
               onRevokeAuthorization={handleRevokeAuthorization}
               readOnly={readOnly}
             />
-          ) : (
+          ) : tab === "sessions" ? (
             <SessionsList
               student={student}
               sessions={sessions}
@@ -758,6 +974,8 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
               onDeleteSession={onDeleteSession}
               onSubmitSession={onSubmitSession}
             />
+          ) : (
+            <TestsList student={student} />
           )}
         </div>
       </aside>

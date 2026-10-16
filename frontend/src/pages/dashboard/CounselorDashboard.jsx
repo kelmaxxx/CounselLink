@@ -180,16 +180,21 @@ export default function CounselorDashboard() {
   // in YYYY-MM-DD form.
   const toDateStr = (value) => {
     if (!value) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    const asLocalYMD = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    if (value instanceof Date) {
+      if (isNaN(value)) return "";
+      return asLocalYMD(value);
+    }
     const s = String(value);
-    // If it's a full ISO timestamp, take the date portion directly
-    if (s.includes("T")) return s.split("T")[0];
-    // Already a date string YYYY-MM-DD
+    // Already a calendar date — use as-is (no timezone shift).
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    // Fallback: parse and re-format in local time
+    // Full ISO timestamp. DATE columns arrive as local-midnight serialized
+    // to UTC (e.g. "2026-10-11T16:00:00.000Z" = Oct 12 in UTC+8), so parse
+    // and take LOCAL calendar parts — never split("T")[0].
     const d = new Date(s);
     if (isNaN(d)) return "";
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    return asLocalYMD(d);
   };
 
   // Returns the end-hour of a time slot (the hour at which the slot is over).
@@ -512,17 +517,23 @@ export default function CounselorDashboard() {
   }, [myAppointments]);
 
   // ── Unified pending queue (appointments + tests) ─────────────────────
+  // Only status === "pending" rows enter the queue; the Mon–Fri filter below
+  // narrows it to requests preferred within the current week.
   const pendingQueue = useMemo(() => {
     const a = pendingAppointments.map((x) => ({
       key: `a-${x.id}`,
       type: "appointment",
       id: x.id,
-      studentId: x.student_id || x.studentUserId,
-      studentName: x.studentName,
+      studentId: x.student_id || x.studentUserId || x.studentId,
+      studentName: x.studentName || x.student_name,
       college: x.college,
       detail: "General Counseling",
-      date: x.preferredDate,
-      slot: Array.isArray(x.preferredSlots) ? x.preferredSlots[0] : x.timeSlot,
+      date: x.preferredDate || x.preferred_date || null,
+      slot: Array.isArray(x.preferredSlots)
+        ? x.preferredSlots[0]
+        : Array.isArray(x.preferred_slots?.split?.(","))
+          ? x.preferred_slots.split(",")[0]
+          : x.timeSlot || x.preferredTime || x.preferred_time || null,
       isUrgent: Boolean(x.is_urgent || x.isUrgent),
       createdAt: x.createdAt || x.created_at,
     }));
@@ -530,11 +541,11 @@ export default function CounselorDashboard() {
       key: `t-${x.id}`,
       type: "test",
       id: x.id,
-      studentId: x.student_id || x.studentUserId,
-      studentName: x.studentName,
+      studentId: x.student_id || x.studentUserId || x.studentId,
+      studentName: x.studentName || x.student_name,
       college: x.college,
-      detail: x.testType || "Psychological Test",
-      date: x.preferredDate,
+      detail: x.testType || x.test_type || "Psychological Test",
+      date: x.preferredDate || x.preferred_date || null,
       slot: Array.isArray(x.preferredSlots) ? x.preferredSlots[0] : null,
       createdAt: x.createdAt || x.created_at,
     }));
@@ -545,7 +556,10 @@ export default function CounselorDashboard() {
   const onReschedule = (row) => (row.type === "test" ? openRescheduleTest(row.id) : openReschedule(row.id));
   const onReject = (row) => (row.type === "test" ? handleRejectTest(row.id) : handleReject(row.id));
 
-  // Pending requests scheduled within this Mon–Fri, sorted earliest first, capped at 10
+  // Pending requests whose *preferred* date falls within this Mon–Fri,
+  // sorted earliest first, capped at 10. String (YYYY-MM-DD) comparison via
+  // toDateStr avoids the UTC-midnight shift of `new Date("YYYY-MM-DD")`,
+  // which reads as the previous day in UTC+8 and wrongly drops Monday rows.
   const weekPendingQueue = useMemo(() => {
     const now = new Date();
     const day = now.getDay(); // 0=Sun
@@ -555,13 +569,20 @@ export default function CounselorDashboard() {
     const friday = new Date(monday);
     friday.setDate(monday.getDate() + 4);
     friday.setHours(23, 59, 59, 999);
+    const mondayStr = toDateStr(monday);
+    const fridayStr = toDateStr(friday);
     return pendingQueue
       .filter((row) => {
-        if (!row.date) return false;
-        const d = new Date(row.date);
-        return d >= monday && d <= friday;
+        const ds = toDateStr(row.date);
+        if (!ds) return false;
+        return ds >= mondayStr && ds <= fridayStr;
       })
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .sort((x, y) => {
+        const dx = toDateStr(x.date);
+        const dy = toDateStr(y.date);
+        if (dx !== dy) return dx < dy ? -1 : 1;
+        return new Date(x.createdAt || 0) - new Date(y.createdAt || 0);
+      })
       .slice(0, 10);
   }, [pendingQueue]);
 
@@ -704,7 +725,7 @@ export default function CounselorDashboard() {
         </SectionCard>
       </div>
 
-      {/* Pending queue — today only */}
+      {/* Pending queue — preferred dates within this Mon–Fri week only */}
       <SectionCard
         className="mb-6"
         title="Pending queue"
@@ -787,7 +808,7 @@ export default function CounselorDashboard() {
                       </span>
                     ) : (
                       <>
-                        <div className="font-medium text-gray-900">{formatDate(row.date)}</div>
+                        <div className="font-medium text-gray-900">{formatDate(toDateStr(row.date) || row.date)}</div>
                         <div className="text-gray-500">{timeLabel(row.slot)}</div>
                       </>
                     )}
@@ -863,7 +884,7 @@ export default function CounselorDashboard() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{a.studentName}</p>
                     <p className="text-xs text-gray-500 truncate">
-                      {formatDate(a.preferredDate || a.scheduledDate)}
+                      {formatDate(toDateStr(a.preferredDate || a.scheduledDate) || a.preferredDate || a.scheduledDate)}
                       {a.counselor_action_note ? ` · ${a.counselor_action_note}` : ""}
                     </p>
                   </div>
