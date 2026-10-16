@@ -27,7 +27,6 @@ import ChatModal from "../../components/ChatModal";
 import ReschedulePicker from "../../components/ReschedulePicker";
 import { useReferrals } from "../../context/ReferralsContext";
 import { SectionCard, EmptyState, BigStat, DonutStat, VerticalBarChart, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
-import { weekDelta, trendProps } from "../../utils/trends";
 import {
   StudentsByCollegeCard,
   RequestVolumeCard,
@@ -250,48 +249,6 @@ export default function CounselorDashboard() {
   }).length;
 
   const topColleges = Object.entries(studentsByCollege).sort((a, b) => b[1] - a[1]);
-
-  // ── Stat-card trends (real week-over-week from timestamps) ─────────
-  const studentTrend = trendProps(
-    weekDelta(students, (u) => u.created_at || u.createdAt)
-  );
-  const newRequestTrend = trendProps(
-    weekDelta(
-      [...myAppointments, ...myTests, ...(referrals || [])],
-      (r) => r.createdAt || r.created_at
-    )
-  );
-  const yesterdayStr = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  })();
-  const yesterdayCount = myAppointments.filter((a) => {
-    if (a.status !== "approved" && a.status !== "rescheduled") return false;
-    return toDateStr(getApptDate(a)) === yesterdayStr;
-  }).length;
-  const todayPct =
-    yesterdayCount > 0
-      ? Math.round(((todayAppointments - yesterdayCount) / yesterdayCount) * 100)
-      : null;
-  const todayBadge =
-    todayPct != null
-      ? {
-          text: `${todayPct > 0 ? "+" : ""}${todayPct}%`,
-          dir: todayPct > 0 ? "up" : todayPct < 0 ? "down" : "flat",
-        }
-      : todayAppointments > 0
-        ? { text: "New today", dir: "up" }
-        : null;
-  const dueWeekCount = myAppointments.filter((a) => {
-    if (a.status !== "approved" && a.status !== "rescheduled") return false;
-    const ds = toDateStr(getApptDate(a));
-    if (!ds || ds < todayStr) return false;
-    const diffDays =
-      (new Date(`${ds}T00:00:00`) - new Date(`${todayStr}T00:00:00`)) / 86400000;
-    return diffDays <= 7;
-  }).length;
 
   const appointmentStatusBreakdown = useMemo(() => {
     const counts = {};
@@ -666,9 +623,6 @@ export default function CounselorDashboard() {
           icon={Users}
           tone="maroon"
           variant="dark"
-          badge={studentTrend.badge}
-          trend={studentTrend.trend}
-          trendDir={studentTrend.trendDir}
         />
         <BigStat
           label="Pending requests"
@@ -676,9 +630,6 @@ export default function CounselorDashboard() {
           hint="Awaiting response"
           icon={Clock3}
           tone="amber"
-          badge={newRequestTrend.badge}
-          trend={newRequestTrend.trend}
-          trendDir={newRequestTrend.trendDir}
         />
         <BigStat
           label="Today's appointments"
@@ -686,7 +637,6 @@ export default function CounselorDashboard() {
           hint="Scheduled for today"
           icon={Calendar}
           tone="emerald"
-          badge={todayBadge}
         />
         <BigStat
           label="Incoming appointments"
@@ -694,7 +644,6 @@ export default function CounselorDashboard() {
           hint="Approved, rescheduled & follow-up"
           icon={Inbox}
           tone="blue"
-          badge={{ text: `${dueWeekCount} in 7 days`, dir: "neutral" }}
         />
       </div>
 

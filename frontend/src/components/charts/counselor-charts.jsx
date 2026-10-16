@@ -353,7 +353,7 @@ function InteractiveAreaCard({
           config={chartConfig}
           className="aspect-auto h-[250px] w-full"
         >
-          <AreaChart data={filteredData}>
+          <AreaChart data={filteredData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
             <defs>
               {series.map((s) => (
                 <linearGradient
@@ -386,6 +386,14 @@ function InteractiveAreaCard({
               minTickGap={28}
               tick={{ fontSize: 11, fill: "#6b7280" }}
             />
+            <YAxis
+              allowDecimals={false}
+              width={30}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fontSize: 11, fill: "#6b7280" }}
+              domain={[0, (dataMax) => Math.max(4, Math.ceil(Number(dataMax || 0) * 1.2))]}
+            />
             <ChartTooltip
               cursor={false}
               content={
@@ -396,7 +404,7 @@ function InteractiveAreaCard({
               <Area
                 key={s.key}
                 dataKey={s.key}
-                type="natural"
+                type="monotone"
                 name={s.key}
                 fill={`url(#fill-${title}-${s.key}`.replace(/[^a-zA-Z0-9-]/g, "") + ")"}
                 stroke={s.color}

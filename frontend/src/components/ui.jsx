@@ -399,7 +399,7 @@ export function TrendAreaChart({ data, emptyIcon, emptyTitle = "No activity yet"
       </div>
       <div style={{ width: "100%", height: 250 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="trendAppt" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#0B6623" stopOpacity={0.28} />
@@ -424,6 +424,7 @@ export function TrendAreaChart({ data, emptyIcon, emptyTitle = "No activity yet"
               tick={{ fontSize: 11, fill: "#6b7280" }}
               tickLine={false}
               axisLine={false}
+              domain={[0, (dataMax) => Math.max(4, Math.ceil(Number(dataMax || 0) * 1.2))]}
             />
             <Tooltip
               contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}
@@ -521,7 +522,7 @@ export function TrendLineChart({ data, series = [], emptyIcon, emptyTitle = "No 
       </div>
       <div style={{ width: "100%", height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="#f1f5f9" />
             <XAxis
               dataKey="label"
@@ -536,6 +537,7 @@ export function TrendLineChart({ data, series = [], emptyIcon, emptyTitle = "No 
               tick={{ fontSize: 11, fill: "#6b7280" }}
               tickLine={false}
               axisLine={false}
+              domain={[0, (dataMax) => Math.max(4, Math.ceil(Number(dataMax || 0) * 1.2))]}
             />
             <Tooltip
               contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}

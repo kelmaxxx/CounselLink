@@ -20,6 +20,7 @@ const baseSelect = `
   SELECT r.id, r.student_id, r.referrer_id, r.receiving_counselor_id,
          r.reason, r.notes, r.status, r.decision_note, r.decided_at,
          r.created_at, r.updated_at, r.student_department AS studentDepartment,
+         r.requested_date AS requestedDate, r.requested_time AS requestedTime,
          stu.name AS studentName, stu.email AS studentEmail, stu.college AS studentCollege,
          ref.name AS referrerName, ref.role AS referrerRole, ref.college AS referrerCollege,
          rec.name AS receivingCounselorName
@@ -46,6 +47,8 @@ export const createReferral = async (req, res) => {
     referrerContactNumber,
     referrerPosition,
     referrerDepartment,
+    requestedDate,
+    requestedTime,
   } = req.body || {};
 
   const trimmed = {
@@ -61,6 +64,8 @@ export const createReferral = async (req, res) => {
     referrerContactNumber: (referrerContactNumber || "").trim(),
     referrerPosition: (referrerPosition || "").trim(),
     referrerDepartment: (referrerDepartment || "").trim(),
+    requestedDate: normalizeDate(requestedDate),
+    requestedTime: (requestedTime || "").trim(),
   };
 
   const finalFullName = [trimmed.firstName, trimmed.middleName, trimmed.familyName].filter(Boolean).join(" ") || (fullName || "").trim();
@@ -90,6 +95,20 @@ export const createReferral = async (req, res) => {
 
   if (!isValidPhMobile(trimmed.referrerContactNumber)) {
     return res.status(400).json({ message: "Referrer contact number must start with 09 and have 11 digits" });
+  }
+
+  // Preferred schedule set by the College rep — required so counselor
+  // Accept is a direct approve (only Reschedule picks a new slot).
+  if (!trimmed.requestedDate || !trimmed.requestedTime) {
+    return res.status(400).json({ message: "Please pick a preferred date and time slot for the session." });
+  }
+  const todayISO = new Date().toISOString().split("T")[0];
+  if (trimmed.requestedDate < todayISO) {
+    return res.status(400).json({ message: "Preferred date cannot be in the past." });
+  }
+  const reqWd = new Date(`${trimmed.requestedDate}T00:00:00`);
+  if (!isNaN(reqWd) && (reqWd.getDay() === 0 || reqWd.getDay() === 6)) {
+    return res.status(400).json({ message: "Sessions cannot be scheduled on Saturday or Sunday." });
   }
 
   if (req.user?.college && trimmed.college.toLowerCase() !== req.user.college.toLowerCase()) {
@@ -165,9 +184,9 @@ export const createReferral = async (req, res) => {
 
   const result = await query(
     `INSERT INTO referrals
-       (student_id, referrer_id, receiving_counselor_id, reason, notes, status, student_department)
-     VALUES (?, ?, NULL, ?, NULL, 'pending', ?)`,
-    [student.id, referrerId, reason, trimmed.department || null]
+       (student_id, referrer_id, receiving_counselor_id, reason, notes, status, student_department, requested_date, requested_time)
+     VALUES (?, ?, NULL, ?, NULL, 'pending', ?, ?, ?)`,
+    [student.id, referrerId, reason, trimmed.department || null, trimmed.requestedDate, trimmed.requestedTime]
   );
 
   // Notify all counselors since the referral is not assigned to a specific one.
@@ -264,11 +283,6 @@ export const decideReferral = async (req, res) => {
       .status(400)
       .json({ message: "A decision note is required when rejecting" });
   }
-  if (status === "accepted" && (!scheduledDate || !scheduledTime)) {
-    return res
-      .status(400)
-      .json({ message: "Scheduled date and time are required when accepting" });
-  }
   if (status === "rescheduled" && (!scheduledDate || !scheduledTime)) {
     return res
       .status(400)
@@ -282,6 +296,7 @@ export const decideReferral = async (req, res) => {
 
   const [referral] = await query(
     `SELECT r.id, r.receiving_counselor_id, r.referrer_id, r.status, r.student_id, r.reason,
+            r.requested_date, r.requested_time,
             ref.email AS referrerEmail, ref.name AS referrerName,
             stu.name AS studentName
      FROM referrals r
@@ -298,8 +313,25 @@ export const decideReferral = async (req, res) => {
     return res.status(409).json({ message: `Referral is already ${referral.status}` });
   }
 
-  const normalizedDate = status === "accepted" || status === "rescheduled" ? normalizeDate(scheduledDate) : null;
-  const trimmedTime = status === "accepted" || status === "rescheduled" ? String(scheduledTime).trim() : null;
+  // Accept is a direct approve: it uses the preferred schedule the College
+  // rep set at creation. Only Reschedule takes a new date/time from the body.
+  // (Fallback to body values keeps pre-migration referrals without a stored
+  // schedule actionable — the counselor can Reschedule those instead.)
+  let normalizedDate = null;
+  let trimmedTime = null;
+  if (status === "accepted") {
+    normalizedDate = normalizeDate(referral.requested_date) || normalizeDate(scheduledDate);
+    const rawTime = (referral.requested_time || "").trim() || String(scheduledTime || "").trim();
+    trimmedTime = rawTime || null;
+    if (!normalizedDate || !trimmedTime) {
+      return res.status(400).json({
+        message: "This referral has no requested schedule — please use Reschedule to set one instead.",
+      });
+    }
+  } else if (status === "rescheduled") {
+    normalizedDate = normalizeDate(scheduledDate);
+    trimmedTime = String(scheduledTime).trim();
+  }
 
   if (normalizedDate) {
     const wd = new Date(`${normalizedDate}T00:00:00`);
