@@ -253,6 +253,10 @@ export default function InventoryForm({
   const [feedback, setFeedback] = useState(null);
   const [scanInputKey, setScanInputKey] = useState(0); 
   const [confirmRemoveScan, setConfirmRemoveScan] = useState(false);
+  // URL of the 2x2 photo that failed to load (file deleted from the server).
+  // Compared against the current URL (not a boolean) so switching students
+  // automatically retries the new photo without an effect.
+  const [brokenAvatarUrl, setBrokenAvatarUrl] = useState(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const dirtyRef = useRef(false);
   const printRef = useRef(null);
@@ -666,12 +670,15 @@ export default function InventoryForm({
 
             {/* Picture box */}
             <div className="w-[75px] h-[75px] border border-black flex flex-col items-center justify-center text-center select-none shrink-0 self-start overflow-hidden relative">
-              {studentAvatarUrl ? (
-                <img src={studentAvatarUrl} alt="1x1 Picture" className="w-full h-full object-cover" />
+              {studentAvatarUrl && brokenAvatarUrl !== studentAvatarUrl ? (
+                <img src={studentAvatarUrl} alt="1x1 Picture" onError={() => setBrokenAvatarUrl(studentAvatarUrl)} className="w-full h-full object-cover" />
               ) : (
                 <div className="p-1">
                   <div className="text-[9px] font-bold">1x1</div>
                   <div className="text-[9px] font-bold">Picture</div>
+                  {studentAvatarUrl && brokenAvatarUrl === studentAvatarUrl && (
+                    <div className="text-[7px] text-amber-700 leading-tight mt-0.5">photo missing on server</div>
+                  )}
                 </div>
               )}
             </div>

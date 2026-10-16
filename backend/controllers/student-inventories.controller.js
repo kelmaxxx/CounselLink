@@ -179,6 +179,19 @@ export const downloadInventoryDocx = async (req, res) => {
     counselorName,
   };
 
+  // Missing files fail silently into a transparent pixel (see inventory-docx.js),
+  // so log them — a blank 2x2/signature in the download almost always means the
+  // file is gone from the uploads directory (e.g. ephemeral disk was wiped).
+  if (row.studentAvatarUrl && !signatures.studentAvatar) {
+    console.warn(`Inventory docx for student ${studentId}: avatar file missing (${row.studentAvatarUrl})`);
+  }
+  if (row.studentSignatureUrl && !signatures.studentSignature) {
+    console.warn(`Inventory docx for student ${studentId}: student signature file missing (${row.studentSignatureUrl})`);
+  }
+  if (counselorSignatureUrl && !signatures.counselorSignature) {
+    console.warn(`Inventory docx for student ${studentId}: counselor signature file missing (${counselorSignatureUrl})`);
+  }
+
   let buffer;
   try {
     buffer = generateInventoryDocx(row.formData || {}, profile, signatures);

@@ -14,10 +14,13 @@ import Docxtemplater from "docxtemplater";
 import ImageModule from "docxtemplater-image-module-free";
 import { imageSize } from "image-size";
 import { FIELD_WIDTHS, fit } from "./inventory-field-widths.js";
+import { getUploadsDir } from "../middleware/upload.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = path.join(__dirname, "..", "templates", "individual-inventory-template.docx");
-const UPLOADS_DIR = path.join(__dirname, "..", "uploads");
+// Resolved lazily (see readSignatureFile/readAvatarFile): dotenv loads AFTER
+// module imports, so reading UPLOADS_DIR at import time would ignore .env.
+const uploadsDirNow = () => getUploadsDir();
 
 // Fits a signature into the form's blank without distortion (px @ 96dpi).
 const SIG_MAX_W = 170;
@@ -48,8 +51,9 @@ const signatureSize = (buffer, tagValue) => {
 export function readSignatureFile(signatureUrl) {
   if (!signatureUrl || typeof signatureUrl !== "string") return null;
   if (!signatureUrl.startsWith("/uploads/")) return null;
-  const filePath = path.resolve(UPLOADS_DIR, signatureUrl.slice("/uploads/".length));
-  if (!filePath.startsWith(path.resolve(UPLOADS_DIR))) return null;
+  const base = path.resolve(uploadsDirNow());
+  const filePath = path.resolve(base, signatureUrl.slice("/uploads/".length));
+  if (!filePath.startsWith(base)) return null;
   try {
     return fs.readFileSync(filePath);
   } catch {
@@ -77,8 +81,9 @@ const avatarSize = (buffer, tagValue) => {
 export function readAvatarFile(avatarUrl) {
   if (!avatarUrl || typeof avatarUrl !== "string") return null;
   if (!avatarUrl.startsWith("/uploads/")) return null;
-  const filePath = path.resolve(UPLOADS_DIR, avatarUrl.slice("/uploads/".length));
-  if (!filePath.startsWith(path.resolve(UPLOADS_DIR))) return null;
+  const base = path.resolve(uploadsDirNow());
+  const filePath = path.resolve(base, avatarUrl.slice("/uploads/".length));
+  if (!filePath.startsWith(base)) return null;
   try {
     return fs.readFileSync(filePath);
   } catch {

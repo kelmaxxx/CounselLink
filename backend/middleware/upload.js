@@ -5,14 +5,34 @@ import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const uploadsDir = path.join(__dirname, "..", "uploads");
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Uploads live on local disk. On ephemeral hosting (e.g. Render free tier)
+// the deploy directory is wiped on every redeploy/restart, which silently
+// deletes avatars, CORs, scans and test-result files. Point UPLOADS_DIR at a
+// persistent volume (e.g. a Render Disk mounted at /var/data/uploads) so
+// uploaded files survive restarts. Defaults to backend/uploads for local dev.
+export function getUploadsDir() {
+  const configured = process.env.UPLOADS_DIR;
+  const dir = configured && configured.trim()
+    ? path.resolve(configured.trim())
+    : path.join(__dirname, "..", "uploads");
+  return dir;
 }
 
+// mkdir -p helper. Called lazily (per upload request) instead of at import
+// time, because dotenv loads AFTER module imports — resolving the directory
+// at import time would ignore a UPLOADS_DIR set in .env.
+export function ensureDir(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+const subdir = (name) => path.join(getUploadsDir(), name);
+
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  destination: (_req, _file, cb) => cb(null, ensureDir(getUploadsDir())),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname);
     const safeName = file.fieldname + "-" + Date.now() + ext;
@@ -42,13 +62,8 @@ export const recordScanUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-const avatarsDir = path.join(uploadsDir, "avatars");
-if (!fs.existsSync(avatarsDir)) {
-  fs.mkdirSync(avatarsDir, { recursive: true });
-}
-
 const avatarStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, avatarsDir),
+  destination: (_req, _file, cb) => cb(null, ensureDir(subdir("avatars"))),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const userId = req.user?.id || "anon";
@@ -70,13 +85,8 @@ export const avatarUpload = multer({
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 
-const signaturesDir = path.join(uploadsDir, "signatures");
-if (!fs.existsSync(signaturesDir)) {
-  fs.mkdirSync(signaturesDir, { recursive: true });
-}
-
 const signatureStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, signaturesDir),
+  destination: (_req, _file, cb) => cb(null, ensureDir(subdir("signatures"))),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const userId = req.user?.id || "anon";
@@ -93,13 +103,8 @@ export const signatureUpload = multer({
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 
-const pubmatsDir = path.join(uploadsDir, "pubmats");
-if (!fs.existsSync(pubmatsDir)) {
-  fs.mkdirSync(pubmatsDir, { recursive: true });
-}
-
 const pubmatStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, pubmatsDir),
+  destination: (_req, _file, cb) => cb(null, ensureDir(subdir("pubmats"))),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const adminId = req.user?.id || "anon";
@@ -113,13 +118,8 @@ export const pubmatUpload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
-const testResultsDir = path.join(uploadsDir, "test-results");
-if (!fs.existsSync(testResultsDir)) {
-  fs.mkdirSync(testResultsDir, { recursive: true });
-}
-
 const testResultStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, testResultsDir),
+  destination: (_req, _file, cb) => cb(null, ensureDir(subdir("test-results"))),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const counselorId = req.user?.id || "anon";
