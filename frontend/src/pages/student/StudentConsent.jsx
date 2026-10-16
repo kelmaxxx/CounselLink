@@ -193,11 +193,21 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
 
   const fileUrl = result.resultFileUrl || result.result_file_url || null;
   const fileName = result.resultFileName || result.result_file_name || "";
-  const fileType = result.resultFileType || result.result_file_type || "";
   const fileHref = fileUrl
     ? (fileUrl.startsWith("http") ? fileUrl : `${API_BASE}${fileUrl}`)
     : null;
-  const isImage = fileUrl && (/^image\//i.test(fileType) || /\.(png|jpe?g|webp|gif)$/i.test(fileUrl));
+
+  // Probe the attachment once: if the file is gone from the server (e.g.
+  // ephemeral disk was wiped), hide the File button and explain instead of
+  // opening a broken link.
+  useEffect(() => {
+    if (!fileHref) return;
+    let cancelled = false;
+    fetch(fileHref, { method: "HEAD" })
+      .then((res) => { if (!cancelled && !res.ok) setFileBroken(true); })
+      .catch(() => { if (!cancelled) setFileBroken(true); });
+    return () => { cancelled = true; };
+  }, [fileHref]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -259,24 +269,12 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
         </div>
       </div>
 
-      {fileHref && !fileBroken && isImage && (
-        <a href={fileHref} target="_blank" rel="noopener noreferrer" className="block mt-2">
-          <img
-            src={fileHref}
-            alt={fileName || "Attached test file"}
-            onError={() => setFileBroken(true)}
-            className="max-h-48 rounded-lg border border-gray-200 object-contain bg-gray-50 hover:opacity-90 transition"
-          />
-        </a>
-      )}
-      {fileHref && !fileBroken && !isImage && fileName && (
-        <p className="text-xs text-gray-500 mt-1.5 truncate">
-          Attached: <span className="font-medium text-gray-700">{fileName}</span> — open via the File button above.
-        </p>
-      )}
+      {/* The attachment itself is not shown inline here — it rides along as
+          its own page(s) in the saved PDF (Save button), and the original
+          file opens via the File button. */}
       {fileBroken && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 mt-1.5">
-          The attached file is no longer available on the server. Please ask your counselor to re-upload it.
+          The attached file is no longer available on the server. It will also be missing from the saved PDF — please ask your counselor to re-upload it.
         </p>
       )}
 
