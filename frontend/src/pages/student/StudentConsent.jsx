@@ -189,6 +189,15 @@ function TestResultsSection({ studentName, token, submittedTestIds, onTestFeedba
 function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbackSubmitted }) {
   const [saving, setSaving] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [fileBroken, setFileBroken] = useState(false);
+
+  const fileUrl = result.resultFileUrl || result.result_file_url || null;
+  const fileName = result.resultFileName || result.result_file_name || "";
+  const fileType = result.resultFileType || result.result_file_type || "";
+  const fileHref = fileUrl
+    ? (fileUrl.startsWith("http") ? fileUrl : `${API_BASE}${fileUrl}`)
+    : null;
+  const isImage = fileUrl && (/^image\//i.test(fileType) || /\.(png|jpe?g|webp|gif)$/i.test(fileUrl));
 
   const handleSave = async () => {
     setSaving(true);
@@ -217,6 +226,17 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
           </p>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {fileHref && !fileBroken && (
+            <a
+              href={fileHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-7 px-2 inline-flex items-center gap-1 rounded-md border border-gray-200 text-gray-600 hover:text-maroon-600 hover:border-maroon-300 hover:bg-maroon-50 transition text-xs font-medium"
+              title={fileName ? `View attached file (${fileName})` : "View attached file"}
+            >
+              <Download size={12} /> File
+            </a>
+          )}
           {!alreadyFeedback && (result.counselorId || result.counselor_id) && (
             <button
               onClick={() => setFeedbackOpen(true)}
@@ -238,6 +258,27 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
           </button>
         </div>
       </div>
+
+      {fileHref && !fileBroken && isImage && (
+        <a href={fileHref} target="_blank" rel="noopener noreferrer" className="block mt-2">
+          <img
+            src={fileHref}
+            alt={fileName || "Attached test file"}
+            onError={() => setFileBroken(true)}
+            className="max-h-48 rounded-lg border border-gray-200 object-contain bg-gray-50 hover:opacity-90 transition"
+          />
+        </a>
+      )}
+      {fileHref && !fileBroken && !isImage && fileName && (
+        <p className="text-xs text-gray-500 mt-1.5 truncate">
+          Attached: <span className="font-medium text-gray-700">{fileName}</span> — open via the File button above.
+        </p>
+      )}
+      {fileBroken && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 mt-1.5">
+          The attached file is no longer available on the server. Please ask your counselor to re-upload it.
+        </p>
+      )}
 
       {feedbackOpen && (
         <ClientFeedbackFormModal

@@ -21,12 +21,13 @@ const formatDate = (value) => {
   }
 };
 
-function buildTestResultHTML(result, { studentName, signatureImageUrl } = {}) {
+function buildTestResultHTML(result, { studentName, signatureImageUrl, attachmentImageUrl } = {}) {
   const docTitle = "Psychological Test Result";
   const testName = result.testName ?? result.test_name ?? "";
   const completedRaw = result.completedDate ?? result.completed_date ?? null;
   const counselorName =
     result.counselorName ?? result.counselor_name ?? "";
+  const attachedName = result.resultFileName ?? result.result_file_name ?? "";
 
   return `<!doctype html>
 <html>
@@ -72,6 +73,8 @@ function buildTestResultHTML(result, { studentName, signatureImageUrl } = {}) {
   ${result.summary ? `<div class="section-label">Summary:</div><p class="section-body">${formatLine(result.summary)}</p>` : ""}
   ${result.recommendations ? `<div class="section-label">Recommendations:</div><p class="section-body">${formatLine(result.recommendations)}</p>` : ""}
 
+  ${attachmentImageUrl ? `<div class="section-label">Attached file${attachedName ? ` (${escapeHtml(attachedName)})` : ""}:</div><p class="section-body"><img src="${attachmentImageUrl}" style="max-width:100%;border:1px solid #999;" alt="Attached test file" /></p>` : attachedName ? `<div class="section-label">Attached file:</div><p class="section-body">${escapeHtml(attachedName)} (view the original file from My Records)</p>` : ""}
+
   <div class="signature-block">
     ${signatureImageUrl ? `<img class="signature-img" src="${signatureImageUrl}" alt="Counselor signature" />` : ""}
     <div class="signature-line">${formatLine(counselorName)}</div>
@@ -94,7 +97,17 @@ export async function saveTestResultAsPdfFile(result, opts = {}) {
         result?.counselor_signature_url ||
         result?.counselor_signatureUrl
     ));
-  const html = buildTestResultHTML(result, { ...opts, signatureImageUrl });
+  // Inline the counselor's uploaded attachment so the saved PDF carries the
+  // same evidence both parties saw on screen. Only images can be embedded —
+  // PDFs/Word docs fall back to a filename note in buildTestResultHTML.
+  // resolveSignatureDataUrl is a generic fetch-to-dataURL helper despite its name.
+  let attachmentImageUrl = null;
+  const fileUrl = result?.resultFileUrl ?? result?.result_file_url ?? null;
+  const fileType = result?.resultFileType ?? result?.result_file_type ?? "";
+  if (fileUrl && (/^image\//i.test(fileType) || /\.(png|jpe?g|webp|gif)$/i.test(fileUrl))) {
+    attachmentImageUrl = await resolveSignatureDataUrl(fileUrl);
+  }
+  const html = buildTestResultHTML(result, { ...opts, signatureImageUrl, attachmentImageUrl });
   const testName = result.testName ?? result.test_name ?? opts.studentName;
   await saveHtmlAsPdfFile(html, `${safeFileBase(testName, opts.studentName)}.pdf`, { pageWidthIn: 8.27, pageHeightIn: 11.69 });
 }

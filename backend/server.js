@@ -33,6 +33,7 @@ import metaRoutes from "./routes/meta.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import dns from "dns";
+import { getUploadsDir } from "./middleware/upload.js";
 
 dotenv.config();
 
@@ -71,7 +72,7 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(getUploadsDir()));
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 

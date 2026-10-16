@@ -43,6 +43,12 @@ export default function PendingRegistrations() {
 
   const [pendingUsers, setPendingUsers] = useState([]);
   const [approvedThisWeek, setApprovedThisWeek] = useState(0);
+  // Tracks per-user avatar load failures (file deleted from the server) so a
+  // broken image is replaced by initials instead of a broken-image icon.
+  const [brokenAvatars, setBrokenAvatars] = useState({});
+  const [brokenCors, setBrokenCors] = useState({});
+  // Same idea for the COR full-view modal.
+  const [corBroken, setCorBroken] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -224,13 +230,14 @@ export default function PendingRegistrations() {
               <div className="p-4">
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
-                    {(user.avatarUrl || user.avatar_url) ? (
+                    {(user.avatarUrl || user.avatar_url) && !brokenAvatars[user.id] ? (
                       <img
                         src={(() => {
                           const url = user.avatarUrl || user.avatar_url;
                           return url.startsWith("http") ? url : `${apiBase}${url}`;
                         })()}
                         alt={user.name}
+                        onError={() => setBrokenAvatars((prev) => ({ ...prev, [user.id]: true }))}
                         className="w-12 h-12 rounded-full object-cover flex-shrink-0 ring-1 ring-gray-200"
                       />
                     ) : (
@@ -288,15 +295,17 @@ export default function PendingRegistrations() {
                     <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
                       Certificate of Registration
                     </p>
-                    {buildCorUrl(user) ? (
+                    {buildCorUrl(user) && !brokenCors[user.id] ? (
                       <>
                         {buildCorUrl(user).match(/\.(png|jpg|jpeg)$/i) ? (
                           <img
                             src={buildCorUrl(user)}
                             alt="COR Preview"
+                            onError={() => setBrokenCors((prev) => ({ ...prev, [user.id]: true }))}
                             className="w-28 h-20 object-cover border border-gray-200 rounded-md cursor-pointer hover:opacity-80 transition"
                             onClick={() => {
                               setSelectedUser(user);
+                              setCorBroken(false);
                               setShowCorModal(true);
                             }}
                           />
@@ -308,6 +317,7 @@ export default function PendingRegistrations() {
                         <button
                           onClick={() => {
                             setSelectedUser(user);
+                            setCorBroken(false);
                             setShowCorModal(true);
                           }}
                           className="text-xs text-maroon-600 hover:text-maroon-700 font-medium inline-flex items-center gap-1"
@@ -315,6 +325,10 @@ export default function PendingRegistrations() {
                           <Eye size={11} /> View full
                         </button>
                       </>
+                    ) : brokenCors[user.id] ? (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                        COR file no longer on server — ask the student to resubmit.
+                      </p>
                     ) : (
                       <p className="text-xs text-gray-500">No COR uploaded</p>
                     )}
@@ -415,10 +429,18 @@ export default function PendingRegistrations() {
       >
         {selectedUser && (
           <>
-            {buildCorUrl(selectedUser)?.match(/\.(png|jpg|jpeg)$/i) ? (
+            {corBroken ? (
+              <div className="text-center p-8">
+                <FileText size={32} className="text-amber-500 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">
+                  This COR file is no longer available on the server. Ask the student to resubmit it.
+                </p>
+              </div>
+            ) : buildCorUrl(selectedUser)?.match(/\.(png|jpg|jpeg)$/i) ? (
               <img
                 src={buildCorUrl(selectedUser)}
                 alt="Certificate of Registration"
+                onError={() => setCorBroken(true)}
                 className="w-full h-auto border border-gray-200 rounded-md"
               />
             ) : (

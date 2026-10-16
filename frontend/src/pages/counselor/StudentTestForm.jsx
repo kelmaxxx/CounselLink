@@ -44,11 +44,24 @@ export default function StudentTestForm() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { tests } = useTests();
-  const { createTestResult } = useTestResults();
+  const { createTestResult, testResults } = useTestResults();
   const { completeAppointment } = useAppointments();
 
   const testId = Number(id);
   const testReq = useMemo(() => tests.find((t) => t.id === testId), [tests, testId]);
+  // The file already uploaded for this test (survives reloads — unlike
+  // form.resultFile, which is only the just-picked local File). Shown in the
+  // upload/review steps so a released result's attachment stays visible.
+  const storedResult = useMemo(
+    () => (testResults || []).find((r) => Number(r.appointment_id ?? r.appointmentId) === testId),
+    [testResults, testId]
+  );
+  const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+  const storedFileHref = useMemo(() => {
+    const url = storedResult?.resultFileUrl || storedResult?.result_file_url;
+    if (!url) return null;
+    return url.startsWith("http") ? url : `${apiBase}${url}`;
+  }, [storedResult, apiBase]);
 
   const [step, setStep] = useState(0);
   const [submittingReport, setSubmittingReport] = useState(false);
@@ -221,7 +234,7 @@ export default function StudentTestForm() {
             <RecommendationsStep form={form} setField={setField} disabled={isFinalized} />
           )}
           {current.id === "upload" && (
-            <UploadStep form={form} setField={setField} disabled={isFinalized} />
+            <UploadStep form={form} setField={setField} disabled={isFinalized} storedFileHref={storedFileHref} storedFileName={storedResult?.resultFileName || storedResult?.result_file_name} />
           )}
           {current.id === "review" && (
             <ReviewStep
@@ -230,6 +243,8 @@ export default function StudentTestForm() {
               setField={setField}
               onJump={setStep}
               isFinalized={isFinalized}
+              storedFileHref={storedFileHref}
+              storedFileName={storedResult?.resultFileName || storedResult?.result_file_name}
             />
           )}
 
@@ -399,7 +414,7 @@ function RecommendationsStep({ form, setField, disabled }) {
   );
 }
 
-function UploadStep({ form, setField, disabled }) {
+function UploadStep({ form, setField, disabled, storedFileHref, storedFileName }) {
   const inputRef = useRef(null);
   const file = form.resultFile;
   const previewUrl = useMemo(
@@ -467,6 +482,23 @@ function UploadStep({ form, setField, disabled }) {
               </button>
             )}
           </div>
+        ) : storedFileHref ? (
+          <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50/50 p-3">
+            <span className="w-14 h-14 rounded-lg bg-green-50 flex items-center justify-center text-green-600 flex-shrink-0">
+              <FileText size={22} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900 truncate">{storedFileName || "Uploaded file"}</p>
+              <a
+                href={storedFileHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:underline font-medium"
+              >
+                View uploaded file
+              </a>
+            </div>
+          </div>
         ) : (
           <button
             type="button"
@@ -491,7 +523,7 @@ function UploadStep({ form, setField, disabled }) {
   );
 }
 
-function ReviewStep({ printRef, form, setField, onJump, isFinalized }) {
+function ReviewStep({ printRef, form, setField, onJump, isFinalized, storedFileHref, storedFileName }) {
   return (
     <StepCard
       icon={FileText}
@@ -521,6 +553,13 @@ function ReviewStep({ printRef, form, setField, onJump, isFinalized }) {
         <ReviewBlock title="Uploaded file" onEdit={isFinalized ? null : () => onJump(3)}>
           {form.resultFile ? (
             <p className="text-sm text-gray-900">{form.resultFile.name}</p>
+          ) : storedFileHref ? (
+            <p className="text-sm text-gray-900">
+              {storedFileName || "Uploaded file"}{" "}
+              <a href={storedFileHref} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs font-medium">
+                View file
+              </a>
+            </p>
           ) : (
             <p className="text-sm text-gray-500">No file attached.</p>
           )}
