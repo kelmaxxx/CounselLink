@@ -21,13 +21,12 @@ const formatDate = (value) => {
   }
 };
 
-function buildTestResultHTML(result, { studentName, signatureImageUrl, attachmentImageUrl } = {}) {
+function buildTestResultHTML(result, { studentName, signatureImageUrl, attachmentNote } = {}) {
   const docTitle = "Psychological Test Result";
   const testName = result.testName ?? result.test_name ?? "";
   const completedRaw = result.completedDate ?? result.completed_date ?? null;
   const counselorName =
     result.counselorName ?? result.counselor_name ?? "";
-  const attachedName = result.resultFileName ?? result.result_file_name ?? "";
 
   return `<!doctype html>
 <html>
@@ -72,8 +71,7 @@ function buildTestResultHTML(result, { studentName, signatureImageUrl, attachmen
 
   ${result.summary ? `<div class="section-label">Summary:</div><p class="section-body">${formatLine(result.summary)}</p>` : ""}
   ${result.recommendations ? `<div class="section-label">Recommendations:</div><p class="section-body">${formatLine(result.recommendations)}</p>` : ""}
-
-  ${attachmentImageUrl ? `<div class="section-label">Attached file${attachedName ? ` (${escapeHtml(attachedName)})` : ""}:</div><p class="section-body"><img src="${attachmentImageUrl}" style="max-width:100%;border:1px solid #999;" alt="Attached test file" /></p>` : attachedName ? `<div class="section-label">Attached file:</div><p class="section-body">${escapeHtml(attachedName)} (view the original file from My Records)</p>` : ""}
+  ${attachmentNote ? `<div class="section-label">Attachment:</div><p class="section-body">${formatLine(attachmentNote)}</p>` : ""}
 
   <div class="signature-block">
     ${signatureImageUrl ? `<img class="signature-img" src="${signatureImageUrl}" alt="Counselor signature" />` : ""}
@@ -88,6 +86,112 @@ function buildTestResultHTML(result, { studentName, signatureImageUrl, attachmen
 const safeFileBase = (testName, studentName) =>
   `test_result_${(testName || studentName || "result").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "")}`.toLowerCase();
 
+// The uploaded attachment is NEVER inlined into the result page — it rides
+// along as its own PDF page(s) after it (photo on its own page, PDF/DOCX
+// pages rasterized below). Helpers below turn each supported file kind into
+// printable page images.
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const toAbsoluteUrl = (url) => (/^https?:\/\//i.test(url) ? url : `${API_BASE}${url}`);
+
+async function fetchAttachmentBlob(fileUrl) {
+  try {
+    const res = await fetch(toAbsoluteUrl(fileUrl));
+    if (!res.ok) return null;
+    return await res.blob();
+  } catch {
+    return null;
+  }
+}
+
+const blobToDataUrl = (blob) =>
+  new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(blob);
+  });
+
+// Downscale a photo to a print-sane width so the saved PDF stays small.
+async function photoToPageImage(dataUrl, maxWidth = 1240) {
+  const dims = await new Promise((resolve) => {
+    const probe = new Image();
+    probe.onload = () => resolve({ w: probe.naturalWidth, h: probe.naturalHeight });
+    probe.onerror = () => resolve(null);
+    probe.src = dataUrl;
+  });
+  if (!dims) return null;
+  if (dims.w <= maxWidth) return dataUrl;
+  const canvas = document.createElement("canvas");
+  canvas.width = maxWidth;
+  canvas.height = Math.round((dims.h / dims.w) * maxWidth);
+  const ctx = canvas.getContext("2d");
+  const img = await new Promise((resolve) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => resolve(null);
+    el.src = dataUrl;
+  });
+  if (!img) return dataUrl;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+// Rasterize each page of an attached PDF (cap 10 pages) into page images.
+async function rasterizePdfAttachment(blob, maxPages = 10) {
+  try {
+    const pdfjsLib = await import("pdfjs-dist");
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      const { default: workerUrl } = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+    }
+    const pdf = await pdfjsLib.getDocument({ data: await blob.arrayBuffer() }).promise;
+    const pages = [];
+    try {
+      const n = Math.min(pdf.numPages, maxPages);
+      for (let p = 1; p <= n; p++) {
+        const page = await pdf.getPage(p);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        pages.push(canvas.toDataURL("image/jpeg", 0.92));
+        page.cleanup();
+      }
+    } finally {
+      await pdf.destroy().catch(() => undefined);
+    }
+    return pages;
+  } catch (err) {
+    console.error("Failed to rasterize attached PDF:", err);
+    return [];
+  }
+}
+
+// Render an attached DOCX into page images via docx-preview (already a dep).
+async function rasterizeDocxAttachment(blob) {
+  const host = document.createElement("div");
+  host.style.cssText = "position:fixed;top:-10000px;left:0;width:794px;background:#fff;";
+  document.body.appendChild(host);
+  try {
+    const { renderAsync } = await import("docx-preview");
+    await renderAsync(blob, host, host, {
+      className: "docx",
+      inWrapper: true,
+      ignoreLastRenderedPageBreak: true,
+      breakPages: true,
+    });
+    const { default: html2canvas } = await import("html2canvas");
+    const canvas = await html2canvas(host, { scale: 1.5, useCORS: true });
+    return [canvas.toDataURL("image/jpeg", 0.92)];
+  } catch (err) {
+    console.error("Failed to rasterize attached DOCX:", err);
+    return [];
+  } finally {
+    host.remove();
+  }
+}
+
 export async function saveTestResultAsPdfFile(result, opts = {}) {
   const signatureImageUrl =
     opts.signatureImageUrl ||
@@ -97,17 +201,33 @@ export async function saveTestResultAsPdfFile(result, opts = {}) {
         result?.counselor_signature_url ||
         result?.counselor_signatureUrl
     ));
-  // Inline the counselor's uploaded attachment so the saved PDF carries the
-  // same evidence both parties saw on screen. Only images can be embedded —
-  // PDFs/Word docs fall back to a filename note in buildTestResultHTML.
-  // resolveSignatureDataUrl is a generic fetch-to-dataURL helper despite its name.
-  let attachmentImageUrl = null;
+
+  // Attachment → its own page(s) after the result page.
+  let extraPageImages = [];
+  let attachmentNote = null;
   const fileUrl = result?.resultFileUrl ?? result?.result_file_url ?? null;
   const fileType = result?.resultFileType ?? result?.result_file_type ?? "";
-  if (fileUrl && (/^image\//i.test(fileType) || /\.(png|jpe?g|webp|gif)$/i.test(fileUrl))) {
-    attachmentImageUrl = await resolveSignatureDataUrl(fileUrl);
+  const attachedName = result?.resultFileName ?? result?.result_file_name ?? "Attached file";
+  if (fileUrl) {
+    const blob = await fetchAttachmentBlob(fileUrl);
+    if (!blob) {
+      attachmentNote = `${attachedName} could not be retrieved from the server.`;
+    } else if (/^image\//i.test(blob.type) || /^image\//i.test(fileType) || /\.(png|jpe?g|webp|gif)$/i.test(fileUrl)) {
+      const page = await photoToPageImage(await blobToDataUrl(blob));
+      if (page) extraPageImages = [page];
+      else attachmentNote = `${attachedName} could not be rendered.`;
+    } else if (/application\/pdf/i.test(blob.type) || /application\/pdf/i.test(fileType) || /\.pdf$/i.test(fileUrl)) {
+      extraPageImages = await rasterizePdfAttachment(blob);
+      if (!extraPageImages.length) attachmentNote = `${attachedName}: the attached PDF could not be rendered.`;
+    } else if (/wordprocessingml|msword/i.test(blob.type) || /wordprocessingml|msword/i.test(fileType) || /\.docx?$/i.test(fileUrl)) {
+      extraPageImages = await rasterizeDocxAttachment(blob);
+      if (!extraPageImages.length) attachmentNote = `${attachedName}: the attached document could not be rendered — open the original file from the record.`;
+    } else {
+      attachmentNote = `${attachedName}: open the original file from the record to view it.`;
+    }
   }
-  const html = buildTestResultHTML(result, { ...opts, signatureImageUrl, attachmentImageUrl });
+
+  const html = buildTestResultHTML(result, { ...opts, signatureImageUrl, attachmentNote });
   const testName = result.testName ?? result.test_name ?? opts.studentName;
-  await saveHtmlAsPdfFile(html, `${safeFileBase(testName, opts.studentName)}.pdf`, { pageWidthIn: 8.27, pageHeightIn: 11.69 });
+  await saveHtmlAsPdfFile(html, `${safeFileBase(testName, opts.studentName)}.pdf`, { pageWidthIn: 8.27, pageHeightIn: 11.69, extraPageImages });
 }

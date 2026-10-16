@@ -6,7 +6,12 @@
 // page has scrolled), captures each `.pdf-page` element as its own canvas,
 // and writes one jsPDF page per captured element. See inventoryReport.js's
 // exportInventoryAsPdfFile, which this generalizes.
-export async function saveHtmlAsPdfFile(html, filename, { pageWidthIn = 8.5, pageHeightIn = 11 } = {}) {
+//
+// `extraPageImages` appends ready-made pages (JPEG/PNG data URLs — e.g. pages
+// rasterized from an attached PDF/DOCX or an uploaded photo) after the HTML
+// pages, one PDF page per image, so attachments ride along as their own
+// pages instead of being squeezed into the main document.
+export async function saveHtmlAsPdfFile(html, filename, { pageWidthIn = 8.5, pageHeightIn = 11, extraPageImages = [] } = {}) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas"),
     import("jspdf"),
@@ -62,6 +67,22 @@ export async function saveHtmlAsPdfFile(html, filename, { pageWidthIn = 8.5, pag
       if (i > 0) pdf.addPage([pageWidthIn, h], "portrait");
       pdf.addImage(imgData, "JPEG", 0, 0, pageWidthIn, imgHeightIn);
     });
+
+    // Attachment pages (already rasterized by the caller).
+    for (const dataUrl of extraPageImages) {
+      const dims = await new Promise((resolve) => {
+        const probe = new Image();
+        probe.onload = () => resolve({ w: probe.naturalWidth, h: probe.naturalHeight });
+        probe.onerror = () => resolve(null);
+        probe.src = dataUrl;
+      });
+      if (!dims) continue;
+      const imgHeightIn = (dims.h / dims.w) * pageWidthIn;
+      const h = Math.max(imgHeightIn, pageHeightIn);
+      pdf.addPage([pageWidthIn, h], "portrait");
+      const kind = dataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
+      pdf.addImage(dataUrl, kind, 0, 0, pageWidthIn, imgHeightIn);
+    }
 
     pdf.save(filename);
   } finally {
