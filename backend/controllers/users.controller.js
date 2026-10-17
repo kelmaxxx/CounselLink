@@ -463,26 +463,26 @@ export const banUser = async (req, res) => {
     reason: reason || "",
   });
 
-  // Send ban notification email to the user
+  // Send deactivation notification email to the user
   if (reason && target[0].email) {
     try {
       await sendEmail({
         to: target[0].email,
-        subject: "Your CounselLink Account Has Been Suspended",
+        subject: "Your CounselLink Account Has Been Deactivated",
         html: `
           <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
             <div style="background: linear-gradient(135deg, #7a1a1a 0%, #a02020 100%); padding: 32px 24px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 600;">Account Suspended</h1>
+              <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 600;">Account Deactivated</h1>
             </div>
             <div style="padding: 32px 24px;">
               <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
                 Dear <strong>${target[0].name}</strong>,
               </p>
               <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
-                We are writing to inform you that your CounselLink account has been suspended by an administrator.
+                We are writing to inform you that your CounselLink account has been deactivated by an administrator.
               </p>
               <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px 20px; margin: 0 0 20px;">
-                <p style="color: #991b1b; font-size: 13px; font-weight: 600; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">Reason for Suspension</p>
+                <p style="color: #991b1b; font-size: 13px; font-weight: 600; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">Reason for Deactivation</p>
                 <p style="color: #7f1d1d; font-size: 15px; line-height: 1.6; margin: 0;">${reason}</p>
               </div>
               <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 8px;">
@@ -496,10 +496,10 @@ export const banUser = async (req, res) => {
             </div>
           </div>
         `,
-        text: `Dear ${target[0].name},\n\nYour CounselLink account has been suspended.\n\nReason: ${reason}\n\nIf you believe this was done in error, please contact the DSA Administrator.\n\n— CounselLink, MSU Marawi City`,
+        text: `Dear ${target[0].name},\n\nYour CounselLink account has been deactivated.\n\nReason: ${reason}\n\nIf you believe this was done in error, please contact the DSA Administrator.\n\n— CounselLink, MSU Marawi City`,
       });
     } catch (emailErr) {
-      console.error("Failed to send ban notification email:", emailErr.message);
+      console.error("Failed to send deactivation notification email:", emailErr.message);
     }
   }
 
@@ -517,6 +517,46 @@ export const unbanUser = async (req, res) => {
     email: target[0].email,
     role: target[0].role,
   });
+
+  // Send activation notification email to the user
+  if (target[0].email) {
+    try {
+      await sendEmail({
+        to: target[0].email,
+        subject: "Your CounselLink Account Has Been Activated",
+        html: `
+          <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+            <div style="background: linear-gradient(135deg, #1a5c1a 0%, #207a20 100%); padding: 32px 24px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 600;">Account Activated</h1>
+            </div>
+            <div style="padding: 32px 24px;">
+              <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 16px;">
+                Dear <strong>${target[0].name}</strong>,
+              </p>
+              <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+                Good news! Your CounselLink account has been reactivated by an administrator. You can now log in and access all features.
+              </p>
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px 20px; margin: 0 0 20px;">
+                <p style="color: #166534; font-size: 15px; line-height: 1.6; margin: 0;">Your account is now active and fully restored.</p>
+              </div>
+              <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 8px;">
+                If you have any concerns, please contact the DSA Administrator.
+              </p>
+            </div>
+            <div style="background: #f9fafb; padding: 20px 24px; border-top: 1px solid #f3f4f6; text-align: center;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                CounselLink — Mindanao State University, Marawi City
+              </p>
+            </div>
+          </div>
+        `,
+        text: `Dear ${target[0].name},\n\nYour CounselLink account has been reactivated. You can now log in and access all features.\n\nIf you have any concerns, please contact the DSA Administrator.\n\n— CounselLink, MSU Marawi City`,
+      });
+    } catch (emailErr) {
+      console.error("Failed to send activation notification email:", emailErr.message);
+    }
+  }
+
   const rows = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [id]);
   return res.json(rows[0]);
 };

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { Printer, ClipboardList, ThumbsUp, Star, MessageSquare } from "lucide-react";
+import { Save, ClipboardList, ThumbsUp, Star, MessageSquare } from "lucide-react";
 import {
   PageHeader,
   StatCard,
@@ -242,7 +242,7 @@ export default function FeedbackTallySummary() {
         subtitle="Auto-computed results from the Client Feedback Form. Responses are anonymous and shown only in aggregate."
         actions={
           <button onClick={exportTallySummary} className={BTN.primary}>
-            <Printer size={14} /> Print
+            <Save size={14} /> Save
           </button>
         }
       />

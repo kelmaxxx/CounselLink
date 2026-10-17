@@ -148,7 +148,7 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                   </>
                 )}
                 {!hideDelete && (
-                  <button onClick={() => onDelete(u.id)} title="Ban account" className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition">
+                  <button onClick={() => onDelete(u.id)} title="Deactivate account" className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition">
                     <Trash2 size={13} />
                   </button>
                 )}
@@ -205,7 +205,7 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                         </>
                       )}
                       {!hideDelete && (
-                        <button onClick={() => onDelete(u.id)} title="Ban account" className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition">
+                        <button onClick={() => onDelete(u.id)} title="Deactivate account" className="inline-flex items-center justify-center w-7 h-7 rounded-md text-red-500 hover:bg-red-50 transition">
                           <Trash2 size={13} />
                         </button>
                       )}
@@ -521,9 +521,9 @@ export default function ManageUsers() {
     const res = await banUser(userId, banReason.trim());
     setBanReason("");
     if (res.success) {
-      setMessage({ type: "success", text: "Account banned. The user has been notified via email." });
+      setMessage({ type: "success", text: "Account deactivated. The user has been notified via email." });
     } else {
-      setMessage({ type: "error", text: res.message || "Failed to ban account" });
+      setMessage({ type: "error", text: res.message || "Failed to deactivate account" });
     }
     setTimeout(() => setMessage(null), 3000);
   };
@@ -561,7 +561,7 @@ export default function ManageUsers() {
                   onClick={() => { setRecoverOpen(true); setActionsOpen(false); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
                 >
-                  <RotateCcw size={14} className="text-gray-400 flex-shrink-0" /> <span>Recover account</span>
+                  <RotateCcw size={14} className="text-gray-400 flex-shrink-0" /> <span>Activate account</span>
                   {bannedUsers.length > 0 && (
                     <span className="ml-auto bg-amber-400 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">
                       {bannedUsers.length}
@@ -1131,8 +1131,8 @@ export default function ManageUsers() {
       <Modal
         open={deleteConfirm.open}
         onClose={() => { setDeleteConfirm({ open: false, userId: null }); setBanReason(""); }}
-        title="Ban user"
-        subtitle="The account will be suspended immediately."
+        title="Deactivate user"
+        subtitle="The account will be deactivated immediately."
         danger
         footer={
           <>
@@ -1146,43 +1146,43 @@ export default function ManageUsers() {
               onClick={handleDelete}
               className={BTN.danger}
               disabled={!banReason.trim()}
-              title={!banReason.trim() ? "Please provide a reason for banning" : ""}
+              title={!banReason.trim() ? "Please provide a reason for deactivation" : ""}
             >
-              <Trash2 size={14} /> Ban account
+              <Trash2 size={14} /> Deactivate account
             </button>
           </>
         }
       >
         <p className="text-sm text-gray-700 mb-4">
           The user will be blocked from logging in and will be notified via email with the reason below.
-          You can restore the account at any time from <strong>Recover account</strong>.
+          You can restore the account at any time from <strong>Activate account</strong>.
         </p>
         <div>
-          <label className={LABEL}>Reason for banning *</label>
+          <label className={LABEL}>Reason for deactivation *</label>
           <textarea
             className={`${INPUT} min-h-[100px] resize-y`}
-            placeholder="Explain why this account is being banned…"
+            placeholder="Explain why this account is being deactivated…"
             value={banReason}
             onChange={(e) => setBanReason(e.target.value)}
             autoFocus
           />
           {!banReason.trim() && (
             <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
-              <AlertCircle size={12} /> A reason is required to ban this account.
+              <AlertCircle size={12} /> A reason is required to deactivate this account.
             </p>
           )}
         </div>
       </Modal>
 
-      {/* Recover Account modal */}
+      {/* Activate Account modal */}
       <Modal
         open={recoverOpen}
         onClose={() => setRecoverOpen(false)}
-        title="Recover account"
-        subtitle="Banned accounts. Click Restore to re-enable login."
+        title="Activate account"
+        subtitle="Deactivated accounts. Click Restore to re-enable login."
       >
         {bannedUsers.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4 text-center">No banned accounts.</p>
+          <p className="text-sm text-gray-500 py-4 text-center">No deactivated accounts.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
             {bannedUsers.map((u) => (
