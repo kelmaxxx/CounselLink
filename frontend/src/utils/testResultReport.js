@@ -86,16 +86,19 @@ function buildTestResultHTML(result, { studentName, signatureImageUrl, attachmen
 const safeFileBase = (testName, studentName) =>
   `test_result_${(testName || studentName || "result").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "")}`.toLowerCase();
 
-// The uploaded attachment is NEVER inlined into the result page — it rides
-// along as its own PDF page(s) after it (photo on its own page, PDF/DOCX
-// pages rasterized below). Helpers below turn each supported file kind into
-// printable page images.
+// Fetch the attachment blob through the authenticated API endpoint
+// (/api/test-results/:id/attachment) so that:
+//   1. Auth tokens are sent — no cross-origin public-file issues.
+//   2. The server resolves the path from the DB record, so stale/wrong
+//      stored paths are fixed in one place (the controller).
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-const toAbsoluteUrl = (url) => (/^https?:\/\//i.test(url) ? url : `${API_BASE}${url}`);
 
-async function fetchAttachmentBlob(fileUrl) {
+async function fetchAttachmentBlob(resultId, token) {
+  if (!resultId) return null;
   try {
-    const res = await fetch(toAbsoluteUrl(fileUrl));
+    const res = await fetch(`${API_BASE}/api/test-results/${resultId}/attachment`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     if (!res.ok) return null;
     return await res.blob();
   } catch {
@@ -203,13 +206,18 @@ export async function saveTestResultAsPdfFile(result, opts = {}) {
     ));
 
   // Attachment → its own page(s) after the result page.
+  // Fetch via the authenticated API endpoint using the result's id so the
+  // server resolves the file path from the DB — no cross-origin /uploads fetch.
   let extraPageImages = [];
   let attachmentNote = null;
+  const resultId = result?.id ?? null;
   const fileUrl = result?.resultFileUrl ?? result?.result_file_url ?? null;
   const fileType = result?.resultFileType ?? result?.result_file_type ?? "";
   const attachedName = result?.resultFileName ?? result?.result_file_name ?? "Attached file";
-  if (fileUrl) {
-    const blob = await fetchAttachmentBlob(fileUrl);
+  const token = opts.token ?? null;
+
+  if (resultId && fileUrl) {
+    const blob = await fetchAttachmentBlob(resultId, token);
     if (!blob) {
       attachmentNote = `${attachedName} could not be retrieved from the server.`;
     } else if (/^image\//i.test(blob.type) || /^image\//i.test(fileType) || /\.(png|jpe?g|webp|gif)$/i.test(fileUrl)) {
