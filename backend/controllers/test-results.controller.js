@@ -2,6 +2,9 @@ import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { createNotification } from "../utils/notify.js";
 import { notifyUser } from "../events.js";
+import { getUploadsDir } from "../middleware/upload.js";
+import path from "path";
+import fs from "fs";
 
 export const createTestResult = async (req, res) => {
   const { appointmentId, studentId, testName, completedDate, summary, recommendations } = req.body;
@@ -97,4 +100,61 @@ export const listTestResultsForUser = async (req, res) => {
      ORDER BY r.completed_date DESC`
   );
   return res.json(rows);
+};
+
+// Stream the attached file for a test result through the authenticated API.
+// This avoids cross-origin issues with fetching /uploads directly from the
+// frontend (HEAD probes, blob fetches for PDF embedding all use this route).
+// Access rules: the requesting user must be the student who owns the result,
+// a counselor, a college_rep for the same college, or an admin.
+export const getTestResultAttachment = async (req, res) => {
+  const { id } = req.params;
+  const user = req.user;
+
+  const rows = await query(
+    `SELECT r.result_file_url, r.result_file_name, r.result_file_type,
+            r.student_id, s.college
+     FROM test_results r
+     LEFT JOIN users s ON r.student_id = s.id
+     WHERE r.id = ?`,
+    [id]
+  );
+  if (!rows.length) return res.status(404).json({ message: "Result not found" });
+
+  const result = rows[0];
+
+  // Access control
+  if (user.role === "student" && Number(result.student_id) !== Number(user.id)) {
+    return res.status(403).json({ message: "Access denied" });
+  }
+  if (user.role === "college_rep") {
+    const repRows = await query("SELECT college FROM users WHERE id = ?", [user.id]);
+    if (repRows[0]?.college !== result.college) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+  }
+
+  if (!result.result_file_url) {
+    return res.status(404).json({ message: "No attachment for this result" });
+  }
+
+  // result_file_url is stored as "/uploads/test-results/<filename>"
+  // Strip the leading "/uploads/" to get the relative path under getUploadsDir().
+  const relativePath = result.result_file_url.replace(/^\/uploads\//, "");
+  const absolutePath = path.join(getUploadsDir(), relativePath);
+
+  if (!fs.existsSync(absolutePath)) {
+    return res.status(404).json({ message: "Attachment file not found on server" });
+  }
+
+  const stat = fs.statSync(absolutePath);
+  const mimeType = result.result_file_type || "application/octet-stream";
+  const fileName = result.result_file_name || path.basename(absolutePath);
+
+  res.setHeader("Content-Type", mimeType);
+  res.setHeader("Content-Length", stat.size);
+  res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(fileName)}"`);
+  res.setHeader("Cache-Control", "private, max-age=300");
+
+  fs.createReadStream(absolutePath).pipe(res);
 };

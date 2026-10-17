@@ -197,13 +197,15 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
     ? (fileUrl.startsWith("http") ? fileUrl : `${API_BASE}${fileUrl}`)
     : null;
 
-  // Probe the attachment once: if the file is gone from the server (e.g.
-  // ephemeral disk was wiped), hide the File button and explain instead of
-  // opening a broken link.
+  // Probe the attachment via the authenticated API endpoint so we get a real
+  // 200/404 response (not a CORS failure from a cross-origin HEAD on /uploads).
   useEffect(() => {
-    if (!fileHref) return;
+    if (!result.id || !fileUrl) return;
     let cancelled = false;
-    fetch(fileHref, { method: "HEAD" })
+    fetch(`${API_BASE}/api/test-results/${result.id}/attachment`, {
+      method: "HEAD",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then((res) => { if (!cancelled && !res.ok) setFileBroken(true); })
       .catch(() => { if (!cancelled) setFileBroken(true); });
     return () => { cancelled = true; };
@@ -212,7 +214,7 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveTestResultAsPdfFile(result, { studentName });
+      await saveTestResultAsPdfFile(result, { studentName, token });
     } catch {
       alert("Failed to save the test result as PDF. Please try again.");
     } finally {

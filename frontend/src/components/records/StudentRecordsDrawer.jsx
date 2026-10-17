@@ -677,7 +677,7 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession, onSub
 // so counselors had no way to see them inside the per-student record drawer.
 function TestsList({ student }) {
   const { testResults, fetchTestResults } = useTestResults?.() || {};
-  const { currentUser } = useAuth();
+  const { currentUser, token } = useAuth();
   const [savingId, setSavingId] = useState(null);
 
   useEffect(() => {
@@ -715,6 +715,7 @@ function TestsList({ student }) {
       await saveTestResultAsPdfFile(r, {
         studentName: student?.name,
         signatureUrl: currentUser?.signatureUrl,
+        token,
       });
     } catch {
       alert("Failed to save the test result as PDF. Please try again.");
