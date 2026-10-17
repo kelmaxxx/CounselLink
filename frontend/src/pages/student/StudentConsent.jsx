@@ -197,17 +197,32 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
     ? (fileUrl.startsWith("http") ? fileUrl : `${API_BASE}${fileUrl}`)
     : null;
 
-  // Probe the attachment via the authenticated API endpoint so we get a real
-  // 200/404 response (not a CORS failure from a cross-origin HEAD on /uploads).
+  // Probe the attachment: try the authenticated API endpoint first, then fall
+  // back to the public /uploads URL. Only mark broken if both return non-OK.
   useEffect(() => {
     if (!result.id || !fileUrl) return;
     let cancelled = false;
-    fetch(`${API_BASE}/api/test-results/${result.id}/attachment`, {
+    const apiUrl = `${API_BASE}/api/test-results/${result.id}/attachment`;
+    fetch(apiUrl, {
       method: "HEAD",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
-      .then((res) => { if (!cancelled && !res.ok) setFileBroken(true); })
-      .catch(() => { if (!cancelled) setFileBroken(true); });
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) return; // file is available via API — done
+        if (res.status === 404) { setFileBroken(true); return; }
+        // Non-404 error (e.g. 401, network) — try the direct /uploads URL.
+        return fetch(fileHref, { method: "HEAD" })
+          .then((r2) => { if (!cancelled && !r2.ok) setFileBroken(true); })
+          .catch(() => { /* direct URL also failed; leave as not-broken */ });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // API unreachable — try the direct /uploads URL as fallback.
+        fetch(fileHref, { method: "HEAD" })
+          .then((r2) => { if (!cancelled && !r2.ok) setFileBroken(true); })
+          .catch(() => { /* both failed; leave as not-broken so user can still try */ });
+      });
     return () => { cancelled = true; };
   }, [fileHref]);
 
