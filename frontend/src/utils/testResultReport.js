@@ -86,24 +86,40 @@ function buildTestResultHTML(result, { studentName, signatureImageUrl, attachmen
 const safeFileBase = (testName, studentName) =>
   `test_result_${(testName || studentName || "result").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "")}`.toLowerCase();
 
-// Fetch the attachment blob through the authenticated API endpoint
-// (/api/test-results/:id/attachment) so that:
-//   1. Auth tokens are sent — no cross-origin public-file issues.
-//   2. The server resolves the path from the DB record, so stale/wrong
-//      stored paths are fixed in one place (the controller).
+// Fetch the attachment blob. Primary path: authenticated API endpoint
+// (/api/test-results/:id/attachment). Fallback: public /uploads URL (works
+// in local dev where CORS is same-origin, or when the API is unreachable).
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-async function fetchAttachmentBlob(resultId, token) {
-  if (!resultId) return null;
-  try {
-    const res = await fetch(`${API_BASE}/api/test-results/${resultId}/attachment`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) return null;
-    return await res.blob();
-  } catch {
-    return null;
+async function fetchAttachmentBlob(resultId, token, fallbackUrl) {
+  // Try the authenticated API endpoint first.
+  if (resultId) {
+    try {
+      const res = await fetch(`${API_BASE}/api/test-results/${resultId}/attachment`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) return await res.blob();
+      // 404 means file is genuinely missing — no point trying the fallback.
+      if (res.status === 404) return null;
+    } catch {
+      // Network error (server down, CORS) — fall through to direct URL below.
+    }
   }
+
+  // Fallback: fetch the /uploads URL directly (public static, no auth needed).
+  if (fallbackUrl) {
+    try {
+      const absUrl = /^https?:\/\//i.test(fallbackUrl)
+        ? fallbackUrl
+        : `${API_BASE}${fallbackUrl}`;
+      const res = await fetch(absUrl);
+      if (res.ok) return await res.blob();
+    } catch {
+      // Both paths failed.
+    }
+  }
+
+  return null;
 }
 
 const blobToDataUrl = (blob) =>
@@ -217,7 +233,7 @@ export async function saveTestResultAsPdfFile(result, opts = {}) {
   const token = opts.token ?? null;
 
   if (resultId && fileUrl) {
-    const blob = await fetchAttachmentBlob(resultId, token);
+    const blob = await fetchAttachmentBlob(resultId, token, fileUrl);
     if (!blob) {
       attachmentNote = `${attachedName} could not be retrieved from the server.`;
     } else if (/^image\//i.test(blob.type) || /^image\//i.test(fileType) || /\.(png|jpe?g|webp|gif)$/i.test(fileUrl)) {
