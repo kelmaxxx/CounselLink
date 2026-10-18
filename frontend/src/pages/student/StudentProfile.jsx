@@ -270,13 +270,12 @@ export default function StudentProfile() {
                   placeholder="Enter your name"
                 />
               </Field>
-              <Field icon={Mail} label="Email *">
+              <Field icon={Mail} label="Institutional Email (IE)">
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setField("email", e.target.value)}
+                  disabled
                   className={INPUT}
-                  placeholder="Enter your email"
                 />
               </Field>
               <Field icon={Phone} label="Phone number">
@@ -297,7 +296,7 @@ export default function StudentProfile() {
           ) : (
             <dl className="space-y-2.5 text-sm">
               <Readout icon={User} label="Name" value={myRecord?.name} />
-              <Readout icon={Mail} label="Email" value={myRecord?.email} />
+              <Readout icon={Mail} label="Institutional Email (IE)" value={myRecord?.email} />
               <Readout icon={Phone} label="Phone" value={myRecord?.phone || "Not provided"} />
               <Readout icon={Hash} label="Student ID" value={myRecord?.studentId || "Not assigned"} />
             </dl>

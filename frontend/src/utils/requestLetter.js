@@ -113,8 +113,8 @@ const LETTER_STYLES = `
   .salutation { margin: 10px 0 4px; }
   .body-text { margin: 4px 0 8px; text-align: justify; }
   .section-head { font-weight: 700; margin: 12px 0 4px; }
-  .scope-box { border: 1px solid #000; padding: 6px 10px; margin: 4px 0 8px; font-size: 10.5pt; }
-  .reason-box { border: 1px solid #000; padding: 6px 10px; margin: 4px 0 8px; min-height: 44px; white-space: pre-wrap; }
+  .scope-box { border: none; padding: 0; margin: 4px 0 8px; font-size: 11pt; }
+  .reason-box { border: none; padding: 0; margin: 4px 0 8px; min-height: auto; white-space: pre-wrap; text-align: justify; }
   .assurance { text-align: justify; margin: 4px 0 8px; }
   .sign-grid { display: flex; justify-content: flex-end; margin-top: 26px; }
   .sign-block { text-align: center; width: 300px; }
@@ -167,17 +167,13 @@ export function buildRequestLetterHTML(letter = {}, opts = {}) {
     ${opts.repSignatureImageUrl ? `<img class="sign-img" src="${opts.repSignatureImageUrl}" alt="College representative signature" />` : ""}
     <div class="sign-line">${line(l.requesterName)}</div>
     <div>Name of College Representative</div>
-    <div style="margin-top:6px">Position: ${line(l.requesterPosition)}</div>
-    <div>Department/College: ${line(l.requesterDepartment ? `${l.requesterDepartment}, ${l.requesterCollege || ""}` : l.requesterCollege)}</div>
-    <div>Date Signed: ${dateStr}</div>
+    <div style="margin-top:6px">Date Signed: ${dateStr}</div>
   </div></div>
   <div class="dsa-box">
     <div class="dsa-title">FOR DSA USE ONLY</div>
     <div>${cb(approved)} Approved &nbsp;&nbsp; ${cb(l.status === "declined")} Rejected</div>
     <div style="margin-top:6px">Reviewed/Approved by: ${line(decided ? l.counselorName : "")}</div>
-    <div>Position: ${line(decided ? l.counselorPosition || "Guidance Counselor" : "")}</div>
     ${opts.counselorSignatureImageUrl ? `<img class="sign-img" style="margin:4px 0 0 0" src="${opts.counselorSignatureImageUrl}" alt="Counselor signature" />` : ""}
-    <div>Signature: ${decided ? "" : "____________________________"}</div>
     <div>Date: ${decided && l.respondedAt ? fmtDate(l.respondedAt) : "____________________________"}</div>
     <div>Remarks: ${line(decided ? l.remarks || (approved ? "Approved." : "") : "")}</div>
   </div>

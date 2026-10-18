@@ -233,6 +233,13 @@ export default function ManageStudents() {
     return { total, distinctStudents, followups, terminations, last30, byCollege };
   }, [sessions]);
 
+  const availableStudents = useMemo(() => {
+    if (selectedDept) {
+      return students.filter((s) => (s.department || "Unassigned") === selectedDept);
+    }
+    return students;
+  }, [students, selectedDept]);
+
   const openCreate = () => {
     setForm(blankForm());
     setRecordStep(0);
@@ -1119,7 +1126,7 @@ export default function ManageStudents() {
                       disabled={!!editing.id}
                     >
                       <option value="">Select a student…</option>
-                      {students.map((s) => (
+                      {availableStudents.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name} ({s.studentId || s.email})
                         </option>
