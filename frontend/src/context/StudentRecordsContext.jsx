@@ -165,6 +165,48 @@ export function StudentRecordsProvider({ children }) {
     return { success: true, consent: data };
   };
 
+  // ---- Consent Revocation Requests ----
+
+  // Fetch the latest revocation request for a student (own or counselor).
+  const getRevocationRequest = async (studentId) => {
+    if (!token || !studentId) return null;
+    const response = await authFetch(`${apiBase}/api/consent-revocations/${studentId}/request`);
+    if (response.status === 404) return null;
+    const data = await parseJson(response);
+    if (!response.ok) throw new Error(data.message || "Unable to load revocation request");
+    return data;
+  };
+
+  // Student submits a revocation request for their own consent.
+  const submitRevocationRequest = async (studentId) => {
+    const response = await authFetch(
+      `${apiBase}/api/consent-revocations/${studentId}/request`,
+      { method: "POST" }
+    );
+    const data = await parseJson(response);
+    if (!response.ok) return { success: false, message: data.message || "Failed to submit revocation request" };
+    return { success: true, request: data };
+  };
+
+  // Counselor fetches all pending revocation requests.
+  const listPendingRevocationRequests = async () => {
+    const response = await authFetch(`${apiBase}/api/consent-revocations/pending`);
+    const data = await parseJson(response);
+    if (!response.ok) return { success: false, message: data.message || "Failed to load pending requests", requests: [] };
+    return { success: true, requests: Array.isArray(data) ? data : [] };
+  };
+
+  // Counselor approves or rejects a request.
+  const decideRevocationRequest = async (requestId, action, rejectionReason = "") => {
+    const response = await authFetch(
+      `${apiBase}/api/consent-revocations/${requestId}/decide`,
+      { method: "POST", body: JSON.stringify({ action, rejectionReason }) }
+    );
+    const data = await parseJson(response);
+    if (!response.ok) return { success: false, message: data.message || "Failed to process decision" };
+    return { success: true, request: data };
+  };
+
   // Convenience: fetch both records for a student in parallel.
   // Returns { inventory, consent } — either can be null if not yet created.
   const getRecords = async (studentId) => {
@@ -190,6 +232,10 @@ export function StudentRecordsProvider({ children }) {
         deleteConsentScan,
         revokeConsent,
         setReferralSharingConsent,
+        getRevocationRequest,
+        submitRevocationRequest,
+        listPendingRevocationRequests,
+        decideRevocationRequest,
         getRecords,
       }}
     >

@@ -172,8 +172,24 @@ export const downloadInventoryDocx = async (req, res) => {
     counselorSignatureUrl = me?.signature_url || null;
   }
 
+  // Check consent status: if consent is revoked or the data-authorization
+  // disclaimer was revoked, suppress the student signature from the download
+  // so it does not misleadingly appear as current active consent.
+  const consentRows = await query(
+    "SELECT revoked_at FROM student_consents WHERE student_id = ? LIMIT 1",
+    [studentId]
+  );
+  const consentRevoked = consentRows.length > 0 && consentRows[0].revoked_at != null;
+
+  // Also check the inventory acknowledgment for disclaimer revocation.
+  const ack = row.formData?.acknowledgment || {};
+  const disclaimerRevoked = !!ack.disclaimerRevokedAt;
+
   const signatures = {
-    studentSignature: readSignatureFile(row.studentSignatureUrl),
+    // Suppress the student signature whenever consent or authorization has been revoked.
+    studentSignature: (consentRevoked || disclaimerRevoked)
+      ? null
+      : readSignatureFile(row.studentSignatureUrl),
     counselorSignature: readSignatureFile(counselorSignatureUrl),
     studentAvatar: readAvatarFile(row.studentAvatarUrl),
     counselorName,

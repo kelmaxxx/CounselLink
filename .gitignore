@@ -33,6 +33,8 @@ counsellink-data-*.json
 *.sw?
 
 
+opencode.jsonc
+
 
 backend/uploads/cor-*
 backend/docs
