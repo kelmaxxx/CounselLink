@@ -16,6 +16,13 @@ import {
   INPUT,
   LABEL,
 } from "../../components/ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/shadcn/select";
 
 const censorName = (name) => {
   if (!name) return name;
@@ -182,30 +189,40 @@ export default function SystemLogs() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <label className={LABEL}>Action</label>
-            <select
-              className={INPUT}
+            <Select
+              variant="form"
               value={filterAction}
-              onChange={(e) => { setFilterAction(e.target.value); setOffset(0); }}
+              onValueChange={(v) => { setFilterAction(v); setOffset(0); }}
             >
-              <option value="">All actions</option>
-              {actions.map((a) => (
-                <option key={a} value={a}>{ACTION_LABELS[a] || a}</option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="All actions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All actions</SelectItem>
+                {actions.map((a) => (
+                  <SelectItem key={a} value={a}>{ACTION_LABELS[a] || a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className={LABEL}>Actor role</label>
-            <select
-              className={INPUT}
+            <Select
+              variant="form"
               value={filterRole}
-              onChange={(e) => { setFilterRole(e.target.value); setOffset(0); }}
+              onValueChange={(v) => { setFilterRole(v); setOffset(0); }}
             >
-              <option value="">All roles</option>
-              <option value="admin">Admin</option>
-              <option value="counselor">Counselor</option>
-              <option value="student">Student</option>
-              <option value="college_rep">College</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="All roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All roles</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="counselor">Counselor</SelectItem>
+                <SelectItem value="student">Student</SelectItem>
+                <SelectItem value="college_rep">College</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className={LABEL}>Date from</label>

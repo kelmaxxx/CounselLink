@@ -24,7 +24,6 @@ import {
   PageHeader,
   BigStat,
   DonutStat,
-  TreemapChart,
   SectionCard,
   EmptyState,
   Modal,
@@ -37,7 +36,6 @@ import {
 } from "../../components/charts/counselor-charts";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-const PIE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce"];
 const COLLEGE_COLORS = ["#0B6623", "#1d4ed8", "#15803d", "#c2410c", "#7e22ce", "#0e7490", "#9f1239"];
 
 const splitContent = (content) => {
@@ -66,9 +64,7 @@ export default function AdminDashboard() {
   const { currentUser, users, token } = useAuth();
   const visibleUsers = users?.filter((u) => u.status !== "rejected") || [];
   const students = visibleUsers.filter((u) => u.role === "student");
-  const counselors = visibleUsers.filter((u) => u.role === "counselor");
   const reps = visibleUsers.filter((u) => u.role === "college_rep");
-  const admins = visibleUsers.filter((u) => u.role === "admin");
   const pendingApprovals =
     users?.filter((u) => u.role === "student" && u.status === "pending_approval").length || 0;
 
@@ -90,17 +86,6 @@ export default function AdminDashboard() {
       .catch(() => { });
   }, [token]);
 
-  const pieData = useMemo(
-    () =>
-      [
-        { name: "Students", value: students.length },
-        { name: "Counselors", value: counselors.length },
-        { name: "Colleges", value: reps.length },
-        { name: "Admins", value: admins.length },
-      ].filter((d) => d.value > 0),
-    [students.length, counselors.length, reps.length, admins.length]
-  );
-
   const topColleges = useMemo(() => {
     const counts = COLLEGES.reduce((acc, col) => {
       acc[col] = students.filter((s) => s.college === col).length;
@@ -112,32 +97,20 @@ export default function AdminDashboard() {
   }, [students]);
 
   // ── Chart-ready derivatives: one visual per card ─────────────────────
-  // Roles (4 slices) -> donut · Students by college (many, long names) ->
-  // ranked horizontal bars · Completed by college -> vertical columns ·
-  // Demand vs. throughput -> animated racing lines.
-  const roleDonutData = useMemo(
-    () =>
-      pieData.map((entry, idx) => ({
-        name: entry.name,
-        value: entry.value,
-        color: PIE_COLORS[idx % PIE_COLORS.length],
-      })),
-    [pieData]
-  );
-  const roleTotal = useMemo(
-    () => roleDonutData.reduce((sum, d) => sum + d.value, 0),
-    [roleDonutData]
-  );
-
-  const completedCollegeColumns = useMemo(
+  // Students by college (many, long names) -> ranked horizontal bars ·
+  // Completed by college -> donut · Demand vs. throughput -> trend areas.
+  const completedCollegeDonut = useMemo(
     () =>
       (apptStats.byCollege || []).map((r) => ({
         name: r.college,
-        short: r.college,
         value: Number(r.total),
         color: collegeColor(r.college),
       })),
     [apptStats.byCollege]
+  );
+  const completedTotal = useMemo(
+    () => completedCollegeDonut.reduce((sum, d) => sum + d.value, 0),
+    [completedCollegeDonut]
   );
 
   // Last-14-days: new requests created vs. sessions completed (completed
@@ -235,50 +208,35 @@ export default function AdminDashboard() {
 
           <SectionCard
             className="lg:col-span-4 h-full"
-            title="User role distribution"
-            subtitle="Share of each role · total in the middle"
+            title="Completed sessions by college"
+            subtitle="Finished sessions per college · total in the middle"
           >
             <DonutStat
-              data={roleDonutData}
-              total={roleTotal}
-              centerLabel="users"
-              emptyIcon={Users}
-              emptyTitle="No users yet"
+              data={completedCollegeDonut}
+              total={completedTotal}
+              centerLabel="sessions"
+              emptyIcon={CalendarCheck}
+              emptyTitle="No completed appointments yet"
               stack
               compact
             />
           </SectionCard>
         </div>
 
-        {/* 2. Middle: bar chart (8 cols) + college breakdown (4 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-start">
-          <div className="lg:col-span-8">
-            <StudentsByCollegeCard
-              data={topColleges.map(([name, value], i) => ({
-                name,
-                value,
-                color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
-              }))}
-              maxRows={7}
-              emptyIcon={Users}
-              emptyTitle="No students yet"
-              title="Students by College"
-              subtitle="Ranked distribution of enrolled students"
-            />
-          </div>
-
-          <SectionCard
-            className="lg:col-span-4"
-            title="Completed sessions by college"
-            subtitle="Cell size = finished sessions · hover for counts"
-          >
-            <TreemapChart
-              data={completedCollegeColumns}
-              emptyIcon={CalendarCheck}
-              emptyTitle="No completed appointments yet"
-              height={320}
-            />
-          </SectionCard>
+        {/* 2. Middle: students by college (full width) */}
+        <div className="mb-4">
+          <StudentsByCollegeCard
+            data={topColleges.map(([name, value], i) => ({
+              name,
+              value,
+              color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
+            }))}
+            maxRows={7}
+            emptyIcon={Users}
+            emptyTitle="No students yet"
+            title="Students by College"
+            subtitle="Ranked distribution of enrolled students"
+          />
         </div>
 
         {/* 3. Lower: demand full width */}

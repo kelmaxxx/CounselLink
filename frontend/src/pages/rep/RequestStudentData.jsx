@@ -12,6 +12,13 @@ import {
   INPUT,
   LABEL,
 } from "../../components/ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/shadcn/select";
 import { getDepartments } from "../../data/msuColleges";
 import { draftLetterFromForm, letterFromRequest, saveLetterAsPdfFile } from "../../utils/requestLetter";
 import LetterPreview from "../../components/records/LetterPreview";
@@ -235,15 +242,20 @@ export default function RequestStudentData() {
         <form id="request-report-form" onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className={LABEL}>Request type *</label>
-            <select
-              className={INPUT}
+            <Select
+              variant="form"
               value={form.requestType}
-              onChange={(e) => setForm({ ...form, requestType: e.target.value })}
+              onValueChange={(v) => setForm({ ...form, requestType: v })}
             >
-              <option value="individual">Individual student — session report for one specific student</option>
-              <option value="department">Specific department — summary scoped to one department</option>
-              <option value="college">Whole college — college-wide summary, no individual records</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select request type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="individual">Individual student — session report for one specific student</SelectItem>
+                <SelectItem value="department">Specific department — summary scoped to one department</SelectItem>
+                <SelectItem value="college">Whole college — college-wide summary, no individual records</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {isIndividual && (
@@ -302,19 +314,22 @@ export default function RequestStudentData() {
           {isDepartment && (
             <div>
               <label className={LABEL}>Department *</label>
-              <select
-                required={isDepartment}
-                className={INPUT}
+              <Select
+                variant="form"
                 value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
+                onValueChange={(v) => setForm({ ...form, department: v })}
               >
-                <option value="">Select a department</option>
-                {myDepartments.map((d) => (
-                  <option key={d.code} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {myDepartments.map((d) => (
+                    <SelectItem key={d.code} value={d.name}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="text-xs text-gray-500 mt-1">
                 The counselor generates an anonymized summary scoped to this department
                 {currentUser?.college ? ` in ${currentUser.college}` : ""} — useful for

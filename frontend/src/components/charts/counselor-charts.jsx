@@ -312,6 +312,11 @@ function InteractiveAreaCard({
     series.map((s) => [s.key, { label: s.name, color: s.color }])
   );
 
+  // Gradient ids must be a valid SVG fragment: build the id once, then
+  // reference it as url(#id) — sanitizing the whole url() broke the fill.
+  const fillId = (key) =>
+    `fill-${String(title).replace(/[^a-zA-Z0-9-]/g, "")}-${key}`;
+
   const totals = filteredData.reduce((acc, d) => {
     const next = { ...acc };
     series.forEach((s) => {
@@ -358,7 +363,7 @@ function InteractiveAreaCard({
               {series.map((s) => (
                 <linearGradient
                   key={s.key}
-                  id={`fill-${title}-${s.key}`.replace(/[^a-zA-Z0-9-]/g, "")}
+                  id={fillId(s.key)}
                   x1="0"
                   y1="0"
                   x2="0"
@@ -406,7 +411,7 @@ function InteractiveAreaCard({
                 dataKey={s.key}
                 type="monotone"
                 name={s.key}
-                fill={`url(#fill-${title}-${s.key}`.replace(/[^a-zA-Z0-9-]/g, "") + ")"}
+                fill={`url(#${fillId(s.key)})`}
                 stroke={s.color}
                 strokeWidth={2}
                 dot={false}
