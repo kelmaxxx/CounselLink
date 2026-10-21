@@ -1,7 +1,9 @@
 import { Router } from "express";
+import fs from "fs";
 import { corUpload, avatarUpload, pubmatUpload, signatureUpload } from "../middleware/upload.js";
 import { auth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/rbac.js";
+import { query } from "../config/db.js";
 
 const router = Router();
 
@@ -71,6 +73,19 @@ router.post(
     }
 
     const fileUrl = `/uploads/pubmats/${req.file.filename}`;
+
+    // Durable copy: /uploads is ephemeral on many hosts, so the DB keeps the
+    // bytes and server.js serves them when the disk file is gone.
+    try {
+      await query(
+        `INSERT INTO upload_blobs (url, mime_type, data) VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE mime_type = VALUES(mime_type), data = VALUES(data)`,
+        [fileUrl, req.file.mimetype, fs.readFileSync(req.file.path)]
+      );
+    } catch (err) {
+      // The file is still on disk, so the upload itself succeeded.
+      console.error("Failed to persist pubmat to database:", err.message);
+    }
 
     return res.status(201).json({
       message: "Upload successful",

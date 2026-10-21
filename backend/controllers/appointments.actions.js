@@ -4,6 +4,7 @@ import { createNotification, notifyUsers } from "../utils/notify.js";
 import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { notifyUser, notifyRole } from "../events.js";
 import { validateSchedule } from "../utils/scheduling.js";
+import { evaluateMissedStreak, evaluateCancellationStreak } from "../utils/attendance-monitor.js";
 
 const normalizeDate = (value) => {
   if (!value) return null;
@@ -159,7 +160,7 @@ export const completeAppointment = async (req, res) => {
     return res.status(409).json({ message: "Appointment is already completed" });
   }
   const allowedFromPending = appt.status === "pending" && appt.is_urgent;
-  if (!["approved", "rescheduled", "no_show"].includes(appt.status) && !allowedFromPending) {
+  if (!["approved", "rescheduled", "no_show", "missed"].includes(appt.status) && !allowedFromPending) {
     return res.status(409).json({
       message: `Only approved, rescheduled, or missed appointments can be marked done (was: ${appt.status})`,
     });
@@ -174,21 +175,23 @@ export const completeAppointment = async (req, res) => {
 
   const isTest = appt.appointment_type === "psychological_test";
 
-  await createNotification({
-    userId: appt.student_id,
-    title: isTest ? "Psychological test completed" : "Counseling session completed",
-    message: isTest
-      ? "Your psychological test has been marked as completed by the counselor."
-      : "Your counseling session has been marked as completed by the counselor.",
-    link: isTest ? "/student/consent" : "/student/appointments",
-  });
-  notifyUser(appt.student_id, { type: isTest ? "tests" : "appointments" });
-  sendAppointmentStatusEmail({
-    studentId: appt.student_id,
-    status: "completed",
-    isTest,
-  });
+  // Counseling outcomes are announced when the counselor submits the Session
+  // Report (finalizeSession), which is the formal completion/termination point.
+  // Announcing here as well would double-notify students and could contradict a
+  // later termination, so only psychological tests notify at this step.
   if (isTest) {
+    await createNotification({
+      userId: appt.student_id,
+      title: "Psychological test completed",
+      message: "Your psychological test has been marked as completed by the counselor.",
+      link: "/student/consent",
+    });
+    notifyUser(appt.student_id, { type: "tests" });
+    sendAppointmentStatusEmail({
+      studentId: appt.student_id,
+      status: "completed",
+      isTest,
+    });
     // Tests live in their own frontend context (TestsContext), separate from
     // AppointmentsContext, even though both read from the appointments table —
     // so completing one needs its own "tests" signal to refresh other counselor
@@ -267,68 +270,81 @@ export const rescheduleAppointment = async (req, res) => {
   return res.json({ message: "Appointment rescheduled" });
 };
 
-export const removeNoShows = async (req, res) => {
-  const toRemove = await query(
-    `SELECT id, student_id, scheduled_date
-     FROM appointments
-     WHERE status IN ('approved', 'rescheduled')
-       AND scheduled_date IS NOT NULL
-       AND (
-         scheduled_date < CURDATE()
-         OR (
-           scheduled_date = CURDATE()
-           AND (
-             (scheduled_time IN ('morning', '9:00-10:00', '10:00-11:00', '11:00-12:00', '9:00-12:00') AND CURTIME() >= '12:00:00')
-             OR (scheduled_time IN ('afternoon', '1:00-2:00', '2:00-3:00', '3:00-4:00', '4:00-5:00', '1:00-5:00') AND CURTIME() >= '17:00:00')
-             OR (scheduled_time IS NULL AND CURTIME() >= '17:00:00')
-           )
-         )
-       )`,
-    []
+// Manual attendance outcome. There is deliberately no time-based sweep: a
+// counselor (or admin) decides when an appointment was actually missed.
+export const markMissed = async (req, res) => {
+  const { id } = req.params;
+  const actorId = req.user?.id;
+
+  const rows = await query(
+    "SELECT counselor_id, status, student_id FROM appointments WHERE id = ?",
+    [id]
   );
+  if (!rows.length) return res.status(404).json({ message: "Appointment not found" });
+  const appt = rows[0];
 
-  if (!toRemove.length) return res.json({ removed: 0 });
-
-  const ids = toRemove.map((r) => r.id);
-  await query(
-    `UPDATE appointments SET status = 'no_show', updated_at = NOW() WHERE id IN (${ids.map(() => "?").join(",")})`,
-    ids
-  );
-
-  for (const row of toRemove) {
-    await createNotification({
-      userId: row.student_id,
-      title: "Appointment Closed — No Show",
-      message: `Your appointment scheduled for ${row.scheduled_date} was automatically closed because the scheduled date has passed without a completed session.`,
-      link: "/student/appointments",
-      type: "warning",
+  if (req.user?.role === "counselor" && appt.counselor_id && appt.counselor_id !== actorId) {
+    return res.status(403).json({ message: "You can only update your own appointments" });
+  }
+  if (!["approved", "rescheduled"].includes(appt.status)) {
+    return res.status(409).json({
+      message: `Only approved or rescheduled appointments can be marked missed (was: ${appt.status})`,
     });
-    notifyUser(row.student_id, { type: "appointments" });
   }
 
-  await logAction(req, "remove_no_shows", "appointment", null, { count: toRemove.length });
+  await query(
+    `UPDATE appointments
+     SET status = 'missed', counselor_id = COALESCE(counselor_id, ?),
+         outcome_marked_by = ?, outcome_marked_at = NOW(), updated_at = NOW()
+     WHERE id = ?`,
+    [actorId, actorId, id]
+  );
+
+  await logAction(req, "mark_appointment_missed", "appointment", id, {
+    studentId: appt.student_id,
+  });
+
+  await createNotification({
+    userId: appt.student_id,
+    title: "Appointment marked as missed",
+    message: "Your scheduled appointment was marked as missed by the counselor. Please contact the Guidance and Counseling Section if you need to reschedule.",
+    link: "/student/appointments",
+    type: "warning",
+    dedupeKey: `missed-notice-${id}`,
+  });
+  notifyUser(appt.student_id, { type: "appointments" });
   notifyRole("counselor", { type: "appointments" });
 
-  return res.json({ removed: toRemove.length });
+  await evaluateMissedStreak(appt.student_id, Number(id));
+
+  return res.json({ message: "Appointment marked as missed" });
 };
 
 export const deleteAppointment = async (req, res) => {
   const { id } = req.params;
   const rows = await query("SELECT student_id, status FROM appointments WHERE id = ?", [id]);
   if (!rows.length) return res.status(404).json({ message: "Not found" });
-  
+
   const apt = rows[0];
   if (apt.student_id !== req.user.id && req.user.role !== "admin") {
     return res.status(403).json({ message: "Forbidden" });
   }
-  
-  if (!["pending", "approved", "accepted"].includes(apt.status)) {
-    return res.status(400).json({ message: "Can only cancel pending or approved appointments" });
+
+  if (!["pending", "approved", "rescheduled"].includes(apt.status)) {
+    return res.status(400).json({ message: "Can only cancel pending or scheduled appointments" });
   }
 
-  await query("DELETE FROM appointments WHERE id = ?", [id]);
-  await logAction(req, "delete_appointment", "appointment", id, { status: apt.status });
+  // Soft cancel: keeping the row is what makes cancellation streaks auditable.
+  await query(
+    `UPDATE appointments
+     SET status = 'canceled', canceled_by = ?, canceled_at = NOW(), updated_at = NOW()
+     WHERE id = ?`,
+    [req.user.id, id]
+  );
+  await logAction(req, "cancel_appointment", "appointment", id, { status: apt.status });
   notifyRole("counselor", { type: "appointments" });
+
+  await evaluateCancellationStreak(apt.student_id, Number(id));
 
   res.json({ message: "Appointment canceled successfully" });
 };

@@ -20,6 +20,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { BTN, INPUT, LABEL, Modal } from "../../components/ui";
+import { compressImage } from "../../utils/compressImage";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -154,7 +155,8 @@ export default function CreateAnnouncement() {
       let imageUrl;
       if (pubmatFile) {
         const fd = new FormData();
-        fd.append("pubmat", pubmatFile);
+        // Keep the durable DB copy small; posters are still legible at 2400px.
+        fd.append("pubmat", await compressImage(pubmatFile, { maxDimension: 2400, quality: 0.9 }));
         const uploadRes = await fetch(`${API_BASE}/api/uploads/pubmat`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },

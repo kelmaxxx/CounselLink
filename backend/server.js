@@ -7,7 +7,7 @@ import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
-import { testConnection } from "./config/db.js";
+import { testConnection, query } from "./config/db.js";
 import { addClient } from "./events.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
@@ -31,6 +31,7 @@ import reportRequestsRoutes from "./routes/report-requests.routes.js";
 import urgentCounselingRoutes from "./routes/urgent-counseling.routes.js";
 import systemEvaluationsRoutes from "./routes/system-evaluations.routes.js";
 import metaRoutes from "./routes/meta.routes.js";
+import warningsRoutes from "./routes/warnings.routes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import dns from "dns";
@@ -74,6 +75,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use("/uploads", express.static(getUploadsDir()));
+
+// Durable pubmat fallback. express.static calls next() when the disk copy is
+// missing (e.g. after a redeploy on an ephemeral host), so the DB copy saved at
+// upload time keeps the announcement image working.
+app.get("/uploads/pubmats/:filename", async (req, res) => {
+  const rows = await query("SELECT mime_type, data FROM upload_blobs WHERE url = ?", [
+    `/uploads/pubmats/${req.params.filename}`,
+  ]);
+  if (!rows.length) return res.status(404).json({ message: "File not found" });
+  res.set("Cache-Control", "public, max-age=31536000, immutable");
+  res.type(rows[0].mime_type).send(rows[0].data);
+});
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
@@ -130,6 +143,7 @@ app.use("/api/report-requests", reportRequestsRoutes);
 app.use("/api/urgent-counseling-requests", urgentCounselingRoutes);
 app.use("/api/system-evaluations", systemEvaluationsRoutes);
 app.use("/api/meta", metaRoutes);
+app.use("/api/warnings", warningsRoutes);
 
 // Central error handler. Any error thrown in a route (including async ones,
 // thanks to express-async-errors) lands here and returns a 500 for that single

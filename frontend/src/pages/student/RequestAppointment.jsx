@@ -1,12 +1,10 @@
 // src/pages/student/RequestAppointment.jsx
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
-import { useReactToPrint } from "react-to-print";
 import {
-  Printer,
   AlertTriangle,
   Info,
   ShieldCheck,
@@ -196,12 +194,6 @@ export default function RequestAppointment() {
       setSigBusy(false);
     }
   };
-
-  const printRef = useRef(null);
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `appointment-request-${currentUser?.studentId || currentUser?.id || "form"}`,
-  });
 
   const firstAvail = useMemo(() => {
     const d = firstAvailableDate();
@@ -410,7 +402,6 @@ export default function RequestAppointment() {
           )}
           {current.id === "review" && (
             <ReviewStep
-              printRef={printRef}
               currentUser={currentUser}
               myRecord={myRecord}
               form={form}
@@ -429,9 +420,6 @@ export default function RequestAppointment() {
             </button>
             {isLast ? (
               <div className="flex items-center gap-2">
-                <button type="button" onClick={handlePrint} className={BTN.secondary}>
-                  <Printer size={14} /> Print
-                </button>
                 {confirmedSigUrl ? (
                   <button
                     type="button"
@@ -959,9 +947,9 @@ function ConsentStep({ setField, currentUser }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────
-   Step: Review & submit (printable slip)
+   Step: Review & submit
 ──────────────────────────────────────────────────────────────────── */
-function ReviewStep({ printRef, currentUser, myRecord, form, onJump, confirmedSigUrl, setConfirmedSigUrl, saveDrawnSignature, sigBusy }) {
+function ReviewStep({ currentUser, myRecord, form, onJump, confirmedSigUrl, setConfirmedSigUrl, saveDrawnSignature, sigBusy }) {
   const [showPad, setShowPad] = useState(false);
 
   // If the student already has a profile signature and nothing is confirmed yet,
@@ -972,9 +960,9 @@ function ReviewStep({ printRef, currentUser, myRecord, form, onJump, confirmedSi
     <StepCard
       icon={CheckCircle2}
       title="Review your request"
-      subtitle="Check everything is correct, sign, then submit or print."
+      subtitle="Check everything is correct, sign, then submit."
     >
-      <div ref={printRef} className="space-y-4 print:space-y-2">
+      <div className="space-y-4 print:space-y-2">
         <ReviewBlock title="Student details" onEdit={() => onJump(0)}>
           <ReviewLine label="Name" value={currentUser?.name} />
           <ReviewLine label="Student ID" value={myRecord?.studentId || "N/A"} />

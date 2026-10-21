@@ -97,7 +97,7 @@ export default function CounselorAppointments() {
     acceptAppointment,
     rejectAppointment,
     rescheduleAppointment,
-    removeNoShows,
+    markMissed,
   } = useAppointments();
   const { getTestsForCurrentUser, fetchTests, acceptTest } = useTests();
   const { sessions } = useCounselingSessions();
@@ -123,6 +123,7 @@ export default function CounselorAppointments() {
   const [rescheduleModal, setRescheduleModal] = useState({ open: false, apptId: null, date: "", timeSlot: "", note: "" });
   const [rejectModal, setRejectModal] = useState({ open: false, id: null, note: "" });
   const [completeConfirmModal, setCompleteConfirmModal] = useState({ open: false, id: null, type: "counseling" });
+  const [missConfirmModal, setMissConfirmModal] = useState({ open: false, id: null });
   const [actionErrorModal, setActionErrorModal] = useState({ open: false, message: "" });
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(() => {
@@ -153,14 +154,6 @@ export default function CounselorAppointments() {
   const [testsPage, setTestsPage] = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
 
-  const cleanupDone = useRef(false);
-  useEffect(() => {
-    if (!cleanupDone.current && removeNoShows) {
-      cleanupDone.current = true;
-      removeNoShows().catch(() => undefined);
-    }
-  }, [removeNoShows]);
-
   const handleMarkDone = (id, type = "counseling") => setCompleteConfirmModal({ open: true, id, type });
 
   const submitComplete = async () => {
@@ -171,6 +164,18 @@ export default function CounselorAppointments() {
     setBusyId(null);
     if (!res.success) { setActionErrorModal({ open: true, message: res.message || "Failed to mark as done" }); return; }
     if (type === "test") fetchTests().catch(() => undefined);
+  };
+
+  const submitMissed = async () => {
+    const { id } = missConfirmModal;
+    setMissConfirmModal({ open: false, id: null });
+    if (!id) return;
+    setBusyId(id);
+    const res = await markMissed({ id });
+    setBusyId(null);
+    if (!res.success) {
+      setActionErrorModal({ open: true, message: res.message || "Failed to mark as missed" });
+    }
   };
 
   const handleAccept = async (a) => {
@@ -320,22 +325,22 @@ export default function CounselorAppointments() {
     return true;
   });
 
-  // Missed — no-shows + overdue follow-ups (violet) + overdue urgents (red)
-  // NOTE: only "rescheduled" counts as overdue here — approved is excluded
-  // (a past approved slot is either rescheduled by the counselor or swept to
-  // no_show by the backend, where it still shows under Missing).
-  const overdueAppts = myAppointments.filter((a) => {
-    if (a.status !== "rescheduled") return false;
+  // Missed = explicitly marked missed, legacy no-shows, plus past-due sessions
+  // that are waiting for a counselor's manual outcome. Nothing is auto-marked.
+  const isPastDue = (a) => {
     const sched = standardizeDate(a.scheduledDate || a.scheduled_date || a.preferredDate || a.preferred_date);
     if (!sched) return false;
     if (sched < today) return true;
     if (sched === today) return isSlotOver(a.scheduledTimeSlot || a.timeSlot || a.preferredTime || a.preferred_time);
     return false;
-  });
+  };
+  const pastDueAppts = myAppointments.filter(
+    (a) => (a.status === "approved" || a.status === "rescheduled") && isPastDue(a)
+  );
   const missedAppointments = [
+    ...myAppointments.filter((a) => a.status === "missed").map((a) => ({ ...a, _missedType: "missed" })),
     ...myAppointments.filter((a) => a.status === "no_show").map((a) => ({ ...a, _missedType: "no_show" })),
-    ...overdueAppts.filter((a) => a.reason === "Follow-up Session").map((a) => ({ ...a, _missedType: "follow_up" })),
-    ...overdueAppts.filter((a) => !!(a.is_urgent || a.isUrgent) && a.reason !== "Follow-up Session").map((a) => ({ ...a, _missedType: "urgent" })),
+    ...pastDueAppts.map((a) => ({ ...a, _missedType: "awaiting_outcome" })),
   ];
 
   const upcomingTests = myTests.filter((t) => {
@@ -830,11 +835,9 @@ export default function CounselorAppointments() {
                   const missedType = a._missedType;
 
                   const avatarClass = isMissing
-                    ? missedType === "follow_up"
-                      ? "bg-purple-100 text-purple-700 hover:bg-purple-200"
-                      : missedType === "urgent"
-                      ? "bg-red-100 text-red-700 hover:bg-red-200"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    ? missedType === "awaiting_outcome"
+                      ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                      : "bg-orange-100 text-orange-700 hover:bg-orange-200"
                     : isUrgent
                     ? "bg-red-100 text-red-700 hover:bg-red-200"
                     : isFollowup
@@ -860,12 +863,10 @@ export default function CounselorAppointments() {
                             </button>
                             <span className="text-xs text-gray-500">{a.college || "—"}</span>
                             {isMissing ? (
-                              missedType === "follow_up" ? (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">Missed Follow-up</span>
-                              ) : missedType === "urgent" ? (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">Missed Urgent</span>
+                              missedType === "awaiting_outcome" ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Needs outcome</span>
                               ) : (
-                                <StatusPill status="no_show" />
+                                <StatusPill status="missed" />
                               )
                             ) : (
                               <StatusPill status={displayStatus} />
@@ -992,6 +993,26 @@ export default function CounselorAppointments() {
                           <button onClick={() => openChat(studentId, a.studentName)} className="hidden sm:inline-flex w-8 h-8 items-center justify-center rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition" title="Message">
                             <MessageCircle size={15} />
                           </button>
+                          {isMissing && missedType === "awaiting_outcome" && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => setMissConfirmModal({ open: true, id: a.id })}
+                                disabled={busyId === a.id}
+                                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 text-xs font-medium transition disabled:opacity-50"
+                                title="Mark this session as missed"
+                              >
+                                <X size={13} /><span className="hidden sm:inline">Missed</span>
+                              </button>
+                              <button
+                                onClick={() => handleMarkDone(a.id)}
+                                disabled={busyId === a.id}
+                                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-medium transition disabled:opacity-50"
+                                title="Mark this session as completed"
+                              >
+                                <CheckCircle2 size={13} /><span className="hidden sm:inline">Done</span>
+                              </button>
+                            </div>
+                          )}
                           <a href={`/counselor/appointments/${a.id}/form`} className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md bg-maroon-600 hover:bg-maroon-700 text-white text-xs font-medium transition">
                             <FileText size={13} /><span className="hidden sm:inline">Open form</span>
                           </a>
@@ -1025,6 +1046,13 @@ export default function CounselorAppointments() {
                                         <CheckCircle2 size={14} /> {busyId === a.id ? "Saving…" : "Mark done"}
                                       </button>
                                     )}
+                                    <button
+                                      onClick={() => { setMissConfirmModal({ open: true, id: a.id }); setOpenPopoverId(null); }}
+                                      disabled={busyId === a.id}
+                                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-orange-700 hover:bg-orange-50 transition text-left disabled:opacity-50"
+                                    >
+                                      <X size={14} /> Mark missed
+                                    </button>
                                     <button
                                       onClick={() => { setRejectModal({ open: true, id: a.id, note: "" }); setOpenPopoverId(null); }}
                                       disabled={busyId === a.id}
@@ -1248,6 +1276,26 @@ export default function CounselorAppointments() {
           {completeConfirmModal.type === "test"
             ? "Mark this psychological test request as completed? You will be able to fill up the test results and release them to the student afterwards."
             : "Mark this counseling session as completed? You will be able to open the form and submit the final Session Report afterwards."}
+        </p>
+      </Modal>
+
+      {/* ── Mark missed confirmation ── */}
+      <Modal
+        open={missConfirmModal.open}
+        onClose={() => setMissConfirmModal({ open: false, id: null })}
+        title="Mark as missed"
+        subtitle="Record that the student did not attend"
+        footer={
+          <>
+            <button type="button" className={BTN.secondary} onClick={() => setMissConfirmModal({ open: false, id: null })}>Cancel</button>
+            <button type="button" className={BTN.primary} onClick={submitMissed}>Confirm Missed</button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          Mark this appointment as missed? This records the attendance outcome for the student.
+          Repeated misses are reviewed by the administrator; you can also mark the appointment
+          completed later if the session does take place.
         </p>
       </Modal>
 

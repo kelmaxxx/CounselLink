@@ -141,20 +141,21 @@ export function AppointmentsProvider({ children }) {
     return { success: true };
   };
 
-  const removeNoShows = useCallback(async () => {
-    if (!token) return { success: false };
-    const response = await fetch(`${apiBase}/api/appointments/no-shows`, {
+  const markMissed = async ({ id }) => {
+    const response = await fetch(`${apiBase}/api/appointments/${id}/missed`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
-    const data = await response.json();
-    if (!response.ok) return { success: false };
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: data.message || "Unable to mark appointment as missed" };
+    }
     await fetchAppointments();
-    return { success: true, removed: data.removed };
-  }, [apiBase, token, fetchAppointments]);
+    return { success: true };
+  };
 
   const rejectAppointment = async ({ id, note = null }) => {
     const response = await fetch(`${apiBase}/api/appointments/${id}/reject`, {
@@ -241,7 +242,7 @@ export function AppointmentsProvider({ children }) {
       rescheduleAppointment,
       rejectAppointment,
       completeAppointment,
-      removeNoShows,
+      markMissed,
       cancelAppointment,
       requestRescheduleAppointment,
       getAppointmentsForCurrentUser,

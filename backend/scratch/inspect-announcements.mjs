@@ -1,0 +1,13 @@
+﻿import mysql from "mysql2/promise";
+import dotenv from "dotenv";
+import fs from "fs";
+dotenv.config();
+const ssl = process.env.DB_SSL === "true" ? (process.env.DB_CA_PATH ? { ca: fs.readFileSync(process.env.DB_CA_PATH), rejectUnauthorized: true } : { rejectUnauthorized: false }) : undefined;
+const c = await mysql.createConnection({host:process.env.DB_HOST,user:process.env.DB_USER,password:process.env.DB_PASSWORD,database:process.env.DB_NAME,port:Number(process.env.DB_PORT),ssl});
+const [a] = await c.query("SELECT id, admin_id, LEFT(content,60) content, image_url, date_posted, post_at, remove_at FROM announcements ORDER BY id DESC LIMIT 20");
+console.log(JSON.stringify(a,null,2));
+const [n] = await c.query("SELECT id,user_id,title,image_url,link,type,created_at FROM notifications WHERE image_url IS NOT NULL ORDER BY id DESC LIMIT 20");
+console.log("NOTIFS", JSON.stringify(n,null,2));
+const [cols] = await c.query("SHOW COLUMNS FROM announcements");
+console.log("COLS", JSON.stringify(cols,null,2));
+await c.end();

@@ -1,14 +1,57 @@
-import React, { useState } from "react";
-import { ZoomIn, ZoomOut, RotateCcw, Maximize2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ZoomIn, ZoomOut, RotateCcw, ImageOff } from "lucide-react";
+
+// Small inline image with the same "missing file" fallback used everywhere a
+// pubmat is shown, so a wiped upload can never render as a broken icon.
+export function PubmatThumb({ src, alt = "Announcement poster", className = "" }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src) return null;
+  if (failed) {
+    return (
+      <div className={`flex flex-col items-center justify-center gap-1 bg-gray-50 text-gray-400 ${className}`}>
+        <ImageOff size={20} />
+        <span className="text-xs font-medium">Image unavailable</span>
+      </div>
+    );
+  }
+  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
+}
 
 export default function PubmatViewer({ src, alt = "Announcement poster", className = "" }) {
   const [zoom, setZoom] = useState(1);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
 
   const zoomIn = () => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)));
   const zoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
   const resetZoom = () => setZoom(1);
 
   if (!src) return null;
+
+  if (failed) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center gap-2 min-h-[220px] rounded-xl border border-dashed border-gray-300 bg-gray-50 text-gray-500 p-6 text-center ${className}`}
+        role="img"
+        aria-label={`${alt} unavailable`}
+      >
+        <ImageOff size={28} />
+        <p className="text-sm font-medium text-gray-700">Pubmat image unavailable</p>
+        <p className="text-xs max-w-xs">
+          The image file could not be loaded. It may have been removed from the server, or
+          the link is invalid. The announcement text below is still available.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={`relative rounded-xl border border-gray-200 bg-gray-950/90 overflow-hidden select-none ${className}`}>
@@ -50,6 +93,7 @@ export default function PubmatViewer({ src, alt = "Announcement poster", classNa
         <img
           src={src}
           alt={alt}
+          onError={() => setFailed(true)}
           style={{
             transform: `scale(${zoom})`,
             transformOrigin: "top center",

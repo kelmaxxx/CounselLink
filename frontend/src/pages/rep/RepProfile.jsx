@@ -26,11 +26,6 @@ import ChangePasswordModal from "../../components/ChangePasswordModal";
 import SignatureUploadCard from "../../components/SignatureUploadCard";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
 
-const isValidEmail = (email) => {
-  const str = String(email || "").trim();
-  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(str);
-};
-
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 export default function RepProfile() {
@@ -54,7 +49,6 @@ export default function RepProfile() {
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
     phone: myRecord?.phone || "",
-    email: myRecord?.email || "",
     employeeId: myRecord?.employeeId || "",
   });
   const [message, setMessage] = useState(null);
@@ -95,7 +89,6 @@ export default function RepProfile() {
         ...f,
         name: fresh.name || "",
         phone: fresh.phone || "",
-        email: fresh.email || "",
         employeeId: fresh.employeeId || "",
       }));
     });
@@ -107,10 +100,6 @@ export default function RepProfile() {
       setMessage({ type: "error", text: "Name is required" });
       return;
     }
-    if (formData.email && !isValidEmail(formData.email)) {
-      setMessage({ type: "error", text: "Please enter a valid email address" });
-      return;
-    }
     if (formData.phone && !isValidPhMobile(formData.phone)) {
       setMessage({ type: "error", text: `Phone number: ${PHONE_HINT}` });
       return;
@@ -120,7 +109,6 @@ export default function RepProfile() {
       await updateProfile({
         name: formData.name,
         phone: formData.phone,
-        email: formData.email,
         employeeId: formData.employeeId,
       });
       setIsEditing(false);
@@ -137,7 +125,6 @@ export default function RepProfile() {
     setFormData({
       name: myRecord?.name || "",
       phone: myRecord?.phone || "",
-      email: myRecord?.email || "",
       employeeId: myRecord?.employeeId || "",
     });
     setIsEditing(false);
@@ -254,15 +241,6 @@ export default function RepProfile() {
         <SectionCard title="Professional information" subtitle="College affiliation and role">
           {isEditing ? (
             <div className="space-y-3">
-              <Field icon={Mail} label="Email Address *">
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className={INPUT}
-                  placeholder="username@example.com"
-                />
-              </Field>
               <Field icon={Hash} label="Employee ID">
                 <input
                   type="text"
@@ -280,7 +258,7 @@ export default function RepProfile() {
             </div>
           ) : (
             <dl className="space-y-2.5 text-sm">
-              <Readout icon={Mail} label="Email Address" value={myRecord?.email} />
+              <Readout icon={Mail} label="Email Address (official)" value={myRecord?.email} />
               <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
               <Readout icon={GraduationCap} label="College" value={myRecord?.college || "Not assigned"} />
               <Readout icon={Building2} label="Department" value={myRecord?.department || "Not assigned"} />

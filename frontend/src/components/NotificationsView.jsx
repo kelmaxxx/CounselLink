@@ -14,7 +14,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { PageHeader, SectionCard, EmptyState, Modal, BTN } from "./ui";
-import PubmatViewer from "./PubmatViewer";
+import PubmatViewer, { PubmatThumb } from "./PubmatViewer";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -164,10 +164,10 @@ export default function NotificationsView({ eyebrow = "Account" }) {
                   )}
                   {notif.imageUrl && (
                     <div className="mb-3 rounded-lg overflow-hidden border border-gray-100">
-                      <img
+                      <PubmatThumb
                         src={resolveImageUrl(notif.imageUrl)}
                         alt={notif.title}
-                        className="w-full max-h-72 object-cover"
+                        className="w-full max-h-72 object-contain bg-gray-950"
                       />
                     </div>
                   )}

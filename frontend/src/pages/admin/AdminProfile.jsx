@@ -19,6 +19,7 @@ import {
   BTN,
   INPUT,
   LABEL,
+  Modal,
 } from "../../components/ui";
 import ProfileHero from "../../components/ProfileHero";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
@@ -26,11 +27,6 @@ import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/ph
 
 const DSA_OFFICE = "Division of Student Affairs";
 const DSA_UNIT = "DSA - Office of the Director · System Administration";
-
-const isValidEmail = (email) => {
-  const str = String(email || "").trim();
-  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(str);
-};
 
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -41,6 +37,7 @@ export default function AdminProfile() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [changePwOpen, setChangePwOpen] = useState(false);
+  const [changeEmailOpen, setChangeEmailOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef(null);
 
@@ -53,7 +50,6 @@ export default function AdminProfile() {
   }, []);
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
-    email: myRecord?.email || "",
     phone: myRecord?.phone || "",
     employeeId: myRecord?.employeeId || "",
   });
@@ -95,7 +91,6 @@ export default function AdminProfile() {
       setFormData((f) => ({
         ...f,
         name: fresh.name || "",
-        email: fresh.email || "",
         phone: fresh.phone || "",
         employeeId: fresh.employeeId || "",
       }));
@@ -104,12 +99,8 @@ export default function AdminProfile() {
   }, []);
 
   const handleSave = async () => {
-    if (!formData.name || !formData.email) {
-      setMessage({ type: "error", text: "Name and email address are required" });
-      return;
-    }
-    if (!isValidEmail(formData.email)) {
-      setMessage({ type: "error", text: "Please enter a valid email address" });
+    if (!formData.name) {
+      setMessage({ type: "error", text: "Name is required" });
       return;
     }
     if (formData.phone && !isValidPhMobile(formData.phone)) {
@@ -120,7 +111,6 @@ export default function AdminProfile() {
     try {
       await updateProfile({
         name: formData.name,
-        email: formData.email,
         phone: formData.phone,
         employeeId: formData.employeeId,
       });
@@ -137,7 +127,6 @@ export default function AdminProfile() {
   const handleCancel = () => {
     setFormData({
       name: myRecord?.name || "",
-      email: myRecord?.email || "",
       phone: myRecord?.phone || "",
       employeeId: myRecord?.employeeId || "",
     });
@@ -172,6 +161,12 @@ export default function AdminProfile() {
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
                   >
                     <Lock size={14} className="text-gray-400" /> Change password
+                  </button>
+                  <button
+                    onClick={() => { setChangeEmailOpen(true); setProfileMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                  >
+                    <Mail size={14} className="text-gray-400" /> Change Administrator Email
                   </button>
                 </div>
               )}
@@ -215,6 +210,19 @@ export default function AdminProfile() {
       />
 
       <ChangePasswordModal open={changePwOpen} onClose={() => setChangePwOpen(false)} />
+      <ChangeEmailModal
+        open={changeEmailOpen}
+        onClose={() => setChangeEmailOpen(false)}
+        token={token}
+        onChanged={async () => {
+          const fresh = await refreshCurrentUser?.();
+          setMessage({
+            type: "success",
+            text: fresh?.email ? `Administrator email updated to ${fresh.email}` : "Administrator email updated",
+          });
+          setTimeout(() => setMessage(null), 5000);
+        }}
+      />
 
       <div className="mb-6">
         <SectionCard title="Administrator information" subtitle="Contact and identity">
@@ -227,15 +235,6 @@ export default function AdminProfile() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className={INPUT}
                   placeholder="Enter your name"
-                />
-              </Field>
-              <Field icon={Mail} label="Email Address *">
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className={INPUT}
-                  placeholder="username@example.com"
                 />
               </Field>
               <Field icon={Phone} label="Phone number">
@@ -272,6 +271,171 @@ export default function AdminProfile() {
         </SectionCard>
       </div>
     </div>
+  );
+}
+
+function ChangeEmailModal({ open, onClose, token, onChanged }) {
+  const [step, setStep] = useState("request");
+  const [newEmail, setNewEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const reset = () => {
+    setStep("request");
+    setNewEmail("");
+    setPassword("");
+    setCode("");
+    setBusy(false);
+    setError("");
+    setNotice("");
+  };
+  const close = () => {
+    if (busy) return;
+    reset();
+    onClose();
+  };
+
+  const post = async (path, body) => {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || "Request failed");
+    return data;
+  };
+
+  const handleRequest = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newEmail.trim())) {
+      setError("Please enter a valid email address");
+      return;
+    }
+    if (!password) {
+      setError("Enter your current password");
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await post("/api/users/me/email-change/request", {
+        newEmail: newEmail.trim(),
+        password,
+      });
+      setStep("verify");
+      setPassword("");
+      setNotice(data.message || "Verification code sent.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      const updated = await post("/api/users/me/email-change/verify", { code: code.trim() });
+      await onChanged?.(updated);
+      reset();
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={close}
+      title="Change Administrator Email"
+      subtitle={
+        step === "request"
+          ? "Confirm your password, then verify the new address."
+          : "Enter the code sent to your new address."
+      }
+    >
+      {step === "request" ? (
+        <form onSubmit={handleRequest} className="space-y-3">
+          <div>
+            <label className={LABEL}>New email address</label>
+            <input
+              type="email"
+              className={INPUT}
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="name@example.com"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className={LABEL}>Current password</label>
+            <input
+              type="password"
+              className={INPUT}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Re-enter your password"
+            />
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={close} className={BTN.secondary} disabled={busy}>
+              Cancel
+            </button>
+            <button type="submit" className={BTN.primary} disabled={busy}>
+              {busy ? "Sending…" : "Send verification code"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={handleVerify} className="space-y-3">
+          {notice && (
+            <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+              {notice}
+            </p>
+          )}
+          <div>
+            <label className={LABEL}>Verification code</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              className={INPUT}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="6-digit code"
+              autoFocus
+            />
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setStep("request");
+                setError("");
+              }}
+              className={BTN.secondary}
+              disabled={busy}
+            >
+              Back
+            </button>
+            <button type="submit" className={BTN.primary} disabled={busy || code.length !== 6}>
+              {busy ? "Verifying…" : "Confirm new email"}
+            </button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }
 

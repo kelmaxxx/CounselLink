@@ -14,6 +14,8 @@ import {
   banUser,
   unbanUser,
   resendInvitation,
+  requestAdminEmailChange,
+  verifyAdminEmailChange,
 } from "../controllers/users.controller.js";
 
 const router = Router();
@@ -23,6 +25,8 @@ router.use(auth);
 router.get("/check-email", checkEmailExists);
 router.get("/me", getMe);
 router.put("/me", updateMe);
+router.post("/me/email-change/request", requireRole("admin"), requestAdminEmailChange);
+router.post("/me/email-change/verify", requireRole("admin"), verifyAdminEmailChange);
 router.get("/lookup/:id", lookupUser);
 router.get("/:id/counselor-stats", getCounselorStats);
 
