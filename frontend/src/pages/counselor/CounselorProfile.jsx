@@ -69,7 +69,6 @@ export default function CounselorProfile() {
   }, [dropdownOpen]);
   const [formData, setFormData] = useState({
     name: myRecord?.name || "",
-    email: myRecord?.email || "",
     phone: myRecord?.phone || "",
     employeeId: myRecord?.employeeId || "",
     position: myRecord?.position || "",
@@ -114,7 +113,6 @@ export default function CounselorProfile() {
       setFormData((f) => ({
         ...f,
         name: fresh.name || "",
-        email: fresh.email || "",
         phone: fresh.phone || "",
         employeeId: fresh.employeeId || "",
         position: fresh.position || "",
@@ -127,12 +125,8 @@ export default function CounselorProfile() {
   }, []);
 
   const handleSave = async () => {
-    if (!formData.name || !formData.email) {
-      setMessage({ type: "error", text: "Name and email are required" });
-      return;
-    }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(formData.email.trim())) {
-      setMessage({ type: "error", text: "Please enter a valid email address" });
+    if (!formData.name) {
+      setMessage({ type: "error", text: "Name is required" });
       return;
     }
     if (formData.phone && !isValidPhMobile(formData.phone)) {
@@ -143,7 +137,6 @@ export default function CounselorProfile() {
     try {
       await updateProfile({
         name: formData.name,
-        email: formData.email,
         phone: formData.phone,
         bio: formData.bio,
         position: formData.position,
@@ -164,7 +157,6 @@ export default function CounselorProfile() {
   const handleCancel = () => {
     setFormData({
       name: myRecord?.name || "",
-      email: myRecord?.email || "",
       phone: myRecord?.phone || "",
       employeeId: myRecord?.employeeId || "",
       position: myRecord?.position || "",
@@ -282,15 +274,6 @@ export default function CounselorProfile() {
                   placeholder="Enter your name"
                 />
               </Field>
-              <Field icon={Mail} label="Email *">
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className={INPUT}
-                  placeholder="Enter your email"
-                />
-              </Field>
               <Field icon={Phone} label="Contact number">
                 <input
                   type="tel"
@@ -306,7 +289,7 @@ export default function CounselorProfile() {
           ) : (
             <dl className="space-y-2.5 text-sm">
               <Readout icon={User} label="Name" value={myRecord?.name} />
-              <Readout icon={Mail} label="Email" value={myRecord?.email} />
+              <Readout icon={Mail} label="Email (official)" value={myRecord?.email} />
               <Readout icon={Phone} label="Contact number" value={myRecord?.phone || "Not provided"} />
             </dl>
           )}

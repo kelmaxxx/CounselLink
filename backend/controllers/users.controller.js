@@ -4,6 +4,7 @@ import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { isValidPhMobile } from "../utils/validators.js";
 import { sendEmail } from "../services/email.service.js";
+import { createNotification } from "../utils/notify.js";
 
 const SELECT_FIELDS = `
   id, name, email, role, status, college, student_id AS studentId, phone,
@@ -45,10 +46,12 @@ const SIGNATURE_FIELDS = ["signatureUrl", "signatureFileName", "signatureFileTyp
 
 const SELF_UPDATABLE = {
   student: ["name", "email", "phone", "bio", "college", "department", "program", "yearLevel", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
-  counselor: ["name", "email", "phone", "bio", "department", "specialization", "position", "employeeId", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
-  college_rep: ["name", "email", "phone", "employeeId", "college", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
-  admin: ["name", "email", "phone", "employeeId", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
+  counselor: ["name", "phone", "bio", "department", "specialization", "position", "employeeId", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
+  college_rep: ["name", "phone", "employeeId", "college", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
+  admin: ["name", "phone", "employeeId", ...AVATAR_FIELDS, ...SIGNATURE_FIELDS],
 };
+
+const OFFICIAL_EMAIL_ROLES = ["counselor", "college_rep", "admin"];
 
 const ADMIN_UPDATABLE = [
   "name", "firstName", "middleName", "lastName", "email", "phone", "bio", "college", "program", "studentId",
@@ -87,6 +90,14 @@ export const updateMe = async (req, res) => {
   const userId = req.user?.id;
   const role = req.user?.role;
   const allowed = SELF_UPDATABLE[role] || [];
+
+  if (OFFICIAL_EMAIL_ROLES.includes(role) && "email" in req.body) {
+    return res.status(403).json({
+      message: role === "admin"
+        ? "Use Change Administrator Email to update your email address."
+        : "Official email addresses are managed by the administrator.",
+    });
+  }
 
   const built = buildUpdate(allowed, req.body);
   if (built.error) return res.status(400).json({ message: built.error });
@@ -379,6 +390,17 @@ export const adminUpdateUser = async (req, res) => {
     });
   }
 
+  // Official emails are fixed after setup. Admins change their own through the
+  // verified code flow; only students and pending invitations can be edited here.
+  if (
+    "email" in req.body &&
+    (targetUser.role === "admin" || (OFFICIAL_EMAIL_ROLES.includes(targetUser.role) && targetUser.status !== "pending_setup"))
+  ) {
+    return res.status(403).json({
+      message: "Official email addresses can only be changed through the verified email change process.",
+    });
+  }
+
   if ("name" in req.body && req.body.name && !("firstName" in req.body)) {
     const parts = String(req.body.name).trim().split(/\s+/);
     req.body.firstName = parts[0] || "";
@@ -559,4 +581,179 @@ export const unbanUser = async (req, res) => {
 
   const rows = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [id]);
   return res.json(rows[0]);
+};
+
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const CODE_TTL_MINUTES = 10;
+const MAX_CODE_ATTEMPTS = 5;
+const CODE_RESEND_COOLDOWN_SECONDS = 60;
+const MAX_CODE_REQUESTS_PER_HOUR = 5;
+
+const hashCode = (code) => crypto.createHash("sha256").update(String(code)).digest("hex");
+
+const sendVerificationCode = async ({ name, to, code }) => {
+  await sendEmail({
+    to,
+    subject: "Confirm your new CounselLink administrator email",
+    text: `Hello ${name},\n\nYour verification code is ${code}.\n\nIt expires in ${CODE_TTL_MINUTES} minutes and can be used once. If you did not request this change, ignore this email and keep your current address.\n\n— CounselLink, MSU Marawi City`,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #1e3a8a; margin: 0 0 16px;">Confirm your new administrator email</h2>
+        <p style="color: #374151; font-size: 15px; line-height: 1.6;">Hello <strong>${name}</strong>,</p>
+        <p style="color: #374151; font-size: 15px; line-height: 1.6;">Enter this code in CounselLink to finish changing your administrator email address:</p>
+        <p style="font-size: 30px; font-weight: 700; letter-spacing: 8px; color: #111827; background: #f3f4f6; padding: 16px 20px; border-radius: 8px; text-align: center;">${code}</p>
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">The code expires in ${CODE_TTL_MINUTES} minutes and can be used once. If you did not request this change, ignore this email and keep your current address.</p>
+      </div>
+    `,
+  });
+};
+
+export const requestAdminEmailChange = async (req, res) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Only administrators can change an administrator email." });
+  }
+
+  const newEmail = String(req.body?.newEmail || "").trim();
+  const password = String(req.body?.password || "");
+  if (!EMAIL_PATTERN.test(newEmail)) {
+    return res.status(400).json({ message: "Please enter a valid email address." });
+  }
+  if (!password) {
+    return res.status(400).json({ message: "Password is required to change your email address." });
+  }
+
+  const rows = await query("SELECT id, name, email, password FROM users WHERE id = ?", [req.user.id]);
+  if (!rows.length) return res.status(404).json({ message: "User not found" });
+  const user = rows[0];
+
+  if (!user.password || !(await bcrypt.compare(password, user.password))) {
+    return res.status(401).json({ message: "Incorrect password." });
+  }
+  if (newEmail.toLowerCase() === String(user.email).toLowerCase()) {
+    return res.status(400).json({ message: "That is already your current email address." });
+  }
+
+  const dup = await query("SELECT id FROM users WHERE email = ? AND id <> ?", [newEmail, user.id]);
+  if (dup.length) return res.status(409).json({ message: "Email already in use" });
+
+  const limits = await query(
+    `SELECT
+       COALESCE(SUM(requested_at > (NOW() - INTERVAL 1 HOUR)), 0) AS lastHour,
+       COALESCE(SUM(requested_at > (NOW() - INTERVAL ${CODE_RESEND_COOLDOWN_SECONDS} SECOND)), 0) AS lastMinute
+     FROM admin_email_changes WHERE user_id = ?`,
+    [user.id]
+  );
+  if (Number(limits[0].lastMinute) > 0) {
+    return res.status(429).json({ message: "Please wait a minute before requesting another code." });
+  }
+  if (Number(limits[0].lastHour) >= MAX_CODE_REQUESTS_PER_HOUR) {
+    return res.status(429).json({ message: "Too many code requests. Please try again later." });
+  }
+
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+  const inserted = await query(
+    `INSERT INTO admin_email_changes (user_id, new_email, code_hash, expires_at)
+     VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ${CODE_TTL_MINUTES} MINUTE))`,
+    [user.id, newEmail, hashCode(code)]
+  );
+
+  try {
+    await sendVerificationCode({ name: user.name, to: newEmail, code });
+  } catch (err) {
+    await query("DELETE FROM admin_email_changes WHERE id = ?", [inserted.insertId]);
+    console.error("Failed to send administrator email change code:", err.message);
+    return res.status(502).json({ message: "We could not send the verification code. Please try again later." });
+  }
+
+  await logAction(req, "request_admin_email_change", "user", user.id, { newEmail });
+  return res.json({ message: `Verification code sent to ${newEmail}.`, expiresInMinutes: CODE_TTL_MINUTES });
+};
+
+export const verifyAdminEmailChange = async (req, res) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Only administrators can change an administrator email." });
+  }
+
+  const code = String(req.body?.code || "").trim();
+  if (!/^\d{6}$/.test(code)) {
+    return res.status(400).json({ message: "Enter the 6-digit code from the email." });
+  }
+
+  const rows = await query(
+    `SELECT id, new_email, code_hash, attempts, (expires_at < NOW()) AS expired
+     FROM admin_email_changes
+     WHERE user_id = ? AND consumed_at IS NULL
+     ORDER BY id DESC LIMIT 1`,
+    [req.user.id]
+  );
+  if (!rows.length) {
+    return res.status(400).json({ message: "No pending email change. Request a new code." });
+  }
+
+  const pending = rows[0];
+  if (Number(pending.expired)) {
+    return res.status(410).json({ message: "That code has expired. Request a new one." });
+  }
+  if (Number(pending.attempts) >= MAX_CODE_ATTEMPTS) {
+    return res.status(429).json({ message: "Too many incorrect attempts. Request a new code." });
+  }
+
+  // Count the attempt before comparing so concurrent guesses cannot share one.
+  await query("UPDATE admin_email_changes SET attempts = attempts + 1 WHERE id = ?", [pending.id]);
+
+  const expected = Buffer.from(pending.code_hash, "hex");
+  const actual = Buffer.from(hashCode(code), "hex");
+  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
+    const left = Math.max(MAX_CODE_ATTEMPTS - Number(pending.attempts) - 1, 0);
+    return res.status(400).json({
+      message: left
+        ? `Incorrect code. ${left} attempt${left === 1 ? "" : "s"} remaining.`
+        : "Incorrect code. Request a new code.",
+    });
+  }
+
+  const dup = await query("SELECT id FROM users WHERE email = ? AND id <> ?", [pending.new_email, req.user.id]);
+  if (dup.length) {
+    await query("UPDATE admin_email_changes SET consumed_at = NOW() WHERE id = ?", [pending.id]);
+    return res.status(409).json({ message: "Email already in use" });
+  }
+
+  // Single-use: only one verifier can claim the pending request.
+  const claim = await query(
+    "UPDATE admin_email_changes SET consumed_at = NOW() WHERE id = ? AND consumed_at IS NULL",
+    [pending.id]
+  );
+  if (!claim.affectedRows) {
+    return res.status(409).json({ message: "That code has already been used." });
+  }
+
+  const previous = await query("SELECT email FROM users WHERE id = ?", [req.user.id]);
+  const oldEmail = previous[0]?.email || "";
+  await query("UPDATE users SET email = ?, updated_at = NOW() WHERE id = ?", [pending.new_email, req.user.id]);
+  await query("UPDATE admin_email_changes SET consumed_at = NOW() WHERE user_id = ? AND consumed_at IS NULL", [req.user.id]);
+
+  await logAction(req, "change_admin_email", "user", req.user.id, { oldEmail, newEmail: pending.new_email });
+  await createNotification({
+    userId: req.user.id,
+    title: "Administrator email updated",
+    message: `Your official administrator email is now ${pending.new_email}.`,
+    link: "/admin/profile",
+    type: "success",
+  });
+
+  // Best-effort security notice to both addresses; the change already succeeded.
+  for (const [to, note] of [
+    [oldEmail, `The administrator email was changed from this address to ${pending.new_email}.`],
+    [pending.new_email, "This address is now the official email for your CounselLink administrator account."],
+  ]) {
+    if (!to) continue;
+    try {
+      await sendEmail({ to, subject: "CounselLink administrator email changed", text: `${note}\n\nIf this was not you, contact the DSA Administrator immediately.` });
+    } catch (err) {
+      console.error("Failed to send administrator email change notice:", err.message);
+    }
+  }
+
+  const updated = await query(`SELECT ${SELECT_FIELDS} FROM users WHERE id = ?`, [req.user.id]);
+  return res.json(updated[0]);
 };
