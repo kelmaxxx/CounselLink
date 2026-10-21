@@ -158,9 +158,9 @@ async function photoToPageImage(dataUrl, maxWidth = 1240) {
 // Rasterize each page of an attached PDF (cap 10 pages) into page images.
 async function rasterizePdfAttachment(blob, maxPages = 10) {
   try {
-    const pdfjsLib = await import("pdfjs-dist");
+    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      const { default: workerUrl } = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+      const { default: workerUrl } = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url");
       pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
     }
     const pdf = await pdfjsLib.getDocument({ data: await blob.arrayBuffer() }).promise;
