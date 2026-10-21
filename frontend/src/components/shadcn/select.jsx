@@ -41,14 +41,38 @@ function findClass(children, target) {
   return found;
 }
 
+function findProp(children, target, prop) {
+  let found;
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return;
+    if (child.type === target && child.props?.[prop] != null) {
+      found = child.props[prop];
+      return;
+    }
+    if (child.props?.children) {
+      const nested = findProp(child.props.children, target, prop);
+      if (nested != null) found = nested;
+    }
+  });
+  return found;
+}
+
 function itemLabel(item) {
   return typeof item.children === "string" ? item.children : String(item.value);
 }
 
-export function Select({ value, onValueChange, children, className = "" }) {
+export function Select({
+  value,
+  onValueChange,
+  children,
+  className = "",
+  variant = "default",
+}) {
   const items = collectItems(children);
   const triggerClass = findClass(children, SelectTrigger);
   const contentClass = findClass(children, SelectContent);
+  const placeholder = findProp(children, SelectValue, "placeholder");
+  const isForm = variant === "form";
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef(null);
 
@@ -70,25 +94,33 @@ export function Select({ value, onValueChange, children, className = "" }) {
 
   const selected = items.find((i) => i.value === value);
 
+  const triggerBase = isForm
+    ? "flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-4 text-left text-sm text-gray-900 shadow-sm outline-none transition hover:border-gray-300 focus:border-maroon-500 focus:ring-2 focus:ring-maroon-500/25"
+    : "inline-flex h-9 items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white pl-3 pr-2.5 text-sm text-gray-700 shadow-sm outline-none transition hover:border-gray-300 focus:border-maroon-500 focus:ring-2 focus:ring-maroon-500/25";
+
   return (
-    <span ref={ref} className={`relative inline-flex ${className}`}>
+    <span ref={ref} className={`relative ${isForm ? "block w-full" : "inline-flex"} ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`inline-flex h-9 items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white pl-3 pr-2.5 text-sm text-gray-700 shadow-sm outline-none transition hover:border-gray-300 focus:border-maroon-500 focus:ring-2 focus:ring-maroon-500/25 ${triggerClass}`}
+        className={`${triggerBase} ${triggerClass}`}
       >
-        <span className="truncate">{selected ? itemLabel(selected) : ""}</span>
+        <span className={`truncate ${selected ? "" : "text-gray-400"}`}>
+          {selected ? itemLabel(selected) : placeholder || ""}
+        </span>
         <ChevronDown
           size={14}
-          className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`text-gray-400 transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`}
         />
       </button>
       {open && (
         <span
           role="listbox"
-          className={`absolute right-0 top-[calc(100%+6px)] z-50 min-w-[180px] rounded-xl border border-gray-200 bg-white p-1 shadow-xl shadow-gray-950/10 ${contentClass}`}
+          className={`absolute top-[calc(100%+6px)] z-50 rounded-xl border border-gray-200 bg-white p-1 shadow-xl shadow-gray-950/10 ${
+            isForm ? "left-0 right-0 min-w-full max-h-60 overflow-y-auto" : "right-0 min-w-[180px]"
+          } ${contentClass}`}
         >
           {items.map((item) => {
             const isActive = item.value === value;
@@ -102,14 +134,16 @@ export function Select({ value, onValueChange, children, className = "" }) {
                   onValueChange?.(item.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center justify-between gap-8 rounded-lg px-3 py-2 text-sm transition ${
+                className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                  isForm ? "text-left whitespace-normal" : "whitespace-nowrap"
+                } ${
                   isActive
-                    ? "bg-gray-100 text-gray-900 font-medium"
+                    ? "bg-maroon-50 text-maroon-800 font-medium"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 }`}
               >
-                <span className="whitespace-nowrap">{itemLabel(item)}</span>
-                {isActive && <Check size={16} className="flex-shrink-0 text-gray-900" />}
+                <span>{itemLabel(item)}</span>
+                {isActive && <Check size={16} className="flex-shrink-0 text-maroon-700" />}
               </button>
             );
           })}

@@ -15,7 +15,14 @@ import {
   initialsOf,
   formatDate,
 } from "../../components/ui";
-import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../../utils/phone";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/shadcn/select";
+import { sanitizePhoneDigits, PHONE_HINT } from "../../utils/phone";
 import ReschedulePicker, { RESCHED_BLOCKS } from "../../components/ReschedulePicker";
 
 // "Oct 20, 2026 · Morning (9:00 AM – 12:00 PM)" — the schedule the rep set
@@ -524,19 +531,22 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
               </div>
               <div>
                 <label className={LABEL}>Department *</label>
-                <select
-                  required
-                  className={INPUT}
+                <Select
+                  variant="form"
                   value={form.department}
-                  onChange={(e) => setField("department", e.target.value)}
+                  onValueChange={(v) => setField("department", v)}
                 >
-                  <option value="">Select department</option>
-                  {myDepartments.map((d) => (
-                    <option key={d.code} value={d.name}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {myDepartments.map((d) => (
+                      <SelectItem key={d.code} value={d.name}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -582,19 +592,22 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
               </div>
               <div>
                 <label className={LABEL}>Department *</label>
-                <select
-                  required
-                  className={INPUT}
+                <Select
+                  variant="form"
                   value={form.referrerDepartment}
-                  onChange={(e) => setField("referrerDepartment", e.target.value)}
+                  onValueChange={(v) => setField("referrerDepartment", v)}
                 >
-                  <option value="">Select department</option>
-                  {myDepartments.map((d) => (
-                    <option key={d.code} value={d.name}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {myDepartments.map((d) => (
+                      <SelectItem key={d.code} value={d.name}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -605,19 +618,22 @@ function NewReferralModal({ token, currentUser, onClose, onCreated }) {
             <h4 className="text-sm font-semibold text-gray-900">Step 3: Referral Details</h4>
             <div>
               <label className={LABEL}>Nature of concern *</label>
-              <select
-                required
-                className={INPUT}
+              <Select
+                variant="form"
                 value={form.natureOfConcern}
-                onChange={(e) => setField("natureOfConcern", e.target.value)}
+                onValueChange={(v) => setField("natureOfConcern", v)}
               >
-                <option value="">Select nature of concern</option>
-                {NATURE_OF_CONCERN_OPTIONS.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select nature of concern" />
+                </SelectTrigger>
+                <SelectContent>
+                  {NATURE_OF_CONCERN_OPTIONS.map((o) => (
+                    <SelectItem key={o} value={o}>
+                      {o}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {form.natureOfConcern === "Other" && (
               <div>
