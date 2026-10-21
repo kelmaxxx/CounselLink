@@ -1,6 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { createNotification } from "../utils/notify.js";
+import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { notifyUser } from "../events.js";
 
 const SELECT_FIELDS = `
@@ -336,6 +337,28 @@ export const finalizeSession = async (req, res) => {
       });
     }
     notifyUser(referrerId, { type: "sessions" });
+  }
+
+  // Formal session outcome. Sent once per session (dedupe key) and only after
+  // the report is submitted — never on draft saves — so the student gets one
+  // respectful message that matches what the counselor finally recorded.
+  // No presenting concern, summary, plan, or comments are included.
+  const terminated = session.next_session === "termination";
+  const outcomeSent = await createNotification({
+    userId: session.student_id,
+    title: terminated ? "Counseling sessions concluded" : "Counseling session completed",
+    message: terminated
+      ? `Your counseling sessions have concluded as of ${session.session_date}. You are welcome to request another appointment at any time.`
+      : `Your counseling session on ${session.session_date} has been formally completed. Thank you for coming in.`,
+    link: "/student/appointments",
+    dedupeKey: `session-outcome-${session.id}`,
+  });
+  if (outcomeSent) {
+    sendAppointmentStatusEmail({
+      studentId: session.student_id,
+      status: terminated ? "session_terminated" : "session_completed",
+      date: session.session_date,
+    });
   }
 
   // The finalized report becomes part of the student's record.

@@ -39,6 +39,22 @@ const buildContent = ({ status, date, timeSlot, note, isUrgent, isTest, counselo
           heading: "Counseling Session Completed",
           lead: "Your counseling session has been marked as <strong>completed</strong> by the counselor. Thank you for coming in.",
         };
+    case "session_completed":
+      return {
+        subject: "Your CounselLink counseling session is complete",
+        heading: "Counseling Session Completed",
+        lead: `Your counseling session${date ? ` on <strong>${escapeHtml(date)}</strong>` : ""} has been formally <strong>completed</strong>. Thank you for taking part — take care of yourself.`,
+        ctaPath: "/student/appointments",
+        ctaLabel: "View my appointments",
+      };
+    case "session_terminated":
+      return {
+        subject: "Update on your CounselLink counseling sessions",
+        heading: "Counseling Sessions Concluded",
+        lead: `Your counseling sessions${date ? ` as of <strong>${escapeHtml(date)}</strong>` : ""} have <strong>concluded</strong>. This may mean your goals have been met, or your counselor has recommended a different kind of support. You are welcome to request another appointment at any time.`,
+        ctaPath: "/student/appointments",
+        ctaLabel: "Request an appointment",
+      };
     case "approved":
       return {
         subject: "Your CounseLink appointment was approved",
@@ -108,6 +124,40 @@ const renderText = ({ name, lead, note, ctaPath, ctaLabel }) => {
   ]
     .filter((line) => line !== null && line !== undefined)
     .join("\n");
+};
+
+// Fire-and-forget attendance warning email for the monitoring rules. Contains
+// only the count and a supportive next step — never counseling notes/results.
+export const sendAttendanceWarningEmail = ({ studentId, type, count }) => {
+  if (!studentId) return;
+
+  (async () => {
+    try {
+      const rows = await query("SELECT name, email FROM users WHERE id = ? LIMIT 1", [studentId]);
+      const student = rows[0];
+      if (!student?.email) return;
+
+      const missed = type === "missed_streak";
+      const heading = missed ? "Attendance Concern" : "Appointment Cancellations";
+      const lead = missed
+        ? `You have missed <strong>${count} consecutive appointments</strong>. We would like to check in and help you continue your sessions — please contact the Guidance and Counseling Section at your convenience.`
+        : `You have canceled <strong>${count} consecutive appointments</strong>. If something is making it hard to attend, please reach out so we can help you find a schedule that works.`;
+      const name = student.name || "there";
+      const ctaPath = "/student/appointments";
+      const ctaLabel = "View my appointments";
+
+      await sendEmail({
+        to: student.email,
+        subject: missed
+          ? "We missed you at your counseling appointments"
+          : "A note about your counseling appointments",
+        html: renderHtml({ name, heading, lead, ctaPath, ctaLabel }),
+        text: renderText({ name, lead, ctaPath, ctaLabel }),
+      });
+    } catch (err) {
+      console.warn(`[attendance-email] Failed to email student ${studentId} (${type}):`, err.message);
+    }
+  })();
 };
 
 // Fire-and-forget email for an appointment status change. Mirrors the auth

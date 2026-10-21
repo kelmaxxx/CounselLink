@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import WelcomeHero from "../../components/WelcomeHero";
-import PubmatViewer from "../../components/PubmatViewer";
+import PubmatViewer, { PubmatThumb } from "../../components/PubmatViewer";
 import { collegeColor } from "../../data/sagayanColors";
 import {
   PageHeader,
@@ -478,10 +478,10 @@ function AnnouncementsPanel({ token }) {
                         className="mb-3 rounded-lg overflow-hidden border border-gray-100 cursor-pointer group relative"
                         title="Click to view announcement details"
                       >
-                        <img
+                        <PubmatThumb
                           src={resolveImageUrl(item.imageUrl)}
                           alt={title}
-                          className="w-full max-h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+                          className="w-full max-h-48 object-contain bg-gray-950 group-hover:scale-105 transition-transform duration-200"
                         />
                       </div>
                     )}

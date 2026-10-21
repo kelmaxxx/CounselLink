@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   ArrowRight,
   RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import {
   PageHeader,
@@ -242,6 +243,95 @@ export default function ManageUsers() {
   const [banReason, setBanReason] = useState("");
   const [actionsOpen, setActionsOpen] = useState(false);
   const actionsRef = useRef(null);
+  const [warningData, setWarningData] = useState({ warnings: [], cancellationThreshold: 4 });
+  const [warningsOpen, setWarningsOpen] = useState(false);
+  const [warningNotes, setWarningNotes] = useState({});
+  const [warningBusy, setWarningBusy] = useState(null);
+
+  const loadWarnings = async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/warnings`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!res.ok) return;
+      setWarningData(await res.json());
+    } catch {
+      // Keep the rest of the page usable if monitoring data can't load.
+    }
+  };
+
+  useEffect(() => {
+    loadWarnings();
+  }, []);
+
+  const warningGroups = useMemo(() => {
+    const map = new Map();
+    for (const item of warningData.warnings || []) {
+      if (!map.has(item.studentId)) {
+        map.set(item.studentId, {
+          studentId: item.studentId,
+          studentName: item.studentName,
+          studentNumber: item.studentNumber,
+          college: item.college,
+          studentStatus: item.studentStatus,
+          items: [],
+        });
+      }
+      map.get(item.studentId).items.push(item);
+    }
+    return [...map.values()];
+  }, [warningData.warnings]);
+
+  const openWarningCount = (warningData.warnings || []).filter((w) => w.status === "open").length;
+
+  const reviewWarning = async (id, status) => {
+    setWarningBusy(id);
+    try {
+      const res = await fetch(`${apiBase}/api/warnings/${id}/review`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ status, note: warningNotes[id] || "" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to review warning");
+      setWarningNotes((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setMessage({ type: "success", text: data.message });
+      await loadWarnings();
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Unable to review warning" });
+    } finally {
+      setWarningBusy(null);
+      setTimeout(() => setMessage(null), 4000);
+    }
+  };
+
+  const updateCancellationThreshold = async (value) => {
+    try {
+      const res = await fetch(`${apiBase}/api/warnings/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ cancellationThreshold: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to update setting");
+      setWarningData((prev) => ({ ...prev, cancellationThreshold: data.cancellationThreshold }));
+      setMessage({ type: "success", text: data.message });
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Unable to update setting" });
+    } finally {
+      setTimeout(() => setMessage(null), 4000);
+    }
+  };
 
   useEffect(() => {
     const handleOutside = (e) => {
@@ -584,6 +674,20 @@ export default function ManageUsers() {
           {message.type === "success" ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
           {message.text}
         </div>
+      )}
+
+      {openWarningCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setWarningsOpen(true)}
+          className="w-full mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left hover:bg-amber-100 transition"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium text-amber-900">
+            <AlertTriangle size={16} className="flex-shrink-0" />
+            {openWarningCount} attendance warning{openWarningCount === 1 ? "" : "s"} need review
+          </span>
+          <span className="text-xs font-medium text-amber-800 whitespace-nowrap">Review now →</span>
+        </button>
       )}
 
       {/* Search bar with counselor suggestions on hover */}
@@ -1125,6 +1229,126 @@ export default function ManageUsers() {
             </div>
           )}
         </form>
+      </Modal>
+
+      {/* Attendance / cancellation warnings */}
+      <Modal
+        open={warningsOpen}
+        onClose={() => setWarningsOpen(false)}
+        title="Attendance warnings"
+        subtitle="Manual outcomes only. Review each case before taking action."
+        size="2xl"
+      >
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <p className="text-xs text-gray-600">
+            Warn after consecutive student cancellations:
+          </p>
+          <select
+            className={`${INPUT} max-w-[90px]`}
+            value={warningData.cancellationThreshold}
+            onChange={(e) => updateCancellationThreshold(Number(e.target.value))}
+          >
+            <option value={4}>4</option>
+            <option value={5}>5</option>
+          </select>
+        </div>
+
+        {warningGroups.length === 0 ? (
+          <p className="text-sm text-gray-500 py-6 text-center">No attendance warnings recorded.</p>
+        ) : (
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            {warningGroups.map((group) => (
+              <div key={group.studentId} className="rounded-xl border border-gray-200 overflow-hidden">
+                <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {group.studentName}
+                      {group.studentNumber ? <span className="ml-2 text-xs font-normal text-gray-500 tabular-nums">{group.studentNumber}</span> : null}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">{group.college || "—"}</p>
+                  </div>
+                  {group.studentStatus === "banned" ? (
+                    <StatusPill status="rejected">Deactivated</StatusPill>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWarningsOpen(false);
+                        openDeleteConfirm(group.studentId);
+                      }}
+                      className="text-xs font-medium text-red-600 hover:underline whitespace-nowrap"
+                    >
+                      Deactivate account
+                    </button>
+                  )}
+                </div>
+
+                <ul className="divide-y divide-gray-100">
+                  {group.items.map((warning) => (
+                    <li key={warning.id} className="px-4 py-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900">
+                            {warning.type === "missed_streak" ? "Missed appointments" : "Repeated cancellations"}
+                          </p>
+                          <p className="text-xs text-gray-600">{warning.reason}</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            {new Date(warning.createdAt).toLocaleString()}
+                            {warning.appointmentDate ? ` · Latest: ${new Date(warning.appointmentDate).toLocaleDateString()}` : ""}
+                          </p>
+                        </div>
+                        <StatusPill
+                          status={warning.status === "open" ? "pending" : warning.status === "resolved" ? "completed" : "canceled"}
+                        >
+                          {warning.status === "open" ? "Open" : warning.status === "resolved" ? "Resolved" : "Dismissed"}
+                        </StatusPill>
+                      </div>
+
+                      {warning.status !== "open" && (
+                        <p className="text-xs text-gray-500">
+                          {warning.status === "resolved" ? "Resolved" : "Dismissed"}
+                          {warning.reviewedByName ? ` by ${warning.reviewedByName}` : ""}
+                          {warning.reviewedAt ? ` · ${new Date(warning.reviewedAt).toLocaleString()}` : ""}
+                          {warning.reviewNote ? ` — ${warning.reviewNote}` : ""}
+                        </p>
+                      )}
+
+                      {warning.status === "open" && (
+                        <div className="space-y-2">
+                          <textarea
+                            rows={2}
+                            className={`${INPUT} resize-none text-xs`}
+                            placeholder="Review note (optional) — e.g. student contacted, schedule adjusted."
+                            value={warningNotes[warning.id] || ""}
+                            onChange={(e) => setWarningNotes((prev) => ({ ...prev, [warning.id]: e.target.value }))}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={warningBusy === warning.id}
+                              onClick={() => reviewWarning(warning.id, "resolved")}
+                              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              <CheckCircle size={12} /> Resolve
+                            </button>
+                            <button
+                              type="button"
+                              disabled={warningBusy === warning.id}
+                              onClick={() => reviewWarning(warning.id, "dismissed")}
+                              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
 
       {/* Delete/ban confirmation */}
