@@ -195,6 +195,13 @@ export const rejectTest = async (req, res) => {
   const { note } = req.body;
   const counselorId = req.user?.id;
 
+  // Reject declines a request; approved tests are recorded via missed/completed.
+  const existing = await query("SELECT status FROM appointments WHERE id = ?", [id]);
+  if (!existing.length) return res.status(404).json({ message: "Test request not found" });
+  if (existing[0].status !== "pending") {
+    return res.status(409).json({ message: `Only pending requests can be rejected (was: ${existing[0].status})` });
+  }
+
   await query(
     "UPDATE appointments SET status='rejected', counselor_id=?, counselor_action_note=?, updated_at=NOW() WHERE id=?",
     [counselorId, note || null, id]

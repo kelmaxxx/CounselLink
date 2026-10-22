@@ -1053,13 +1053,6 @@ export default function CounselorAppointments() {
                                     >
                                       <X size={14} /> Mark missed
                                     </button>
-                                    <button
-                                      onClick={() => { setRejectModal({ open: true, id: a.id, note: "" }); setOpenPopoverId(null); }}
-                                      disabled={busyId === a.id}
-                                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition text-left disabled:opacity-50"
-                                    >
-                                      <X size={14} /> Reject
-                                    </button>
                                   </div>
                                 )}
                               </div>
