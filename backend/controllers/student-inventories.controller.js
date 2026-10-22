@@ -77,8 +77,10 @@ export const upsertInventory = async (req, res) => {
           ...formData,
           acknowledgment: {
             ...nextAck,
+            // The saved record is the source of truth for authorization; only
+            // e-signing or a counselor revocation may change these two flags.
             disclaimerAgreed: prevAck.disclaimerAgreed ?? nextAck.disclaimerAgreed,
-            disclaimerRevokedAt: prevAck.disclaimerRevokedAt ?? nextAck.disclaimerRevokedAt,
+            disclaimerRevokedAt: prevAck.disclaimerRevokedAt ?? null,
           },
         };
       }
