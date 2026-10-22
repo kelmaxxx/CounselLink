@@ -1046,13 +1046,6 @@ export default function CounselorAppointments() {
                                         <CheckCircle2 size={14} /> {busyId === a.id ? "Saving…" : "Mark done"}
                                       </button>
                                     )}
-                                    <button
-                                      onClick={() => { setMissConfirmModal({ open: true, id: a.id }); setOpenPopoverId(null); }}
-                                      disabled={busyId === a.id}
-                                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-orange-700 hover:bg-orange-50 transition text-left disabled:opacity-50"
-                                    >
-                                      <X size={14} /> Mark missed
-                                    </button>
                                   </div>
                                 )}
                               </div>
