@@ -384,6 +384,7 @@ function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadS
                               <button
                                 onClick={handleDecide}
                                 disabled={decideBusy}
+                                autoFocus
                                 className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 text-sm font-medium disabled:opacity-50"
                               >
                                 {decideBusy ? "Processing…" : "Confirm approval"}

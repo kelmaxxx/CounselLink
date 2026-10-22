@@ -237,20 +237,18 @@ function SectionHeader({ number, children }) {
 // must approve.
 function RevocationCheckbox({ label, checked, disabled, onChange, note, error }) {
   return (
-    <div className="no-print mt-1 text-[9px] leading-snug">
-      <label className={`inline-flex items-start gap-1 select-none ${disabled ? "cursor-not-allowed text-gray-500" : "cursor-pointer text-gray-800"}`}>
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="mt-0.5 w-3 h-3 accent-red-600"
-        />
-        <span>{label}</span>
-      </label>
-      {note && <span className="ml-1 text-gray-500 italic">{note}</span>}
-      {error && <p className="text-red-600 mt-0.5">{error}</p>}
-    </div>
+    <span className="no-print inline-flex flex-col items-start">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        aria-label={label}
+        title={note || label}
+        className="mt-[2px] w-3 h-3 accent-red-600 cursor-pointer disabled:cursor-not-allowed"
+      />
+      {error && <span className="text-red-600 text-[9px] leading-tight">{error}</span>}
+    </span>
   );
 }
 
@@ -1207,38 +1205,39 @@ export default function InventoryForm({
           </div>
 
           {/* Disclaimer Block */}
-          <div className="text-[9px] mt-3 leading-tight text-justify">
-            <span className="font-bold text-red-600 select-none">DISCLAIMER:</span> I hereby authorize the Guidance and Counseling Section of Division of Student Affairs to collect data indicated herein for Individual Inventory and documentation purposes only. I understand that my personal information is protected by RA 10173, Data Privacy Act of 2012 and that the data collected will not be shared to other entities other than the purpose stated.
+          <div className="flex items-start gap-1.5 mt-3">
+            {isStudentView && (
+              <RevocationCheckbox
+                label="Request revocation of this data authorization"
+                checked={authorizationPending || authorizationRevoked}
+                disabled={
+                  !authorizationActive ||
+                  authorizationPending ||
+                  authorizationRevoked ||
+                  revocationLoading ||
+                  revocationBusy
+                }
+                onChange={() => setConfirmRevocationType("authorization")}
+                note={
+                  revocationLoading
+                    ? "Checking request status…"
+                    : authorizationPending
+                      ? "Request pending counselor review."
+                      : authorizationRevoked
+                        ? "Authorization revoked."
+                        : authorizationRejected
+                          ? `Previous request rejected${authorizationRequest?.rejectionReason ? `: ${authorizationRequest.rejectionReason}` : ""}.`
+                          : !authorizationActive
+                            ? "No active authorization."
+                            : "Tick to send a revocation request to your counselor."
+                }
+                error={revocationError?.type === "authorization" ? revocationError.message : null}
+              />
+            )}
+            <div className="flex-1 text-[9px] leading-tight text-justify">
+              <span className="font-bold text-red-600 select-none">DISCLAIMER:</span> I hereby authorize the Guidance and Counseling Section of Division of Student Affairs to collect data indicated herein for Individual Inventory and documentation purposes only. I understand that my personal information is protected by RA 10173, Data Privacy Act of 2012 and that the data collected will not be shared to other entities other than the purpose stated.
+            </div>
           </div>
-
-          {isStudentView && (
-            <RevocationCheckbox
-              label="Request revocation of this data authorization"
-              checked={authorizationPending || authorizationRevoked}
-              disabled={
-                !authorizationActive ||
-                authorizationPending ||
-                authorizationRevoked ||
-                revocationLoading ||
-                revocationBusy
-              }
-              onChange={() => setConfirmRevocationType("authorization")}
-              note={
-                revocationLoading
-                  ? "Checking request status…"
-                  : authorizationPending
-                    ? "Request pending counselor review."
-                    : authorizationRevoked
-                      ? "Authorization revoked."
-                      : authorizationRejected
-                        ? `Previous request rejected${authorizationRequest?.rejectionReason ? `: ${authorizationRequest.rejectionReason}` : ""}.`
-                        : !authorizationActive
-                          ? "No active authorization."
-                          : "Tick to send a revocation request to your counselor."
-              }
-              error={revocationError?.type === "authorization" ? revocationError.message : null}
-            />
-          )}
 
           {/* Disclaimer Signature block */}
           <div className="flex justify-between mt-5 px-12">
@@ -1285,39 +1284,40 @@ export default function InventoryForm({
           </div>
 
           {/* ACKNOWLEDGMENT */}
-          <div className="text-left font-bold text-[10px] uppercase mt-1 select-none">ACKNOWLEDGMENT</div>
+          <div className="flex items-center gap-1.5 mt-1">
+            {isStudentView && (
+              <RevocationCheckbox
+                label="Request revocation of this informed consent"
+                checked={consentPending || consentRevoked}
+                disabled={
+                  !consentActive ||
+                  consentPending ||
+                  consentRevoked ||
+                  revocationLoading ||
+                  revocationBusy
+                }
+                onChange={() => setConfirmRevocationType("consent")}
+                note={
+                  revocationLoading
+                    ? "Checking request status…"
+                    : consentPending
+                      ? "Request pending counselor review."
+                      : consentRevoked
+                        ? "Informed consent revoked."
+                        : consentRejected
+                          ? `Previous request rejected${consentRequest?.rejectionReason ? `: ${consentRequest.rejectionReason}` : ""}.`
+                          : !consent?.eConsentSignedAt
+                            ? "Sign the informed consent first."
+                            : "Tick to send a revocation request to your counselor."
+                }
+                error={revocationError?.type === "consent" ? revocationError.message : null}
+              />
+            )}
+            <div className="text-left font-bold text-[10px] uppercase select-none">ACKNOWLEDGMENT</div>
+          </div>
           <div className="text-[8.5px] leading-tight text-justify">
             I acknowledge having been informed of my rights and responsibilities as a student receiving counseling services at Division of Student Affairs, Guidance and Counseling Section, Mindanao State University, Marawi City. I understand the risks and benefits of guidance and counseling services, the nature, and limits of confidentiality. By signing below, I agree to the terms and conditions of counseling.
           </div>
-
-          {isStudentView && (
-            <RevocationCheckbox
-              label="Request revocation of this informed consent"
-              checked={consentPending || consentRevoked}
-              disabled={
-                !consentActive ||
-                consentPending ||
-                consentRevoked ||
-                revocationLoading ||
-                revocationBusy
-              }
-              onChange={() => setConfirmRevocationType("consent")}
-              note={
-                revocationLoading
-                  ? "Checking request status…"
-                  : consentPending
-                    ? "Request pending counselor review."
-                    : consentRevoked
-                      ? "Informed consent revoked."
-                      : consentRejected
-                        ? `Previous request rejected${consentRequest?.rejectionReason ? `: ${consentRequest.rejectionReason}` : ""}.`
-                        : !consent?.eConsentSignedAt
-                          ? "Sign the informed consent first."
-                          : "Tick to send a revocation request to your counselor."
-              }
-              error={revocationError?.type === "consent" ? revocationError.message : null}
-            />
-          )}
 
           {/* Acknowledgment Signature Box */}
           <div className="border border-black p-2 mt-1.5">
