@@ -98,8 +98,8 @@ const STAT_TONES = {
 export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, trend, trendDir = "up", variant = "light", compact = false }) {
   const dark = variant === "dark";
   return (
-    <div className={`rounded-2xl ${compact ? "p-4" : "p-6"} border shadow-sm transition hover:shadow-md ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
-      <div className="flex items-start justify-between gap-2 mb-2">
+    <div className={`rounded-2xl ${compact ? "p-4" : "p-6"} border shadow-sm transition hover:shadow-md h-full flex flex-col ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
+      <div className="flex items-start justify-between gap-2">
         <span className={`text-sm font-medium truncate min-w-0 ${dark ? "text-white/70" : "text-gray-500"}`}>{label}</span>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           {Icon && (
@@ -119,16 +119,20 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, 
           )}
         </div>
       </div>
-      <div className={`${compact ? "mt-4 text-4xl" : "mt-5 text-5xl"} font-semibold tabular-nums leading-none tracking-tight ${dark ? "text-white" : "text-gray-900"}`}>
-        {value}
+      {/* Number + hint sit in the leftover height so stretched cards don't
+          leave an empty gap at the bottom. */}
+      <div className="flex flex-1 flex-col justify-center pt-4">
+        <div className={`${compact ? "text-[2.5rem]" : "text-5xl"} font-semibold tabular-nums leading-none tracking-tight ${dark ? "text-white" : "text-gray-900"}`}>
+          {value}
+        </div>
+        {trend && (
+          <p className={`${compact ? "mt-2 text-xs" : "mt-3 text-sm"} flex items-center gap-1.5 font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
+            <TrendIcon dir={trendDir} />
+            {trend}
+          </p>
+        )}
+        {hint && <p className={`${trend ? "mt-1" : "mt-1.5"} text-xs ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
       </div>
-      {trend && (
-        <p className={`${compact ? "mt-2 text-xs" : "mt-3 text-sm"} flex items-center gap-1.5 font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
-          <TrendIcon dir={trendDir} />
-          {trend}
-        </p>
-      )}
-      {hint && <p className={`${trend ? "mt-1" : compact ? "mt-2" : "mt-3"} text-xs ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
     </div>
   );
 }
