@@ -155,6 +155,16 @@ export function StudentRecordsProvider({ children }) {
     return { success: true };
   };
 
+  const revokeAuthorization = async (studentId) => {
+    const response = await authFetch(
+      `${apiBase}/api/student-consents/${studentId}/revoke-authorization`,
+      { method: "POST" }
+    );
+    const data = await parseJson(response);
+    if (!response.ok) return { success: false, message: data.message || "Failed to revoke authorization" };
+    return { success: true };
+  };
+
   const setReferralSharingConsent = async (studentId, allow) => {
     const response = await authFetch(
       `${apiBase}/api/student-consents/${studentId}/referral-sharing`,
@@ -168,20 +178,22 @@ export function StudentRecordsProvider({ children }) {
   // ---- Consent Revocation Requests ----
 
   // Fetch the latest revocation request for a student (own or counselor).
-  const getRevocationRequest = async (studentId) => {
+  const getRevocationRequest = async (studentId, type = "consent") => {
     if (!token || !studentId) return null;
-    const response = await authFetch(`${apiBase}/api/consent-revocations/${studentId}/request`);
+    const response = await authFetch(
+      `${apiBase}/api/consent-revocations/${studentId}/request?type=${encodeURIComponent(type)}`
+    );
     if (response.status === 404) return null;
     const data = await parseJson(response);
     if (!response.ok) throw new Error(data.message || "Unable to load revocation request");
     return data;
   };
 
-  // Student submits a revocation request for their own consent.
-  const submitRevocationRequest = async (studentId) => {
+  // Student submits a revocation request for their own consent or authorization.
+  const submitRevocationRequest = async (studentId, type = "consent") => {
     const response = await authFetch(
       `${apiBase}/api/consent-revocations/${studentId}/request`,
-      { method: "POST" }
+      { method: "POST", body: JSON.stringify({ type }) }
     );
     const data = await parseJson(response);
     if (!response.ok) return { success: false, message: data.message || "Failed to submit revocation request" };
@@ -231,6 +243,7 @@ export function StudentRecordsProvider({ children }) {
         uploadConsentScan,
         deleteConsentScan,
         revokeConsent,
+        revokeAuthorization,
         setReferralSharingConsent,
         getRevocationRequest,
         submitRevocationRequest,

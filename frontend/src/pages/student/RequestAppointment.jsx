@@ -36,6 +36,26 @@ const TIME_BLOCKS = [
 ];
 const slotLabel = (value) => TIME_BLOCKS.find((s) => s.value === value)?.label || value;
 
+// Normalizes both the current block values and legacy "morning"/"afternoon"
+// strings so an already-booked slot is recognized either way.
+const blockKey = (value) => {
+  const v = String(value || "").toLowerCase();
+  if (v === "morning" || v === "9:00-12:00" || v.startsWith("9:") || v.startsWith("10:") || v.startsWith("11:")) return "AM";
+  if (v === "afternoon" || v === "1:00-5:00" || v.startsWith("1:") || v.startsWith("2:") || v.startsWith("3:") || v.startsWith("4:")) return "PM";
+  return v;
+};
+
+// Appointment dates arrive as Date objects serialized to ISO; the wizard uses
+// local YYYY-MM-DD strings, so convert before comparing.
+const toDateKey = (value) => {
+  if (!value) return null;
+  const raw = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return raw.slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 // Returns true if the slot's time window has already closed for a given date.
 // If dateISO is not today, always returns false (future dates are fine).
 // Uses the SERVER clock (synced Asia/Manila time) — the device clock can't
@@ -139,7 +159,7 @@ export default function RequestAppointment() {
   const navigate = useNavigate();
   const { currentUser, users, token, updateProfile } = useAuth();
   const myRecord = users?.find((u) => u.email === currentUser?.email) || currentUser;
-  const { createAppointment } = useAppointments?.() || {};
+  const { createAppointment, appointments = [] } = useAppointments?.() || {};
   const { createTestRequest } = useTests?.() || {};
 
   const [step, setStep] = useState(0);
@@ -195,13 +215,56 @@ export default function RequestAppointment() {
     }
   };
 
+  // Date -> time blocks the student already has a pending/approved appointment
+  // for. Used to prevent booking the same date + time twice.
+  const bookedSlots = useMemo(() => {
+    const byDate = {};
+    for (const a of appointments) {
+      const status = String(a?.status || "").toLowerCase();
+      if (!["pending", "approved", "rescheduled"].includes(status)) continue;
+      if (a?.isUrgent || a?.is_urgent) continue;
+      const date = toDateKey(a?.scheduledDate || a?.preferredDate || a?.preferred_date);
+      if (!date) continue;
+      const slots =
+        a?.scheduledDate && a?.scheduledTimeSlot
+          ? [a.scheduledTimeSlot]
+          : a?.preferredSlots ||
+            (a?.preferred_slots ? String(a.preferred_slots).split(",") : []);
+      byDate[date] = Array.from(
+        new Set([...(byDate[date] || []), ...slots.filter(Boolean).map(blockKey)])
+      );
+    }
+    return byDate;
+  }, [appointments]);
+
   const firstAvail = useMemo(() => {
-    const d = firstAvailableDate();
-    return { iso: toISO(d), slot: TIME_BLOCKS[0] };
+    let d = firstAvailableDate();
+    for (let i = 0; i < 365; i += 1) {
+      const iso = toISO(d);
+      const slot = TIME_BLOCKS.find(
+        (b) => !isSlotPast(b, iso) && !(bookedSlots[iso] || []).includes(blockKey(b.value))
+      );
+      if (slot) return { iso, slot };
+      d = new Date(d);
+      d.setDate(d.getDate() + 1);
+      while (!isSelectableDate(d)) d.setDate(d.getDate() + 1);
+    }
+    const fallback = firstAvailableDate();
+    return { iso: toISO(fallback), slot: TIME_BLOCKS[0] };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clockTick]);
+  }, [clockTick, bookedSlots]);
 
   const setField = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  // Changing the date clears a selected block that is already booked there.
+  const chooseDate = (iso) => {
+    const taken = bookedSlots[iso] || [];
+    setForm((f) => ({
+      ...f,
+      date: iso,
+      preferredSlots: f.preferredSlots.filter((s) => !taken.includes(blockKey(s))),
+    }));
+  };
 
   // Single-select: choosing a slot replaces the previous one (toggles off if re-clicked).
   // Still stored as a one-element array to keep the createAppointment payload unchanged.
@@ -221,8 +284,10 @@ export default function RequestAppointment() {
     switch (STEPS[i].id) {
       case "details":
         return isValidPhMobile(form.phoneNumber);
-      case "schedule":
-        return Boolean(form.date) && form.preferredSlots.length === 1;
+      case "schedule": {
+        if (!form.date || form.preferredSlots.length !== 1) return false;
+        return !(bookedSlots[form.date] || []).includes(blockKey(form.preferredSlots[0]));
+      }
       case "reason":
         return form.requestType === "psychological" ? true : form.reason.trim().length > 0;
       case "consent":
@@ -390,10 +455,11 @@ export default function RequestAppointment() {
           {current.id === "schedule" && (
             <ScheduleStep
               form={form}
-              setField={setField}
               selectSlot={selectSlot}
               firstAvail={firstAvail}
               quickBook={quickBook}
+              bookedSlots={bookedSlots}
+              onSelectDate={chooseDate}
             />
           )}
           {current.id === "reason" && <ReasonStep form={form} setField={setField} />}
@@ -708,7 +774,7 @@ function PriorityOption({ active, onClick, title, desc, tone, disabled, disabled
 /* ────────────────────────────────────────────────────────────────────
    Step: Pick a schedule  (the centerpiece)
 ──────────────────────────────────────────────────────────────────── */
-function ScheduleStep({ form, setField, selectSlot, firstAvail, quickBook }) {
+function ScheduleStep({ form, selectSlot, firstAvail, quickBook, bookedSlots = {}, onSelectDate }) {
   const [viewMonth, setViewMonth] = useState(() => {
     const d = startOfToday();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -769,8 +835,8 @@ function ScheduleStep({ form, setField, selectSlot, firstAvail, quickBook }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
-        <MonthGrid month={viewMonth} selected={form.date} onSelect={(iso) => setField({ date: iso })} />
-        <MonthGrid month={rightMonth} selected={form.date} onSelect={(iso) => setField({ date: iso })} />
+        <MonthGrid month={viewMonth} selected={form.date} onSelect={onSelectDate} />
+        <MonthGrid month={rightMonth} selected={form.date} onSelect={onSelectDate} />
       </div>
 
       {/* Time blocks */}
@@ -786,7 +852,10 @@ function ScheduleStep({ form, setField, selectSlot, firstAvail, quickBook }) {
           {TIME_BLOCKS.map((block) => {
             const active = form.preferredSlots.includes(block.value);
             const past = form.date ? isSlotPast(block, form.date) : false;
-            const disabled = !form.date || past;
+            const booked = form.date
+              ? (bookedSlots[form.date] || []).includes(blockKey(block.value))
+              : false;
+            const disabled = !form.date || past || booked;
             return (
               <button
                 key={block.value}
@@ -795,8 +864,10 @@ function ScheduleStep({ form, setField, selectSlot, firstAvail, quickBook }) {
                 onClick={() => !disabled && selectSlot(block.value)}
                 className={[
                   "rounded-xl border p-4 text-left transition relative",
-                  active && !past
+                  active && !past && !booked
                     ? "bg-maroon-500 border-maroon-500 ring-2 ring-maroon-300"
+                    : booked
+                    ? "bg-amber-50 border-amber-200 opacity-70 cursor-not-allowed"
                     : past
                     ? "bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed"
                     : disabled
@@ -806,16 +877,20 @@ function ScheduleStep({ form, setField, selectSlot, firstAvail, quickBook }) {
               >
                 <div className="flex items-start justify-between gap-1">
                   <div>
-                    <p className={`text-sm font-semibold mb-0.5 ${active && !past ? "text-white" : "text-gray-900"}`}>
+                    <p className={`text-sm font-semibold mb-0.5 ${active && !past && !booked ? "text-white" : "text-gray-900"}`}>
                       {block.description.split(" ")[0]}
                     </p>
-                    <p className={`text-xs ${active && !past ? "text-maroon-100" : "text-gray-500"}`}>{block.label}</p>
+                    <p className={`text-xs ${active && !past && !booked ? "text-maroon-100" : "text-gray-500"}`}>{block.label}</p>
                   </div>
-                  {past && (
+                  {booked ? (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">
+                      Already booked
+                    </span>
+                  ) : past ? (
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 flex-shrink-0">
                       Passed
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </button>
             );

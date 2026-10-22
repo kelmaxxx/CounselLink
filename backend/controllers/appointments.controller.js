@@ -16,6 +16,14 @@ const getQueueSlot = (slot) => {
   return "AM";
 };
 
+// Normalizes current and legacy slot labels so duplicate checks compare blocks.
+const blockKey = (slot) => {
+  const s = String(slot || "").toLowerCase();
+  if (s === "morning" || s === "9:00-12:00" || s.startsWith("9:") || s.startsWith("10:") || s.startsWith("11:")) return "AM";
+  if (s === "afternoon" || s === "1:00-5:00" || s.startsWith("1:") || s.startsWith("2:") || s.startsWith("3:") || s.startsWith("4:")) return "PM";
+  return s;
+};
+
 export const createAppointment = async (req, res) => {
   const { preferredDate, preferredSlots, isUrgent, phoneNumber, reason, studentId: bodyStudentId } = req.body;
 
@@ -47,6 +55,40 @@ export const createAppointment = async (req, res) => {
     : validateScheduleSlots(preferredDate, preferredSlots);
   if (!schedCheck.ok) {
     return res.status(400).json({ message: schedCheck.message });
+  }
+
+  // A student cannot request a second active appointment for the same date and
+  // time block. Different students may still share a block (the queue system
+  // assigns order within it), so this is scoped to the same student.
+  if (!isCounselor && !isUrgent && preferredSlots?.length) {
+    const requestedSlots = Array.isArray(preferredSlots)
+      ? preferredSlots
+      : String(preferredSlots).split(",");
+    // Accepted/rescheduled rows carry the real booked slot in scheduled_*;
+    // pending rows only have the requested preferred_* values.
+    const activeRows = await query(
+      `SELECT
+         DATE_FORMAT(COALESCE(scheduled_date, preferred_date), '%Y-%m-%d') AS active_date,
+         scheduled_time, preferred_slots
+       FROM appointments
+       WHERE student_id = ? AND appointment_type = 'counseling'
+         AND status IN ('pending', 'approved', 'rescheduled')`,
+      [studentId]
+    );
+    const taken = new Set();
+    for (const row of activeRows) {
+      if (row.active_date !== preferredDate) continue;
+      const slots = row.scheduled_time
+        ? [row.scheduled_time]
+        : String(row.preferred_slots || "").split(",").filter(Boolean);
+      slots.forEach((s) => taken.add(blockKey(s)));
+    }
+    const clash = requestedSlots.map(blockKey).find((s) => taken.has(s));
+    if (clash) {
+      return res.status(409).json({
+        message: `You already have an active appointment on ${preferredDate} for the ${clash === "AM" ? "morning" : "afternoon"} time block. Please choose another date or time.`,
+      });
+    }
   }
 
   // Duty-hours guard for logged-in urgent requests: same schedule as regular
