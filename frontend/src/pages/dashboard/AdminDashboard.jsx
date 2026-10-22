@@ -223,9 +223,10 @@ export default function AdminDashboard() {
           </SectionCard>
         </div>
 
-        {/* 2. Middle: students by college (full width) */}
-        <div className="mb-4">
+        {/* 2. Middle: students by college + demand vs. throughput, side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 items-stretch">
           <StudentsByCollegeCard
+            className="h-full"
             data={topColleges.map(([name, value], i) => ({
               name,
               value,
@@ -237,11 +238,8 @@ export default function AdminDashboard() {
             title="Students by College"
             subtitle="Ranked distribution of enrolled students"
           />
-        </div>
-
-        {/* 3. Lower: demand full width */}
-        <div className="mb-4">
           <DemandThroughputCard
+            className="h-full"
             data={throughputTrend}
             emptyIcon={CalendarCheck}
           />

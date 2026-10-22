@@ -478,6 +478,15 @@ export const banUser = async (req, res) => {
     return res.status(400).json({ message: "Admin accounts cannot be banned" });
   }
   await query("UPDATE users SET status = 'banned' WHERE id = ?", [id]);
+
+  // Deactivation closes any open attendance warnings for this student.
+  await query(
+    `UPDATE student_warnings
+     SET status = 'resolved', review_note = 'Account deactivated', reviewed_by = ?, reviewed_at = NOW()
+     WHERE student_id = ? AND status = 'open'`,
+    [req.user.id, id]
+  );
+
   await logAction(req, "ban_user", "user", id, {
     name: target[0].name,
     email: target[0].email,
