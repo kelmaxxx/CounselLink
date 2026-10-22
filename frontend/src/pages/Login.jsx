@@ -794,7 +794,7 @@ export default function Login() {
           />
         </div>
 
-        <form onSubmit={handleLoginSubmit} className="space-y-4">
+        <form onSubmit={handleLoginSubmit} className="space-y-4" autoComplete="off">
           <FieldRow label="Student ID/Institutional Email" error={loginErrors.identifier}>
             <InputWithIcon icon={UserRound}>
               <input
@@ -802,6 +802,7 @@ export default function Login() {
                 value={loginForm.identifier}
                 onChange={handleLoginChange}
                 type="text"
+                autoComplete="off"
                 required
                 className={`${INPUT} pl-9`}
                 placeholder="name@s.msumain.edu.ph"
@@ -829,6 +830,7 @@ export default function Login() {
                 value={loginForm.password}
                 onChange={handleLoginChange}
                 type={showLoginPassword ? "text" : "password"}
+                autoComplete="new-password"
                 required
                 className={`${INPUT} pl-9 pr-9`}
                 placeholder="••••••••"
