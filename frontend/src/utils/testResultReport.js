@@ -173,7 +173,7 @@ async function rasterizePdfAttachment(blob, maxPages = 10) {
         const canvas = document.createElement("canvas");
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
-        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        await page.render({ canvas, canvasContext: canvas.getContext("2d"), viewport }).promise;
         pages.push(canvas.toDataURL("image/jpeg", 0.92));
         page.cleanup();
       }
@@ -187,10 +187,11 @@ async function rasterizePdfAttachment(blob, maxPages = 10) {
   }
 }
 
-// Render an attached DOCX into page images via docx-preview (already a dep).
+// Render an attached DOCX into one page image per source page via docx-preview
+// (already a dep). breakPages:true emits one <section class="docx"> per page.
 async function rasterizeDocxAttachment(blob) {
   const host = document.createElement("div");
-  host.style.cssText = "position:fixed;top:-10000px;left:0;width:794px;background:#fff;";
+  host.style.cssText = "position:fixed;top:0;left:-10000px;width:794px;background:#fff;";
   document.body.appendChild(host);
   try {
     const { renderAsync } = await import("docx-preview");
@@ -201,8 +202,14 @@ async function rasterizeDocxAttachment(blob) {
       breakPages: true,
     });
     const { default: html2canvas } = await import("html2canvas");
-    const canvas = await html2canvas(host, { scale: 1.5, useCORS: true });
-    return [canvas.toDataURL("image/jpeg", 0.92)];
+    const sections = host.querySelectorAll(".docx-wrapper > section.docx");
+    const pages = sections.length ? Array.from(sections) : [host];
+    const images = [];
+    for (const el of pages) {
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#fff" });
+      images.push(canvas.toDataURL("image/jpeg", 0.92));
+    }
+    return images;
   } catch (err) {
     console.error("Failed to rasterize attached DOCX:", err);
     return [];
