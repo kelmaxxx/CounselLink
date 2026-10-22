@@ -27,6 +27,7 @@ import {
 import { COLLEGES } from "../../data/mockData";
 import { getDepartments, getPrograms, getCollegeName } from "../../data/msuColleges";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
+import { useRealtime } from "../../context/RealtimeContext";
 import InventoryForm from "../../components/records/InventoryForm";
 import ProfileHero from "../../components/ProfileHero";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
@@ -51,6 +52,7 @@ const emptyForm = (u) => ({
 export default function StudentProfile() {
   const { currentUser, refreshCurrentUser, updateProfile, token } = useAuth();
   const { getInventory, upsertInventory, uploadInventoryScan, deleteInventoryScan, getConsent } = useStudentRecords();
+  const { subscribe } = useRealtime();
   const myRecord = currentUser;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -128,6 +130,18 @@ export default function StudentProfile() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A counselor revoking consent/authorization (directly or by approving a
+  // student request) sends a "notification" signal, so refresh the records and
+  // let the signature disappear without a page reload.
+  useEffect(() => {
+    if (!currentUser?.id) return undefined;
+    return subscribe("notification", () => {
+      getInventory(currentUser.id).then(setInventory).catch(() => {});
+      getConsent(currentUser.id).then(setConsent).catch(() => {});
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, subscribe]);
 
   const handleSave = async () => {
     if (!formData.name || !formData.email) {

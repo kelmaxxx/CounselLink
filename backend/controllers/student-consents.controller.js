@@ -1,5 +1,6 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
+import { createNotification } from "../utils/notify.js";
 
 const SELECT_FIELDS = `
   c.id, c.student_id AS studentId,
@@ -86,6 +87,7 @@ export const eSignConsent = async (req, res) => {
     parsed.acknowledgment = {
       ...(parsed.acknowledgment || {}),
       disclaimerAgreed: true,
+      disclaimerRevokedAt: null,
       studentPrintedName: typedName.trim(),
       dateAcknowledged: nowStr,
     };
@@ -97,6 +99,7 @@ export const eSignConsent = async (req, res) => {
     const defaultFormData = {
       acknowledgment: {
         disclaimerAgreed: true,
+        disclaimerRevokedAt: null,
         studentPrintedName: typedName.trim(),
         dateAcknowledged: nowStr,
       },
@@ -222,5 +225,55 @@ export const revokeConsent = async (req, res) => {
     [studentId]
   );
   await logAction(req, "revoke_consent", "student_consent", Number(studentId), {});
+  await notifyStudentOfRevocation(req.user?.id, Number(studentId), "consent");
   return res.json({ message: "Consent revoked" });
+};
+
+export const revokeAuthorization = async (req, res) => {
+  const { studentId } = req.params;
+  const inventories = await query(
+    "SELECT form_data FROM student_inventories WHERE student_id = ?",
+    [studentId]
+  );
+  if (!inventories.length) {
+    return res.status(404).json({ message: "No inventory record yet" });
+  }
+
+  let formData = inventories[0].form_data;
+  if (typeof formData === "string") {
+    try { formData = JSON.parse(formData); } catch { formData = {}; }
+  }
+  formData = formData || {};
+  formData.acknowledgment = {
+    ...(formData.acknowledgment || {}),
+    disclaimerAgreed: false,
+    disclaimerRevokedAt: new Date().toISOString(),
+  };
+
+  await query(
+    "UPDATE student_inventories SET form_data = ?, updated_at = NOW() WHERE student_id = ?",
+    [JSON.stringify(formData), studentId]
+  );
+  await logAction(req, "revoke_authorization", "student_inventory", Number(studentId), {});
+  await notifyStudentOfRevocation(req.user?.id, Number(studentId), "authorization");
+  return res.json({ message: "Authorization revoked" });
+};
+
+// In-app notice so a student always learns when a counselor withdraws their
+// consent or data authorization from the record.
+const notifyStudentOfRevocation = async (counselorId, studentId, type) => {
+  try {
+    const counselor = await query("SELECT name FROM users WHERE id = ?", [counselorId]);
+    const counselorName = counselor[0]?.name || "Your counselor";
+    const label = type === "authorization" ? "data authorization" : "informed consent";
+    await createNotification({
+      userId: studentId,
+      title: `${type === "authorization" ? "Authorization" : "Consent"} Revoked`,
+      message: `${counselorName} has revoked your ${label}.`,
+      link: "/student/profile",
+      type: "info",
+    });
+  } catch (err) {
+    console.error("Failed to notify student of revocation:", err);
+  }
 };

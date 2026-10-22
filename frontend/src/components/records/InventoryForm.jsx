@@ -232,24 +232,24 @@ function SectionHeader({ number, children }) {
   );
 }
 
-// Small widget used inside the student-facing revocation request section
-// when the student is eligible to submit a new request.
-function RevocationRequestWidget({ onRequest, busy, error }) {
+// Screen-only checkbox shown inside the student's own inventory form. Ticking
+// it does not revoke anything directly — it submits a request that a counselor
+// must approve.
+function RevocationCheckbox({ label, checked, disabled, onChange, note, error }) {
   return (
-    <div>
-      <p className="text-xs text-gray-600 leading-relaxed">
-        If you wish to withdraw your informed consent, you may request revocation below. This request will be reviewed by a counselor and does <strong>not</strong> immediately revoke your consent.
-      </p>
-      {error && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5 mt-2">{error}</p>
-      )}
-      <button
-        onClick={onRequest}
-        disabled={busy}
-        className="mt-2 px-4 py-2 rounded border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium disabled:opacity-50"
-      >
-        {busy ? "Submitting…" : "I would like to request revocation of my consent"}
-      </button>
+    <div className="no-print mt-1 text-[9px] leading-snug">
+      <label className={`inline-flex items-start gap-1 select-none ${disabled ? "cursor-not-allowed text-gray-500" : "cursor-pointer text-gray-800"}`}>
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          className="mt-0.5 w-3 h-3 accent-red-600"
+        />
+        <span>{label}</span>
+      </label>
+      {note && <span className="ml-1 text-gray-500 italic">{note}</span>}
+      {error && <p className="text-red-600 mt-0.5">{error}</p>}
     </div>
   );
 }
@@ -280,23 +280,31 @@ export default function InventoryForm({
   const dirtyRef = useRef(false);
   const printRef = useRef(null);
 
-  // Revocation request state (student view only)
-  const [revocationRequest, setRevocationRequest] = useState(null);
+  // Revocation request state (student view only). Each type is tracked
+  // separately so the two checkboxes show their own pending/decided state.
+  const [revocationByType, setRevocationByType] = useState({ consent: null, authorization: null });
   const [revocationLoading, setRevocationLoading] = useState(false);
   const [revocationBusy, setRevocationBusy] = useState(false);
-  const [revocationError, setRevocationError] = useState(null);
-  const [showRevocationConfirm, setShowRevocationConfirm] = useState(false);
+  const [revocationError, setRevocationError] = useState(null); // { type, message }
+  const [confirmRevocationType, setConfirmRevocationType] = useState(null);
 
-  // Load the student's current revocation request when in student view
+  // Load the latest request for each type when in student view
   useEffect(() => {
     if (!isStudentView || !studentId || !consent?.eConsentSignedAt) return;
     setRevocationLoading(true);
-    getRevocationRequest(studentId)
-      .then((req) => setRevocationRequest(req))
-      .catch(() => setRevocationRequest(null))
+    Promise.allSettled([
+      getRevocationRequest(studentId, "consent"),
+      getRevocationRequest(studentId, "authorization"),
+    ])
+      .then(([consentRes, authRes]) =>
+        setRevocationByType({
+          consent: consentRes.status === "fulfilled" ? consentRes.value : null,
+          authorization: authRes.status === "fulfilled" ? authRes.value : null,
+        })
+      )
       .finally(() => setRevocationLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStudentView, studentId, consent?.eConsentSignedAt, consent?.revokedAt]);
+  }, [isStudentView, studentId, consent?.eConsentSignedAt, consent?.revokedAt, inventory?.updatedAt]);
 
   const triggerPrint = useReactToPrint({
     contentRef: printRef,
@@ -389,15 +397,19 @@ export default function InventoryForm({
   };
 
   const handleSubmitRevocationRequest = async () => {
-    setShowRevocationConfirm(false);
+    const type = confirmRevocationType;
+    setConfirmRevocationType(null);
     setRevocationBusy(true);
     setRevocationError(null);
-    const res = await submitRevocationRequest(studentId);
+    const res = await submitRevocationRequest(studentId, type);
     setRevocationBusy(false);
     if (res.success) {
-      setRevocationRequest(res.request);
+      setRevocationByType((prev) => ({ ...prev, [type]: res.request }));
     } else {
-      setRevocationError(res.message || "Failed to submit revocation request");
+      setRevocationError({
+        type,
+        message: res.message || "Failed to submit revocation request",
+      });
     }
   };
 
@@ -468,15 +480,28 @@ export default function InventoryForm({
     return inventory.scanUrl.startsWith("http") ? inventory.scanUrl : `${apiBase}${inventory.scanUrl}`;
   }, [inventory?.scanUrl, apiBase]);
 
+  // Separate revocation states for the two checkboxes. The saved records are
+  // the source of truth (a decided request stays "approved" forever, even after
+  // the student re-authorizes), so don't infer current revocation from history.
+  const consentRequest = revocationByType.consent;
+  const authorizationRequest = revocationByType.authorization;
+  const consentRevoked = Boolean(consent?.revokedAt);
+  const consentPending = consentRequest?.status === "pending";
+  const consentRejected = consentRequest?.status === "rejected";
+  const consentActive = Boolean(consent?.eConsentSignedAt) && !consentRevoked;
+  const ackRecord = inventory?.formData?.acknowledgment || data?.acknowledgment || {};
+  const authorizationRevoked = Boolean(ackRecord.disclaimerRevokedAt);
+  const authorizationPending = authorizationRequest?.status === "pending";
+  const authorizationRejected = authorizationRequest?.status === "rejected";
+  const authorizationActive = Boolean(ackRecord.disclaimerAgreed) && !authorizationRevoked;
+
   const studentSigUrl = useMemo(() => {
-    // When consent is revoked, hide the signature from the active form.
-    if (consent?.revokedAt) return null;
-    const ack = data?.acknowledgment;
-    if (ack?.disclaimerRevokedAt) return null;
+    // When consent or data authorization is revoked, hide the signature.
+    if (consentRevoked || authorizationRevoked) return null;
     const sigPath = studentProfile?.signatureUrl || studentProfile?.signature_url;
     if (!sigPath) return null;
     return sigPath.startsWith("data:") || sigPath.startsWith("http") ? sigPath : `${apiBase}${sigPath}`;
-  }, [studentProfile?.signatureUrl, studentProfile?.signature_url, apiBase, consent?.revokedAt, data?.acknowledgment?.disclaimerRevokedAt]);
+  }, [studentProfile?.signatureUrl, studentProfile?.signature_url, apiBase, consentRevoked, authorizationRevoked]);
 
   const studentAvatarUrl = useMemo(() => {
     const avatarPath = studentProfile?.avatarUrl || studentProfile?.avatar_url;
@@ -1186,6 +1211,35 @@ export default function InventoryForm({
             <span className="font-bold text-red-600 select-none">DISCLAIMER:</span> I hereby authorize the Guidance and Counseling Section of Division of Student Affairs to collect data indicated herein for Individual Inventory and documentation purposes only. I understand that my personal information is protected by RA 10173, Data Privacy Act of 2012 and that the data collected will not be shared to other entities other than the purpose stated.
           </div>
 
+          {isStudentView && (
+            <RevocationCheckbox
+              label="Request revocation of this data authorization"
+              checked={authorizationPending || authorizationRevoked}
+              disabled={
+                !authorizationActive ||
+                authorizationPending ||
+                authorizationRevoked ||
+                revocationLoading ||
+                revocationBusy
+              }
+              onChange={() => setConfirmRevocationType("authorization")}
+              note={
+                revocationLoading
+                  ? "Checking request status…"
+                  : authorizationPending
+                    ? "Request pending counselor review."
+                    : authorizationRevoked
+                      ? "Authorization revoked."
+                      : authorizationRejected
+                        ? `Previous request rejected${authorizationRequest?.rejectionReason ? `: ${authorizationRequest.rejectionReason}` : ""}.`
+                        : !authorizationActive
+                          ? "No active authorization."
+                          : "Tick to send a revocation request to your counselor."
+              }
+              error={revocationError?.type === "authorization" ? revocationError.message : null}
+            />
+          )}
+
           {/* Disclaimer Signature block */}
           <div className="flex justify-between mt-5 px-12">
             <div className="flex flex-col items-center w-[230px]">
@@ -1236,6 +1290,35 @@ export default function InventoryForm({
             I acknowledge having been informed of my rights and responsibilities as a student receiving counseling services at Division of Student Affairs, Guidance and Counseling Section, Mindanao State University, Marawi City. I understand the risks and benefits of guidance and counseling services, the nature, and limits of confidentiality. By signing below, I agree to the terms and conditions of counseling.
           </div>
 
+          {isStudentView && (
+            <RevocationCheckbox
+              label="Request revocation of this informed consent"
+              checked={consentPending || consentRevoked}
+              disabled={
+                !consentActive ||
+                consentPending ||
+                consentRevoked ||
+                revocationLoading ||
+                revocationBusy
+              }
+              onChange={() => setConfirmRevocationType("consent")}
+              note={
+                revocationLoading
+                  ? "Checking request status…"
+                  : consentPending
+                    ? "Request pending counselor review."
+                    : consentRevoked
+                      ? "Informed consent revoked."
+                      : consentRejected
+                        ? `Previous request rejected${consentRequest?.rejectionReason ? `: ${consentRequest.rejectionReason}` : ""}.`
+                        : !consent?.eConsentSignedAt
+                          ? "Sign the informed consent first."
+                          : "Tick to send a revocation request to your counselor."
+              }
+              error={revocationError?.type === "consent" ? revocationError.message : null}
+            />
+          )}
+
           {/* Acknowledgment Signature Box */}
           <div className="border border-black p-2 mt-1.5">
             <div className="flex justify-between items-end px-4">
@@ -1262,95 +1345,37 @@ export default function InventoryForm({
 
       </div>
 
-      {/* ── Student-facing: Consent Revocation Request (screen only) ── */}
-      {isStudentView && consent?.eConsentSignedAt && !consent?.revokedAt && (
-        <div className="no-print border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-3">
-          <h5 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-            Request Consent Revocation
-          </h5>
-
-          {revocationLoading ? (
-            <p className="text-xs text-gray-500">Checking revocation request status…</p>
-          ) : revocationRequest?.status === "pending" ? (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-              <p className="font-semibold">Your revocation request is pending review.</p>
-              <p className="text-xs mt-1">
-                Submitted on {new Date(revocationRequest.requestedAt).toLocaleString()}. A counselor will review it shortly. Your consent remains active until a counselor approves the request.
-              </p>
-            </div>
-          ) : revocationRequest?.status === "approved" ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
-              <p className="font-semibold">Your consent has been revoked.</p>
-              <p className="text-xs mt-1">
-                Approved on {new Date(revocationRequest.decidedAt).toLocaleString()}.
-              </p>
-            </div>
-          ) : (
-            <>
-              {revocationRequest?.status === "rejected" && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800 mb-2">
-                  <p className="font-semibold">Your previous revocation request was rejected.</p>
-                  {revocationRequest.rejectionReason && (
-                    <p className="text-xs mt-1">Reason: {revocationRequest.rejectionReason}</p>
-                  )}
-                  <p className="text-xs mt-1">
-                    Decided on {new Date(revocationRequest.decidedAt).toLocaleString()}. You may submit a new request below.
-                  </p>
-                </div>
-              )}
-              <p className="text-xs text-gray-600 leading-relaxed">
-                If you wish to withdraw your informed consent, you may request revocation below. This request will be reviewed by a counselor and does <strong>not</strong> immediately revoke your consent.
-              </p>
-              {revocationError && (
-                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">{revocationError}</p>
-              )}
-              <button
-                onClick={() => setShowRevocationConfirm(true)}
-                disabled={revocationBusy}
-                className="px-4 py-2 rounded border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium disabled:opacity-50"
-              >
-                {revocationBusy ? "Submitting…" : "I would like to request revocation of my consent"}
-              </button>
-            </>
-          )}
-
-          {/* Confirmation modal */}
-          <Modal
-            open={showRevocationConfirm}
-            onClose={() => setShowRevocationConfirm(false)}
-            title="Request consent revocation?"
-            danger
-            footer={
-              <>
-                <button
-                  onClick={() => setShowRevocationConfirm(false)}
-                  className={BTN.secondary}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmitRevocationRequest}
-                  className={BTN.danger}
-                  disabled={revocationBusy}
-                >
-                  {revocationBusy ? "Submitting…" : "Submit request"}
-                </button>
-              </>
-            }
-          >
-            <p className="text-sm text-gray-700 leading-relaxed">
-              This will submit a request to your counselor to revoke your informed consent. Your consent will remain active until a counselor reviews and approves the request. You will be notified of the decision.
-            </p>
-          </Modal>
-        </div>
-      )}
+      {/* Confirmation modal for the in-form revocation checkboxes */}
+      <Modal
+        open={!!confirmRevocationType}
+        onClose={() => setConfirmRevocationType(null)}
+        title={`Request revocation of ${confirmRevocationType === "authorization" ? "data authorization" : "informed consent"}?`}
+        danger
+        footer={
+          <>
+            <button onClick={() => setConfirmRevocationType(null)} className={BTN.secondary}>
+              Cancel
+            </button>
+            <button onClick={handleSubmitRevocationRequest} className={BTN.danger} disabled={revocationBusy}>
+              {revocationBusy ? "Submitting…" : "Submit request"}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700 leading-relaxed">
+          This will send a request to your counselor to revoke your{" "}
+          {confirmRevocationType === "authorization" ? "data authorization" : "informed consent"}.
+          It will remain active until a counselor reviews and approves the request. You will be
+          notified of the decision.
+        </p>
+      </Modal>
 
       {/* Student view: banner when consent is already revoked */}
-      {isStudentView && consent?.revokedAt && (
+      {isStudentView && consentRevoked && (
         <div className="no-print bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
           <p className="font-semibold">Your informed consent has been revoked.</p>
           <p className="text-xs mt-1">
-            Revoked on {new Date(consent.revokedAt).toLocaleString()}. You will need to e-sign again before further counseling services.
+            Revoked on {new Date(consent?.revokedAt || consentRequest?.decidedAt).toLocaleString()}. You will need to e-sign again before further counseling services.
           </p>
         </div>
       )}

@@ -54,7 +54,7 @@ export const upsertInventory = async (req, res) => {
   const studentCheck = await query("SELECT id FROM users WHERE id = ? AND role = 'student'", [studentId]);
   if (!studentCheck.length) return res.status(404).json({ message: "Student not found" });
 
-  const existing = await query("SELECT id FROM student_inventories WHERE student_id = ?", [studentId]);
+  const existing = await query("SELECT id, form_data FROM student_inventories WHERE student_id = ?", [studentId]);
 
   if (existing.length) {
     if (req.user?.role === "counselor") {
@@ -63,9 +63,28 @@ export const upsertInventory = async (req, res) => {
         [counselorId, formData ? JSON.stringify(formData) : null, studentId]
       );
     } else {
+      // A student saving a form loaded before a revocation must not clear the
+      // authorization state. Only e-signing (a direct write) restores it.
+      let merged = formData;
+      if (formData) {
+        let prev = existing[0].form_data;
+        if (typeof prev === "string") {
+          try { prev = JSON.parse(prev); } catch { prev = {}; }
+        }
+        const prevAck = prev?.acknowledgment || {};
+        const nextAck = formData.acknowledgment || {};
+        merged = {
+          ...formData,
+          acknowledgment: {
+            ...nextAck,
+            disclaimerAgreed: prevAck.disclaimerAgreed ?? nextAck.disclaimerAgreed,
+            disclaimerRevokedAt: prevAck.disclaimerRevokedAt ?? nextAck.disclaimerRevokedAt,
+          },
+        };
+      }
       await query(
         "UPDATE student_inventories SET form_data = ?, updated_at = NOW() WHERE student_id = ?",
-        [formData ? JSON.stringify(formData) : null, studentId]
+        [merged ? JSON.stringify(merged) : null, studentId]
       );
     }
     await logAction(req, "upsert_inventory", "student_inventory", existing[0].id, { studentId: Number(studentId) });

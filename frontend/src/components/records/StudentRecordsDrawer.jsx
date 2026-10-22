@@ -42,6 +42,11 @@ function AuthorizeBadge({ inventory }) {
   return <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">Authorized</span>;
 }
 
+const REVOCATION_TYPES = [
+  { type: "consent", label: "Informed consent" },
+  { type: "authorization", label: "Data authorization" },
+];
+
 function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadScan, onDeleteScan, onRevoke, onRevokeAuthorization, onRevocationDecided, readOnly }) {
   const { getRevocationRequest, decideRevocationRequest } = useStudentRecords();
   const [busy, setBusy] = useState(false);
@@ -51,24 +56,36 @@ function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadS
   const [confirmRemoveScan, setConfirmRemoveScan] = useState(false);
   const [scanInputKey, setScanInputKey] = useState(0);
 
-  // Revocation request state (counselor view)
-  const [revRequest, setRevRequest] = useState(null);
+  // Revocation request state (counselor view): one latest request per type.
+  const [revRequests, setRevRequests] = useState({ consent: null, authorization: null });
   const [revRequestLoading, setRevRequestLoading] = useState(false);
+  const [decideType, setDecideType] = useState(null); // "consent" | "authorization"
   const [decideAction, setDecideAction] = useState(null); // "approve" | "reject"
   const [rejectionReason, setRejectionReason] = useState("");
   const [decideBusy, setDecideBusy] = useState(false);
   const [decideFeedback, setDecideFeedback] = useState(null);
 
-  // Load the current revocation request for this student whenever consent changes
+  // Load the current revocation requests for this student whenever the
+  // records change (consent approval does not touch authorization, and vice versa).
   useEffect(() => {
-    if (!student?.id || !consent?.eConsentSignedAt) { setRevRequest(null); return; }
+    if (!student?.id || !consent?.eConsentSignedAt) {
+      setRevRequests({ consent: null, authorization: null });
+      return;
+    }
     setRevRequestLoading(true);
-    getRevocationRequest(student.id)
-      .then((req) => setRevRequest(req))
-      .catch(() => setRevRequest(null))
+    Promise.allSettled([
+      getRevocationRequest(student.id, "consent"),
+      getRevocationRequest(student.id, "authorization"),
+    ])
+      .then(([consentRes, authRes]) =>
+        setRevRequests({
+          consent: consentRes.status === "fulfilled" ? consentRes.value : null,
+          authorization: authRes.status === "fulfilled" ? authRes.value : null,
+        })
+      )
       .finally(() => setRevRequestLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [student?.id, consent?.id, consent?.revokedAt]);
+  }, [student?.id, consent?.id, consent?.revokedAt, inventory?.updatedAt]);
 
   const showFeedback = (type, text, ms = 3000) => {
     setFeedback({ type, text });
@@ -110,7 +127,8 @@ function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadS
   };
 
   const handleDecide = async () => {
-    if (!decideAction || !revRequest?.id) return;
+    const request = decideType ? revRequests[decideType] : null;
+    if (!decideAction || !request?.id) return;
     if (decideAction === "reject" && !rejectionReason.trim()) {
       setDecideFeedback({ type: "error", text: "Please enter a rejection reason." });
       return;
@@ -118,13 +136,14 @@ function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadS
     setDecideBusy(true);
     setDecideFeedback(null);
     const res = await decideRevocationRequest(
-      revRequest.id,
+      request.id,
       decideAction,
       decideAction === "reject" ? rejectionReason.trim() : ""
     );
     setDecideBusy(false);
     if (res.success) {
-      setRevRequest(res.request);
+      setRevRequests((prev) => ({ ...prev, [decideType]: res.request }));
+      setDecideType(null);
       setDecideAction(null);
       setRejectionReason("");
       onRevocationDecided?.();
@@ -290,108 +309,140 @@ function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadS
       )}
 
       {/* ── Revocation Request Review (counselor only) ── */}
-      {!readOnly && consent?.eConsentSignedAt && !consent?.revokedAt && (
+      {!readOnly && consent?.eConsentSignedAt && (
         <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
           <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <AlertTriangle size={18} className="text-yellow-600" /> Revocation request
+            <AlertTriangle size={18} className="text-yellow-600" /> Revocation requests
           </h4>
           {revRequestLoading ? (
             <p className="text-sm text-gray-500">Loading request status…</p>
-          ) : !revRequest || revRequest.status === "rejected" || revRequest.status === "approved" ? (
-            <p className="text-sm text-gray-500">
-              {revRequest?.status === "rejected"
-                ? "The previous revocation request was rejected. No pending request at this time."
-                : revRequest?.status === "approved"
-                ? "The previous request was approved — consent is now revoked."
-                : "No revocation request from this student."}
-            </p>
-          ) : revRequest.status === "pending" ? (
+          ) : (
             <div className="space-y-3">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-                <p className="font-semibold">Pending revocation request</p>
-                <p className="text-xs mt-1">
-                  Submitted by {revRequest.studentName} on {formatDateTime(revRequest.requestedAt)}.
-                </p>
-              </div>
+              {REVOCATION_TYPES.map(({ type, label }) => {
+                const req = revRequests[type];
+                const isActive = decideType === type;
+                const badgeClass =
+                  req?.status === "pending"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : req?.status === "approved"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-gray-100 text-gray-600";
+                return (
+                  <div key={type} className="rounded-lg border border-gray-100 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-gray-900">{label}</p>
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${badgeClass}`}>
+                        {req?.status === "pending"
+                          ? "Pending"
+                          : req?.status === "approved"
+                            ? "Approved"
+                            : req?.status === "rejected"
+                              ? "Rejected"
+                              : "None"}
+                      </span>
+                    </div>
 
-              {decideFeedback && (
-                <p className={`text-xs rounded px-2 py-1.5 border ${decideFeedback.type === "error" ? "text-red-700 bg-red-50 border-red-200" : "text-green-700 bg-green-50 border-green-200"}`}>
-                  {decideFeedback.text}
-                </p>
-              )}
+                    {req?.status === "pending" ? (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-xs text-gray-600">
+                          Submitted by {req.studentName} on {formatDateTime(req.requestedAt)}.
+                        </p>
 
-              {!decideAction ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => { setDecideAction("approve"); setDecideFeedback(null); }}
-                    disabled={decideBusy}
-                    className="px-4 py-2 rounded border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium disabled:opacity-50"
-                  >
-                    Approve revocation
-                  </button>
-                  <button
-                    onClick={() => { setDecideAction("reject"); setDecideFeedback(null); }}
-                    disabled={decideBusy}
-                    className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
-                  >
-                    Reject request
-                  </button>
-                </div>
-              ) : decideAction === "approve" ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-700">
-                    Approving will revoke this student's informed consent. The signature will be removed from the active form and the student will be notified.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleDecide}
-                      disabled={decideBusy}
-                      className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 text-sm font-medium disabled:opacity-50"
-                    >
-                      {decideBusy ? "Processing…" : "Confirm approval"}
-                    </button>
-                    <button
-                      onClick={() => { setDecideAction(null); setDecideFeedback(null); }}
-                      disabled={decideBusy}
-                      className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
+                        {isActive && decideFeedback && (
+                          <p className={`text-xs rounded px-2 py-1.5 border ${decideFeedback.type === "error" ? "text-red-700 bg-red-50 border-red-200" : "text-green-700 bg-green-50 border-green-200"}`}>
+                            {decideFeedback.text}
+                          </p>
+                        )}
+
+                        {!isActive ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => { setDecideType(type); setDecideAction("approve"); setDecideFeedback(null); }}
+                              disabled={decideBusy}
+                              className="px-4 py-2 rounded border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium disabled:opacity-50"
+                            >
+                              Approve revocation
+                            </button>
+                            <button
+                              onClick={() => { setDecideType(type); setDecideAction("reject"); setDecideFeedback(null); setRejectionReason(""); }}
+                              disabled={decideBusy}
+                              className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
+                            >
+                              Reject request
+                            </button>
+                          </div>
+                        ) : decideAction === "approve" ? (
+                          <div className="space-y-2">
+                            <p className="text-sm text-gray-700">
+                              Approving will revoke this student's {label.toLowerCase()}.{" "}
+                              {type === "consent"
+                                ? "The signature will be removed from the active form"
+                                : "The authorization will be withdrawn from the active form"}{" "}
+                              and the student will be notified.
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={handleDecide}
+                                disabled={decideBusy}
+                                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 text-sm font-medium disabled:opacity-50"
+                              >
+                                {decideBusy ? "Processing…" : "Confirm approval"}
+                              </button>
+                              <button
+                                onClick={() => { setDecideType(null); setDecideAction(null); setDecideFeedback(null); }}
+                                disabled={decideBusy}
+                                className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <label className="block text-xs font-semibold text-gray-700">
+                              Rejection reason <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                              value={rejectionReason}
+                              onChange={(e) => setRejectionReason(e.target.value)}
+                              rows={3}
+                              maxLength={1000}
+                              placeholder="Briefly explain why the request is being rejected…"
+                              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-maroon-600 resize-none"
+                            />
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={handleDecide}
+                                disabled={decideBusy || !rejectionReason.trim()}
+                                className="px-4 py-2 rounded bg-gray-800 text-white hover:bg-gray-900 text-sm font-medium disabled:opacity-50"
+                              >
+                                {decideBusy ? "Processing…" : "Confirm rejection"}
+                              </button>
+                              <button
+                                onClick={() => { setDecideType(null); setDecideAction(null); setRejectionReason(""); setDecideFeedback(null); }}
+                                disabled={decideBusy}
+                                className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {req?.status === "rejected"
+                          ? `Rejected${req.rejectionReason ? `: ${req.rejectionReason}` : ""}.`
+                          : req?.status === "approved"
+                            ? "Approved — no longer active."
+                            : "No revocation request from this student."}
+                      </p>
+                    )}
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-gray-700">
-                    Rejection reason <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    rows={3}
-                    maxLength={1000}
-                    placeholder="Briefly explain why the request is being rejected…"
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-maroon-600 resize-none"
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleDecide}
-                      disabled={decideBusy || !rejectionReason.trim()}
-                      className="px-4 py-2 rounded bg-gray-800 text-white hover:bg-gray-900 text-sm font-medium disabled:opacity-50"
-                    >
-                      {decideBusy ? "Processing…" : "Confirm rejection"}
-                    </button>
-                    <button
-                      onClick={() => { setDecideAction(null); setRejectionReason(""); setDecideFeedback(null); }}
-                      disabled={decideBusy}
-                      className="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
-          ) : null}
+          )}
         </div>
       )}
 
@@ -940,7 +991,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
   const {
     getRecords,
     upsertInventory, uploadInventoryScan, deleteInventoryScan,
-    uploadConsentScan, deleteConsentScan, revokeConsent,
+    uploadConsentScan, deleteConsentScan, revokeConsent, revokeAuthorization,
     decideRevocationRequest,
   } = useStudentRecords();
   const { sessions } = useCounselingSessions();
@@ -1022,16 +1073,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
   };
 
   const handleRevokeAuthorization = async () => {
-    const currentFormData = inventory?.formData || {};
-    const updatedFormData = {
-      ...currentFormData,
-      acknowledgment: {
-        ...(currentFormData.acknowledgment || {}),
-        disclaimerAgreed: false,
-        disclaimerRevokedAt: new Date().toISOString(),
-      },
-    };
-    const res = await upsertInventory(student.id, updatedFormData);
+    const res = await revokeAuthorization(student.id);
     if (res.success) await refresh();
     return res;
   };
