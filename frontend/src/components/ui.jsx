@@ -715,8 +715,43 @@ export function Modal({
   danger = false,
   align = "center",
 }) {
+  const panelRef = React.useRef(null);
+  const footerRef = React.useRef(null);
+  const bodyRef = React.useRef(null);
+
+  // Move focus into the dialog so Enter/Space reach it even when the trigger
+  // that opened it is still the document's active element.
+  React.useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      const panel = panelRef.current;
+      if (!panel || panel.contains(document.activeElement)) return;
+      panel.focus();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [open]);
+
   if (!open) return null;
   const alignClass = align === "top" ? "items-start" : "items-center";
+
+  // Enter confirms a text-only dialog by running its last (primary) footer
+  // button. Dialogs with form fields keep their native Enter behaviour, so a
+  // stray Enter can never trigger an unrelated footer action.
+  const handleKeyDown = (e) => {
+    if (e.key !== "Enter" || e.isComposing || e.defaultPrevented) return;
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const el = e.target;
+    if (["TEXTAREA", "SELECT", "BUTTON", "A"].includes(el.tagName)) return;
+    if (el.form || ["checkbox", "radio", "file"].includes(el.type)) return;
+    if (bodyRef.current?.querySelector("input, textarea, select")) return;
+    const buttons = footerRef.current?.querySelectorAll("button:not(:disabled)");
+    const primary = buttons?.[buttons.length - 1];
+    if (primary) {
+      e.preventDefault();
+      primary.click();
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] overflow-y-auto"
@@ -724,8 +759,11 @@ export function Modal({
     >
       <div className={`min-h-full flex justify-center p-4 sm:p-6 ${alignClass}`}>
         <div
+          ref={panelRef}
+          tabIndex={-1}
+          onKeyDown={handleKeyDown}
           onClick={(e) => e.stopPropagation()}
-          className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-auto`}
+          className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-auto outline-none`}
         >
           <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -745,9 +783,9 @@ export function Modal({
               </button>
             )}
           </div>
-          <div className="px-6 py-5">{children}</div>
+          <div ref={bodyRef} className="px-6 py-5">{children}</div>
           {footer && (
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
+            <div ref={footerRef} className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
               {footer}
             </div>
           )}
