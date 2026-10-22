@@ -1,5 +1,6 @@
 import { query } from "../config/db.js";
 import { sendEmail } from "../services/email.service.js";
+import { formatManilaDate } from "./scheduling.js";
 
 // Base URL of the student-facing app, used to build the "Open CounselLink"
 // button. Falls back to the first configured CORS origin (dev default 5173).
@@ -18,7 +19,7 @@ const escapeHtml = (value) =>
 // Build the subject + human-readable body for each appointment status. Kept in
 // one place so the wording stays consistent with the in-app notifications.
 const buildContent = ({ status, date, timeSlot, note, isUrgent, isTest, counselorName, queueNo }) => {
-  const when = date && timeSlot ? `${date} at ${timeSlot}` : null;
+  const when = date && timeSlot ? `${formatManilaDate(date)} at ${timeSlot}` : null;
   const counselorStr = counselorName ? ` by Counselor ${escapeHtml(counselorName)}` : " by the counselor";
   const queueStr = queueNo ? ` Your queue number is #${escapeHtml(queueNo)}.` : "";
   const pleaseAttendStr = " Please attend the session at your preferred schedule.";
@@ -43,7 +44,7 @@ const buildContent = ({ status, date, timeSlot, note, isUrgent, isTest, counselo
       return {
         subject: "Your CounselLink counseling session is complete",
         heading: "Counseling Session Completed",
-        lead: `Your counseling session${date ? ` on <strong>${escapeHtml(date)}</strong>` : ""} has been formally <strong>completed</strong>. Thank you for taking part — take care of yourself.`,
+        lead: `Your counseling session${date ? ` on <strong>${escapeHtml(formatManilaDate(date))}</strong>` : ""} has been formally <strong>completed</strong>. Thank you for taking part — take care of yourself.`,
         ctaPath: "/student/appointments",
         ctaLabel: "View my appointments",
       };
@@ -51,8 +52,9 @@ const buildContent = ({ status, date, timeSlot, note, isUrgent, isTest, counselo
       return {
         subject: "Update on your CounselLink counseling sessions",
         heading: "Counseling Sessions Concluded",
-        lead: `Your counseling sessions${date ? ` as of <strong>${escapeHtml(date)}</strong>` : ""} have <strong>concluded</strong>. This may mean your goals have been met, or your counselor has recommended a different kind of support. You are welcome to request another appointment at any time.`,
-        ctaPath: "/student/appointments",
+        greeting: "THANK YOU!",
+        lead: `For trusting and using our service. Your counseling sessions${date ? ` as of <strong>${escapeHtml(formatManilaDate(date))}</strong>` : ""} have <strong>concluded</strong>. This may mean your goals have been met, or your counselor has recommended a different kind of support. You are welcome to request another appointment at any time.`,
+        ctaPath: "/student/request-appointment",
         ctaLabel: "Request an appointment",
       };
     case "approved":
@@ -89,10 +91,10 @@ const buildContent = ({ status, date, timeSlot, note, isUrgent, isTest, counselo
   }
 };
 
-const renderHtml = ({ name, heading, lead, note, ctaPath, ctaLabel }) => `
+const renderHtml = ({ name, heading, greeting = "Hello", lead, note, ctaPath, ctaLabel }) => `
   <div style="font-family:'Figtree',Arial,sans-serif;max-width:520px;margin:0 auto;color:#111827">
     <h2 style="color:#111827;font-size:20px;margin:0 0 16px">${escapeHtml(heading)}</h2>
-    <p style="font-size:15px;line-height:1.6;margin:0 0 12px">Hello ${escapeHtml(name)},</p>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 12px">${escapeHtml(greeting)} ${escapeHtml(name)},</p>
     <p style="font-size:15px;line-height:1.6;margin:0 0 16px">${lead}</p>
     ${note
     ? `<div style="background:#f3f4f6;border-radius:8px;padding:12px 16px;margin:0 0 16px">
@@ -110,10 +112,10 @@ const renderHtml = ({ name, heading, lead, note, ctaPath, ctaLabel }) => `
     </p>
   </div>`;
 
-const renderText = ({ name, lead, note, ctaPath, ctaLabel }) => {
+const renderText = ({ name, greeting = "Hello", lead, note, ctaPath, ctaLabel }) => {
   const plainLead = lead.replace(/<[^>]+>/g, "");
   return [
-    `Hello ${name},`,
+    `${greeting} ${name},`,
     "",
     plainLead,
     note ? `\nNote from your counselor: ${note}` : "",
@@ -184,13 +186,14 @@ export const sendAppointmentStatusEmail = ({ studentId, status, date, timeSlot, 
 
       const ctaPath = content.ctaPath || "/student/appointments";
       const ctaLabel = content.ctaLabel || "View my appointments";
+      const greeting = content.greeting || "Hello";
 
       const name = student.name || "there";
       await sendEmail({
         to: student.email,
         subject: content.subject,
-        html: renderHtml({ name, heading: content.heading, lead: content.lead, note, ctaPath, ctaLabel }),
-        text: renderText({ name, lead: content.lead, note, ctaPath, ctaLabel }),
+        html: renderHtml({ name, heading: content.heading, greeting, lead: content.lead, note, ctaPath, ctaLabel }),
+        text: renderText({ name, greeting, lead: content.lead, note, ctaPath, ctaLabel }),
       });
     } catch (err) {
       console.warn(`[appointment-email] Failed to email student ${studentId} (${status}):`, err.message);

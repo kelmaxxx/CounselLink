@@ -120,7 +120,7 @@ const LETTER_STYLES = `
   .sign-block { text-align: center; width: 300px; }
   .sign-img { height: 52px; display: block; margin: 0 auto; }
   .sign-line { border-top: 1px solid #000; margin-top: 2px; padding-top: 2px; font-weight: 700; }
-  .dsa-box { border: 2px solid #000; margin-top: 18px; padding: 8px 10px; }
+  .dsa-box { border: none; margin-top: 18px; padding: 0; }
   .dsa-title { text-align: center; font-weight: 700; margin-bottom: 6px; }
   .check { display: inline-block; width: 12px; height: 12px; border: 1px solid #000; text-align: center; line-height: 12px; font-size: 10px; margin-right: 4px; }
   .ack-line { margin-top: 10px; font-size: 10pt; }
@@ -143,6 +143,7 @@ export function buildRequestLetterHTML(letter = {}, opts = {}) {
   const dateStr = fmtDate(l.requestedAt);
   const decided = ["fulfilled", "declined"].includes(l.status);
   const approved = l.status === "fulfilled";
+  const affiliation = [l.requesterDepartment, l.requesterCollege].filter(Boolean).join(", ");
   return `<!doctype html>
 <html>
 <head><meta charset="utf-8" /><title>${esc(l.subject || "Request Letter")}</title>
@@ -166,8 +167,9 @@ export function buildRequestLetterHTML(letter = {}, opts = {}) {
   <div class="sign-grid"><div class="sign-block">
     ${opts.repSignatureImageUrl ? `<img class="sign-img" src="${opts.repSignatureImageUrl}" alt="College representative signature" />` : ""}
     <div class="sign-line">${line(l.requesterName)}</div>
-    <div>Name of College Representative</div>
-    <div style="margin-top:6px">Date Signed: ${dateStr}</div>
+    <div>${line(l.requesterPosition)}</div>
+    ${affiliation ? `<div>${line(affiliation)}</div>` : ""}
+    <div style="margin-top:6px">${dateStr}</div>
   </div></div>
   <div class="dsa-box">
     <div class="dsa-title">FOR DSA USE ONLY</div>

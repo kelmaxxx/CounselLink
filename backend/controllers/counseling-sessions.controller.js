@@ -2,6 +2,7 @@ import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { createNotification } from "../utils/notify.js";
 import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
+import { formatManilaDate } from "../utils/scheduling.js";
 import { notifyUser } from "../events.js";
 
 const SELECT_FIELDS = `
@@ -311,7 +312,7 @@ export const finalizeSession = async (req, res) => {
 
     if (canShare) {
       const payload = buildSessionReportPayload(session);
-      const title = `Session Report — ${session.studentName} (${session.session_date})`;
+      const title = `Session Report — ${session.studentName} (${formatManilaDate(session.session_date)})`;
       const summaryText = (session.summary || session.presenting_concern || "").slice(0, 200) || null;
 
       const insertResult = await query(
@@ -325,14 +326,14 @@ export const finalizeSession = async (req, res) => {
       await createNotification({
         userId: referrerId,
         title: "Counseling report received",
-        message: `Session report for ${session.studentName} (${session.session_date}) is now available.`,
+        message: `Session report for ${session.studentName} (${formatManilaDate(session.session_date)}) is now available.`,
         link: `/rep/counseling-data`,
       });
     } else {
       await createNotification({
         userId: referrerId,
         title: "Session completed — sharing not consented",
-        message: `Session for ${session.studentName} (${session.session_date}) was completed, but the student has not consented to share their counseling session details with you.`,
+        message: `Session for ${session.studentName} (${formatManilaDate(session.session_date)}) was completed, but the student has not consented to share their counseling session details with you.`,
         link: `/rep/counseling-data`,
       });
     }
@@ -348,8 +349,8 @@ export const finalizeSession = async (req, res) => {
     userId: session.student_id,
     title: terminated ? "Counseling sessions concluded" : "Counseling session completed",
     message: terminated
-      ? `Your counseling sessions have concluded as of ${session.session_date}. You are welcome to request another appointment at any time.`
-      : `Your counseling session on ${session.session_date} has been formally completed. Thank you for coming in.`,
+      ? `Your counseling sessions have concluded as of ${formatManilaDate(session.session_date)}. You are welcome to request another appointment at any time.`
+      : `Your counseling session on ${formatManilaDate(session.session_date)} has been formally completed. Thank you for coming in.`,
     link: "/student/appointments",
     dedupeKey: `session-outcome-${session.id}`,
   });

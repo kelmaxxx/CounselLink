@@ -23,6 +23,22 @@ const minuteFmt = new Intl.DateTimeFormat("en-GB", {
   hourCycle: "h23",
 });
 
+const longDateFmt = new Intl.DateTimeFormat("en-PH", {
+  timeZone: MANILA_TZ,
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+// "October 22, 2026" in Manila time. Dates read from MySQL are UTC instants, so
+// formatting them without a timezone would shift the calendar day.
+export function formatManilaDate(value) {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return longDateFmt.format(d);
+}
+
 // Manila wall-clock "today" as YYYY-MM-DD. Uses Intl, so it is correct no
 // matter what timezone the server itself runs in (unlike toISOString,
 // which is UTC and shifts the date during 12am–8am Manila time).

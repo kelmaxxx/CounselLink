@@ -70,8 +70,10 @@ CREATE TABLE IF NOT EXISTS notifications (
   link VARCHAR(255),
   type VARCHAR(30) DEFAULT 'info',
   image_url VARCHAR(512),
+  announcement_id INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id)
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  INDEX idx_notifications_announcement (announcement_id)
 );
 
 CREATE TABLE IF NOT EXISTS announcements (
@@ -82,6 +84,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   date_posted TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   post_at DATETIME NULL,
   remove_at DATETIME NULL,
+  send_to VARCHAR(20) NOT NULL DEFAULT 'all',
   FOREIGN KEY (admin_id) REFERENCES users(id)
 );
 

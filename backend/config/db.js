@@ -31,6 +31,9 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   port: Number(process.env.DB_PORT || 3306),
+  // MySQL stores/returns UTC wall-clock values (session time_zone is SYSTEM/UTC);
+  // tell the driver so Date objects aren't shifted by the server's local offset.
+  timezone: "Z",
   ...(ssl ? { ssl } : {}),
   waitForConnections: true,
   connectionLimit: 10,
