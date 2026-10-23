@@ -163,7 +163,8 @@ async function rasterizePdfAttachment(blob, maxPages = 10) {
       const { default: workerUrl } = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url");
       pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
     }
-    const pdf = await pdfjsLib.getDocument({ data: await blob.arrayBuffer() }).promise;
+    const loadingTask = pdfjsLib.getDocument({ data: await blob.arrayBuffer() });
+    const pdf = await loadingTask.promise;
     const pages = [];
     try {
       const n = Math.min(pdf.numPages, maxPages);
@@ -178,7 +179,8 @@ async function rasterizePdfAttachment(blob, maxPages = 10) {
         page.cleanup();
       }
     } finally {
-      await pdf.destroy().catch(() => undefined);
+      // PDFDocumentProxy has no destroy() in pdf.js v6 — the loading task owns it.
+      await loadingTask.destroy().catch(() => undefined);
     }
     return pages;
   } catch (err) {
@@ -187,8 +189,9 @@ async function rasterizePdfAttachment(blob, maxPages = 10) {
   }
 }
 
-// Render an attached DOCX into one page image per source page via docx-preview
-// (already a dep). breakPages:true emits one <section class="docx"> per page.
+// Render an attached DOCX into page images via docx-preview (already a dep).
+// breakPages:true emits one <section class="docx"> per rendered page, so each
+// section becomes its own page in the saved PDF instead of one long strip.
 async function rasterizeDocxAttachment(blob) {
   const host = document.createElement("div");
   host.style.cssText = "position:fixed;top:0;left:-10000px;width:794px;background:#fff;";
