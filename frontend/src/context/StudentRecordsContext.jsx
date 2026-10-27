@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from "react";
 import { useAuth } from "./AuthContext";
+import { saveInventoryDocxAsPdfFile } from "../utils/inventoryReport";
 
 const StudentRecordsContext = createContext();
 
@@ -70,7 +71,7 @@ export function StudentRecordsProvider({ children }) {
   };
 
   // Fetches the official filled-in Word (.docx) file as a Blob. Shared by the
-  // "Download Word" action and the Print / Save-as-PDF flow (which renders the
+  // "Download PDF" action and the Print / Save-as-PDF flow (which renders the
   // very same document in the browser so the print matches the Word layout).
   const fetchInventoryDocxBlob = async (studentId) => {
     const response = await authFetch(`${apiBase}/api/student-inventories/${studentId}/docx`);
@@ -84,23 +85,17 @@ export function StudentRecordsProvider({ children }) {
     return { success: true, blob, filename: match ? match[1] : null };
   };
 
-  // Downloads the saved inventory as the official filled-in Word (.docx) file.
-  const downloadInventoryDocx = async (studentId, fallbackName = "student") => {
+  const downloadInventoryPdf = async (studentId, fallbackName = "student") => {
     const res = await fetchInventoryDocxBlob(studentId);
     if (!res.success) return res;
-    const blob = res.blob;
-    // Prefer the filename the server set, fall back to the student's name.
-    const filename = res.filename || `inventory_${fallbackName}.docx`;
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    return { success: true };
+    const filename = (res.filename || `inventory_${fallbackName}.docx`).replace(/\.docx$/i, ".pdf");
+    try {
+      await saveInventoryDocxAsPdfFile(res.blob, filename);
+      return { success: true };
+    } catch (err) {
+      console.error("Failed to generate inventory PDF:", err);
+      return { success: false, message: "Failed to generate PDF" };
+    }
   };
 
   // ---- Consent ----
@@ -236,7 +231,7 @@ export function StudentRecordsProvider({ children }) {
         upsertInventory,
         uploadInventoryScan,
         deleteInventoryScan,
-        downloadInventoryDocx,
+        downloadInventoryPdf,
         fetchInventoryDocxBlob,
         getConsent,
         eSignConsent,

@@ -7,7 +7,7 @@
 // (8.5 × 13 inches) for both screen viewing and printing/PDF export.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown, FileText, CheckCircle2 } from "lucide-react";
+import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown, CheckCircle2 } from "lucide-react";
 import { Modal, BTN } from "../ui";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useReactToPrint } from "react-to-print";
@@ -263,11 +263,12 @@ export default function InventoryForm({
   onUploadScan,
   onDeleteScan,
   readOnly = false,
+  canManage = false,
   isStudentView = false,
   hasFeedback = true,
   hasSignature = true,
 }) {
-  const { downloadInventoryDocx, submitRevocationRequest, getRevocationRequest } = useStudentRecords();
+  const { downloadInventoryPdf, submitRevocationRequest, getRevocationRequest } = useStudentRecords();
   const [data, setData] = useState(() => mergeInventory(inventory?.formData, studentProfile));
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -424,7 +425,7 @@ export default function InventoryForm({
     showFeedback(res.success ? "success" : "error", res.success ? "Inventory saved" : (res.message || "Failed to save"));
   };
 
-  const handleDownloadDocx = async () => {
+  const handleDownloadPdf = async () => {
     setBusy(true);
     if (!readOnly) {
       const saveRes = await onSave(data);
@@ -435,9 +436,9 @@ export default function InventoryForm({
       }
       dirtyRef.current = false;
     }
-    const res = await downloadInventoryDocx(studentId, studentName || "student");
+    const res = await downloadInventoryPdf(studentId, studentName || "student");
     setBusy(false);
-    if (!res.success) showFeedback("error", res.message || "Failed to generate Word file");
+    if (!res.success) showFeedback("error", res.message || "Failed to generate PDF");
   };
 
   const handlePrint = async () => {
@@ -1494,7 +1495,7 @@ export default function InventoryForm({
               <a href={scanHref} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline flex items-center gap-1 font-semibold">
                 {inventory.scanFilename || "Inventory scan"} <ExternalLink size={12} />
               </a>
-              {!readOnly && (
+              {(!readOnly || canManage) && (
                 <div className="ml-auto flex items-center gap-2">
                   <label className="cursor-pointer px-2.5 py-1.5 rounded-lg border text-[11px] hover:bg-white bg-gray-50 select-none">
                     Replace
@@ -1507,7 +1508,7 @@ export default function InventoryForm({
               )}
             </div>
           ) : (
-            !readOnly && (
+            (!readOnly || canManage) && (
               <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-lg border hover:bg-gray-50 text-xs font-semibold text-gray-700 bg-white select-none">
                 <FileUp size={14} /> Upload scan file
                 <input key={scanInputKey} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleScanChange} />
@@ -1522,10 +1523,10 @@ export default function InventoryForm({
         <button type="button" onClick={handlePrint} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50 text-sm font-semibold select-none">
           <Printer size={16} /> Print Form
         </button>
-        <button type="button" onClick={handleDownloadDocx} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50 text-sm font-semibold select-none">
-          <FileText size={16} /> Download Word
+        <button type="button" onClick={handleDownloadPdf} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50 text-sm font-semibold select-none">
+          <FileDown size={16} /> Download PDF
         </button>
-        {!readOnly && (
+        {(!readOnly || canManage) && (
           <button
             type="button"
             onClick={isStudentView && !hasSignature ? undefined : handleSave}

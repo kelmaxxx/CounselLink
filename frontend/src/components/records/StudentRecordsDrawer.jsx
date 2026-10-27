@@ -240,6 +240,18 @@ function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadS
         </div>
       )}
 
+      {!readOnly && consent?.eConsentSignedAt && !consent.revokedAt && (
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
+          <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <ShieldOff size={18} className="text-red-600" /> Revoke consent
+          </h4>
+          <p className="text-sm text-gray-600 mb-3">Use this only if the student has formally withdrawn consent. They can re-sign anytime.</p>
+          <button disabled={busy} onClick={() => setConfirmRevoke(true)} className="px-4 py-2 rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50">
+            Revoke consent
+          </button>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
         <h4 className="font-semibold text-gray-900 mb-2">Referral data sharing</h4>
         <p className="text-sm text-gray-600">
@@ -295,18 +307,6 @@ function ConsentPanel({ student, consent, inventory, onConsentChanged, onUploadS
           <p className="text-sm text-gray-500">No scan uploaded.</p>
         )}
       </div>
-
-      {!readOnly && consent?.eConsentSignedAt && !consent.revokedAt && (
-        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 p-4">
-          <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-            <ShieldOff size={18} className="text-red-600" /> Revoke consent
-          </h4>
-          <p className="text-sm text-gray-600 mb-3">Use this only if the student has formally withdrawn consent. They can re-sign anytime.</p>
-          <button disabled={busy} onClick={() => setConfirmRevoke(true)} className="px-4 py-2 rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50">
-            Revoke consent
-          </button>
-        </div>
-      )}
 
       {/* ── Revocation Request Review (counselor only) ── */}
       {!readOnly && consent?.eConsentSignedAt && (
@@ -996,6 +996,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
     decideRevocationRequest,
   } = useStudentRecords();
   const { sessions } = useCounselingSessions();
+  const { currentUser } = useAuth();
 
   const [tab, setTab] = useState(initialTab || "inventory");
   const [loading, setLoading] = useState(true);
@@ -1148,7 +1149,8 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
               onSave={handleSaveInventory}
               onUploadScan={handleUploadInventoryScan}
               onDeleteScan={handleDeleteInventoryScan}
-              readOnly={readOnly}
+              readOnly={readOnly || currentUser?.role === "counselor"}
+              canManage={currentUser?.role === "counselor"}
             />
           ) : tab === "consent" ? (
             <ConsentPanel

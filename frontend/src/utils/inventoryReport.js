@@ -88,3 +88,53 @@ export async function printInventoryDocxBlob(blob) {
   }
   return { success: true };
 }
+
+export async function saveInventoryDocxAsPdfFile(blob, filename) {
+  if (!blob) throw new Error("No document to convert");
+
+  const host = document.createElement("div");
+  host.style.cssText = "position:fixed;top:0;left:-10000px;width:816px;background:#fff;";
+  document.body.appendChild(host);
+
+  try {
+    const { renderAsync } = await import("docx-preview");
+    await renderAsync(blob, host, host, {
+      className: "docx",
+      inWrapper: true,
+      ignoreLastRenderedPageBreak: true,
+      breakPages: true,
+    });
+
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
+
+    const sections = host.querySelectorAll(".docx-wrapper > section.docx");
+    const pages = sections.length ? Array.from(sections) : [host];
+
+    const captures = [];
+    for (const el of pages) {
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#fff" });
+      const imgHeightIn = (canvas.height / canvas.width) * 8.5;
+      captures.push({
+        imgData: canvas.toDataURL("image/jpeg", 0.95),
+        imgHeightIn,
+        pageHeightIn: Math.max(imgHeightIn, 13),
+      });
+    }
+
+    const pdf = new jsPDF({
+      unit: "in",
+      format: [8.5, captures[0].pageHeightIn],
+      orientation: "portrait",
+    });
+    captures.forEach(({ imgData, imgHeightIn, pageHeightIn }, i) => {
+      if (i > 0) pdf.addPage([8.5, pageHeightIn], "portrait");
+      pdf.addImage(imgData, "JPEG", 0, 0, 8.5, imgHeightIn);
+    });
+    pdf.save(filename);
+  } finally {
+    host.remove();
+  }
+}
