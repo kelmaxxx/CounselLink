@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useReactToPrint } from "react-to-print";
 import { useAppointments } from "../../context/AppointmentsContext";
 import { useTests } from "../../context/TestsContext";
 import { useTestResults } from "../../context/TestResultsContext";
@@ -8,7 +7,6 @@ import { useAuth } from "../../context/AuthContext";
 import {
   ArrowLeft,
   ArrowRight,
-  Printer,
   UserRound,
   ClipboardList,
   Target,
@@ -78,12 +76,6 @@ export default function StudentTestForm() {
   }));
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
   const [feedback, setFeedback] = useState(null);
-  
-  const printRef = useRef(null);
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `test-result-${testReq?.studentName || testId}`,
-  });
 
   useEffect(() => {
     if (!testReq) return;
@@ -238,7 +230,6 @@ export default function StudentTestForm() {
           )}
           {current.id === "review" && (
             <ReviewStep
-              printRef={printRef}
               form={form}
               setField={setField}
               onJump={setStep}
@@ -256,9 +247,6 @@ export default function StudentTestForm() {
 
             {isLast ? (
               <div className="flex items-center gap-2 flex-wrap justify-end">
-                <button type="button" onClick={handlePrint} className={BTN.secondary}>
-                  <Printer size={14} /> Print
-                </button>
                 {!isFinalized && (
                   <button
                     type="button"
@@ -523,7 +511,7 @@ function UploadStep({ form, setField, disabled, storedFileHref, storedFileName }
   );
 }
 
-function ReviewStep({ printRef, form, setField, onJump, isFinalized, storedFileHref, storedFileName }) {
+function ReviewStep({ form, setField, onJump, isFinalized, storedFileHref, storedFileName }) {
   return (
     <StepCard
       icon={FileText}
@@ -534,7 +522,7 @@ function ReviewStep({ printRef, form, setField, onJump, isFinalized, storedFileH
           : "Check everything, then sign and release to the student."
       }
     >
-      <div ref={printRef} className="space-y-4 print:space-y-2">
+      <div className="space-y-4 print:space-y-2">
         <ReviewBlock title="Test details" onEdit={isFinalized ? null : () => onJump(0)}>
           <ReviewLine label="Student" value={form.studentName} />
           <ReviewLine label="Date completed" value={formatDate(form.completedDate)} />

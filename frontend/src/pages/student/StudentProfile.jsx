@@ -24,8 +24,6 @@ import {
   LABEL,
   Modal,
 } from "../../components/ui";
-import { COLLEGES } from "../../data/mockData";
-import { getDepartments, getPrograms, getCollegeName } from "../../data/msuColleges";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useRealtime } from "../../context/RealtimeContext";
 import InventoryForm from "../../components/records/InventoryForm";
@@ -78,10 +76,6 @@ export default function StudentProfile() {
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [consent, setConsent] = useState(null);
   const [hasFeedback, setHasFeedback] = useState(false);
-
-  // Cascading dropdown options derived from current form state
-  const departments = getDepartments(formData.college);
-  const programs = getPrograms(formData.college, formData.department);
 
   const handleSaveInventory = async (fd) => {
     const res = await upsertInventory(currentUser?.id, fd);
@@ -155,13 +149,8 @@ export default function StudentProfile() {
     setSaving(true);
     try {
       await updateProfile({
-        name: formData.name,
-        email: formData.email,
         phone: formData.phone,
         bio: formData.bio,
-        college: formData.college,
-        department: formData.department,
-        program: formData.program,
         yearLevel: formData.yearLevel,
       });
       setIsEditing(false);
@@ -275,14 +264,8 @@ export default function StudentProfile() {
         <SectionCard title="Personal information" subtitle="Update your contact details">
           {isEditing ? (
             <div className="space-y-3">
-              <Field icon={User} label="Name *">
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setField("name", e.target.value)}
-                  className={INPUT}
-                  placeholder="Enter your name"
-                />
+              <Field icon={User} label="Name">
+                <input type="text" value={formData.name} disabled className={INPUT} />
               </Field>
               <Field icon={Mail} label="Institutional Email (IE)">
                 <input
@@ -322,61 +305,13 @@ export default function StudentProfile() {
           {isEditing ? (
             <div className="space-y-3">
               <Field icon={GraduationCap} label="College">
-                <select
-                  className={INPUT}
-                  value={formData.college}
-                  onChange={(e) => setFormData((prev) => ({
-                    ...prev,
-                    college: e.target.value,
-                    department: "",
-                    program: "",
-                  }))}
-                >
-                  <option value="">Select college</option>
-                  {COLLEGES.map((c) => (
-                    <option key={c} value={c}>{c} — {getCollegeName(c)}</option>
-                  ))}
-                </select>
+                <input type="text" value={formData.college} disabled className={INPUT} />
               </Field>
               <Field icon={Building2} label="Department">
-                <select
-                  className={INPUT}
-                  value={formData.department}
-                  onChange={(e) => setFormData((prev) => ({
-                    ...prev,
-                    department: e.target.value,
-                    program: "",
-                  }))}
-                  disabled={!formData.college}
-                >
-                  <option value="">
-                    {formData.college ? "Select department" : "Select a college first"}
-                  </option>
-                  {formData.department && !departments.some((d) => d.name === formData.department) && (
-                    <option value={formData.department}>{formData.department}</option>
-                  )}
-                  {departments.map((d) => (
-                    <option key={d.code} value={d.name}>{d.name}</option>
-                  ))}
-                </select>
+                <input type="text" value={formData.department} disabled className={INPUT} />
               </Field>
               <Field icon={BookOpen} label="Program / course">
-                <select
-                  className={INPUT}
-                  value={formData.program}
-                  onChange={(e) => setField("program", e.target.value)}
-                  disabled={!formData.department}
-                >
-                  <option value="">
-                    {formData.department ? "Select program" : "Select a department first"}
-                  </option>
-                  {formData.program && !programs.includes(formData.program) && (
-                    <option value={formData.program}>{formData.program}</option>
-                  )}
-                  {programs.map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
+                <input type="text" value={formData.program} disabled className={INPUT} />
               </Field>
               <Field icon={Calendar} label="Year level">
                 <select
