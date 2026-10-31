@@ -175,42 +175,42 @@ export default function SystemEvaluationSurvey() {
               <div className="space-y-4 max-w-2xl mx-auto">
                 <div
                   onClick={() => setSelectedImage("/info-sheet/page1.png")}
-                  className="group relative cursor-pointer border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition bg-white"
+                  className="group relative cursor-pointer border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white"
                 >
                   <img
                     src="/info-sheet/page1.png"
                     alt="Participant Information Sheet - Page 1"
                     className="w-full h-auto object-contain"
                   />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-medium text-xs gap-2">
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium text-xs gap-2">
                     <Eye size={18} /> Click to View Fullscreen (Page 1)
                   </div>
                 </div>
 
                 <div
                   onClick={() => setSelectedImage("/info-sheet/page2.png")}
-                  className="group relative cursor-pointer border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition bg-white"
+                  className="group relative cursor-pointer border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white"
                 >
                   <img
                     src="/info-sheet/page2.png"
                     alt="Participant Information Sheet - Page 2"
                     className="w-full h-auto object-contain"
                   />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-medium text-xs gap-2">
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium text-xs gap-2">
                     <Eye size={18} /> Click to View Fullscreen (Page 2)
                   </div>
                 </div>
 
                 <div
                   onClick={() => setSelectedImage("/info-sheet/page3.png")}
-                  className="group relative cursor-pointer border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition bg-white"
+                  className="group relative cursor-pointer border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white"
                 >
                   <img
                     src="/info-sheet/page3.png"
                     alt="Participant Information Sheet - Page 3"
                     className="w-full h-auto object-contain"
                   />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-medium text-xs gap-2">
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium text-xs gap-2">
                     <Eye size={18} /> Click to View Fullscreen (Page 3)
                   </div>
                 </div>

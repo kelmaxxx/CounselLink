@@ -30,6 +30,7 @@ import {
   BTN,
   INPUT,
 } from "../../components/ui";
+import { Stagger } from "../../components/motion";
 import {
   StudentsByCollegeCard,
   DemandThroughputCard,
@@ -162,10 +163,10 @@ export default function AdminDashboard() {
           }
         />
 
-        {/* 1. Top: 2x2 stats (8 cols) + tall donut (4 cols) */}
+        {/* 1. Top: 2x2 stats + wide donut, balanced heights */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-stretch">
-          <div className="lg:col-span-8">
-            <div className="grid grid-cols-2 gap-4 h-full">
+          <div className="lg:col-span-6">
+            <Stagger className="grid grid-cols-2 gap-4">
               <BigStat
                 label="Total users"
                 value={visibleUsers.length}
@@ -203,11 +204,11 @@ export default function AdminDashboard() {
                 tone="purple"
                 compact
               />
-            </div>
+            </Stagger>
           </div>
 
           <SectionCard
-            className="lg:col-span-4 h-full"
+            className="lg:col-span-6 h-full"
             title="Completed sessions by college"
             subtitle="Finished sessions per college · total in the middle"
           >
@@ -219,6 +220,7 @@ export default function AdminDashboard() {
               emptyTitle="No completed appointments yet"
               stack
               compact
+              legendCols={4}
             />
           </SectionCard>
         </div>
@@ -431,13 +433,13 @@ function AnnouncementsPanel({ token }) {
                   <>                    {item.imageUrl && (
                       <div
                         onClick={() => setViewOpen(true)}
-                        className="mb-3 rounded-lg overflow-hidden border border-gray-100 cursor-pointer group relative"
+                        className="mb-3 rounded-lg overflow-hidden border border-gray-100 cursor-pointer relative"
                         title="Click to view announcement details"
                       >
                         <PubmatThumb
                           src={resolveImageUrl(item.imageUrl)}
                           alt={title}
-                          className="w-full max-h-48 object-contain bg-gray-950 group-hover:scale-105 transition-transform duration-200"
+                          className="w-full max-h-48 object-contain bg-gray-950"
                         />
                       </div>
                     )}

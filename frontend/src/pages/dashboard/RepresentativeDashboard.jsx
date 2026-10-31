@@ -14,6 +14,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { PageHeader, BigStat, SectionCard, BTN, DonutStat, RankedBarChart, VerticalBarChart, TrendAreaChart, EmptyState } from "../../components/ui";
+import { Stagger } from "../../components/motion";
 import WelcomeHero from "../../components/WelcomeHero";
 import { getCollege } from "../../data/msuColleges";
 
@@ -257,7 +258,7 @@ export default function RepresentativeDashboard() {
         />
 
         {/* Big Statistics Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <BigStat
             label="College Students"
             value={collegeStudents.length}
@@ -289,7 +290,7 @@ export default function RepresentativeDashboard() {
               tone="blue"
             />
           </Link>
-        </div>
+        </Stagger>
 
         {/* Analytics — one visual per card: donut + ranked bars + columns + trend */}
         {loading ? (

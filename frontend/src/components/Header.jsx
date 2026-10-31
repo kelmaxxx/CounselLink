@@ -36,6 +36,7 @@ const ROUTE_TITLES = [
   { pattern: "/admin/announcements", title: "Announcements" },
   { pattern: "/admin/reports", title: "System Reports" },
   { pattern: "/admin/audit-logs", title: "Audit Logs" },
+  { pattern: "/admin/system-logs", title: "Activity Log" },
   { pattern: "/messages", title: "Messages" },
 ];
 

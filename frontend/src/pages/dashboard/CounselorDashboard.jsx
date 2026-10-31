@@ -27,6 +27,7 @@ import ChatModal from "../../components/ChatModal";
 import ReschedulePicker from "../../components/ReschedulePicker";
 import { useReferrals } from "../../context/ReferralsContext";
 import { SectionCard, EmptyState, BigStat, DonutStat, VerticalBarChart, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
+import { Stagger } from "../../components/motion";
 import {
   StudentsByCollegeCard,
   RequestVolumeCard,
@@ -636,7 +637,7 @@ export default function CounselorDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <BigStat
           label="Total students"
           value={totalStudents}
@@ -666,7 +667,7 @@ export default function CounselorDashboard() {
           icon={Inbox}
           tone="blue"
         />
-      </div>
+      </Stagger>
 
       {/* Charts — mixed visuals: ranked bars + donut + trend */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">

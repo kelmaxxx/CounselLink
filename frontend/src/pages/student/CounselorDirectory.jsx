@@ -96,7 +96,7 @@ export default function CounselorDirectory() {
           {filtered.map((c) => (
             <div
               key={c.id}
-              className="relative flex flex-col items-center text-center bg-white rounded-2xl shadow-sm ring-1 ring-gray-950/5 pt-12 px-5 pb-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+              className="relative flex flex-col items-center text-center bg-white rounded-2xl shadow-sm ring-1 ring-gray-950/5 pt-12 px-5 pb-6"
             >
               {/* Rating ribbon / bookmark hanging from the top-left */}
               <CounselorRatingRibbon

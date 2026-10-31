@@ -31,6 +31,7 @@ import {
   formatDate,
   Pagination,
 } from "../../components/ui";
+import { Stagger } from "../../components/motion";
 
 export default function StudentDashboard() {
   const { currentUser, users, lookupUser } = useAuth();
@@ -239,7 +240,7 @@ export default function StudentDashboard() {
         />
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <BigStat
             label="Upcoming"
             value={upcomingCount}
@@ -269,7 +270,7 @@ export default function StudentDashboard() {
             icon={FileText}
             tone="maroon"
           />
-        </div>
+        </Stagger>
 
         {/* Incoming appointment hero */}
         <SectionCard
