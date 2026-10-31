@@ -148,7 +148,10 @@ export default function SystemLogs() {
         eyebrow="Administrator"
         title={
           <span className="inline-flex items-center gap-2">
-            <Activity size={18} className="text-maroon-600" /> Activity log
+            <Activity size={18} className="text-maroon-600" />
+            <span className="chromatic-title" data-text="Activity log">
+              Activity log
+            </span>
           </span>
         }
         subtitle="A chronological audit trail of every action across CounselLink."

@@ -114,7 +114,10 @@ export default function AuditLogs() {
         eyebrow="Administrator"
         title={
           <span className="inline-flex items-center gap-2">
-            <Shield size={18} className="text-maroon-600" /> Audit logs
+            <Shield size={18} className="text-maroon-600" />
+            <span className="chromatic-title" data-text="Audit logs">
+              Audit logs
+            </span>
           </span>
         }
         subtitle="Admin and counselor actions tracked for accountability."
