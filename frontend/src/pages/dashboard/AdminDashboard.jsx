@@ -30,6 +30,7 @@ import {
   BTN,
   INPUT,
 } from "../../components/ui";
+import { Stagger } from "../../components/motion";
 import {
   StudentsByCollegeCard,
   DemandThroughputCard,
@@ -165,7 +166,7 @@ export default function AdminDashboard() {
         {/* 1. Top: 2x2 stats (8 cols) + tall donut (4 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-stretch">
           <div className="lg:col-span-8">
-            <div className="grid grid-cols-2 gap-4 h-full">
+            <Stagger className="grid grid-cols-2 gap-4 h-full">
               <BigStat
                 label="Total users"
                 value={visibleUsers.length}
@@ -203,7 +204,7 @@ export default function AdminDashboard() {
                 tone="purple"
                 compact
               />
-            </div>
+            </Stagger>
           </div>
 
           <SectionCard

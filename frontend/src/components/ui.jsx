@@ -1,8 +1,10 @@
 // src/components/ui.jsx
 // Shared primitives for the minimalist / professional design system.
 import React from "react";
+import { motion } from "framer-motion";
 import { Inbox, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { collegeColor } from "../data/sagayanColors";
+import { CountUp, fadeUp } from "./motion";
 import {
   PieChart,
   Pie,
@@ -36,7 +38,7 @@ export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }
 
 export function StatCard({ label, value, hint, icon: Icon, accent = "bg-gray-400" }) {
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-gray-950/5 transition hover:shadow-md">
+    <motion.div variants={fadeUp} className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-gray-950/5 transition hover:shadow-md">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className={`w-1.5 h-1.5 rounded-full ${accent}`} />
@@ -45,10 +47,10 @@ export function StatCard({ label, value, hint, icon: Icon, accent = "bg-gray-400
         {Icon && <Icon size={16} className="text-gray-400" />}
       </div>
       <div className="text-3xl font-semibold text-gray-900 tabular-nums leading-tight">
-        {value}
+        <CountUp value={value} />
       </div>
       {hint && <p className="text-xs text-gray-500 mt-1.5">{hint}</p>}
-    </div>
+    </motion.div>
   );
 }
 
@@ -98,7 +100,7 @@ const STAT_TONES = {
 export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, trend, trendDir = "up", variant = "light", compact = false }) {
   const dark = variant === "dark";
   return (
-    <div className={`rounded-2xl ${compact ? "p-4" : "p-6"} border shadow-sm transition hover:shadow-md h-full flex flex-col ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
+    <motion.div variants={fadeUp} className={`rounded-2xl ${compact ? "p-4" : "p-6"} border shadow-sm transition hover:shadow-md h-full flex flex-col ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
       <div className="flex items-start justify-between gap-2">
         <span className={`text-sm font-medium truncate min-w-0 ${dark ? "text-white/70" : "text-gray-500"}`}>{label}</span>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -123,7 +125,7 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, 
           leave an empty gap at the bottom. */}
       <div className="flex flex-1 flex-col justify-center pt-4">
         <div className={`${compact ? "text-[2.5rem]" : "text-5xl"} font-semibold tabular-nums leading-none tracking-tight ${dark ? "text-white" : "text-gray-900"}`}>
-          {value}
+          <CountUp value={value} />
         </div>
         {trend && (
           <p className={`${compact ? "mt-2 text-xs" : "mt-3 text-sm"} flex items-center gap-1.5 font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
@@ -133,7 +135,7 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, 
         )}
         {hint && <p className={`${trend ? "mt-1" : "mt-1.5"} text-xs ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -212,7 +214,7 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span className={`font-semibold text-gray-900 tabular-nums leading-none ${compact ? "text-3xl" : "text-4xl"}`}>
-            {total}
+            <CountUp value={total} />
           </span>
           <span className="text-xs text-gray-400 mt-1">{centerLabel}</span>
         </div>
