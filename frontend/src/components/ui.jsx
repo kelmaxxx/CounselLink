@@ -173,7 +173,7 @@ function TrendIcon({ dir }) {
 
 // ── Center-label donut with a clean custom legend ────────────────────────
 // Thin ring with a big total in the middle. `data` items: { name, value, color }.
-export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter, stack = false, compact = false, twoCol = false }) {
+export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, tooltipFormatter, stack = false, compact = false, twoCol = false, legendCols = 2 }) {
   if (!data.length) {
     return <EmptyState icon={emptyIcon} title={emptyTitle} />;
   }
@@ -182,6 +182,10 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
   // `compact` shrinks text and spacing to fit many legend items (e.g. all colleges).
   // `twoCol` uses the two-column grid layout but keeps normal text size.
   const useGrid = compact || twoCol;
+  const legendGridCols =
+    legendCols >= 4 ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"
+    : legendCols === 3 ? "grid-cols-2 sm:grid-cols-3"
+    : "grid-cols-2";
   return (
     <div
       className={`flex items-center gap-6 py-2 ${stack ? "flex-col" : "flex-col sm:flex-row"}`}
@@ -222,7 +226,7 @@ export function DonutStat({ data, total, centerLabel, emptyIcon, emptyTitle, too
           <span className="text-xs text-gray-400 mt-1">{centerLabel}</span>
         </div>
       </div>
-      <ul className={`flex-1 w-full ${useGrid ? "grid grid-cols-2 gap-x-3" : "space-y-2.5"} ${compact ? "gap-y-0.5" : "gap-y-1.5"}`}>
+      <ul className={`flex-1 w-full ${useGrid ? `grid ${legendGridCols} gap-x-3` : "space-y-2.5"} ${compact ? "gap-y-0.5" : "gap-y-1.5"}`}>
         {data.map((d) => (
           <li
             key={d.name}

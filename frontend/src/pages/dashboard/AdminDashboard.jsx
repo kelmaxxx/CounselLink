@@ -163,10 +163,10 @@ export default function AdminDashboard() {
           }
         />
 
-        {/* 1. Top: 2x2 stats (8 cols) + tall donut (4 cols) */}
+        {/* 1. Top: 2x2 stats + wide donut, balanced heights */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-stretch">
-          <div className="lg:col-span-8">
-            <Stagger className="grid grid-cols-2 gap-4 h-full">
+          <div className="lg:col-span-6">
+            <Stagger className="grid grid-cols-2 gap-4">
               <BigStat
                 label="Total users"
                 value={visibleUsers.length}
@@ -207,9 +207,8 @@ export default function AdminDashboard() {
             </Stagger>
           </div>
 
-          {/* Reserve the loaded donut height so the 2x2 stat cards don't jump when data arrives. */}
           <SectionCard
-            className="lg:col-span-4 h-full lg:min-h-[28.5rem]"
+            className="lg:col-span-6 h-full"
             title="Completed sessions by college"
             subtitle="Finished sessions per college · total in the middle"
           >
@@ -221,6 +220,7 @@ export default function AdminDashboard() {
               emptyTitle="No completed appointments yet"
               stack
               compact
+              legendCols={4}
             />
           </SectionCard>
         </div>
