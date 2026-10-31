@@ -5,6 +5,9 @@ import { motion } from "framer-motion";
 import { Inbox, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { collegeColor } from "../data/sagayanColors";
 import { CountUp, fadeUp } from "./motion";
+
+// JSX member tags aren't counted as variable uses by the lint config.
+const MotionDiv = motion.div;
 import {
   PieChart,
   Pie,
@@ -38,7 +41,7 @@ export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }
 
 export function StatCard({ label, value, hint, icon: Icon, accent = "bg-gray-400" }) {
   return (
-    <motion.div variants={fadeUp} className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-gray-950/5 transition hover:shadow-md">
+    <MotionDiv variants={fadeUp} className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-gray-950/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:hover:translate-y-0">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className={`w-1.5 h-1.5 rounded-full ${accent}`} />
@@ -50,13 +53,13 @@ export function StatCard({ label, value, hint, icon: Icon, accent = "bg-gray-400
         <CountUp value={value} />
       </div>
       {hint && <p className="text-xs text-gray-500 mt-1.5">{hint}</p>}
-    </motion.div>
+    </MotionDiv>
   );
 }
 
 export function SectionCard({ title, subtitle, action, children, className = "", bodyClassName = "", noBodyPadding = false }) {
   return (
-    <section className={`bg-white rounded-2xl shadow-sm ring-1 ring-gray-950/5 ${className}`}>
+    <section className={`bg-white rounded-2xl shadow-sm ring-1 ring-gray-950/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:hover:translate-y-0 ${className}`}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
           <div className="min-w-0">
@@ -100,7 +103,7 @@ const STAT_TONES = {
 export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, trend, trendDir = "up", variant = "light", compact = false }) {
   const dark = variant === "dark";
   return (
-    <motion.div variants={fadeUp} className={`rounded-2xl ${compact ? "p-4" : "p-6"} border shadow-sm transition hover:shadow-md h-full flex flex-col ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
+    <MotionDiv variants={fadeUp} className={`rounded-2xl ${compact ? "p-4" : "p-6"} border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:hover:translate-y-0 h-full flex flex-col ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
       <div className="flex items-start justify-between gap-2">
         <span className={`text-sm font-medium truncate min-w-0 ${dark ? "text-white/70" : "text-gray-500"}`}>{label}</span>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -135,7 +138,7 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, 
         )}
         {hint && <p className={`${trend ? "mt-1" : "mt-1.5"} text-xs ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 }
 
@@ -800,15 +803,15 @@ export function Modal({
 // Common button class strings for consistency
 export const BTN = {
   primary:
-    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed",
   secondary:
-    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed",
   danger:
-    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed",
   success:
-    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed",
   ghost:
-    "inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors",
+    "inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all duration-200 active:scale-[0.97]",
 };
 
 export const INPUT =

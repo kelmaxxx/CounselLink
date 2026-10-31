@@ -5,6 +5,8 @@ import { animate, motion, useReducedMotion } from "framer-motion";
 import { formatCount, parseCount } from "../utils/countUp";
 
 const EASE = [0.22, 1, 0.36, 1];
+// Expo-out: fast start, long settle — reads as "weight" on counters.
+const COUNTER_EASE = [0.16, 1, 0.3, 1];
 // JSX member tags (`motion.div`) aren't counted as a variable use by the lint
 // config, so hold the component in an uppercase const.
 const MotionDiv = motion.div;
@@ -35,8 +37,38 @@ export function Stagger({ children, className = "", delay = 0, ...rest }) {
   );
 }
 
-// Enter-only transition for route content; the sidebar/header stay put like an
-// app shell. Exit is skipped on purpose (needs AnimatePresence around Routes).
+// Row-level entrance for tables/lists. Rows animate on mount, so switching a
+// tab/filter (new rows) replays it without any extra state.
+const rowItem = {
+  hidden: { opacity: 0, y: 6 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: EASE } },
+};
+
+const MotionTr = motion.tr;
+
+export function TableRow({ index = 0, children, ...rest }) {
+  return (
+    <MotionTr
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: EASE, delay: Math.min(index * 0.02, 0.3) }}
+      {...rest}
+    >
+      {children}
+    </MotionTr>
+  );
+}
+
+export function ListItem({ children, ...rest }) {
+  return (
+    <MotionDiv variants={rowItem} {...rest}>
+      {children}
+    </MotionDiv>
+  );
+}
+
+// Wrap mobile card lists in <Stagger> so ListItem rows fade in one by one.
+
 export function PageTransition({ children, className = "" }) {
   const reduce = useReducedMotion();
   return (
@@ -52,7 +84,7 @@ export function PageTransition({ children, className = "" }) {
 }
 
 // Counts numeric values up from their previous value (0 on first render).
-export function CountUp({ value, duration = 0.9 }) {
+export function CountUp({ value, duration = 1.1 }) {
   const reduce = useReducedMotion();
   const parsed = parseCount(value);
   const target = parsed?.target ?? null;
@@ -71,7 +103,7 @@ export function CountUp({ value, duration = 0.9 }) {
     // late-arriving data both continue from where the number already is.
     const controls = animate(from.current, target, {
       duration,
-      ease: "easeOut",
+      ease: COUNTER_EASE,
       onUpdate: (n) => {
         from.current = n;
         setShown(n);

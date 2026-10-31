@@ -28,6 +28,7 @@ import {
   LABEL,
   initialsOf,
 } from "../../components/ui";
+import { ListItem, Stagger, TableRow } from "../../components/motion";
 import { sanitizePhoneDigits } from "../../utils/phone";
 
 const POSITIONS = [
@@ -115,11 +116,11 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
   return (
     <>
       {/* ── Mobile card view (< sm) ─────────────────────────────── */}
-      <div className="sm:hidden divide-y divide-gray-100">
+      <Stagger className="sm:hidden divide-y divide-gray-100">
         {rows.map((u) => {
           const { status, label } = statusInfo(u);
           return (
-            <div key={u.id} className="px-4 py-3 space-y-2">
+            <ListItem key={u.id} className="px-4 py-3 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
@@ -154,10 +155,10 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                   </button>
                 )}
               </div>
-            </div>
+            </ListItem>
           );
         })}
-      </div>
+      </Stagger>
 
       {/* ── Desktop table (sm+) ──────────────────────────────────── */}
       <div className="hidden sm:block overflow-x-auto">
@@ -173,10 +174,10 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {rows.map((u) => {
+            {rows.map((u, i) => {
               const { status, label } = statusInfo(u);
               return (
-                <tr key={u.id} className="hover:bg-gray-50/70 transition">
+                <TableRow key={u.id} index={i} className="hover:bg-gray-50/70 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-start gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">
@@ -212,7 +213,7 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                       )}
                     </div>
                   </td>
-                </tr>
+                </TableRow>
               );
             })}
           </tbody>

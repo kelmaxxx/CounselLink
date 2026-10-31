@@ -16,6 +16,7 @@ import {
   INPUT,
   LABEL,
 } from "../../components/ui";
+import { ListItem, Stagger, TableRow } from "../../components/motion";
 import {
   Select,
   SelectContent,
@@ -265,7 +266,7 @@ export default function SystemLogs() {
         ) : (
           <>
           {/* ── Mobile card view (< sm) ──────────────────────────── */}
-          <div className="sm:hidden divide-y divide-gray-100">
+          <Stagger className="sm:hidden divide-y divide-gray-100">
             {logs.map((log) => {
               const isStudent = log.actorRole === "student";
               const actorName = log.actorId == null
@@ -274,7 +275,7 @@ export default function SystemLogs() {
                   ? censorName(log.actorName || "(deleted user)")
                   : (log.actorName || "(deleted user)");
               return (
-                <div key={log.id} className="px-4 py-3 space-y-1.5">
+                <ListItem key={log.id} className="px-4 py-3 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className={`text-sm font-medium text-gray-900 ${isStudent ? "font-mono" : ""}`}>{actorName}</p>
@@ -298,10 +299,10 @@ export default function SystemLogs() {
                       {JSON.stringify(log.details, null, 2)}
                     </pre>
                   )}
-                </div>
+                </ListItem>
               );
             })}
-          </div>
+          </Stagger>
 
           {/* ── Desktop table (sm+) ──────────────────────────────── */}
           <div className="hidden sm:block overflow-x-auto">
@@ -317,7 +318,7 @@ export default function SystemLogs() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {logs.map((log) => {
+                {logs.map((log, i) => {
                   const isStudent = log.actorRole === "student";
                   const actorName = log.actorId == null
                     ? "Public (unauthenticated)"
@@ -326,7 +327,7 @@ export default function SystemLogs() {
                       : (log.actorName || "(deleted user)");
                   return (
                     <React.Fragment key={log.id}>
-                      <tr className="hover:bg-gray-50/70 transition">
+                      <TableRow index={i} className="hover:bg-gray-50/70 transition-colors">
                         <td className="px-4 py-3 text-gray-600 text-xs tabular-nums whitespace-nowrap">{formatTs(log.createdAt)}</td>
                         <td className="px-4 py-3">
                           <p className={`text-sm font-medium text-gray-900 break-words ${isStudent ? "font-mono" : ""}`}>{actorName}</p>
@@ -352,7 +353,7 @@ export default function SystemLogs() {
                             <span className="text-xs text-gray-300">—</span>
                           )}
                         </td>
-                      </tr>
+                      </TableRow>
                       {expandedId === log.id && log.details && (
                         <tr className="bg-gray-50/60">
                           <td colSpan={6} className="px-4 py-3">
