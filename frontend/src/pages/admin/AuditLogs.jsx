@@ -112,14 +112,8 @@ export default function AuditLogs() {
     <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
       <PageHeader
         eyebrow="Administrator"
-        title={
-          <span className="inline-flex items-center gap-2">
-            <Shield size={18} className="text-maroon-600" />
-            <span className="chromatic-title" data-text="Audit logs">
-              Audit logs
-            </span>
-          </span>
-        }
+        icon={Shield}
+        title="Audit logs"
         subtitle="Admin and counselor actions tracked for accountability."
         actions={
           <button

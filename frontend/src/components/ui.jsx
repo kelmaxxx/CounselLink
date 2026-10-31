@@ -27,21 +27,45 @@ import {
   Treemap,
 } from "recharts";
 
-export function PageHeader({ eyebrow, title, subtitle, actions, className = "" }) {
-  const glitchable = typeof title === "string";
+function WaveTitle({ text }) {
+  let index = 0;
+  const words = text.split(" ");
+  return (
+    <>
+      {words.map((word, wordIndex) => (
+        <React.Fragment key={wordIndex}>
+          <span className="inline-block whitespace-nowrap">
+            {Array.from(word).map((char, charIndex) => (
+              <span
+                key={charIndex}
+                className="title-wave-char"
+                style={{ "--i": index++ }}
+              >
+                {char}
+              </span>
+            ))}
+          </span>
+          {wordIndex < words.length - 1 && " "}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
+export function PageHeader({ eyebrow, title, icon: Icon, subtitle, actions, className = "" }) {
   return (
     <div className={`flex flex-wrap items-end justify-between gap-3 mb-8 ${className}`}>
       <div className="min-w-0">
-        <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
-          {glitchable ? (
-            <span className="chromatic-title" data-text={title}>
-              {title}
-            </span>
-          ) : (
-            title
-          )}
+        <h2
+          aria-label={typeof title === "string" ? title : undefined}
+          className="flex items-center gap-2 text-3xl font-semibold text-gray-900 tracking-tight"
+        >
+          {Icon && <Icon size={22} aria-hidden="true" className="flex-shrink-0 text-maroon-600" />}
+          <span className="min-w-0" aria-hidden={typeof title === "string" ? "true" : undefined}>
+            {typeof title === "string" ? <WaveTitle text={title} /> : title}
+          </span>
         </h2>
-        {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+        {subtitle && <p className="text-sm text-gray-500 mt-2">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
     </div>
