@@ -211,3 +211,32 @@ select {
   .animate-step-glow,
   .animate-step-ping { animation: none; }
 }
+
+/* ---- Page-title letter wave on load ---- */
+.title-wave-char {
+  display: inline-block;
+  opacity: 0;
+  animation: title-wave 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 14ms);
+}
+
+@keyframes title-wave {
+  0% {
+    opacity: 0;
+    transform: translateY(0.35em);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-wave-char {
+    animation: none;
+    opacity: 1;
+  }
+}

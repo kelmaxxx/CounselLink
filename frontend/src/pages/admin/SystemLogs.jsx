@@ -146,11 +146,8 @@ export default function SystemLogs() {
     <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
       <PageHeader
         eyebrow="Administrator"
-        title={
-          <span className="inline-flex items-center gap-2">
-            <Activity size={18} className="text-maroon-600" /> Activity log
-          </span>
-        }
+        icon={Activity}
+        title="Activity log"
         subtitle="A chronological audit trail of every action across CounselLink."
         actions={
           <>
