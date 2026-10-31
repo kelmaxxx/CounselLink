@@ -316,7 +316,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
                       navigate(itemPath);
                       onClose?.();
                     }}
-                    className={`group relative w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 ${
+                    className={`relative w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 ${
                       isActive
                         ? "text-white"
                         : "text-maroon-100 hover:bg-maroon-600/60 hover:text-white"
@@ -332,7 +332,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
                       </MotionSpan>
                     )}
                     <span className="relative z-10 flex items-center gap-3 w-full">
-                      <Icon size={18} className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                      <Icon size={18} className="flex-shrink-0" />
                       <span className="flex-1 text-left truncate">{item.label}</span>
                       {badge > 0 && (
                         <span className="bg-amber-400 text-maroon-900 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">

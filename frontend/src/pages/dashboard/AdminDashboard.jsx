@@ -207,8 +207,9 @@ export default function AdminDashboard() {
             </Stagger>
           </div>
 
+          {/* Reserve the loaded donut height so the 2x2 stat cards don't jump when data arrives. */}
           <SectionCard
-            className="lg:col-span-4 h-full"
+            className="lg:col-span-4 h-full lg:min-h-[28.5rem]"
             title="Completed sessions by college"
             subtitle="Finished sessions per college · total in the middle"
           >
@@ -432,13 +433,13 @@ function AnnouncementsPanel({ token }) {
                   <>                    {item.imageUrl && (
                       <div
                         onClick={() => setViewOpen(true)}
-                        className="mb-3 rounded-lg overflow-hidden border border-gray-100 cursor-pointer group relative"
+                        className="mb-3 rounded-lg overflow-hidden border border-gray-100 cursor-pointer relative"
                         title="Click to view announcement details"
                       >
                         <PubmatThumb
                           src={resolveImageUrl(item.imageUrl)}
                           alt={title}
-                          className="w-full max-h-48 object-contain bg-gray-950 group-hover:scale-105 transition-transform duration-200"
+                          className="w-full max-h-48 object-contain bg-gray-950"
                         />
                       </div>
                     )}

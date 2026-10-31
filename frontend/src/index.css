@@ -43,21 +43,8 @@ select {
   }
 }
 
-@keyframes bounce-slow {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(6px);
-  }
-}
-
 .animate-fade-in-up {
   animation: fade-in-up 0.9s ease-out both;
-}
-
-.animate-bounce-slow {
-  animation: bounce-slow 2s ease-in-out infinite;
 }
 
 /* Landing page additional animations */
@@ -179,7 +166,6 @@ select {
   .animate-gradient-pan,
   .animate-float-soft,
   .animate-ken-burns,
-  .animate-bounce-slow,
   .animate-fade-in-up { animation: none; }
 }
 

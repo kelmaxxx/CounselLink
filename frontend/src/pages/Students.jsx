@@ -538,7 +538,7 @@ export default function ManageStudents() {
                       <div
                         key={college}
                         onClick={() => { setSelectedFolder(college); setSelectedDept(null); }}
-                        className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                        className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 transition-colors text-center gap-3"
                       >
                         <Folder size={48} className="text-maroon-600 fill-maroon-100" />
                         <div className="font-semibold text-gray-800 text-sm">{college}</div>
@@ -590,7 +590,7 @@ export default function ManageStudents() {
                           <div
                             key={dept}
                             onClick={() => setSelectedDept(dept)}
-                            className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                            className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 transition-colors text-center gap-3"
                           >
                             <Folder size={40} className="text-amber-600 fill-amber-100" />
                             <div className="font-semibold text-gray-800 text-sm">{code || dept}</div>
@@ -750,7 +750,7 @@ export default function ManageStudents() {
                     <div
                       key={college}
                       onClick={() => { setSelectedRecordsFolder(college); setSelectedRecordsDept(null); }}
-                      className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                      className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 transition-colors text-center gap-3"
                     >
                       <Folder size={48} className="text-maroon-600 fill-maroon-100" />
                       <div className="font-semibold text-gray-800 text-sm">{college}</div>
@@ -803,7 +803,7 @@ export default function ManageStudents() {
                         <div
                           key={dept}
                           onClick={() => setSelectedRecordsDept(dept)}
-                          className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:border-maroon-300 transition-all text-center gap-3"
+                          className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 transition-colors text-center gap-3"
                         >
                           <Folder size={40} className="text-amber-600 fill-amber-100" />
                           <div className="font-semibold text-gray-800 text-sm">{deptCode || dept}</div>

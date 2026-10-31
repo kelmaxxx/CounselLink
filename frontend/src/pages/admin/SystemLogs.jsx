@@ -208,7 +208,7 @@ export default function SystemLogs() {
                     setOffset(0);
                   }}
                   aria-pressed={active}
-                  className={`inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-xs font-medium transition-all duration-200 ${
+                  className={`inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-xs font-medium transition-colors duration-200 ${
                     active
                       ? "border-maroon-600 bg-maroon-600 text-white shadow-sm"
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"

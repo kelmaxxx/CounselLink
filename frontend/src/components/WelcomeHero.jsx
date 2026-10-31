@@ -93,16 +93,13 @@ export default function WelcomeHero({ userName }) {
       {/* Dismiss button */}
       <button
         onClick={dismiss}
-        className="absolute bottom-8 z-10 flex flex-col items-center gap-1 text-white/60 hover:text-white transition cursor-pointer group"
+        className="absolute bottom-8 z-10 flex flex-col items-center gap-1 text-white/60 hover:text-white transition-colors cursor-pointer"
         aria-label="Dismiss welcome screen"
       >
         <span className="text-xs font-medium tracking-wider uppercase">
           Enter dashboard
         </span>
-        <ChevronDown
-          size={22}
-          className="animate-bounce-slow group-hover:translate-y-0.5 transition"
-        />
+        <ChevronDown size={22} />
       </button>
     </div>
   );
