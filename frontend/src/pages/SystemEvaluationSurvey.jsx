@@ -8,6 +8,7 @@ import {
   computeSusScore,
 } from "../data/systemEvaluationData";
 import { CheckCircle, ArrowRight, ChevronDown, ChevronUp, AlertCircle, Eye, FileText } from "lucide-react";
+import { useBodyScrollLock } from "../components/ui";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -24,6 +25,7 @@ export default function SystemEvaluationSurvey() {
 
   const [showPart1, setShowPart1] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
+  useBodyScrollLock(Boolean(selectedImage));
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [resultScore, setResultScore] = useState(null);

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Trash2, X } from "lucide-react";
+import { useBodyScrollLock } from "./ui";
 
 // Canvas-based signature pad — mouse on desktop, touch on mobile.
 // Calls onSave(blob) when the user confirms; onClose to dismiss.
@@ -8,6 +9,7 @@ export default function SignaturePad({ onSave, onClose, busy = false }) {
   const isDrawing = useRef(false);
   const lastPos = useRef(null);
   const [empty, setEmpty] = useState(true);
+  useBodyScrollLock();
 
   // Scale canvas buffer to device pixel ratio for crisp rendering on HiDPI screens
   useEffect(() => {
@@ -90,7 +92,7 @@ export default function SignaturePad({ onSave, onClose, busy = false }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100dvh_-_2rem)] overflow-y-auto">
         <div className="flex items-center justify-between px-5 pt-5 pb-2">
           <h2 className="font-semibold text-gray-900 text-base">Draw your signature</h2>
           <button type="button" onClick={onClose} disabled={busy} className="text-gray-400 hover:text-gray-600 p-1">

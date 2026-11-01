@@ -3,6 +3,7 @@ import { Send, MessageCircle } from "lucide-react";
 import { useMessages } from "../context/MessagesContext";
 import { useAuth } from "../context/AuthContext";
 import Avatar from "./Avatar";
+import { useBodyScrollLock } from "./ui";
 
 const ROLE_LABEL = {
   student: "Student",
@@ -16,6 +17,7 @@ export default function ChatModal({ recipientUser, onClose }) {
   const { getConversation, sendMessage, markAsRead, fetchConversation } = useMessages();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef(null);
+  useBodyScrollLock(Boolean(recipientUser));
 
   const conversation = getConversation(recipientUser?.id);
 
@@ -64,7 +66,7 @@ export default function ChatModal({ recipientUser, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg border border-gray-200 shadow-xl w-full max-w-2xl h-[600px] flex flex-col overflow-hidden"
+        className="bg-white rounded-lg border border-gray-200 shadow-xl w-full max-w-2xl h-[600px] max-h-[calc(100dvh_-_2rem)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
