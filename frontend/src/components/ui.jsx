@@ -746,6 +746,34 @@ const MODAL_SIZES = {
   "7xl": "max-w-7xl",
 };
 
+// Locks document scroll while a modal is mounted. The counter keeps the page
+// locked when modals stack (e.g. chat opened from the student drawer).
+let scrollLockCount = 0;
+let overflowBeforeLock = null;
+
+export function useBodyScrollLock(active = true) {
+  React.useEffect(() => {
+    if (!active) return;
+    if (scrollLockCount === 0) {
+      overflowBeforeLock = [
+        document.documentElement.style.overflow,
+        document.body.style.overflow,
+      ];
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    }
+    scrollLockCount += 1;
+    return () => {
+      scrollLockCount -= 1;
+      if (scrollLockCount === 0) {
+        const [htmlOverflow, bodyOverflow] = overflowBeforeLock;
+        document.documentElement.style.overflow = htmlOverflow;
+        document.body.style.overflow = bodyOverflow;
+      }
+    };
+  }, [active]);
+}
+
 export function Modal({
   open,
   onClose,
@@ -760,6 +788,8 @@ export function Modal({
   const panelRef = React.useRef(null);
   const footerRef = React.useRef(null);
   const bodyRef = React.useRef(null);
+
+  useBodyScrollLock(open);
 
   // Move focus into the dialog so Enter/Space reach it even when the trigger
   // that opened it is still the document's active element.
@@ -796,7 +826,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] overflow-y-auto"
+      className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] overflow-y-auto overscroll-contain"
       onClick={onClose}
     >
       <div className={`min-h-full flex justify-center p-4 sm:p-6 ${alignClass}`}>
@@ -805,9 +835,9 @@ export function Modal({
           tabIndex={-1}
           onKeyDown={handleKeyDown}
           onClick={(e) => e.stopPropagation()}
-          className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-auto outline-none`}
+          className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-auto max-h-[calc(100dvh_-_2rem)] sm:max-h-[calc(100dvh_-_3rem)] flex flex-col overflow-hidden outline-none`}
         >
-          <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
+          <div className="shrink-0 px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className={`text-lg font-semibold ${danger ? "text-red-700" : "text-gray-900"}`}>
                 {title}
@@ -825,9 +855,9 @@ export function Modal({
               </button>
             )}
           </div>
-          <div ref={bodyRef} className="px-6 py-5">{children}</div>
+          <div ref={bodyRef} className="px-6 py-5 flex-1 overflow-y-auto overscroll-contain">{children}</div>
           {footer && (
-            <div ref={footerRef} className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
+            <div ref={footerRef} className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
               {footer}
             </div>
           )}

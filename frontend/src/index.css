@@ -13,6 +13,8 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
+    /* Reserve the scrollbar track so locking the page never shifts layout. */
+    scrollbar-gutter: stable;
   }
 
   body {

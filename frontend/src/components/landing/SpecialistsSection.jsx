@@ -2,9 +2,11 @@
 import React, { useState } from "react";
 import Reveal from "./Reveal";
 import { Mail, Phone, ZoomIn, X, Users } from "lucide-react";
+import { useBodyScrollLock } from "../ui";
 
 export default function SpecialistsSection() {
   const [isZoomed, setIsZoomed] = useState(false);
+  useBodyScrollLock(isZoomed);
 
   const SPECIALISTS = [
     { name: "Jalaluddin M. Alonto", role: "Guidance Services Specialist III", colleges: ["COE", "CFES"] },

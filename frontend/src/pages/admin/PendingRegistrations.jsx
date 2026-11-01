@@ -25,6 +25,7 @@ import {
   INPUT,
   LABEL,
   initialsOf,
+  useBodyScrollLock,
 } from "../../components/ui";
 
 
@@ -49,6 +50,7 @@ export default function PendingRegistrations() {
   const [brokenCors, setBrokenCors] = useState({});
   // Same idea for the COR full-view modal.
   const [corBroken, setCorBroken] = useState(false);
+  useBodyScrollLock(showEmailPreview);
 
   useEffect(() => {
     let mounted = true;
@@ -491,7 +493,7 @@ export default function PendingRegistrations() {
               </button>
             </div>
 
-            <div className="px-5 py-4 max-h-[calc(90vh-80px)] overflow-y-auto">
+            <div className="px-5 py-4 max-h-[calc(90vh_-_80px)] overflow-y-auto">
               {/* Email headers */}
               <div className="bg-gray-50 border border-gray-200 rounded-md p-3 mb-4 text-sm space-y-1">
                 <div>

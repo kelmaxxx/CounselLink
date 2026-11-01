@@ -13,7 +13,7 @@ import { useTestResults } from "../../context/TestResultsContext";
 import { useAuth } from "../../context/AuthContext";
 import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
-import { Modal, BTN, formatDate } from "../ui";
+import { Modal, BTN, formatDate, useBodyScrollLock } from "../ui";
 import { saveReportAsPdfFile } from "../../utils/sessionReport";
 import { saveTestResultAsPdfFile } from "../../utils/testResultReport";
 import ReportPreview from "./ReportPreview";
@@ -997,6 +997,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
   } = useStudentRecords();
   const { sessions } = useCounselingSessions();
   const { currentUser } = useAuth();
+  useBodyScrollLock(Boolean(student));
 
   const [tab, setTab] = useState(initialTab || "inventory");
   const [loading, setLoading] = useState(true);
