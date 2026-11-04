@@ -9,12 +9,15 @@ import { useLocation } from "react-router-dom";
 import {
   Search, Plus, Edit, Trash2, Users, FileText, FileDown, Eye, Calendar,
   TrendingUp, Activity, AlertCircle, RefreshCw, UserRound, ClipboardList, Target,
-  ListChecks, ArrowLeft, ArrowRight, CheckCircle2, Folder, MoreHorizontal, MoreVertical
+  ListChecks, ArrowLeft, ArrowRight, CheckCircle2, Folder, MoreHorizontal, MoreVertical,
+  ChevronRight
 } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useCounselingSessions } from "../context/CounselingSessionsContext";
 import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
+import Avatar from "../components/Avatar";
 import { Modal, BTN, INPUT, LABEL, formatDate, BigStat, PageHeader } from "../components/ui";
 import { downloadReportAsPdf, saveReportAsPdfFile } from "../utils/sessionReport";
 import { getDepartments, getCollegeName } from "../data/msuColleges";
@@ -30,6 +33,23 @@ const RECORD_STEPS = [
   { id: "plan", title: "Plan & comments" },
   { id: "closing", title: "Next session & signature" },
 ];
+
+const STATUS_TONES = {
+  warn: "bg-amber-50 text-amber-700 ring-amber-200",
+  danger: "bg-red-50 text-red-700 ring-red-200",
+  info: "bg-blue-50 text-blue-700 ring-blue-200",
+};
+
+// Compact status pill for the records table; warnings get an icon so an
+// incomplete/awaiting row is scannable at a glance.
+function StatusBadge({ tone = "warn", children }) {
+  return (
+    <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ring-1 ring-inset ${STATUS_TONES[tone]}`}>
+      {tone === "warn" && <AlertCircle size={11} aria-hidden="true" />}
+      {children}
+    </span>
+  );
+}
 
 const blankForm = () => ({
   studentId: "",
@@ -72,6 +92,7 @@ export default function ManageStudents() {
   const studentButtonRefs = useRef({});
   const studentPopoverRef = useRef(null);
   const [viewSession, setViewSession] = useState(null);
+  const [browseFolders, setBrowseFolders] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [selectedDept, setSelectedDept] = useState(null);
   // Session Records tab folder navigation
@@ -390,32 +411,50 @@ export default function ManageStudents() {
   return (
     <div className="p-6">
       <div className="max-w-full">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
+          <span>Counselor</span>
+          <ChevronRight size={12} className="text-gray-300" aria-hidden="true" />
+          <span className="font-medium text-gray-900">Student Records</span>
+        </nav>
+
         <PageHeader
-          eyebrow="Counselor"
           title="Manage Students Records"
-          subtitle="Archive of counseling session records — add, edit, or delete each session."
+          subtitle="Review each student's inventory, consent, and counseling sessions in one place."
+          actions={
+            activeTab === "students" && (
+              <button
+                onClick={() => refreshAllRecords(students)}
+                disabled={loadingRecords}
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                <RefreshCw size={15} className={loadingRecords ? "animate-spin" : ""} /> Refresh records
+              </button>
+            )
+          }
         />
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-gray-200 mb-6">
-          <button
-            onClick={() => setActiveTab("students")}
-            className={`px-4 py-2 font-medium transition ${activeTab === "students" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}
-          >
-            <div className="flex items-center gap-2"><Users size={18} /> Students</div>
-          </button>
-          <button
-            onClick={() => setActiveTab("records")}
-            className={`px-4 py-2 font-medium transition ${activeTab === "records" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}
-          >
-            <div className="flex items-center gap-2"><FileText size={18} /> Session Records</div>
-          </button>
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`px-4 py-2 font-medium transition ${activeTab === "overview" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}
-          >
-            <div className="flex items-center gap-2"><TrendingUp size={18} /> Overview</div>
-          </button>
+        <div className="inline-flex items-center gap-1 p-1 mb-6 rounded-xl bg-white ring-1 ring-gray-200">
+          {[
+            { id: "students", label: "Students", icon: Users },
+            { id: "records", label: "Session Records", icon: FileText },
+            { id: "overview", label: "Overview", icon: TrendingUp },
+          ].map(({ id, label, icon }) => {
+            const Icon = icon;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                  activeTab === id
+                    ? "bg-maroon-600 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+              >
+                <Icon size={16} /> {label}
+              </button>
+            );
+          })}
         </div>
 
         {feedback && (
@@ -426,22 +465,22 @@ export default function ManageStudents() {
 
         {activeTab === "students" && (
           <>
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-start mb-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <div className="relative flex-1 min-w-[220px] max-w-md">
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
                 <input
-                  className="pl-10 pr-3 py-2 w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-maroon-500"
+                  className="h-10 pl-10 pr-3 w-full border border-gray-200 bg-white rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-maroon-500/25 focus:border-maroon-500"
                   placeholder="Search by name, ID, or college..."
                   value={studentSearch}
                   onChange={(e) => setStudentSearch(e.target.value)}
                 />
               </div>
               <button
-                onClick={() => refreshAllRecords(students)}
-                disabled={loadingRecords}
-                className="flex items-center gap-2 px-3 py-2 rounded border hover:bg-gray-50 disabled:opacity-50"
+                onClick={() => { setBrowseFolders((v) => !v); setSelectedFolder(null); setSelectedDept(null); }}
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
               >
-                <RefreshCw size={14} className={loadingRecords ? "animate-spin" : ""} /> Refresh records
+                <Folder size={15} />
+                {browseFolders ? "View all students" : "Browse by college"}
               </button>
             </div>
 
@@ -474,9 +513,9 @@ export default function ManageStudents() {
                 if (!rec?.loaded) {
                   authBadge = <span className="text-xs text-gray-400">—</span>;
                 } else if (!inv || !ack?.disclaimerAgreed) {
-                  authBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
+                  authBadge = <StatusBadge>Awaiting</StatusBadge>;
                 } else if (ack?.disclaimerRevokedAt) {
-                  authBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Revoked</span>;
+                  authBadge = <StatusBadge tone="danger">Revoked</StatusBadge>;
                 } else {
                   authBadge = <CheckCircle2 size={17} className="text-green-600" />;
                 }
@@ -486,36 +525,47 @@ export default function ManageStudents() {
                   : invFilled
                     ? <CheckCircle2 size={17} className="text-green-600" />
                     : inv
-                      ? <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Incomplete</span>
-                      : <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Missing</span>;
+                      ? <StatusBadge>Incomplete</StatusBadge>
+                      : <StatusBadge>Missing</StatusBadge>;
                 let conBadge;
                 if (!rec?.loaded) {
                   conBadge = <span className="text-xs text-gray-400">—</span>;
                 } else if (!con) {
-                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
+                  conBadge = <StatusBadge>Awaiting</StatusBadge>;
                 } else if (con.revokedAt) {
-                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">Revoked</span>;
+                  conBadge = <StatusBadge tone="danger">Revoked</StatusBadge>;
                 } else if (con.eConsentSignedAt) {
                   conBadge = <CheckCircle2 size={17} className="text-green-600" />;
                 } else if (con.scanUrl) {
-                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">Paper</span>;
+                  conBadge = <StatusBadge tone="info">Paper</StatusBadge>;
                 } else {
-                  conBadge = <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Awaiting</span>;
+                  conBadge = <StatusBadge>Awaiting</StatusBadge>;
                 }
                 return (
-                  <tr key={s.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setDrawerStudent(s)}>
+                  <tr key={s.id} className="hover:bg-gray-50/80 transition-colors duration-150 cursor-pointer" onClick={() => setDrawerStudent(s)}>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{s.name}</div>
-                      <div className="text-xs text-gray-500">{s.email}</div>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar name={s.name} url={s.avatarUrl} size="sm" theme="student" />
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 truncate">{s.name}</div>
+                          <div className="text-xs text-gray-500 truncate">{s.email}</div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      <div>{s.college || "—"}</div>
-                      <div className="text-xs text-gray-500">{s.studentId || "—"}</div>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                        {s.college || "Unassigned"}
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">{s.studentId || "—"}</div>
                     </td>
                     <td className="px-4 py-3">{invBadge}</td>
                     <td className="px-4 py-3">{authBadge}</td>
                     <td className="px-4 py-3">{conBadge}</td>
-                    <td className="px-4 py-3 text-gray-700">{sessionCount}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex min-w-6 h-6 items-center justify-center rounded-md bg-gray-100 px-1.5 text-xs font-semibold tabular-nums text-gray-700">
+                        {sessionCount}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                       <div ref={(el) => { studentButtonRefs.current[s.id] = el; }} className="inline-block">
                         <button
@@ -531,6 +581,46 @@ export default function ManageStudents() {
                 );
               };
 
+              const renderTable = (rows, emptyText) => (
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[640px]">
+                      <thead className="bg-gray-50/70 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Student</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">College / ID</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Inventory</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Authorize</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Consent</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Sessions</th>
+                          <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 text-sm">
+                        {rows.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                              {emptyText}
+                            </td>
+                          </tr>
+                        ) : (
+                          rows.map(renderStudent)
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+
+              // Default view — the full student table. Browse-by-college folders
+              // stay available behind the toggle for the department drill-down.
+              if (!browseFolders) {
+                return renderTable(
+                  list,
+                  students.length === 0 ? "No students yet." : "No students match your search."
+                );
+              }
+
               // Level 1 — College folders (e.g. CICS, COE …)
               if (!selectedFolder) {
                 return (
@@ -539,7 +629,7 @@ export default function ManageStudents() {
                       <div
                         key={college}
                         onClick={() => { setSelectedFolder(college); setSelectedDept(null); }}
-                        className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 transition-colors text-center gap-3"
+                        className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 hover:shadow-sm transition-[border-color,box-shadow] duration-200 text-center gap-3"
                       >
                         <Folder size={48} className="text-maroon-600 fill-maroon-100" />
                         <div className="font-semibold text-gray-800 text-sm">{college}</div>
@@ -591,7 +681,7 @@ export default function ManageStudents() {
                           <div
                             key={dept}
                             onClick={() => setSelectedDept(dept)}
-                            className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 transition-colors text-center gap-3"
+                            className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 hover:shadow-sm transition-[border-color,box-shadow] duration-200 text-center gap-3"
                           >
                             <Folder size={40} className="text-amber-600 fill-amber-100" />
                             <div className="font-semibold text-gray-800 text-sm">{code || dept}</div>
@@ -631,34 +721,7 @@ export default function ManageStudents() {
                       {selectedDept}
                     </span>
                   </div>
-                  <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm min-w-[640px]">
-                        <thead className="bg-gray-50 border-b border-gray-100">
-                          <tr>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">College / ID</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventory</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Authorize</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Consent</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sessions</th>
-                            <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 text-sm">
-                          {folderStudents.length === 0 ? (
-                            <tr>
-                              <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                                No students found.
-                              </td>
-                            </tr>
-                          ) : (
-                            folderStudents.map(renderStudent)
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                  {renderTable(folderStudents, "No students found.")}
                 </div>
               );
             })()}
@@ -751,7 +814,7 @@ export default function ManageStudents() {
                     <div
                       key={college}
                       onClick={() => { setSelectedRecordsFolder(college); setSelectedRecordsDept(null); }}
-                      className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 transition-colors text-center gap-3"
+                      className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 hover:shadow-sm transition-[border-color,box-shadow] duration-200 text-center gap-3"
                     >
                       <Folder size={48} className="text-maroon-600 fill-maroon-100" />
                       <div className="font-semibold text-gray-800 text-sm">{college}</div>
@@ -804,7 +867,7 @@ export default function ManageStudents() {
                         <div
                           key={dept}
                           onClick={() => setSelectedRecordsDept(dept)}
-                          className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 transition-colors text-center gap-3"
+                          className="bg-white border border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-300 hover:shadow-sm transition-[border-color,box-shadow] duration-200 text-center gap-3"
                         >
                           <Folder size={40} className="text-amber-600 fill-amber-100" />
                           <div className="font-semibold text-gray-800 text-sm">{deptCode || dept}</div>
@@ -877,17 +940,17 @@ export default function ManageStudents() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden">
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm min-w-[600px]">
-                      <thead className="bg-gray-50 border-b border-gray-100">
+                      <thead className="bg-gray-50/70 border-b border-gray-200">
                         <tr>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
-                          <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
-                          <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Student</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Concern</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Summary</th>
+                          <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                          <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -1268,18 +1331,21 @@ export default function ManageStudents() {
         )}
       </Modal>
 
-      {drawerStudent && (
-        <StudentRecordsDrawer
-          student={drawerStudent}
-          initialTab={drawerInitialTab}
-          onClose={() => { setDrawerStudent(null); setDrawerInitialTab(null); }}
-          onRecordsChanged={handleRecordsChanged}
-          readOnly={currentUser?.role !== "counselor"}
-          onEditSession={(s) => openEdit(s)}
-          onDeleteSession={(s) => setConfirmDelete(s)}
-          onSubmitSession={(s) => setConfirmSubmit(s)}
-        />
-      )}
+      <AnimatePresence>
+        {drawerStudent && (
+          <StudentRecordsDrawer
+            key="student-records"
+            student={drawerStudent}
+            initialTab={drawerInitialTab}
+            onClose={() => { setDrawerStudent(null); setDrawerInitialTab(null); }}
+            onRecordsChanged={handleRecordsChanged}
+            readOnly={currentUser?.role !== "counselor"}
+            onEditSession={(s) => openEdit(s)}
+            onDeleteSession={(s) => setConfirmDelete(s)}
+            onSubmitSession={(s) => setConfirmSubmit(s)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* View individual session report */}
       <Modal
