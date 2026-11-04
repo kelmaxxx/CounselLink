@@ -26,7 +26,7 @@ import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
 import ReschedulePicker from "../../components/ReschedulePicker";
 import { useReferrals } from "../../context/ReferralsContext";
-import { SectionCard, EmptyState, BigStat, DonutStat, VerticalBarChart, Modal, BTN, INPUT, LABEL, initialsOf, formatDate } from "../../components/ui";
+import { SectionCard, EmptyState, BigStat, DonutStat, VerticalBarChart, Modal, BTN, INPUT, LABEL, initialsOf, formatDate, PageHeader } from "../../components/ui";
 import { Stagger } from "../../components/motion";
 import {
   StudentsByCollegeCard,
@@ -617,24 +617,20 @@ export default function CounselorDashboard() {
           </Link>
         </div>
       )}
-      {/* Page header */}
-      <div className="flex flex-wrap items-end justify-between gap-3 mb-8">
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
-            Good morning, {firstName}
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {dateLabel}
-          </p>
-        </div>
-        <Link
-          to="/counselor/appointments"
-          className="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition-colors"
-        >
-          View all appointments
-          <ArrowRight size={16} />
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Counselor"
+        title={`Good morning, ${firstName}`}
+        subtitle={dateLabel}
+        actions={
+          <Link
+            to="/counselor/appointments"
+            className="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition-colors"
+          >
+            View all appointments
+            <ArrowRight size={16} />
+          </Link>
+        }
+      />
 
       {/* Stats */}
       <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -669,21 +665,13 @@ export default function CounselorDashboard() {
         />
       </Stagger>
 
-      {/* Charts — mixed visuals: ranked bars + donut + trend */}
+      {/* Charts — mixed visuals: trend + donut + ranked bars */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
         <div className="lg:col-span-3">
-          <StudentsByCollegeCard
-            data={topColleges
-              .filter(([, c]) => c > 0)
-              .map(([name, value], i) => ({
-                name,
-                value,
-                color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
-              }))}
-            maxRows={7}
-            emptyIcon={Users}
-            emptyTitle="No students yet"
-            title="Students by College"
+          <RequestVolumeCard
+            data={activityTrend}
+            emptyIcon={Calendar}
+            emptyTitle="No activity yet"
           />
         </div>
 
@@ -706,10 +694,18 @@ export default function CounselorDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
         <div className="lg:col-span-3">
-          <RequestVolumeCard
-            data={activityTrend}
-            emptyIcon={Calendar}
-            emptyTitle="No activity yet"
+          <StudentsByCollegeCard
+            data={topColleges
+              .filter(([, c]) => c > 0)
+              .map(([name, value], i) => ({
+                name,
+                value,
+                color: COLLEGE_COLORS[i % COLLEGE_COLORS.length],
+              }))}
+            maxRows={7}
+            emptyIcon={Users}
+            emptyTitle="No students yet"
+            title="Students by College"
           />
         </div>
 

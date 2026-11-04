@@ -15,7 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import { useCounselingSessions } from "../context/CounselingSessionsContext";
 import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
-import { Modal, BTN, INPUT, LABEL, formatDate, BigStat } from "../components/ui";
+import { Modal, BTN, INPUT, LABEL, formatDate, BigStat, PageHeader } from "../components/ui";
 import { downloadReportAsPdf, saveReportAsPdfFile } from "../utils/sessionReport";
 import { getDepartments, getCollegeName } from "../data/msuColleges";
 
@@ -390,10 +390,11 @@ export default function ManageStudents() {
   return (
     <div className="p-6">
       <div className="max-w-full">
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-1">Manage Students Records</h2>
-          <p className="text-sm text-gray-600">Archive of counseling session records — add, edit, or delete each session.</p>
-        </div>
+        <PageHeader
+          eyebrow="Counselor"
+          title="Manage Students Records"
+          subtitle="Archive of counseling session records — add, edit, or delete each session."
+        />
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-gray-200 mb-6">
