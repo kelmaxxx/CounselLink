@@ -6,7 +6,9 @@
 //   - Sessions:  counseling sessions filtered to this student
 //   - Tests:     released psychological test results for this student
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { X, ClipboardList, FileSignature, BookOpen, ExternalLink, FileUp, ShieldOff, CheckCircle2, AlertTriangle, MessageCircle, Eye, FileDown, Edit, Trash2, MoreVertical, ChevronLeft, ChevronRight, FlaskConical } from "lucide-react";
+import Avatar from "../Avatar";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
 import { useTestResults } from "../../context/TestResultsContext";
@@ -18,6 +20,10 @@ import { saveReportAsPdfFile } from "../../utils/sessionReport";
 import { saveTestResultAsPdfFile } from "../../utils/testResultReport";
 import ReportPreview from "./ReportPreview";
 import { createPortal } from "react-dom";
+
+// JSX member tags aren't counted as variable uses by the lint config.
+const MotionDiv = motion.div;
+const MotionAside = motion.aside;
 
 const NEXT_LABELS = { followup: "Follow-up", termination: "Termination" };
 const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -997,6 +1003,7 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
   } = useStudentRecords();
   const { sessions } = useCounselingSessions();
   const { currentUser } = useAuth();
+  const reduceMotion = useReducedMotion();
   useBodyScrollLock(Boolean(student));
 
   const [tab, setTab] = useState(initialTab || "inventory");
@@ -1008,6 +1015,13 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
   useEffect(() => {
     if (initialTab) setTab(initialTab);
   }, [initialTab]);
+
+  useEffect(() => {
+    if (!student) return;
+    const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [student, onClose]);
 
   useEffect(() => {
     if (!student?.id) return;
@@ -1082,30 +1096,48 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40 hidden sm:block" onClick={onClose} />
-      <aside className="w-full sm:max-w-2xl lg:max-w-5xl bg-gray-50 shadow-xl h-full flex flex-col ml-auto">
+    <MotionDiv
+      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:justify-end sm:p-6"
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={reduceMotion ? undefined : { opacity: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.18 }}
+    >
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" onClick={onClose} aria-hidden="true" />
+      <MotionAside
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${student?.name || "Student"} records`}
+        className="relative w-full sm:max-w-5xl h-full sm:h-[calc(100dvh-3rem)] bg-gray-50 shadow-2xl flex flex-col overflow-hidden rounded-none sm:rounded-3xl"
+        initial={reduceMotion ? false : { x: "100%" }}
+        animate={{ x: 0 }}
+        exit={reduceMotion ? undefined : { x: "100%" }}
+        transition={{ type: "spring", stiffness: 360, damping: 38 }}
+      >
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-start sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{student?.name || "Student"}</h3>
-            <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-              {student?.studentId && <span>ID: {student.studentId}</span>}
-              {student?.studentId && (student?.email || student?.phone || student?.college) && <span className="text-gray-300">•</span>}
-              {student?.email && <span className="break-all">Email: {student.email}</span>}
-              {student?.phone && (
-                <>
-                  <span className="text-gray-300">•</span>
-                  <span>Contact: {student.phone}</span>
-                </>
-              )}
-              {student?.college && (
-                <>
-                  <span className="text-gray-300">•</span>
-                  <span>College: {student.college}</span>
-                </>
-              )}
-            </p>
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar name={student?.name} url={student?.avatarUrl} size="md" theme="student" />
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{student?.name || "Student"}</h3>
+              <p className="text-xs text-gray-600 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {student?.studentId && <span>ID: {student.studentId}</span>}
+                {student?.studentId && (student?.email || student?.phone || student?.college) && <span className="text-gray-300">•</span>}
+                {student?.email && <span className="break-all">Email: {student.email}</span>}
+                {student?.phone && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <span>Contact: {student.phone}</span>
+                  </>
+                )}
+                {student?.college && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <span>College: {student.college}</span>
+                  </>
+                )}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
@@ -1115,28 +1147,43 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
             >
               <MessageCircle size={14} /> Message
             </button>
-            <button onClick={onClose} className="p-2 rounded hover:bg-gray-100"><X size={20} /></button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
           </div>
         </div>
 
         {/* Sub-tabs */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 flex gap-1 sm:gap-2 overflow-x-auto">
-          <button onClick={() => setTab("inventory")} className={`px-3 sm:px-4 py-3 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${tab === "inventory" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
-            <ClipboardList size={16} /> Inventory
-          </button>
-          <button onClick={() => setTab("consent")} className={`px-3 sm:px-4 py-3 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${tab === "consent" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
-            <FileSignature size={16} /> Consent
-          </button>
-          <button onClick={() => setTab("sessions")} className={`px-3 sm:px-4 py-3 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${tab === "sessions" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
-            <BookOpen size={16} /> Sessions
-          </button>
-          <button onClick={() => setTab("tests")} className={`px-3 sm:px-4 py-3 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${tab === "tests" ? "text-maroon-600 border-b-2 border-maroon-600" : "text-gray-600 hover:text-gray-900"}`}>
-            <FlaskConical size={16} /> Tests
-          </button>
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-2.5 flex gap-1.5 overflow-x-auto">
+          {[
+            { id: "inventory", label: "Inventory", icon: ClipboardList },
+            { id: "consent", label: "Consent", icon: FileSignature },
+            { id: "sessions", label: "Sessions", icon: BookOpen },
+            { id: "tests", label: "Tests", icon: FlaskConical },
+          ].map(({ id, label, icon }) => {
+            const Icon = icon;
+            return (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors duration-200 ${
+                  tab === id
+                    ? "bg-maroon-50 text-maroon-700 ring-1 ring-maroon-200"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+              >
+                <Icon size={16} /> {label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto px-4 sm:px-6 py-4">
+        <div className="flex-1 overflow-auto px-4 sm:px-6 py-5">
           {loading ? (
             <div className="text-sm text-gray-500">Loading records...</div>
           ) : tab === "inventory" ? (
@@ -1177,11 +1224,11 @@ export default function StudentRecordsDrawer({ student, onClose, onRecordsChange
             <TestsList student={student} />
           )}
         </div>
-      </aside>
+      </MotionAside>
 
       {chatOpen && student?.id && (
         <ChatModal recipientUser={student} onClose={() => setChatOpen(false)} />
       )}
-    </div>
+    </MotionDiv>
   );
 }
