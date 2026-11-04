@@ -4,7 +4,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   Calendar, Users, FileText, Bell, LogOut, User,
-  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft, X
+  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft, X, ChevronsLeft, ChevronsRight
 } from "lucide-react";
 import { useMessages } from "../context/MessagesContext";
 import { useReferrals } from "../context/ReferralsContext";
@@ -50,7 +50,7 @@ function usePendingReportRequests(role, token) {
   return count;
 }
 
-function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogout, open = false, onClose }) {
+function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogout, open = false, onClose, collapsed = false, onToggleCollapse }) {
   const { currentUser: ctxUser, users } = useAuth();
   const messagesCtx = useMessages?.();
   const unreadMessages = messagesCtx?.getTotalUnreadCount?.() || 0;
@@ -224,7 +224,9 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
   // On phones the sidebar is an off-canvas drawer (fixed + translate); from
   // the `lg` breakpoint up it becomes a normal static column that's always
   // visible. `open` only drives the mobile drawer state.
-  const drawerClasses = `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:z-auto ${
+  const drawerClasses = `fixed inset-y-0 left-0 z-50 w-64 transform transition-[width,transform] duration-300 ease-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:z-auto ${
+    collapsed ? "lg:w-20" : "lg:w-64"
+  } ${
     open ? "translate-x-0" : "-translate-x-full"
   }`;
 
@@ -255,14 +257,14 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       />
     <aside className={`${drawerClasses} bg-maroon-700 text-maroon-50 flex flex-col border-r border-maroon-800/60`}>
       {/* Brand */}
-      <div className="px-5 py-4 border-b border-maroon-800/60">
-        <div className="flex items-center gap-2">
+      <div className={`px-5 py-4 border-b border-maroon-800/60 ${collapsed ? "lg:px-0" : ""}`}>
+        <div className={`flex items-center gap-2 ${collapsed ? "lg:justify-center" : ""}`}>
           <img
             src="/counselink-round.png"
             alt="CounseLink Logo"
             className="w-12 h-12 object-contain flex-shrink-0"
           />
-          <h1 className="text-sm font-semibold tracking-tight text-white">CounseLink</h1>
+          <h1 className={`text-sm font-semibold tracking-tight text-white ${collapsed ? "lg:hidden" : ""}`}>CounseLink</h1>
           <button
             type="button"
             onClick={onClose}
@@ -275,15 +277,15 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       </div>
 
       {/* User block */}
-      <Link to={`${roleBase}/profile`} className="px-5 py-3 border-b border-maroon-800/60 block hover:bg-maroon-800/40 transition cursor-pointer">
-        <div className="flex items-center gap-3 min-w-0">
+      <Link to={`${roleBase}/profile`} className={`px-5 py-3 border-b border-maroon-800/60 block hover:bg-maroon-800/40 transition cursor-pointer ${collapsed ? "lg:px-0" : ""}`}>
+        <div className={`flex items-center gap-3 min-w-0 ${collapsed ? "lg:justify-center" : ""}`}>
           <Avatar
             name={currentUser.name}
             url={currentUser.avatarUrl}
             size="sm"
             theme="light"
           />
-          <div className="min-w-0">
+          <div className={`min-w-0 ${collapsed ? "lg:hidden" : ""}`}>
             <div className="text-sm font-medium text-white truncate">{currentUser.name}</div>
             <div className="text-xs text-maroon-200 capitalize truncate">
               {currentUser.role?.replace("_", " ")}
@@ -297,7 +299,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       <nav className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-3 py-3 space-y-4">
         {navGroups.map((group) => (
           <div key={group.label}>
-            <div className="px-2 mb-2 text-[11px] font-semibold uppercase tracking-wider text-maroon-300">
+            <div className={`px-2 mb-2 text-[11px] font-semibold uppercase tracking-wider text-maroon-300 ${collapsed ? "lg:hidden" : ""}`}>
               {group.label}
             </div>
             <div className="space-y-0.5">
@@ -316,11 +318,12 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
                       navigate(itemPath);
                       onClose?.();
                     }}
-                    className={`relative w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 ${
+                    className={`relative w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-200 ${collapsed ? "lg:gap-0 lg:px-0 lg:justify-center" : ""} ${
                       isActive
                         ? "text-white"
                         : "text-maroon-100 hover:bg-maroon-600/60 hover:text-white"
                     }`}
+                    title={collapsed ? item.label : undefined}
                   >
                     {isActive && (
                       <MotionSpan
@@ -331,13 +334,18 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-white" />
                       </MotionSpan>
                     )}
-                    <span className="relative z-10 flex items-center gap-3 w-full">
+                    <span className={`relative z-10 flex items-center gap-3 w-full ${collapsed ? "lg:gap-0 lg:justify-center" : ""}`}>
                       <Icon size={18} className="flex-shrink-0" />
-                      <span className="flex-1 text-left truncate">{item.label}</span>
+                      <span className={`flex-1 text-left truncate transition-[opacity,max-width] duration-300 ${collapsed ? "lg:max-w-0 lg:opacity-0" : "lg:max-w-[200px]"}`}>{item.label}</span>
                       {badge > 0 && (
-                        <span className="bg-amber-400 text-maroon-900 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
-                          {badge > 99 ? "99+" : badge}
-                        </span>
+                        <>
+                          <span className={`bg-amber-400 text-maroon-900 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none ${collapsed ? "lg:hidden" : ""}`}>
+                            {badge > 99 ? "99+" : badge}
+                          </span>
+                          {collapsed && (
+                            <span className="hidden lg:block absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" aria-hidden="true" />
+                          )}
+                        </>
                       )}
                     </span>
                   </button>
@@ -350,11 +358,22 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
 
       <div className="px-3 py-3 border-t border-maroon-800/60">
         <button
+          type="button"
+          onClick={onToggleCollapse}
+          className={`hidden lg:flex items-center gap-3 w-full text-maroon-100 hover:text-white hover:bg-maroon-600/60 px-3 py-2 rounded-lg text-sm transition mb-1 ${collapsed ? "lg:gap-0 lg:px-0 lg:justify-center" : ""}`}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
+          {!collapsed && <span>Collapse</span>}
+        </button>
+        <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full text-maroon-100 hover:text-white hover:bg-maroon-600/60 px-3 py-2 rounded-lg text-sm transition"
+          className={`flex items-center gap-3 w-full text-maroon-100 hover:text-white hover:bg-maroon-600/60 px-3 py-2 rounded-lg text-sm transition ${collapsed ? "lg:gap-0 lg:px-0 lg:justify-center" : ""}`}
+          title={collapsed ? "Sign out" : undefined}
         >
           <LogOut size={18} />
-          <span>Sign out</span>
+          <span className={collapsed ? "lg:hidden" : ""}>Sign out</span>
         </button>
       </div>
     </aside>
