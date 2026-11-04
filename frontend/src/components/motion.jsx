@@ -5,11 +5,22 @@ import { animate, motion, useReducedMotion } from "framer-motion";
 import { formatCount, parseCount } from "../utils/countUp";
 
 const EASE = [0.22, 1, 0.36, 1];
-// Expo-out: fast start, long settle — reads as "weight" on counters.
-const COUNTER_EASE = [0.16, 1, 0.3, 1];
+// Expo-out: fast start, long settle — reads as "weight" on counters, and the
+// Linear/Apple curve for title characters and page content.
+export const KINETIC_EASE = [0.16, 1, 0.3, 1];
+const COUNTER_EASE = KINETIC_EASE;
+
 // JSX member tags (`motion.div`) aren't counted as a variable use by the lint
 // config, so hold the component in an uppercase const.
 const MotionDiv = motion.div;
+
+// Vertical clipping mask for one character. The padding keeps descenders
+// (g, y, p) visible once the character has landed.
+const MASK_STYLE = {
+  display: "inline-block",
+  overflow: "hidden",
+  paddingBottom: "0.08em",
+};
 
 // Motion children inside <Stagger> pick this up automatically.
 export const fadeUp = {
@@ -74,12 +85,65 @@ export function PageTransition({ children, className = "" }) {
   return (
     <MotionDiv
       className={className}
-      initial={reduce ? false : { opacity: 0, y: 10 }}
+      initial={reduce ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: EASE }}
+      transition={{ duration: reduce ? 0 : 0.3, ease: KINETIC_EASE }}
     >
       {children}
     </MotionDiv>
+  );
+}
+
+/**
+ * Splits a title into words, then characters, so words wrap naturally while
+ * each character still slides up out of its own clipping mask.
+ *
+ * @param {Object} props
+ * @param {string} props.text
+ * @param {number} [props.staggerDelay=0.022] Seconds between character starts.
+ * @param {number} [props.duration=0.42] Seconds per character travel.
+ * @param {"up"|"down"} [props.direction="up"] Entry from below (exit to above) or the reverse.
+ * @param {string} [props.className]
+ */
+export function SplitText({
+  text,
+  staggerDelay = 0.022,
+  duration = 0.42,
+  direction = "up",
+  className = "",
+}) {
+  const reduce = useReducedMotion();
+  const sign = direction === "down" ? -1 : 1;
+  const words = String(text).split(" ");
+  let charIndex = 0;
+
+  return (
+    <span className={className} aria-hidden="true">
+      {words.map((word, wordIndex) => (
+        <React.Fragment key={wordIndex}>
+          <span className="inline-block whitespace-nowrap">
+            {Array.from(word).map((char) => {
+              const index = charIndex++;
+              return (
+                <span key={index} style={MASK_STYLE}>
+                  <motion.span
+                    className="kinetic-char"
+                    style={{ display: "inline-block" }}
+                    initial={reduce ? false : { y: `${sign * 110}%` }}
+                    animate={{ y: "0%" }}
+                    exit={{ y: `${-sign * 110}%` }}
+                    transition={{ duration, ease: KINETIC_EASE, delay: index * staggerDelay }}
+                  >
+                    {char}
+                  </motion.span>
+                </span>
+              );
+            })}
+          </span>
+          {wordIndex < words.length - 1 && " "}
+        </React.Fragment>
+      ))}
+    </span>
   );
 }
 

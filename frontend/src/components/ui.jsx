@@ -1,13 +1,14 @@
 // src/components/ui.jsx
 // Shared primitives for the minimalist / professional design system.
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Inbox, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { collegeColor } from "../data/sagayanColors";
-import { CountUp, fadeUp } from "./motion";
+import { CountUp, fadeUp, SplitText, KINETIC_EASE } from "./motion";
 
 // JSX member tags aren't counted as variable uses by the lint config.
 const MotionDiv = motion.div;
+const MotionP = motion.p;
 import {
   PieChart,
   Pie,
@@ -27,45 +28,65 @@ import {
   Treemap,
 } from "recharts";
 
-function WaveTitle({ text }) {
-  let index = 0;
-  const words = text.split(" ");
-  return (
-    <>
-      {words.map((word, wordIndex) => (
-        <React.Fragment key={wordIndex}>
-          <span className="inline-block whitespace-nowrap">
-            {Array.from(word).map((char, charIndex) => (
-              <span
-                key={charIndex}
-                className="title-wave-char"
-                style={{ "--i": index++ }}
-              >
-                {char}
-              </span>
-            ))}
-          </span>
-          {wordIndex < words.length - 1 && " "}
-        </React.Fragment>
-      ))}
-    </>
-  );
-}
+/**
+ * @typedef {Object} PageHeaderProps
+ * @property {string} title
+ * @property {React.ReactNode} [subtitle]
+ * @property {React.ReactNode} [eyebrow]
+ * @property {React.ComponentType<{ size?: number, className?: string }>} [icon]
+ * @property {React.ReactNode} [actions]
+ * @property {string} [className]
+ * @property {number} [staggerDelay=0.022] Seconds between character starts.
+ * @property {number} [duration=0.42] Seconds per character travel.
+ * @property {"up"|"down"} [direction="up"]
+ */
 
-export function PageHeader({ eyebrow, title, icon: Icon, subtitle, actions, className = "" }) {
+/** @param {PageHeaderProps} props */
+export function PageHeader({
+  eyebrow,
+  title,
+  icon: Icon,
+  subtitle,
+  actions,
+  className = "",
+  staggerDelay = 0.022,
+  duration = 0.42,
+  direction = "up",
+}) {
+  const reduce = useReducedMotion();
+  const isText = typeof title === "string";
+
   return (
     <div className={`flex flex-wrap items-end justify-between gap-3 mb-8 ${className}`}>
       <div className="min-w-0">
         <h2
-          aria-label={typeof title === "string" ? title : undefined}
+          aria-label={isText ? title : undefined}
           className="flex items-center gap-2 text-3xl font-semibold text-gray-900 tracking-tight"
         >
           {Icon && <Icon size={22} aria-hidden="true" className="flex-shrink-0 text-maroon-600" />}
-          <span className="min-w-0" aria-hidden={typeof title === "string" ? "true" : undefined}>
-            {typeof title === "string" ? <WaveTitle text={title} /> : title}
+          <span className="min-w-0">
+            {isText ? (
+              <SplitText
+                text={title}
+                staggerDelay={staggerDelay}
+                duration={duration}
+                direction={direction}
+              />
+            ) : (
+              title
+            )}
           </span>
         </h2>
-        {subtitle && <p className="text-sm text-gray-500 mt-2">{subtitle}</p>}
+        {subtitle && (
+          <MotionP
+            className="kinetic-subtitle text-sm text-gray-500 mt-2"
+            initial={reduce ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: reduce ? 0 : 0.4, ease: KINETIC_EASE, delay: 0.08 }}
+          >
+            {subtitle}
+          </MotionP>
+        )}
       </div>
       {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
     </div>
