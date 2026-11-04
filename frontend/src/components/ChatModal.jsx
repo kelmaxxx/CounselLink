@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Send, MessageCircle } from "lucide-react";
 import { useMessages } from "../context/MessagesContext";
 import { useAuth } from "../context/AuthContext";
 import Avatar from "./Avatar";
 import { useBodyScrollLock } from "./ui";
+import { KINETIC_EASE } from "./motion";
+
+// JSX member tags aren't counted as variable uses by the lint config.
+const MotionDiv = motion.div;
 
 const ROLE_LABEL = {
   student: "Student",
@@ -17,6 +22,7 @@ export default function ChatModal({ recipientUser, onClose }) {
   const { getConversation, sendMessage, markAsRead, fetchConversation } = useMessages();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef(null);
+  const reduce = useReducedMotion();
   useBodyScrollLock(Boolean(recipientUser));
 
   const conversation = getConversation(recipientUser?.id);
@@ -61,12 +67,18 @@ export default function ChatModal({ recipientUser, onClose }) {
   if (!recipientUser) return null;
 
   return (
-    <div
+    <MotionDiv
       className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      initial={reduce ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: reduce ? 0 : 0.18, ease: KINETIC_EASE }}
       onClick={onClose}
     >
-      <div
+      <MotionDiv
         className="bg-white rounded-lg border border-gray-200 shadow-xl w-full max-w-2xl h-[600px] max-h-[calc(100dvh_-_2rem)] flex flex-col overflow-hidden"
+        initial={reduce ? false : { opacity: 0, y: 16, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: reduce ? 0 : 0.24, ease: KINETIC_EASE }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -163,7 +175,7 @@ export default function ChatModal({ recipientUser, onClose }) {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </MotionDiv>
+    </MotionDiv>
   );
 }

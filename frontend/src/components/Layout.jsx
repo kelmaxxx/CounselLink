@@ -11,6 +11,19 @@ export default function Layout({ children }) {
   const location = useLocation();
   const [activeView, setActiveView] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Each route mounts its own Layout, so the collapse preference must live
+  // outside component state to survive navigation.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem("sidebarCollapsed") === "true"
+  );
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((v) => {
+      const next = !v;
+      localStorage.setItem("sidebarCollapsed", String(next));
+      return next;
+    });
+  };
 
   const handleLogout = () => {
     logout();
@@ -26,6 +39,8 @@ export default function Layout({ children }) {
         handleLogout={handleLogout}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapsed}
       />
 
       <div className="flex-1 flex flex-col min-w-0">

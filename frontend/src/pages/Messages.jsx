@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useMessages } from "../context/MessagesContext";
 import { MessageCircle, Search } from "lucide-react";
 import ChatModal from "../components/ChatModal";
-import { initialsOf } from "../components/ui";
+import { initialsOf, PageHeader } from "../components/ui";
 
 export default function Messages() {
   const { currentUser, users, lookupUser, fetchUsersByRole, setUsers } = useAuth();
@@ -118,13 +118,11 @@ export default function Messages() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <MessageCircle className="text-maroon-600" size={28} />
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Messages</h2>
-          <p className="text-sm text-gray-600">All your conversations in one place.</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={MessageCircle}
+        title="Messages"
+        subtitle="All your conversations in one place."
+      />
 
       <div
         className="mb-4 relative"
