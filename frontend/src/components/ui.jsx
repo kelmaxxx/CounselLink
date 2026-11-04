@@ -1,7 +1,7 @@
 // src/components/ui.jsx
 // Shared primitives for the minimalist / professional design system.
 import React from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Inbox, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { collegeColor } from "../data/sagayanColors";
 import { CountUp, fadeUp, SplitText, KINETIC_EASE } from "./motion";
@@ -809,6 +809,7 @@ export function Modal({
   const panelRef = React.useRef(null);
   const footerRef = React.useRef(null);
   const bodyRef = React.useRef(null);
+  const reduce = useReducedMotion();
 
   useBodyScrollLock(open);
 
@@ -824,7 +825,6 @@ export function Modal({
     return () => clearTimeout(t);
   }, [open]);
 
-  if (!open) return null;
   const alignClass = align === "top" ? "items-start" : "items-center";
 
   // Enter confirms a text-only dialog by running its last (primary) footer
@@ -846,45 +846,58 @@ export function Modal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] overflow-y-auto overscroll-contain"
-      onClick={onClose}
-    >
-      <div className={`min-h-full flex justify-center p-4 sm:p-6 ${alignClass}`}>
-        <div
-          ref={panelRef}
-          tabIndex={-1}
-          onKeyDown={handleKeyDown}
-          onClick={(e) => e.stopPropagation()}
-          className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-auto max-h-[calc(100dvh_-_2rem)] sm:max-h-[calc(100dvh_-_3rem)] flex flex-col overflow-hidden outline-none`}
+    <AnimatePresence>
+      {open && (
+        <MotionDiv
+          key="modal"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] overflow-y-auto overscroll-contain"
+          initial={reduce ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduce ? 0 : 0.18, ease: KINETIC_EASE }}
+          onClick={onClose}
         >
-          <div className="shrink-0 px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className={`text-lg font-semibold ${danger ? "text-red-700" : "text-gray-900"}`}>
-                {title}
-              </h3>
-              {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
-            </div>
-            {onClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-700 transition flex-shrink-0"
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            )}
+          <div className={`min-h-full flex justify-center p-4 sm:p-6 ${alignClass}`}>
+            <MotionDiv
+              ref={panelRef}
+              tabIndex={-1}
+              onKeyDown={handleKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-auto max-h-[calc(100dvh_-_2rem)] sm:max-h-[calc(100dvh_-_3rem)] flex flex-col overflow-hidden outline-none`}
+              initial={reduce ? false : { opacity: 0, y: 14, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: reduce ? 0 : 0.24, ease: KINETIC_EASE }}
+            >
+              <div className="shrink-0 px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className={`text-lg font-semibold ${danger ? "text-red-700" : "text-gray-900"}`}>
+                    {title}
+                  </h3>
+                  {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+                </div>
+                {onClose && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="text-gray-400 hover:text-gray-700 transition flex-shrink-0"
+                    aria-label="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+              <div ref={bodyRef} className="px-6 py-5 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+              {footer && (
+                <div ref={footerRef} className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
+                  {footer}
+                </div>
+              )}
+            </MotionDiv>
           </div>
-          <div ref={bodyRef} className="px-6 py-5 flex-1 overflow-y-auto overscroll-contain">{children}</div>
-          {footer && (
-            <div ref={footerRef} className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl">
-              {footer}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+        </MotionDiv>
+      )}
+    </AnimatePresence>
   );
 }
 
