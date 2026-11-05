@@ -7,6 +7,11 @@ export default function LetterPreview({ letter, height = 620 }) {
   const [repSig, setRepSig] = useState(null);
   const [counSig, setCounSig] = useState(null);
   const [scale, setScale] = useState(1);
+  // Grow the iframe to the letter's real height so the preview never gets its
+  // own scrollbar inside the modal's scroll area.
+  const [contentHeight, setContentHeight] = useState(
+    typeof height === "number" ? height : 0
+  );
   const containerRef = useRef(null);
 
   // Signatures resolve async; the preview mounts fresh per letter (callers render
@@ -45,6 +50,8 @@ export default function LetterPreview({ letter, height = 620 }) {
     [letter, repSig, counSig]
   );
 
+  const frameHeight = typeof height === "number" ? Math.max(height, contentHeight) : height;
+
   return (
     <div ref={containerRef} className="bg-gray-100 p-3 sm:p-6 rounded-xl flex justify-center min-h-[300px]">
       <div
@@ -53,15 +60,23 @@ export default function LetterPreview({ letter, height = 620 }) {
           width: "8.5in",
           transform: scale < 1 ? `scale(${scale})` : undefined,
           transformOrigin: "top left",
-          marginBottom: scale < 1 ? `${-(height * (1 - scale))}px` : undefined,
+          marginBottom: scale < 1 ? `${-(frameHeight * (1 - scale))}px` : undefined,
         }}
       >
         <iframe
           title={letter?.subject || "Request letter preview"}
           srcDoc={html}
           sandbox="allow-same-origin"
+          scrolling="no"
+          onLoad={(e) => {
+            const doc = e.currentTarget.contentDocument;
+            const measured = doc
+              ? Math.max(doc.body?.scrollHeight || 0, doc.documentElement?.scrollHeight || 0)
+              : 0;
+            if (measured) setContentHeight(measured);
+          }}
           className="w-full border-0 bg-white"
-          style={{ height: typeof height === "number" ? `${height}px` : height }}
+          style={{ height: typeof frameHeight === "number" ? `${frameHeight}px` : frameHeight }}
         />
       </div>
     </div>

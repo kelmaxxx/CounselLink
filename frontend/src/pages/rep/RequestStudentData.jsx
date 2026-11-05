@@ -539,9 +539,7 @@ export default function RequestStudentData() {
           )
         }
       >
-        <div className="max-h-[75vh] overflow-auto pr-1">
-          {letterModal ? <LetterPreview letter={letterModal} height={750} /> : null}
-        </div>
+        {letterModal ? <LetterPreview letter={letterModal} height={750} /> : null}
       </Modal>
     </div>
   );

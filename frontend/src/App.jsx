@@ -6,6 +6,7 @@ import { syncServerTime } from "./utils/serverTime";
 
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import WelcomeHero from "./components/WelcomeHero";
 
 import Login from "./pages/Login";
 import AcceptInvitation from "./pages/AcceptInvitation";
@@ -71,6 +72,9 @@ function RootRoute() {
   if (currentUser) {
     return (
       <ProtectedRoute>
+        {/* Above Layout so the fixed overlay covers the sidebar/header from the
+            first frame instead of fading in beneath PageTransition. */}
+        <WelcomeHero userName={currentUser.firstName || currentUser.name?.split(" ")[0]} />
         <Layout>
           <Dashboard />
         </Layout>

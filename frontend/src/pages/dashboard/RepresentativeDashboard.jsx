@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { PageHeader, BigStat, SectionCard, BTN, DonutStat, RankedBarChart, VerticalBarChart, TrendAreaChart, EmptyState } from "../../components/ui";
 import { Stagger } from "../../components/motion";
-import WelcomeHero from "../../components/WelcomeHero";
 import { getCollege } from "../../data/msuColleges";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -239,7 +238,6 @@ export default function RepresentativeDashboard() {
 
   return (
     <>
-      <WelcomeHero userName={firstName} />
       <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto space-y-8">
         <PageHeader
           eyebrow="College Representative"

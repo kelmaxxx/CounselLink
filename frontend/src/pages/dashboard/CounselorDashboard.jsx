@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
-import WelcomeHero from "../../components/WelcomeHero";
 import ChatModal from "../../components/ChatModal";
 import ReschedulePicker from "../../components/ReschedulePicker";
 import { useReferrals } from "../../context/ReferralsContext";
@@ -598,7 +597,6 @@ export default function CounselorDashboard() {
 
   return (
     <>
-      <WelcomeHero userName={firstName} />
     <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
       {activeUrgentCount > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">

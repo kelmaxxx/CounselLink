@@ -854,7 +854,7 @@ export function Modal({
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: reduce ? 0 : 0.18, ease: KINETIC_EASE }}
+          transition={{ duration: reduce ? 0 : 0.3, ease: KINETIC_EASE }}
           onClick={onClose}
         >
           <div className={`min-h-full flex justify-center p-4 sm:p-6 ${alignClass}`}>
@@ -864,10 +864,14 @@ export function Modal({
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
               className={`bg-white rounded-2xl shadow-xl w-full ${MODAL_SIZES[size] || MODAL_SIZES.md} my-auto max-h-[calc(100dvh_-_2rem)] sm:max-h-[calc(100dvh_-_3rem)] flex flex-col overflow-hidden outline-none`}
-              initial={reduce ? false : { opacity: 0, y: 14, scale: 0.97 }}
+              initial={reduce ? false : { opacity: 0, y: 18, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              transition={{ duration: reduce ? 0 : 0.24, ease: KINETIC_EASE }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={
+                reduce
+                  ? { duration: 0 }
+                  : { type: "spring", stiffness: 220, damping: 25, mass: 0.9 }
+              }
             >
               <div className="shrink-0 px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-3">
                 <div className="min-w-0">
