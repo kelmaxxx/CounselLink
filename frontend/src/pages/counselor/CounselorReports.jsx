@@ -926,13 +926,11 @@ export default function CounselorReports() {
           )
         }
       >
-        <div className="max-h-[75vh] overflow-auto pr-1">
-          {activePayload ? (
-            <ReportPreview report={activePayload} title={activeReport?.title} fallbackSignatureUrl={currentUser?.signatureUrl} height={750} />
-          ) : (
-            <p className="text-sm text-gray-500 p-4">No report payload available.</p>
-          )}
-        </div>
+        {activePayload ? (
+          <ReportPreview report={activePayload} title={activeReport?.title} fallbackSignatureUrl={currentUser?.signatureUrl} height={750} />
+        ) : (
+          <p className="text-sm text-gray-500 p-4">No report payload available.</p>
+        )}
       </Modal>
 
       <Modal
@@ -1099,9 +1097,7 @@ export default function CounselorReports() {
         {letterTarget && letterTarget.request_type === "individual" && letterTarget.studentConsent === "yes" && !letterTarget.hasFinalizedSession && (
           <div className="mb-3 px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-blue-800 text-sm">No finalized session is on file for this student yet — nothing can be released until one exists.</div>
         )}
-        <div className="max-h-[75vh] overflow-auto pr-1">
-          {letterTarget ? <LetterPreview letter={letterFromRequest(letterTarget)} height={750} /> : null}
-        </div>
+        {letterTarget ? <LetterPreview letter={letterFromRequest(letterTarget)} height={750} /> : null}
       </Modal>
     </div>
   );

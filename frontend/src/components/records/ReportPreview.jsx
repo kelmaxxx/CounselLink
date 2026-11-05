@@ -7,6 +7,11 @@ import { buildReportHTML, resolveSignatureDataUrl } from "../../utils/sessionRep
 export default function ReportPreview({ report, title, height = 620, fallbackSignatureUrl }) {
   const [signatureImageUrl, setSignatureImageUrl] = useState(null);
   const [scale, setScale] = useState(1);
+  // Grow the iframe to the report's real height so the preview never gets its
+  // own scrollbar inside the modal's scroll area.
+  const [contentHeight, setContentHeight] = useState(
+    typeof height === "number" ? height : 0
+  );
   const containerRef = useRef(null);
 
   const signatureUrl =
@@ -44,7 +49,7 @@ export default function ReportPreview({ report, title, height = 620, fallbackSig
     [report, title, signatureImageUrl]
   );
 
-  const scaledHeight = typeof height === "number" ? Math.round(height * scale) : height;
+  const frameHeight = typeof height === "number" ? Math.max(height, contentHeight) : height;
 
   return (
     <div ref={containerRef} className="bg-gray-100 p-3 sm:p-6 rounded-xl flex justify-center min-h-[300px]">
@@ -54,15 +59,23 @@ export default function ReportPreview({ report, title, height = 620, fallbackSig
           width: "8.5in",
           transform: scale < 1 ? `scale(${scale})` : undefined,
           transformOrigin: "top left",
-          marginBottom: scale < 1 ? `${-(height * (1 - scale))}px` : undefined,
+          marginBottom: scale < 1 ? `${-(frameHeight * (1 - scale))}px` : undefined,
         }}
       >
         <iframe
           title={title || "Report preview"}
           srcDoc={html}
           sandbox="allow-same-origin"
+          scrolling="no"
+          onLoad={(e) => {
+            const doc = e.currentTarget.contentDocument;
+            const measured = doc
+              ? Math.max(doc.body?.scrollHeight || 0, doc.documentElement?.scrollHeight || 0)
+              : 0;
+            if (measured) setContentHeight(measured);
+          }}
           className="w-full border-0 bg-white"
-          style={{ height: typeof height === "number" ? `${height}px` : height }}
+          style={{ height: typeof frameHeight === "number" ? `${frameHeight}px` : frameHeight }}
         />
       </div>
     </div>
