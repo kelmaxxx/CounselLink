@@ -69,6 +69,9 @@ export function AuthProvider({ children }) {
         return { success: false, message, status: data.status };
       }
 
+      // A successful login always plays the welcome overlay, even if this tab
+      // still carries the flag from an earlier session.
+      sessionStorage.removeItem("welcomeShown");
       setCurrentUser(data.user);
       setToken(data.token);
       localStorage.setItem("currentUser", JSON.stringify(data.user));

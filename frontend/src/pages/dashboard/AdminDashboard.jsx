@@ -17,7 +17,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import WelcomeHero from "../../components/WelcomeHero";
 import PubmatViewer, { PubmatThumb } from "../../components/PubmatViewer";
 import { collegeColor } from "../../data/sagayanColors";
 import {
@@ -62,7 +61,7 @@ const toDateStr = (value) => {
 };
 
 export default function AdminDashboard() {
-  const { currentUser, users, token } = useAuth();
+  const { users, token } = useAuth();
   const visibleUsers = users?.filter((u) => u.status !== "rejected") || [];
   const students = visibleUsers.filter((u) => u.role === "student");
   const reps = visibleUsers.filter((u) => u.role === "college_rep");
@@ -146,11 +145,8 @@ export default function AdminDashboard() {
   // BigStat badge/trend lines were stripped per design request; counts
   // above are rendered without week-over-week deltas.
 
-  const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Admin";
-
   return (
     <>
-      <WelcomeHero userName={firstName} />
       <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
         <PageHeader
           eyebrow="Administrator"
