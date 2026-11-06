@@ -34,6 +34,14 @@ const HELP_OPTIONS = [
   { value: "health", label: "Health concerns" },
 ];
 
+const HEALTH_PROBLEMS = [
+  { key: "vision", label: "Vision" },
+  { key: "speech", label: "Speech" },
+  { key: "hearing", label: "Hearing" },
+  { key: "generalHealth", label: "General Health" },
+  { key: "physicalDisability", label: "Physical Disability" },
+];
+
 const FINANCING_OPTIONS = [
   { value: "parents", label: "Parents" },
   { value: "spouse", label: "Spouse" },
@@ -200,14 +208,14 @@ function LineInput({ value, onChange, disabled, className = "", placeholder = ""
       disabled={disabled}
       placeholder={disabled ? "" : placeholder}
       maxLength={maxLength}
-      className={`border-b border-black outline-none bg-transparent px-1 h-[16px] text-[11px] font-sans text-black leading-none shrink-0 ${className}`}
+      className={`border-b border-black outline-none bg-transparent px-1 h-[16px] text-[11px] text-black leading-none shrink-0 ${className}`}
     />
   );
 }
 
 function FormCheckbox({ checked, onChange, disabled, label }) {
   return (
-    <label className="inline-flex items-center gap-1 cursor-pointer select-none text-[11px]">
+    <label className="inline-flex items-baseline gap-1 cursor-pointer select-none text-[11px] leading-tight">
       <input
         type="checkbox"
         checked={checked || false}
@@ -215,19 +223,17 @@ function FormCheckbox({ checked, onChange, disabled, label }) {
         disabled={disabled}
         className="sr-only"
       />
-      <span className="w-3.5 h-3.5 border border-black flex items-center justify-center text-[10px] font-bold text-black bg-transparent shrink-0">
-        {checked ? "✓" : ""}
-      </span>
-      {label && <span className="text-black ml-1 select-none font-medium">{label}</span>}
+      <span className="whitespace-pre text-[11px] text-black shrink-0">{checked ? "[ X ]" : "[   ]"}</span>
+      {label && <span className="text-black select-none">{label}</span>}
     </label>
   );
 }
 
 function SectionHeader({ number, children }) {
   return (
-    <div className="flex gap-2 items-center border-b border-black pb-0.5 mt-2 mb-1 select-none">
-      <span className="font-bold text-[11px] font-serif">{number}.</span>
-      <span className="font-bold text-[10px] uppercase font-sans tracking-wide">{children}</span>
+    <div className="flex gap-3 items-baseline mt-3 mb-1 pl-4 select-none">
+      <span className="font-bold text-[11px]">{number}.</span>
+      <span className="font-bold text-[10px] uppercase tracking-wide">{children}</span>
     </div>
   );
 }
@@ -532,7 +538,7 @@ export default function InventoryForm({
           box-sizing: border-box;
           position: relative;
           overflow: hidden;
-          font-family: Arial, sans-serif;
+          font-family: Century, "Century Schoolbook", Georgia, "Times New Roman", serif;
           color: black;
           text-align: left;
           flex-shrink: 0;
@@ -611,6 +617,16 @@ export default function InventoryForm({
             margin: 0 !important;
             padding: 0 !important;
           }
+
+          /* Keep screen-only input hints out of the printed document. */
+          .page-sheet input::placeholder {
+            color: transparent !important;
+          }
+
+          .page-sheet select {
+            -webkit-appearance: none;
+            appearance: none;
+          }
         }
       `}} />
 
@@ -631,9 +647,9 @@ export default function InventoryForm({
       <div className="document-container" ref={printRef}>
         
         {/* ================= PAGE 1 ================= */}
-        <div className="page-sheet" id="page-1">
+        <div className="page-sheet flex flex-col" id="page-1">
           {/* Header block table */}
-          <table className="w-full border-collapse border border-black text-[9px] font-sans">
+          <table className="w-full border-collapse border border-black text-[9px]">
             <tbody>
               <tr>
                 {/* Logos */}
@@ -704,10 +720,10 @@ export default function InventoryForm({
           </table>
 
           {/* Title and Direction */}
-          <div className="text-center font-bold text-[11px] mt-2 select-none uppercase font-sans tracking-wide">
+          <div className="text-center font-bold text-[12px] mt-2 select-none uppercase tracking-wide">
             STUDENT INDIVIDUAL INVENTORY RECORD FORM
           </div>
-          <p className="text-[9.5px] text-justify leading-tight mt-1 select-none font-sans border border-black p-1">
+          <p className="text-[9px] text-justify leading-tight mt-1 select-none">
             <strong>DIRECTION:</strong> Please complete this inventory as accurately and honestly as you can. The purpose of collecting this information is to be of assistance to you in making choices and decisions. All information which you provide about yourself will be treated with utmost confidentiality.
           </p>
 
@@ -726,16 +742,16 @@ export default function InventoryForm({
               <div className="flex items-end text-[10px] gap-1 mt-0.5">
                 <span className="font-semibold whitespace-nowrap select-none">Name:</span>
                 <div className="flex-grow flex gap-2">
-                  <div className="flex-grow flex flex-col items-center">
-                    <LineInput value={data.personal.surname} onChange={(v) => updateSection("personal", { surname: v })} disabled={readOnly} className="w-full text-center" maxLength={30} />
+                  <div className="flex-1 min-w-0 flex flex-col items-center">
+                    <LineInput value={data.personal.surname} onChange={(v) => updateSection("personal", { surname: v })} disabled={readOnly} className="w-full text-center !text-[10px]" maxLength={30} />
                     <span className="text-[8px] text-gray-500 italic mt-0.5 leading-none select-none">(Surname)</span>
                   </div>
-                  <div className="flex-grow flex flex-col items-center">
-                    <LineInput value={data.personal.firstName} onChange={(v) => updateSection("personal", { firstName: v })} disabled={readOnly} className="w-full text-center" maxLength={30} />
+                  <div className="flex-1 min-w-0 flex flex-col items-center">
+                    <LineInput value={data.personal.firstName} onChange={(v) => updateSection("personal", { firstName: v })} disabled={readOnly} className="w-full text-center !text-[10px]" maxLength={30} />
                     <span className="text-[8px] text-gray-500 italic mt-0.5 leading-none select-none">(First Name)</span>
                   </div>
-                  <div className="flex-grow flex flex-col items-center">
-                    <LineInput value={data.personal.middleName} onChange={(v) => updateSection("personal", { middleName: v })} disabled={readOnly} className="w-full text-center" maxLength={30} />
+                  <div className="flex-1 min-w-0 flex flex-col items-center">
+                    <LineInput value={data.personal.middleName} onChange={(v) => updateSection("personal", { middleName: v })} disabled={readOnly} className="w-full text-center !text-[10px]" maxLength={30} />
                     <span className="text-[8px] text-gray-500 italic mt-0.5 leading-none select-none">(Middle Name)</span>
                   </div>
                 </div>
@@ -747,13 +763,13 @@ export default function InventoryForm({
             </div>
 
             {/* Picture box */}
-            <div className="w-[75px] h-[75px] border border-black flex flex-col items-center justify-center text-center select-none shrink-0 self-start overflow-hidden relative">
+            <div className="w-[96px] h-[96px] border border-black flex flex-col items-center justify-center text-center select-none shrink-0 self-start overflow-hidden relative">
               {studentAvatarUrl && brokenAvatarUrl !== studentAvatarUrl ? (
                 <img src={studentAvatarUrl} alt="1x1 Picture" onError={() => setBrokenAvatarUrl(studentAvatarUrl)} className="w-full h-full object-cover" />
               ) : (
                 <div className="p-1">
-                  <div className="text-[9px] font-bold">1x1</div>
-                  <div className="text-[9px] font-bold">Picture</div>
+                  <div className="text-[10px] font-bold">1x1</div>
+                  <div className="text-[10px] font-bold">Picture</div>
                   {studentAvatarUrl && brokenAvatarUrl === studentAvatarUrl && (
                     <div className="text-[7px] text-amber-700 leading-tight mt-0.5">photo missing on server</div>
                   )}
@@ -846,20 +862,28 @@ export default function InventoryForm({
 
           {/* SECTION II. EDUCATIONAL BACKGROUND */}
           <SectionHeader number="II">EDUCATIONAL BACKGROUND</SectionHeader>
-          <table className="w-full border-collapse border border-black text-[9px] mt-1 font-sans">
+          <table className="w-full table-fixed border-collapse border border-black text-[9px] mt-1">
+            <colgroup>
+              <col className="w-[150px]" />
+              <col className="w-[118px]" />
+              <col className="w-[156px]" />
+              <col className="w-[64px]" />
+              <col className="w-[72px]" />
+              <col />
+            </colgroup>
             <thead>
-              <tr className="bg-gray-50 select-none">
-                <th className="border border-black px-1 py-0.5 text-center font-bold w-[90px] h-[20px]">LEVEL</th>
-                <th className="border border-black px-1 py-0.5 text-center font-bold">SCHOOL GRADUATED</th>
-                <th className="border border-black px-1 py-0.5 text-center font-bold">SCHOOL ADDRESS</th>
-                <th className="border border-black px-1 py-0.5 text-center font-bold w-[90px]">PUBLIC/PRIVATE</th>
-                <th className="border border-black px-1 py-0.5 text-center font-bold w-[75px]">YEAR GRADUATED</th>
-                <th className="border border-black px-1 py-0.5 text-center font-bold w-[140px]">HONORS RECEIVED/SPECIAL AWARDS</th>
+              <tr className="select-none">
+                <th className="border border-black px-1 py-1 text-center align-middle font-bold h-[30px]">LEVEL</th>
+                <th className="border border-black px-1 py-1 text-center align-middle font-bold leading-[1.05]">SCHOOL<br />GRADUATED</th>
+                <th className="border border-black px-1 py-1 text-center align-middle font-bold leading-[1.05]">SCHOOL ADDRESS</th>
+                <th className="border border-black px-1 py-1 text-center align-middle font-bold leading-[1.05]">PUBLIC/<br />PRIVATE</th>
+                <th className="border border-black px-1 py-1 text-center align-middle font-bold leading-[1.05]">YEAR<br />GRADUATED</th>
+                <th className="border border-black px-1 py-1 text-center align-middle font-bold leading-[1.05]">HONORS RECEIVED/<br />SPECIAL AWARDS</th>
               </tr>
             </thead>
             <tbody>
               {data.educational.background.map((row, idx) => (
-                <tr key={row.level} className="h-[18px]">
+                <tr key={row.level} className="h-[20px]">
                   <td className="border border-black px-1 text-left font-semibold select-none">{row.level}</td>
                   <td className="border border-black p-0">
                     <input
@@ -888,7 +912,7 @@ export default function InventoryForm({
                       disabled={readOnly}
                       className="w-full h-full border-none outline-none bg-transparent text-[9.5px] text-black text-center cursor-pointer disabled:cursor-not-allowed"
                     >
-                      <option value="">—</option>
+                      <option value=""></option>
                       <option value="public">Public</option>
                       <option value="private">Private</option>
                     </select>
@@ -1033,32 +1057,33 @@ export default function InventoryForm({
 
           {/* SECTION IV. HEALTH INFORMATION */}
           <SectionHeader number="IV">HEALTH INFORMATION</SectionHeader>
-          <div className="text-[10px] font-semibold select-none">1. Do you have problems with (Please Check)</div>
-          
-          {/* Health Problems grid */}
+          <div className="text-[10px] select-none">1. Do you have problems with (Please Check)</div>
+
+          {/* Health problem checkboxes */}
+          <div className="grid grid-cols-5 gap-2 mt-1 items-center">
+            {HEALTH_PROBLEMS.map(({ key, label }) => (
+              <FormCheckbox
+                key={key}
+                checked={!!data.health.problems[key]}
+                onChange={(checked) => updateNested("health", "problems", { [key]: checked })}
+                disabled={readOnly}
+                label={label}
+              />
+            ))}
+          </div>
+
+          {/* "If yes, please specify" lines */}
           <div className="grid grid-cols-5 gap-2 mt-1">
-            {[
-              { key: "vision", label: "Vision" },
-              { key: "speech", label: "Speech" },
-              { key: "hearing", label: "Hearing" },
-              { key: "generalHealth", label: "General Health" },
-              { key: "physicalDisability", label: "Physical Disability" },
-            ].map(({ key, label }) => (
-              <div key={key} className="flex flex-col text-[10px]">
-                <FormCheckbox
-                  checked={!!data.health.problems[key]}
-                  onChange={(checked) => updateNested("health", "problems", { [key]: checked })}
-                  disabled={readOnly}
-                  label={label}
-                />
-                <span className="text-[8px] text-gray-500 italic mt-0.5 leading-none select-none">If yes, please specify:</span>
+            {HEALTH_PROBLEMS.map(({ key }) => (
+              <div key={key} className="flex flex-col">
+                <span className="text-[8px] leading-none select-none">If yes, please specify:</span>
                 <input
                   type="text"
                   value={data.health.problems[`${key}Detail`] || ""}
                   onChange={(e) => updateNested("health", "problems", { [`${key}Detail`]: e.target.value })}
                   disabled={readOnly || !data.health.problems[key]}
                   maxLength={30}
-                  className="w-full border-b border-black outline-none bg-transparent h-[16px] text-[10px] text-black mt-0.5 px-0.5"
+                  className="w-full border-b border-black outline-none bg-transparent h-[15px] text-[10px] text-black mt-0.5 px-0.5"
                 />
               </div>
             ))}
@@ -1066,32 +1091,34 @@ export default function InventoryForm({
 
           {/* Diagnosed Illnesses */}
           <div className="flex items-end text-[10px] gap-1 h-[20px] mt-2">
-            <span className="font-semibold whitespace-nowrap select-none">2. Have you been diagnosed of certain illnesses before? If yes, please specify:</span>
+            <span className="whitespace-nowrap select-none">2. Have you been diagnosed of certain illnesses before? If yes, please specify:</span>
             <LineInput value={data.health.diagnosedIllnessesNote} onChange={(v) => updateSection("health", { diagnosedIllnessesNote: v })} disabled={readOnly} className="flex-grow min-w-0" maxLength={80} />
           </div>
 
           {/* Psychological Tests */}
           <div className="flex items-end text-[10px] gap-1 h-[20px] mt-1 select-none">
-            <span className="font-semibold whitespace-nowrap">3. Have you taken any psychological tests before?</span>
+            <span className="whitespace-nowrap">3. Have you taken any psychological tests before?</span>
             <div className="flex gap-4 ml-4">
               <FormCheckbox checked={data.health.psychologicalTestsTaken === true} onChange={(c) => c && updateSection("health", { psychologicalTestsTaken: true })} disabled={readOnly} label="Yes" />
               <FormCheckbox checked={data.health.psychologicalTestsTaken === false} onChange={(c) => c && updateSection("health", { psychologicalTestsTaken: false })} disabled={readOnly} label="No" />
             </div>
           </div>
 
+          {/* Test Record heading sits at the foot of page 1; its table starts page 2. */}
+          <div className="mt-auto pt-4 text-center font-bold text-[11px] uppercase tracking-wider select-none">TEST RECORD</div>
+
         </div>
 
         {/* ================= PAGE 2 ================= */}
         <div className="page-sheet" id="page-2">
-          {/* Test Record header and table */}
-          <div className="text-center font-bold text-[11px] uppercase tracking-wider select-none">TEST RECORD</div>
-          <table className="w-full border-collapse text-[10px] mt-1.5 font-sans">
+          {/* Test Record table — heading sits at the foot of page 1 */}
+          <table className="w-full border-collapse text-[10px]">
             <thead>
               <tr className="select-none">
-                <th className="border-b border-black text-left font-semibold pb-1 w-[120px]">Date</th>
-                <th className="border-b border-black text-left font-semibold pb-1">Kind of Test</th>
-                <th className="border-b border-black text-left font-semibold pb-1 w-[120px]">Score</th>
-                <th className="border-b border-black text-left font-semibold pb-1 w-[120px]">Rank</th>
+                <th className="border-b border-black text-left font-normal pb-1.5 w-[120px]">Date</th>
+                <th className="border-b border-black text-left font-normal pb-1.5">Kind of Test</th>
+                <th className="border-b border-black text-left font-normal pb-1.5 w-[120px]">Score</th>
+                <th className="border-b border-black text-left font-normal pb-1.5 w-[120px]">Rank</th>
               </tr>
             </thead>
             <tbody>
@@ -1102,7 +1129,6 @@ export default function InventoryForm({
                     <td className="border-b border-black p-0">
                       <input
                         type="text"
-                        placeholder="YYYY-MM-DD"
                         value={row.date || ""}
                         onChange={(e) => handleUpdateTestRecord(idx, "date", e.target.value)}
                         disabled={readOnly}
@@ -1150,7 +1176,7 @@ export default function InventoryForm({
           
           {/* Interest Groups */}
           <div className="text-[10px] mt-1 select-none">
-            <span className="font-semibold block">1. Indicate the interest group to which you are more inclined to. (Please Check)</span>
+            <span className="block">1. Indicate the interest group to which you are more inclined to. (Please Check)</span>
             <div className="grid grid-cols-3 gap-y-1 mt-1 pl-2">
               <FormCheckbox checked={data.other.interestGroups.includes("sports")} onChange={(c) => toggleInterest("sports", c)} disabled={readOnly} label="Sports" />
               <FormCheckbox checked={data.other.interestGroups.includes("science")} onChange={(c) => toggleInterest("science", c)} disabled={readOnly} label="Science" />
@@ -1169,39 +1195,33 @@ export default function InventoryForm({
 
           {/* Consulted Guidance Counselor */}
           <div className="flex items-end text-[10px] gap-1 h-[20px] mt-2 select-none">
-            <span className="font-semibold whitespace-nowrap">2. Have you consulted/been sent to see the Guidance Counselor before?</span>
+            <span className="whitespace-nowrap">2. Have you consulted/been sent to see the Guidance Counselor before?</span>
             <div className="flex gap-4 ml-4">
               <FormCheckbox checked={data.other.consultedBefore === true} onChange={(c) => c && updateSection("other", { consultedBefore: true })} disabled={readOnly} label="Yes" />
               <FormCheckbox checked={data.other.consultedBefore === false} onChange={(c) => c && updateSection("other", { consultedBefore: false })} disabled={readOnly} label="No" />
             </div>
           </div>
           <div className="flex items-end text-[10px] gap-1 h-[20px] mt-0.5">
-            <span className="font-semibold whitespace-nowrap select-none">If yes, what was/were the reason(s)?</span>
+            <span className="whitespace-nowrap select-none">If yes, what was/were the reason(s)?</span>
             <LineInput value={data.other.consultedReason} onChange={(v) => updateSection("other", { consultedReason: v })} disabled={readOnly || !data.other.consultedBefore} className="flex-grow min-w-0" maxLength={100} />
           </div>
 
           {/* Counselor Help Needed */}
           <div className="text-[10px] mt-1.5 select-none">
-            <span className="font-semibold block">3. How may your Guidance Counselor help you? Please Check</span>
-            <div className="grid grid-cols-3 gap-x-6 gap-y-1 mt-1 pl-2">
-              <div className="flex flex-col gap-1">
-                <FormCheckbox checked={data.other.helpNeeded.includes("family")} onChange={(c) => toggleHelp("family", c)} disabled={readOnly} label="Family matters" />
-                <FormCheckbox checked={data.other.helpNeeded.includes("relationship")} onChange={(c) => toggleHelp("relationship", c)} disabled={readOnly} label="Relationship problems" />
-                <FormCheckbox checked={data.other.helpNeeded.includes("teachers")} onChange={(c) => toggleHelp("teachers", c)} disabled={readOnly} label="Concerns with teachers" />
-                <FormCheckbox checked={data.other.helpNeeded.includes("academic")} onChange={(c) => toggleHelp("academic", c)} disabled={readOnly} label="Academic concerns" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <FormCheckbox checked={data.other.helpNeeded.includes("career")} onChange={(c) => toggleHelp("career", c)} disabled={readOnly} label="Career concerns" />
-                <FormCheckbox checked={data.other.helpNeeded.includes("self")} onChange={(c) => toggleHelp("self", c)} disabled={readOnly} label="Self" />
-                <FormCheckbox checked={data.other.helpNeeded.includes("financial")} onChange={(c) => toggleHelp("financial", c)} disabled={readOnly} label="Financial matters" />
-                <FormCheckbox checked={data.other.helpNeeded.includes("health")} onChange={(c) => toggleHelp("health", c)} disabled={readOnly} label="Health concerns" />
-              </div>
-              <div className="flex flex-col gap-1 self-start">
-                <div className="flex items-end gap-1 h-[18px]">
-                  <FormCheckbox checked={data.other.helpNeeded.includes("other")} onChange={(c) => toggleHelp("other", c)} disabled={readOnly} label="Others, please specify:" />
-                </div>
-                <LineInput value={data.other.helpNeededOther} onChange={(v) => updateSection("other", { helpNeededOther: v })} disabled={readOnly || !data.other.helpNeeded.includes("other")} className="w-full mt-1" maxLength={45} />
-              </div>
+            <span className="block">3. How may your Guidance Counselor help you? Please Check</span>
+            <div className="grid grid-cols-2 gap-x-10 gap-y-1 mt-1 pl-2 max-w-[480px]">
+              <FormCheckbox checked={data.other.helpNeeded.includes("family")} onChange={(c) => toggleHelp("family", c)} disabled={readOnly} label="Family matters" />
+              <FormCheckbox checked={data.other.helpNeeded.includes("career")} onChange={(c) => toggleHelp("career", c)} disabled={readOnly} label="Career concerns" />
+              <FormCheckbox checked={data.other.helpNeeded.includes("relationship")} onChange={(c) => toggleHelp("relationship", c)} disabled={readOnly} label="Relationship problems" />
+              <FormCheckbox checked={data.other.helpNeeded.includes("self")} onChange={(c) => toggleHelp("self", c)} disabled={readOnly} label="Self" />
+              <FormCheckbox checked={data.other.helpNeeded.includes("teachers")} onChange={(c) => toggleHelp("teachers", c)} disabled={readOnly} label="Concerns with teachers" />
+              <FormCheckbox checked={data.other.helpNeeded.includes("financial")} onChange={(c) => toggleHelp("financial", c)} disabled={readOnly} label="Financial matters" />
+              <FormCheckbox checked={data.other.helpNeeded.includes("academic")} onChange={(c) => toggleHelp("academic", c)} disabled={readOnly} label="Academic concerns" />
+              <FormCheckbox checked={data.other.helpNeeded.includes("health")} onChange={(c) => toggleHelp("health", c)} disabled={readOnly} label="Health concerns" />
+            </div>
+            <div className="flex items-end gap-1 h-[18px] mt-1 pl-2">
+              <FormCheckbox checked={data.other.helpNeeded.includes("other")} onChange={(c) => toggleHelp("other", c)} disabled={readOnly} label="Others, please specify:" />
+              <LineInput value={data.other.helpNeededOther} onChange={(v) => updateSection("other", { helpNeededOther: v })} disabled={readOnly || !data.other.helpNeeded.includes("other")} className="w-[220px]" maxLength={45} />
             </div>
           </div>
 
@@ -1242,15 +1262,15 @@ export default function InventoryForm({
 
           {/* Disclaimer Signature block */}
           <div className="flex justify-between mt-5 px-12">
-            <div className="flex flex-col items-center w-[230px]">
+            <div className="flex flex-col items-center w-[280px]">
               <LineInput value={data.acknowledgment.studentPrintedName} onChange={(v) => updateSection("acknowledgment", { studentPrintedName: v })} disabled={readOnly} className="w-full text-center" placeholder="Printed Name" maxLength={50} />
               <span className="text-[8px] font-semibold mt-1 select-none">Student's Printed Name</span>
             </div>
-            <div className="flex flex-col items-center w-[180px] relative">
+            <div className="flex flex-col items-center w-[220px] relative">
               {studentSigUrl ? (
                 <img src={studentSigUrl} alt="Student Signature" className="absolute -top-7 h-[28px] object-contain pointer-events-none select-none" />
               ) : (
-                <div className="absolute -top-4 text-[8px] text-gray-400 italic select-none">No signature</div>
+                <div className="absolute -top-4 text-[8px] text-gray-400 italic select-none no-print">No signature</div>
               )}
               <div className="w-full border-b border-black h-4" />
               <span className="text-[8px] font-semibold mt-1 select-none">Student's Signature</span>
@@ -1321,25 +1341,25 @@ export default function InventoryForm({
           </div>
 
           {/* Acknowledgment Signature Box */}
-          <div className="border border-black p-2 mt-1.5">
-            <div className="flex justify-between items-end px-4">
-              <div className="flex flex-col items-center w-[210px]">
+          <div className="border border-black mt-1.5">
+            <div className="flex justify-between items-end px-4 pt-2">
+              <div className="flex flex-col items-center w-[300px]">
                 <LineInput value={data.acknowledgment.studentPrintedName} onChange={(v) => updateSection("acknowledgment", { studentPrintedName: v })} disabled={readOnly} className="w-full text-center font-bold" placeholder="Printed Name" maxLength={50} />
                 <span className="text-[8px] font-semibold mt-1 select-none">Student's Printed Name</span>
               </div>
-              <div className="flex flex-col items-center w-[170px] relative">
+              <div className="flex flex-col items-center w-[220px] relative">
                 {studentSigUrl ? (
                   <img src={studentSigUrl} alt="Student Signature" className="absolute -top-7 h-[28px] object-contain pointer-events-none select-none" />
                 ) : (
-                  <div className="absolute -top-4 text-[8px] text-gray-400 italic select-none">No signature</div>
+                  <div className="absolute -top-4 text-[8px] text-gray-400 italic select-none no-print">No signature</div>
                 )}
                 <div className="w-full border-b border-black h-4" />
                 <span className="text-[8px] font-semibold mt-1 select-none">Student's Signature</span>
               </div>
-              <div className="flex flex-col items-center w-[130px]">
-                <LineInput type="date" value={data.acknowledgment.dateAcknowledged} onChange={(v) => updateSection("acknowledgment", { dateAcknowledged: v })} disabled={readOnly} className="w-full text-center" />
-                <span className="text-[8px] font-semibold mt-1 select-none">Date Signed</span>
-              </div>
+            </div>
+            <div className="flex items-end justify-center gap-1 pb-1.5">
+              <span className="text-[9px] font-semibold select-none">Date Signed:</span>
+              <LineInput type="date" value={data.acknowledgment.dateAcknowledged} onChange={(v) => updateSection("acknowledgment", { dateAcknowledged: v })} disabled={readOnly} className="w-[150px] text-center" />
             </div>
           </div>
         </div>
