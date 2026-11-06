@@ -2,8 +2,9 @@
 //
 // Fills the official MSU DSA "Student Individual Inventory Record Form" PDF
 // (templates/student-inventory-blank.pdf) by drawing the student's values on
-// top of it. The form itself is never rebuilt or re-laid-out, so the downloaded
-// PDF keeps the official lines and positions exactly — only the inputs change.
+// top of it. Only two areas are re-laid-out — the course row and the education
+// table columns — so long values keep a readable size; every other line stays
+// exactly where the official form put it.
 //
 // Coordinates below were measured from the blank PDF (points, top-left origin,
 // baseline of each blank's underscore). Keep them in sync with that template.
@@ -18,7 +19,12 @@ const TEMPLATE_PATH = path.join(__dirname, "..", "templates", "student-inventory
 
 const PAGE_H = 936;
 const BLACK = rgb(0, 0, 0);
+const WHITE = rgb(1, 1, 1);
 const BASE = 8.04;
+const HEADER_SIZE = 6.96;
+// Readability floor for filled-in values. Below this the form stops looking
+// like a filled-in record, so oversize values are ellipsized instead.
+const MIN_VALUE_SIZE = 6;
 
 // [key, x0, x1, baselineY, optional font size].
 const PAGE1_TEXT = [
@@ -27,15 +33,15 @@ const PAGE1_TEXT = [
   ["controlNo", 420.46, 572.0, 124.34],
   ["sex", 395.24, 419.19, 250.7],
   ["age", 439.97, 475.91, 250.7],
-  ["course", 66.33, 162.36, 279.62],
-  ["yearLevel", 209.04, 292.96, 279.62],
-  ["academicYear", 342.18, 390.21, 279.62],
-  ["dateOfBirth", 443.27, 503.31, 279.62],
+  ["course", 66.33, 227.0, 279.62],
+  ["yearLevel", 270.0, 306.1, 279.62],
+  ["academicYear", 324.5, 360.6, 279.62],
+  ["dateOfBirth", 414.5, 503.9, 279.62],
   ["heightM", 78.34, 126.38, 289.22],
   ["weightKg", 159.66, 219.69, 289.22],
   ["placeOfBirth", 277.08, 473.03, 289.22],
   ["presentAddress", 246.65, 450.53, 298.82],
-  ["emailAddress", 36.0, 128.06, 308.45],
+  ["emailAddress", 36.0, 170.0, 308.45],
   ["hometownAddress", 112.64, 320.58, 318.05],
   ["mobileNo", 368.57, 472.52, 318.05],
   ["gpa", 117.9, 177.94, 327.65],
@@ -165,13 +171,20 @@ const PAGE2_SIGNATURE_LINES = [
   [251.46, 387.83, 685.15],
 ];
 
-// Educational background table (blank cells, no underscores).
+// Educational background table. Its grid is repainted in generateInventoryPdf
+// with the short columns narrowed, so long school names and addresses get the
+// width they need.
+const EDU_LEFT = 30.6;
+const EDU_RIGHT = 572.4;
+const EDU_TOP = 377.7;
+const EDU_ROW_LINES = [412.13, 425.33, 438.41, 451.49, 464.57, 477.65];
+const EDU_COL_EDGES = [EDU_LEFT, 147.35, 247.35, 387.35, 431.35, 487.35, EDU_RIGHT];
 const EDU_COLS = [
-  ["School", 147.62, 223.6],
-  ["Address", 224.09, 337.03],
-  ["PublicPrivate", 337.51, 391.51],
-  ["YearGraduated", 391.99, 462.69],
-  ["Honors", 463.18, 572.16],
+  ["School", 147.35, 247.35],
+  ["Address", 247.35, 387.35],
+  ["PublicPrivate", 387.35, 431.35],
+  ["YearGraduated", 431.35, 487.35],
+  ["Honors", 487.35, EDU_RIGHT],
 ];
 const EDU_ROWS = [
   [412.13, 425.33, 420.65],
@@ -179,6 +192,27 @@ const EDU_ROWS = [
   [438.41, 451.49, 446.81],
   [451.49, 464.57, 459.89],
   [464.57, 477.65, 472.97],
+];
+// Header lines and the static level labels, centered in their new columns.
+const EDU_HEADER_LINES = [
+  ["LEVEL", 0, 384.77],
+  ["SCHOOL", 1, 384.77],
+  ["GRADUATED", 1, 393.29],
+  ["SCHOOL ADDRESS", 2, 384.77],
+  ["PUBLIC/", 3, 384.77],
+  ["PRIVATE", 3, 393.29],
+  ["YEAR", 4, 384.77],
+  ["GRADUATED", 4, 393.29],
+  ["HONORS", 5, 384.77],
+  ["RECEIVED/APECIAL", 5, 393.29],
+  ["AWARDS", 5, 401.69],
+];
+const EDU_LEVEL_LABELS = [
+  ["Elementary", 420.65],
+  ["Junior High School", 433.73],
+  ["Vocational", 446.81],
+  ["Senior High School", 459.89],
+  ["College", 472.97],
 ];
 
 // 1x1 picture box measured from the blank form.
@@ -211,13 +245,26 @@ const truncate = (font, text, maxWidth, size) => {
   return out;
 };
 
-// Shrinks until the text fits, wrapping onto at most `maxLines` lines.
+const ellipsize = (font, text, maxWidth, size) => {
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
+  const suffix = "...";
+  let out = text;
+  while (out && font.widthOfTextAtSize(out + suffix, size) > maxWidth) out = out.slice(0, -1);
+  // Prefer cutting whole words ("BS Information Technology...") over a
+  // half-word ("...Databas..."), but only when that keeps most of the value.
+  const lastSpace = out.lastIndexOf(" ");
+  if (lastSpace > out.length * 0.5) out = out.slice(0, lastSpace);
+  return out ? `${out}${suffix}` : truncate(font, text, maxWidth, size);
+};
+
+// Shrinks until the text fits, wrapping onto at most `maxLines` lines. If it
+// still does not fit at the readable floor, trim with an ellipsis.
 const fitLines = (font, text, maxWidth, maxLines, startSize, minSize) => {
   for (let size = startSize; size >= minSize; size -= 0.25) {
     const lines = wrap(font, text, maxWidth, size, maxLines);
     if (lines) return { size, lines };
   }
-  return { size: minSize, lines: [truncate(font, text, maxWidth, minSize)] };
+  return { size: minSize, lines: [ellipsize(font, text, maxWidth, minSize)] };
 };
 
 const embedImage = async (pdf, bytes) => {
@@ -235,10 +282,11 @@ export async function generateInventoryPdf(formData = {}, profile = {}, signatur
   const data = mapInventoryToPlaceholders(formData, profile, {}, { pad: false });
   const pdf = await PDFDocument.load(fs.readFileSync(TEMPLATE_PATH));
   const font = await pdf.embedFont(StandardFonts.TimesRoman);
+  const bold = await pdf.embedFont(StandardFonts.TimesRomanBold);
   const pages = pdf.getPages();
   const [page1, page2] = pages;
 
-  const draw = (page, value, x0, x1, top, { size = BASE, min = 4.5, maxLines = 1 } = {}) => {
+  const draw = (page, value, x0, x1, top, { size = BASE, min = MIN_VALUE_SIZE, maxLines = 1 } = {}) => {
     const text = String(value ?? "").trim();
     if (!text) return;
     const width = x1 - x0;
@@ -277,29 +325,31 @@ export async function generateInventoryPdf(formData = {}, profile = {}, signatur
   };
 
   // Table cells are only 13.2pt tall, so a wrapped value needs its own baselines
-  // to stay inside the row instead of spilling into the next one.
-  const drawCell = (page, value, x0, x1, rowTop, baseline) => {
+  // to stay inside the row instead of spilling into the next one. Try one line
+  // first (largest readable size), then two lines at the 6pt floor.
+  const drawCell = (page, value, x0, x1, rowTop) => {
     const text = String(value ?? "").trim();
     if (!text) return;
     const width = x1 - x0 - 1;
-    if (font.widthOfTextAtSize(text, BASE) <= width) {
-      page.drawText(text, { x: x0 + 0.6, y: PAGE_H - baseline, size: BASE, font, color: BLACK });
-      return;
-    }
-    let size = 5;
+
+    let size = MIN_VALUE_SIZE;
     let lines = null;
-    while (size >= 4.2 && !lines) {
-      lines = wrap(font, text, width, size, 2);
-      if (!lines) size -= 0.2;
+    for (let candidate = BASE; candidate >= MIN_VALUE_SIZE; candidate -= 0.2) {
+      const oneLine = wrap(font, text, width, candidate, 1);
+      if (oneLine) {
+        size = candidate;
+        lines = oneLine;
+        break;
+      }
     }
     if (!lines) {
-      size = 4.4;
-      lines = [truncate(font, text, width, size)];
+      lines = wrap(font, text, width, MIN_VALUE_SIZE, 2) || [ellipsize(font, text, width, MIN_VALUE_SIZE)];
     }
+
     lines.forEach((line, i) => {
       page.drawText(line, {
         x: x0 + 0.6,
-        y: PAGE_H - (rowTop + 5.4 + i * (size * 1.12)),
+        y: PAGE_H - (rowTop + (lines.length > 1 ? 5.4 + i * (size * 1.12) : 8.52)),
         size,
         font,
         color: BLACK,
@@ -307,8 +357,86 @@ export async function generateInventoryPdf(formData = {}, profile = {}, signatur
     });
   };
 
+  // The course row and the education table are the two places where the form's
+  // own layout is repainted: cover the template, then draw the new version.
+  const line = (x0, y0, x1, y1) =>
+    page1.drawLine({
+      start: { x: x0, y: PAGE_H - y0 },
+      end: { x: x1, y: PAGE_H - y1 },
+      thickness: 0.5,
+      color: BLACK,
+    });
+
+  // Course row: the short fields after it (year level, A.Y., birth date) move
+  // right into the unused tail, giving the course blank the width it needs.
+  page1.drawRectangle({
+    x: 35.2,
+    y: PAGE_H - 282.8,
+    width: 469.0,
+    height: 282.8 - 273.4,
+    color: WHITE,
+  });
+  const courseRowY = PAGE_H - 279.62;
+  const rowLabel = (text, x) =>
+    page1.drawText(text, { x, y: courseRowY, size: BASE, font, color: BLACK });
+  const rowBlank = (x, width) =>
+    page1.drawText("_".repeat(Math.round(width / 4.02)), {
+      x,
+      y: courseRowY,
+      size: BASE,
+      font,
+      color: BLACK,
+    });
+  rowLabel("Course: ", 36);
+  rowBlank(66.33, 160.7);
+  rowLabel("Year Level: ", 228.5);
+  rowBlank(270.0, 36.1);
+  rowLabel("A.Y. ", 307.5);
+  rowBlank(324.5, 36.1);
+  rowLabel("Date of Birth: ", 364.5);
+  rowBlank(414.5, 89.4);
+
+  // The email already gets its own overflow line under Present Address; extend
+  // that line into the empty space at its right so the full address fits at the
+  // normal size instead of shrinking.
+  page1.drawText("_".repeat(10), {
+    x: 128.46,
+    y: PAGE_H - 308.45,
+    size: BASE,
+    font,
+    color: BLACK,
+  });
+
+  // Education table: repaint the grid, header and level labels with the new
+  // column widths (school/address wider, public/year/honors narrower).
+  page1.drawRectangle({
+    x: 29.7,
+    y: PAGE_H - 479.6,
+    width: 543.4,
+    height: 479.6 - 374.6,
+    color: WHITE,
+  });
+  for (const y of [EDU_TOP, ...EDU_ROW_LINES]) line(EDU_LEFT, y, EDU_RIGHT, y);
+  for (const x of EDU_COL_EDGES) {
+    line(x, EDU_TOP, x, EDU_ROW_LINES[EDU_ROW_LINES.length - 1]);
+  }
+  for (const [text, col, y] of EDU_HEADER_LINES) {
+    const center = (EDU_COL_EDGES[col] + EDU_COL_EDGES[col + 1]) / 2;
+    const width = bold.widthOfTextAtSize(text, HEADER_SIZE);
+    page1.drawText(text, {
+      x: center - width / 2,
+      y: PAGE_H - y,
+      size: HEADER_SIZE,
+      font: bold,
+      color: BLACK,
+    });
+  }
+  for (const [text, y] of EDU_LEVEL_LABELS) {
+    page1.drawText(text, { x: 36, y: PAGE_H - y, size: BASE, font, color: BLACK });
+  }
+
   for (const [key, x0, x1, y, size] of PAGE1_TEXT) {
-    draw(page1, data[key], x0, x1, y, { size: size || BASE, min: size ? 4.5 : 5 });
+    draw(page1, data[key], x0, x1, y, { size: size || BASE });
   }
   for (const [key, center, y, maxWidth] of PAGE1_NAMES) {
     drawCentered(page1, data[key], center, y, maxWidth);
@@ -322,9 +450,9 @@ export async function generateInventoryPdf(formData = {}, profile = {}, signatur
 
   // Educational background table.
   for (let row = 0; row < EDU_ROWS.length; row++) {
-    const [rowTop, , baseline] = EDU_ROWS[row];
+    const [rowTop] = EDU_ROWS[row];
     for (const [suffix, x0, x1] of EDU_COLS) {
-      drawCell(page1, data[`edu${row}${suffix}`], x0, x1, rowTop, baseline);
+      drawCell(page1, data[`edu${row}${suffix}`], x0, x1, rowTop);
     }
   }
 
