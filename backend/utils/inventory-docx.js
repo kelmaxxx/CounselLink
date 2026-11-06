@@ -237,13 +237,9 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatur
   data.studentSignature = signatures.studentSignature
     ? signatures.studentSignature.toString("base64")
     : TRANSPARENT_PX_B64;
-  data.counselorSignature = signatures.counselorSignature
-    ? signatures.counselorSignature.toString("base64")
-    : TRANSPARENT_PX_B64;
   data.studentAvatar = signatures.studentAvatar
     ? signatures.studentAvatar.toString("base64")
     : TRANSPARENT_PX_B64;
-  data.counselorPrintedName = val(signatures.counselorName);
 
   // Educational background table: 5 fixed levels x 5 columns.
   const bg = Array.isArray(e.background) ? e.background : [];
@@ -276,9 +272,29 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatur
   return data;
 }
 
-// `signatures` (all optional): { studentSignature: Buffer, counselorSignature:
-// Buffer, studentAvatar: Buffer, counselorName: string } — see readSignatureFile above for loading.
-export function generateInventoryDocx(formData = {}, profile = {}, signatures = {}) {
+// `signatures` (all optional): { studentSignature: Buffer, studentAvatar: Buffer }
+// — see readSignatureFile above for loading.
+//
+// `paginate` inserts an explicit page break after the TEST RECORD heading. The
+// browser PDF renderer (docx-preview) does not paginate on its own, so without
+// this the whole form becomes one tall page. Word needs no help — its own layout
+// already breaks there — so the downloadable .docx keeps paginate off.
+function insertTestRecordPageBreak(buffer) {
+  const zip = new PizZip(buffer);
+  const xml = zip.file("word/document.xml").asText();
+  const at = xml.indexOf("TEST RECORD");
+  const pStart = at < 0 ? -1 : Math.max(xml.lastIndexOf("<w:p ", at), xml.lastIndexOf("<w:p>", at));
+  const pEnd = pStart < 0 ? -1 : xml.indexOf("</w:p>", pStart);
+  if (pEnd < 0) return buffer;
+  const insertAt = pEnd + "</w:p>".length;
+  zip.file(
+    "word/document.xml",
+    xml.slice(0, insertAt) + `<w:p><w:r><w:br w:type="page"/></w:r></w:p>` + xml.slice(insertAt)
+  );
+  return zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
+}
+
+export function generateInventoryDocx(formData = {}, profile = {}, signatures = {}, { paginate = false } = {}) {
   const content = fs.readFileSync(TEMPLATE_PATH, "binary");
   const zip = new PizZip(content);
   const imageModule = new ImageModule({
@@ -298,5 +314,6 @@ export function generateInventoryDocx(formData = {}, profile = {}, signatures = 
     modules: [imageModule],
   });
   doc.render(mapInventoryToPlaceholders(formData, profile, signatures));
-  return doc.toBuffer();
+  const out = doc.toBuffer();
+  return paginate ? insertTestRecordPageBreak(out) : out;
 }

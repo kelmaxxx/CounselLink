@@ -166,11 +166,9 @@ export const downloadInventoryDocx = async (req, res) => {
 
   const rows = await query(
     `SELECT i.form_data AS formData, s.name AS studentName, s.student_id AS studentNumber, s.email AS studentEmail,
-            s.signature_url AS studentSignatureUrl, s.avatar_url AS studentAvatarUrl,
-            c.name AS counselorName, c.signature_url AS counselorSignatureUrl
+            s.signature_url AS studentSignatureUrl, s.avatar_url AS studentAvatarUrl
        FROM student_inventories i
        JOIN users s ON i.student_id = s.id
-       LEFT JOIN users c ON i.counselor_id = c.id
       WHERE i.student_id = ? LIMIT 1`,
     [studentId]
   );
@@ -182,16 +180,6 @@ export const downloadInventoryDocx = async (req, res) => {
     studentNumber: row.studentNumber,
     email: row.studentEmail,
   };
-
-  // The attesting counselor is whoever handled the inventory; when none is on
-  // record yet and a counselor is the one printing, they attest it themselves.
-  let counselorName = row.counselorName;
-  let counselorSignatureUrl = row.counselorSignatureUrl;
-  if (!counselorName && req.user?.role === "counselor") {
-    const [me] = await query("SELECT name, signature_url FROM users WHERE id = ?", [req.user.id]);
-    counselorName = me?.name || null;
-    counselorSignatureUrl = me?.signature_url || null;
-  }
 
   // Check consent status: if consent is revoked or the data-authorization
   // disclaimer was revoked, suppress the student signature from the download
@@ -211,9 +199,7 @@ export const downloadInventoryDocx = async (req, res) => {
     studentSignature: (consentRevoked || disclaimerRevoked)
       ? null
       : readSignatureFile(row.studentSignatureUrl),
-    counselorSignature: readSignatureFile(counselorSignatureUrl),
     studentAvatar: readAvatarFile(row.studentAvatarUrl),
-    counselorName,
   };
 
   // Missing files fail silently into a transparent pixel (see inventory-docx.js),
@@ -225,13 +211,14 @@ export const downloadInventoryDocx = async (req, res) => {
   if (row.studentSignatureUrl && !signatures.studentSignature) {
     console.warn(`Inventory docx for student ${studentId}: student signature file missing (${row.studentSignatureUrl})`);
   }
-  if (counselorSignatureUrl && !signatures.counselorSignature) {
-    console.warn(`Inventory docx for student ${studentId}: counselor signature file missing (${counselorSignatureUrl})`);
-  }
 
   let buffer;
   try {
-    buffer = generateInventoryDocx(row.formData || {}, profile, signatures);
+    buffer = generateInventoryDocx(row.formData || {}, profile, signatures, {
+      // The PDF is rendered in the browser by docx-preview, which only splits
+      // pages on explicit breaks — see insertTestRecordPageBreak.
+      paginate: req.query.paginate === "1",
+    });
   } catch (err) {
     console.error("Inventory docx generation failed:", err);
     return res.status(500).json({ message: "Failed to generate the inventory document" });

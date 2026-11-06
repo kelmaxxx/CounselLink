@@ -73,8 +73,10 @@ export function StudentRecordsProvider({ children }) {
   // Fetches the official filled-in Word (.docx) file as a Blob. Shared by the
   // "Download PDF" action and the Print / Save-as-PDF flow (which renders the
   // very same document in the browser so the print matches the Word layout).
+  // paginate=1 adds an explicit page break so docx-preview emits the form's two
+  // pages instead of one tall page.
   const fetchInventoryDocxBlob = async (studentId) => {
-    const response = await authFetch(`${apiBase}/api/student-inventories/${studentId}/docx`);
+    const response = await authFetch(`${apiBase}/api/student-inventories/${studentId}/docx?paginate=1`);
     if (!response.ok) {
       const data = await parseJson(response);
       return { success: false, message: data.message || "Failed to generate the Word document" };

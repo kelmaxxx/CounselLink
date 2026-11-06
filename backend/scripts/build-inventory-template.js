@@ -277,77 +277,8 @@ function build() {
     searchFrom = nameAt + inserted.length + "{studentPrintedName}".length;
   }
 
-  // 5) Append the counselor attestation block OUTSIDE (after) the table that
-  // contains the student acknowledgment section. The "Date Signed" paragraph is
-  // inside a table cell — inserting inside would crowd the table layout and push
-  // content onto a 3rd page. Instead, find the </w:tbl> that closes AFTER the
-  // "Date Signed" line and insert the block at body-level, right after it.
-  const dateSignedAt = xml.indexOf("Date Signed: ");
-  let counselorBlockAdded = 0;
-  if (dateSignedAt >= 0) {
-    // Find the </w:tbl> that closes the table containing "Date Signed".
-    const tblCloseAt = xml.indexOf("</w:tbl>", dateSignedAt);
-    if (tblCloseAt >= 0) {
-      const insertAt = tblCloseAt + "</w:tbl>".length;
-      // Counselor attestation: image above, then printed-name + wet-sign line,
-      // then the caption. Inserted at body level so it never disturbs the table.
-      const block =
-        makePara("Attested by:") +
-        makePara(SIG_SPACER, "{%counselorSignature}") +
-        makePara("{counselorPrintedName}", "        ", "____________________________________________________") +
-        makePara("Guidance Counselor's Signature over Printed Name");
-      xml = xml.slice(0, insertAt) + block + xml.slice(insertAt);
-      counselorBlockAdded = 1;
-    }
-  }
-
-  // 6) The added signature/attestation lines fill page 2 exactly; drop EVERY empty
-  // paragraph between the counselor caption and the body-final section mark —
-  // including the trailing one that Word leaves before <w:sectPr>. The last
-  // section's sectPr is a direct child of <w:body>, so it needs no host paragraph;
-  // removing the empty trailer keeps the form locked to 2 pages instead of spilling
-  // a blank page 3.
-  const captionAt = xml.indexOf("Guidance Counselor's Signature over Printed Name");
-  if (captionAt >= 0) {
-    const blockEnd = xml.indexOf("</w:p>", captionAt) + "</w:p>".length;
-    const finalSect = xml.indexOf("<w:sectPr", blockEnd);
-    if (finalSect >= 0) {
-      const between = xml.slice(blockEnd, finalSect).replace(/<w:p\b[^>]*>(?:<w:pPr>[\s\S]*?<\/w:pPr>)?<\/w:p>/g, "");
-      xml = xml.slice(0, blockEnd) + between + xml.slice(finalSect);
-    }
-  }
-
-  // 7) Force a page break BEFORE the "TEST RECORD" heading so that section
-  //    always starts on page 2, giving exactly 2 printed pages regardless of
-  //    how much content is on page 1.
-  //    Strategy: find the paragraph that contains "TEST RECORD" and inject
-  //    <w:pageBreakBefore/> into its <w:pPr> (creating one if absent).
-  let pageBreakAdded = 0;
-  const testRecordIdx = xml.indexOf("TEST RECORD");
-  if (testRecordIdx >= 0) {
-    // Walk back to the enclosing paragraph.
-    const pStart = Math.max(
-      xml.lastIndexOf("<w:p ", testRecordIdx),
-      xml.lastIndexOf("<w:p>", testRecordIdx)
-    );
-    if (pStart >= 0) {
-      const pEnd = xml.indexOf("</w:p>", pStart);
-      if (pEnd >= 0) {
-        const para = xml.slice(pStart, pEnd + "</w:p>".length);
-        let newPara;
-        if (para.includes("<w:pPr>")) {
-          // Inject into existing pPr (right after opening tag).
-          newPara = para.replace("<w:pPr>", "<w:pPr><w:pageBreakBefore/>");
-        } else {
-          // No pPr yet — create one right after the opening <w:p> or <w:p ...>.
-          const tagEnd = para.indexOf(">") + 1;
-          newPara = para.slice(0, tagEnd) + "<w:pPr><w:pageBreakBefore/></w:pPr>" + para.slice(tagEnd);
-        }
-        xml = xml.slice(0, pStart) + newPara + xml.slice(pEnd + "</w:p>".length);
-        pageBreakAdded = 1;
-      }
-    }
-  }
+  // 5) The official form has no counselor attestation block: adding one pushed
+  //    the filled form onto a 3rd page, so nothing extra is appended here.
 
   zip.file("word/document.xml", xml);
   const out = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
@@ -359,8 +290,6 @@ function build() {
   console.log(`Civil-status symbols replaced: ${symIdx}/${SYM_TAGS.length}`);
   console.log(`Educational cells filled: ${eduIdx}/${EDU_TAGS.length}`);
   console.log(`Student signature lines added: ${studentSigLines}/2`);
-  console.log(`Counselor attestation block added: ${counselorBlockAdded}/1`);
-  console.log(`TEST RECORD page break added: ${pageBreakAdded}/1`);
   console.log(`Template written: ${OUT}`);
 }
 
