@@ -1,6 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { generateInventoryDocx, readSignatureFile, readAvatarFile } from "../utils/inventory-docx.js";
+import { generateInventoryPdf } from "../utils/inventory-pdf.js";
 
 const SELECT_FIELDS = `
   i.id, i.student_id AS studentId, i.counselor_id AS counselorId,
@@ -158,23 +159,18 @@ const safeFileBase = (name, idNumber) =>
     .replace(/^_|_$/g, "")
     .toLowerCase();
 
-// Renders the saved inventory into a filled-in copy of the official MSU DSA
-// Word form and streams it back as a .docx download.
-export const downloadInventoryDocx = async (req, res) => {
-  const { studentId } = req.params;
-  if (!canAccess(req, studentId)) return res.status(403).json({ message: "Forbidden" });
-
+// Loads the saved inventory plus the signature/avatar files needed by both the
+// Word and PDF downloads. Returns null when the student has no inventory yet.
+const loadDownloadData = async (studentId) => {
   const rows = await query(
     `SELECT i.form_data AS formData, s.name AS studentName, s.student_id AS studentNumber, s.email AS studentEmail,
-            s.signature_url AS studentSignatureUrl, s.avatar_url AS studentAvatarUrl,
-            c.name AS counselorName, c.signature_url AS counselorSignatureUrl
+            s.signature_url AS studentSignatureUrl, s.avatar_url AS studentAvatarUrl
        FROM student_inventories i
        JOIN users s ON i.student_id = s.id
-       LEFT JOIN users c ON i.counselor_id = c.id
       WHERE i.student_id = ? LIMIT 1`,
     [studentId]
   );
-  if (!rows.length) return res.status(404).json({ message: "No inventory record yet" });
+  if (!rows.length) return null;
 
   const row = parseFormData(rows[0]);
   const profile = {
@@ -182,16 +178,6 @@ export const downloadInventoryDocx = async (req, res) => {
     studentNumber: row.studentNumber,
     email: row.studentEmail,
   };
-
-  // The attesting counselor is whoever handled the inventory; when none is on
-  // record yet and a counselor is the one printing, they attest it themselves.
-  let counselorName = row.counselorName;
-  let counselorSignatureUrl = row.counselorSignatureUrl;
-  if (!counselorName && req.user?.role === "counselor") {
-    const [me] = await query("SELECT name, signature_url FROM users WHERE id = ?", [req.user.id]);
-    counselorName = me?.name || null;
-    counselorSignatureUrl = me?.signature_url || null;
-  }
 
   // Check consent status: if consent is revoked or the data-authorization
   // disclaimer was revoked, suppress the student signature from the download
@@ -211,27 +197,39 @@ export const downloadInventoryDocx = async (req, res) => {
     studentSignature: (consentRevoked || disclaimerRevoked)
       ? null
       : readSignatureFile(row.studentSignatureUrl),
-    counselorSignature: readSignatureFile(counselorSignatureUrl),
     studentAvatar: readAvatarFile(row.studentAvatarUrl),
-    counselorName,
   };
 
   // Missing files fail silently into a transparent pixel (see inventory-docx.js),
   // so log them — a blank 2x2/signature in the download almost always means the
   // file is gone from the uploads directory (e.g. ephemeral disk was wiped).
   if (row.studentAvatarUrl && !signatures.studentAvatar) {
-    console.warn(`Inventory docx for student ${studentId}: avatar file missing (${row.studentAvatarUrl})`);
+    console.warn(`Inventory download for student ${studentId}: avatar file missing (${row.studentAvatarUrl})`);
   }
   if (row.studentSignatureUrl && !signatures.studentSignature) {
-    console.warn(`Inventory docx for student ${studentId}: student signature file missing (${row.studentSignatureUrl})`);
+    console.warn(`Inventory download for student ${studentId}: student signature file missing (${row.studentSignatureUrl})`);
   }
-  if (counselorSignatureUrl && !signatures.counselorSignature) {
-    console.warn(`Inventory docx for student ${studentId}: counselor signature file missing (${counselorSignatureUrl})`);
-  }
+
+  return { row, profile, signatures };
+};
+
+// Renders the saved inventory into a filled-in copy of the official MSU DSA
+// Word form and streams it back as a .docx download.
+export const downloadInventoryDocx = async (req, res) => {
+  const { studentId } = req.params;
+  if (!canAccess(req, studentId)) return res.status(403).json({ message: "Forbidden" });
+
+  const loaded = await loadDownloadData(studentId);
+  if (!loaded) return res.status(404).json({ message: "No inventory record yet" });
+  const { row, profile, signatures } = loaded;
 
   let buffer;
   try {
-    buffer = generateInventoryDocx(row.formData || {}, profile, signatures);
+    buffer = generateInventoryDocx(row.formData || {}, profile, signatures, {
+      // The PDF is rendered in the browser by docx-preview, which only splits
+      // pages on explicit breaks — see insertTestRecordPageBreak.
+      paginate: req.query.paginate === "1",
+    });
   } catch (err) {
     console.error("Inventory docx generation failed:", err);
     return res.status(500).json({ message: "Failed to generate the inventory document" });
@@ -244,6 +242,32 @@ export const downloadInventoryDocx = async (req, res) => {
     "Content-Type",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   );
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  return res.send(buffer);
+};
+
+// Fills the official blank PDF with the saved values and streams it back.
+// Only the inputs are drawn; the form's own lines never move.
+export const downloadInventoryPdf = async (req, res) => {
+  const { studentId } = req.params;
+  if (!canAccess(req, studentId)) return res.status(403).json({ message: "Forbidden" });
+
+  const loaded = await loadDownloadData(studentId);
+  if (!loaded) return res.status(404).json({ message: "No inventory record yet" });
+  const { row, profile, signatures } = loaded;
+
+  let buffer;
+  try {
+    buffer = await generateInventoryPdf(row.formData || {}, profile, signatures);
+  } catch (err) {
+    console.error("Inventory PDF generation failed:", err);
+    return res.status(500).json({ message: "Failed to generate the inventory PDF" });
+  }
+
+  await logAction(req, "download_inventory_pdf", "student_inventory", Number(studentId), {});
+
+  const filename = `${safeFileBase(row.studentName, row.studentNumber)}.pdf`;
+  res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   return res.send(buffer);
 };

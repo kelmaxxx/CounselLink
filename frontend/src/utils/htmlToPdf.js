@@ -4,8 +4,7 @@
 // window.open(). Renders the given HTML into a hidden iframe (so html2canvas
 // gets its own (0,0)-origin coordinate system regardless of where the host
 // page has scrolled), captures each `.pdf-page` element as its own canvas,
-// and writes one jsPDF page per captured element. See inventoryReport.js's
-// exportInventoryAsPdfFile, which this generalizes.
+// and writes one jsPDF page per captured element.
 //
 // `extraPageImages` appends ready-made pages (JPEG/PNG data URLs — e.g. pages
 // rasterized from an attached PDF/DOCX or an uploaded photo) after the HTML

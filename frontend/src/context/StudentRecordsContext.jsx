@@ -1,6 +1,5 @@
 import React, { createContext, useContext } from "react";
 import { useAuth } from "./AuthContext";
-import { saveInventoryDocxAsPdfFile } from "../utils/inventoryReport";
 
 const StudentRecordsContext = createContext();
 
@@ -70,32 +69,28 @@ export function StudentRecordsProvider({ children }) {
     return { success: true };
   };
 
-  // Fetches the official filled-in Word (.docx) file as a Blob. Shared by the
-  // "Download PDF" action and the Print / Save-as-PDF flow (which renders the
-  // very same document in the browser so the print matches the Word layout).
-  const fetchInventoryDocxBlob = async (studentId) => {
-    const response = await authFetch(`${apiBase}/api/student-inventories/${studentId}/docx`);
+  // Fetches the official blank inventory PDF, already filled in by the backend,
+  // and saves it. The backend draws the values onto the original form, so the
+  // download keeps the official lines and positions untouched.
+  const downloadInventoryPdf = async (studentId, fallbackName = "student") => {
+    const response = await authFetch(`${apiBase}/api/student-inventories/${studentId}/pdf`);
     if (!response.ok) {
       const data = await parseJson(response);
-      return { success: false, message: data.message || "Failed to generate the Word document" };
+      return { success: false, message: data.message || "Failed to generate the PDF" };
     }
     const blob = await response.blob();
     const disposition = response.headers.get("Content-Disposition") || "";
     const match = disposition.match(/filename="?([^"]+)"?/);
-    return { success: true, blob, filename: match ? match[1] : null };
-  };
-
-  const downloadInventoryPdf = async (studentId, fallbackName = "student") => {
-    const res = await fetchInventoryDocxBlob(studentId);
-    if (!res.success) return res;
-    const filename = (res.filename || `inventory_${fallbackName}.docx`).replace(/\.docx$/i, ".pdf");
-    try {
-      await saveInventoryDocxAsPdfFile(res.blob, filename);
-      return { success: true };
-    } catch (err) {
-      console.error("Failed to generate inventory PDF:", err);
-      return { success: false, message: "Failed to generate PDF" };
-    }
+    const filename = match ? match[1] : `inventory_${fallbackName}.pdf`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { success: true };
   };
 
   // ---- Consent ----
@@ -232,7 +227,6 @@ export function StudentRecordsProvider({ children }) {
         uploadInventoryScan,
         deleteInventoryScan,
         downloadInventoryPdf,
-        fetchInventoryDocxBlob,
         getConsent,
         eSignConsent,
         uploadConsentScan,
