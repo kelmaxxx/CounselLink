@@ -96,7 +96,7 @@ const box = (checked) => (checked ? "[ X ]" : "[   ]");
 // Plain text value: never emit null/undefined.
 const val = (v) => (v === null || v === undefined ? "" : String(v));
 
-export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatures = {}) {
+export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatures = {}, { pad = true } = {}) {
   const p = formData.personal || {};
   const e = formData.educational || {};
   const f = formData.family || {};
@@ -117,6 +117,8 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatur
   const data = {
     // I. Personal
     idNumber: val(p.idNumber) || val(profile.studentNumber),
+    headerDate: val(p.headerDate),
+    controlNo: val(p.controlNo),
     // Name is printed as three separate fixed-width fields so Surname / First /
     // Middle always line up under the "(Surname)(First Name)(Middle Name)" guide.
     nameSurname: val(p.surname),
@@ -265,8 +267,12 @@ export function mapInventoryToPlaceholders(formData = {}, profile = {}, signatur
   // is a constant length: short/empty values show as a blank line, long values are
   // trimmed to fit instead of wrapping the form onto a third page. Checkbox and
   // signature values have no width entry and pass through untouched.
-  for (const [key, width] of Object.entries(FIELD_WIDTHS)) {
-    data[key] = fit(data[key], width);
+  // The PDF renderer draws on the official blanks instead, so it opts out (pad:false)
+  // and shrinks long values rather than truncating them.
+  if (pad) {
+    for (const [key, width] of Object.entries(FIELD_WIDTHS)) {
+      data[key] = fit(data[key], width);
+    }
   }
 
   return data;
