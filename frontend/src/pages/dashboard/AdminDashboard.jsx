@@ -159,10 +159,11 @@ export default function AdminDashboard() {
           }
         />
 
-        {/* 1. Top: 2x2 stats + demand vs. throughput, balanced heights */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-stretch">
-          <div className="lg:col-span-6">
-            <Stagger className="grid grid-cols-2 gap-4">
+        {/* 1. Top: 2x2 stats + demand vs. throughput, balanced heights.
+            50:50 split; the cards stretch to the chart's height. */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 items-stretch">
+          <div className="h-full">
+            <Stagger className="grid grid-cols-2 gap-4 h-full lg:grid-rows-2">
               <BigStat
                 label="Total users"
                 value={visibleUsers.length}
@@ -204,7 +205,7 @@ export default function AdminDashboard() {
           </div>
 
           <DemandThroughputCard
-            className="lg:col-span-6 h-full"
+            className="h-full"
             data={throughputTrend}
             emptyIcon={CalendarCheck}
           />

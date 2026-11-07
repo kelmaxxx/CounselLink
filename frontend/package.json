@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/utils/countUp.test.mjs src/utils/logs.test.mjs",
+    "test": "node --test src/utils/countUp.test.mjs src/utils/logs.test.mjs src/utils/fetchRetry.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
