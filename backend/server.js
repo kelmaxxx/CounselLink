@@ -69,7 +69,9 @@ const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,http:
   .map((origin) => origin.trim())
   .filter(Boolean);
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json());
+// Compiled report payloads and inventory form data are JSON and can grow past
+// the 100kb default for a big college.
+app.use(express.json({ limit: "10mb" }));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

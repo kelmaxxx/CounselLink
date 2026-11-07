@@ -45,6 +45,20 @@ export const getInventory = async (req, res) => {
   return res.json(parseFormData(rows[0]));
 };
 
+// Roster view for the counselor's compiled reports: every inventory (optionally
+// one college) with the student's name/college/number already joined in.
+export const listInventories = async (req, res) => {
+  if (!canAccess(req, null)) return res.status(403).json({ message: "Forbidden" });
+  const { college } = req.query;
+  const rows = await query(
+    `SELECT ${SELECT_FIELDS} ${FROM_JOIN}
+     ${college ? "WHERE s.college = ?" : ""}
+     ORDER BY s.name ASC`,
+    college ? [college] : []
+  );
+  return res.json(rows.map(parseFormData));
+};
+
 export const upsertInventory = async (req, res) => {
   const { studentId } = req.params;
   if (!canAccess(req, studentId)) return res.status(403).json({ message: "Forbidden" });
