@@ -159,7 +159,7 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, 
   return (
     <MotionDiv variants={fadeUp} className={`rounded-2xl border shadow-sm transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:hover:translate-y-0 h-full flex flex-col ${compact ? "min-h-[9.5rem] p-4" : "min-h-[11.5rem] p-6"} ${dark ? "bg-gradient-to-br from-maroon-600 to-maroon-800 border-maroon-800" : "bg-white border-gray-200/80"}`}>
       <div className="flex items-start justify-between gap-2">
-        <span className={`text-sm font-medium truncate min-w-0 ${dark ? "text-white/70" : "text-gray-500"}`}>{label}</span>
+        <span className={`${compact ? "text-base" : "text-sm"} font-medium truncate min-w-0 ${dark ? "text-white/70" : "text-gray-500"}`}>{label}</span>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           {Icon && (
             <span
@@ -178,10 +178,10 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, 
           )}
         </div>
       </div>
-      {/* Number + hint sit in the leftover height so stretched cards don't
-          leave an empty gap at the bottom. */}
+      {/* Number + hint stay centred in the leftover height so the space above
+          and below them stays even on stretched cards. */}
       <div className="flex flex-1 flex-col justify-center pt-4">
-        <div className={`${compact ? "text-[2.5rem]" : "text-5xl"} font-semibold tabular-nums leading-none tracking-tight ${dark ? "text-white" : "text-gray-900"}`}>
+        <div className={`${compact ? "text-[3rem]" : "text-5xl"} font-semibold tabular-nums leading-none tracking-tight ${dark ? "text-white" : "text-gray-900"}`}>
           <CountUp value={value} />
         </div>
         {trend && (
@@ -190,7 +190,7 @@ export function BigStat({ label, value, hint, icon: Icon, tone = "gray", badge, 
             {trend}
           </p>
         )}
-        {hint && <p className={`${trend ? "mt-1" : "mt-1.5"} text-xs ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
+        {hint && <p className={`${trend ? "mt-1" : "mt-1.5"} ${compact ? "text-sm" : "text-xs"} ${dark ? "text-white/60" : "text-gray-400"}`}>{hint}</p>}
       </div>
     </MotionDiv>
   );
