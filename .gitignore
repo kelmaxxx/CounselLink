@@ -35,6 +35,8 @@ counsellink-data-*.json
 
 opencode.jsonc
 .opencode/
+.agents/
+skills-lock.json
 
 
 
