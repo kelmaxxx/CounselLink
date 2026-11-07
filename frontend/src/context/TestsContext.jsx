@@ -23,6 +23,8 @@ export function TestsProvider({ children }) {
   const { subscribe } = useRealtime();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
   const [tests, setTests] = useState([]);
+  // Only the initial load flips this; live refetches keep the current view.
+  const [loading, setLoading] = useState(true);
 
   const fetchTests = useCallback(async () => {
     if (!token) return [];
@@ -145,7 +147,14 @@ export function TestsProvider({ children }) {
   };
 
   useEffect(() => {
-    fetchTests().catch(() => undefined);
+    if (!token) {
+      setTests([]);
+      setLoading(false);
+      return;
+    }
+    fetchTests()
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -161,6 +170,7 @@ export function TestsProvider({ children }) {
   return (
     <TestsContext.Provider value={{
       tests,
+      loading,
       createTestRequest,
       getTestsForCurrentUser,
       acceptTest,

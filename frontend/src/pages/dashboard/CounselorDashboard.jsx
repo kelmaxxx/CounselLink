@@ -74,14 +74,21 @@ const isWeekendISO = (iso) => {
 };
 
 export default function CounselorDashboard() {
-  const { currentUser, users, lookupUser } = useAuth();
+  const { currentUser, users, usersLoaded, lookupUser } = useAuth();
   const {
-    fetchAppointments,
+    appointments,
+    loading: appointmentsLoading,
     acceptAppointment,
     rescheduleAppointment,
     rejectAppointment,
   } = useAppointments?.() || {};
-  const { getTestsForCurrentUser, acceptTest, rescheduleTest, rejectTest } = useTests?.() || {};
+  const {
+    loading: testsLoading,
+    getTestsForCurrentUser,
+    acceptTest,
+    rescheduleTest,
+    rejectTest,
+  } = useTests?.() || {};
   const { referrals, fetchReferrals } = useReferrals?.() || {};
 
   const openProfile = async (id, fallbackName) => {
@@ -109,25 +116,23 @@ export default function CounselorDashboard() {
   };
 
   const [myAppointments, setMyAppointments] = useState([]);
+  const [referralsReady, setReferralsReady] = useState(!fetchReferrals);
+
+  // Context owns the fetch; mirror it locally so the optimistic handlers below
+  // keep working, and let SSE refetches replace stale rows.
+  React.useEffect(() => {
+    if (appointments) setMyAppointments(appointments);
+  }, [appointments]);
 
   React.useEffect(() => {
+    if (!fetchReferrals) return undefined;
     let mounted = true;
-    const loadAppointments = async () => {
-      try {
-        const data = await fetchAppointments();
-        if (mounted) setMyAppointments(data);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    if (fetchAppointments) loadAppointments();
+    Promise.resolve(fetchReferrals()).finally(() => {
+      if (mounted) setReferralsReady(true);
+    });
     return () => {
       mounted = false;
     };
-  }, [fetchAppointments]);
-
-  React.useEffect(() => {
-    if (fetchReferrals) fetchReferrals();
   }, [fetchReferrals]);
 
   const myTests = getTestsForCurrentUser ? getTestsForCurrentUser() : [];
@@ -587,6 +592,12 @@ export default function CounselorDashboard() {
   }, [pendingQueue]);
 
   const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Counselor";
+
+  // Gate every data-derived block on the initial load so the dashboard never
+  // paints zeros and then jumps to the real numbers.
+  const dataLoading =
+    appointmentsLoading || testsLoading || usersLoaded === false || !referralsReady;
+
   const today = new Date();
   const dateLabel = today.toLocaleDateString(undefined, {
     weekday: "long",
@@ -630,6 +641,10 @@ export default function CounselorDashboard() {
         }
       />
 
+      {dataLoading ? (
+        <DashboardSkeleton />
+      ) : (
+        <>
       {/* Stats */}
       <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <BigStat
@@ -892,6 +907,8 @@ export default function CounselorDashboard() {
           </ul>
         </SectionCard>
       )}
+        </>
+      )}
 
       {/* ── Modals ─────────────────────────────────────────────────────── */}
       <Modal
@@ -1024,6 +1041,29 @@ export default function CounselorDashboard() {
       )}
     </div>
     </>
+  );
+}
+
+// Placeholder layout shown until the first data load settles — keeps the real
+// numbers from flashing as zeros.
+function DashboardSkeleton() {
+  return (
+    <div className="animate-pulse" aria-hidden="true">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-[11.5rem] rounded-2xl bg-gray-200/70" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
+        <div className="lg:col-span-3 h-72 rounded-2xl bg-gray-200/70" />
+        <div className="lg:col-span-2 h-72 rounded-2xl bg-gray-200/70" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+        <div className="lg:col-span-3 h-72 rounded-2xl bg-gray-200/70" />
+        <div className="lg:col-span-2 h-72 rounded-2xl bg-gray-200/70" />
+      </div>
+      <div className="h-52 rounded-2xl bg-gray-200/70" />
+    </div>
   );
 }
 
