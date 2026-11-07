@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "docxtemplater": "^3.69.0",
     "docxtemplater-image-module-free": "^1.1.1",

@@ -4,6 +4,7 @@ import express from "express";
 // crashes the whole process. Must be imported before the routes are used.
 import "express-async-errors";
 import cors from "cors";
+import compression from "compression";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
@@ -63,6 +64,8 @@ app.set("trust proxy", 1);
 // crossOriginResourcePolicy is relaxed so /uploads images can be displayed
 // by the frontend on a different origin (Vercel).
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+// Dashboard payloads are large JSON lists; gzip cuts them ~5-10x on the wire.
+app.use(compression());
 
 const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:5174")
   .split(",")

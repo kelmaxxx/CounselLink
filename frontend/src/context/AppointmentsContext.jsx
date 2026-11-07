@@ -34,6 +34,8 @@ export function AppointmentsProvider({ children }) {
   const { subscribe } = useRealtime();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
   const [appointments, setAppointments] = useState([]);
+  // Only the initial load flips this; live refetches keep the current view.
+  const [loading, setLoading] = useState(true);
 
   const updateAppointment = (id, updater) => {
     setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...updater } : a));
@@ -219,9 +221,12 @@ export function AppointmentsProvider({ children }) {
   useEffect(() => {
     if (!token) {
       setAppointments([]);
+      setLoading(false);
       return;
     }
-    fetchAppointments().catch((err) => console.error("Failed to load appointments:", err));
+    fetchAppointments()
+      .catch((err) => console.error("Failed to load appointments:", err))
+      .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -237,6 +242,7 @@ export function AppointmentsProvider({ children }) {
   return (
     <AppointmentsContext.Provider value={{
       appointments,
+      loading,
       createAppointment,
       acceptAppointment,
       rescheduleAppointment,

@@ -11,6 +11,8 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem("token"));
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Separate from `loading` (login): true once the directory fetch settles.
+  const [usersLoaded, setUsersLoaded] = useState(false);
   const [error, setError] = useState(null);
 
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -163,6 +165,7 @@ export function AuthProvider({ children }) {
     setCurrentUser(null);
     setToken(null);
     setUsers([]);
+    setUsersLoaded(false);
     localStorage.removeItem("currentUser");
     localStorage.removeItem("token");
     sessionStorage.removeItem("welcomeShown");
@@ -342,10 +345,19 @@ export function AuthProvider({ children }) {
   // Auto-fetch users for admins (full directory), counselors, and college reps
   // (students in their own college + counselors, scoped server-side).
   useEffect(() => {
-    if (!token) return;
-    if (currentUser?.role === "admin") {
-      fetchUsers().catch((err) => console.error("Failed to load users:", err));
-    } else if (currentUser?.role === "counselor") {
+    if (!token) {
+      setUsersLoaded(false);
+      return;
+    }
+    if (!currentUser?.role) return;
+    let cancelled = false;
+    setUsersLoaded(false);
+    const done = () => {
+      if (!cancelled) setUsersLoaded(true);
+    };
+    if (currentUser.role === "admin") {
+      fetchUsers().catch((err) => console.error("Failed to load users:", err)).finally(done);
+    } else if (currentUser.role === "counselor") {
       Promise.all([
         fetchUsersByRole("student"),
         fetchUsersByRole("counselor"),
@@ -353,24 +365,31 @@ export function AuthProvider({ children }) {
         fetchUsersByRole("admin"),
       ])
         .then(([students, counselors, reps, admins]) => setUsers([...students, ...counselors, ...reps, ...admins]))
-        .catch((err) => console.error("Failed to load users:", err));
-    } else if (currentUser?.role === "college_rep") {
+        .catch((err) => console.error("Failed to load users:", err))
+        .finally(done);
+    } else if (currentUser.role === "college_rep") {
       Promise.all([
         fetchUsersByRole("student"),
         fetchUsersByRole("counselor"),
       ])
         .then(([students, counselors]) => setUsers([...students, ...counselors]))
-        .catch((err) => console.error("Failed to load users:", err));
-    } else if (currentUser?.role === "student") {
+        .catch((err) => console.error("Failed to load users:", err))
+        .finally(done);
+    } else if (currentUser.role === "student") {
       fetchUsersByRole("counselor")
         .then((counselors) => setUsers(counselors))
-        .catch((err) => console.error("Failed to load counselors:", err));
+        .catch((err) => console.error("Failed to load counselors:", err))
+        .finally(done);
     }
+    return () => {
+      cancelled = true;
+    };
   }, [token, currentUser?.role]);
 
   return (
     <AuthContext.Provider value={{
       users,
+      usersLoaded,
       currentUser,
       token,
       loading,
