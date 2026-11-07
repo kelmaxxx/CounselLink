@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
+import { useTestResults } from "../../context/TestResultsContext";
 import {
   FileText,
   Eye,
@@ -35,6 +36,14 @@ import {
   initialsOf,
 } from "../../components/ui";
 import { saveReportAsPdfFile } from "../../utils/sessionReport";
+import {
+  SEMESTERS,
+  REPORT_TYPES,
+  schoolYearOptions,
+  buildCompiledPayload,
+  saveCompiledReportAsPdfFile,
+} from "../../utils/compiledReport";
+import { MSU_COLLEGES } from "../../data/msuColleges";
 import ReportPreview from "../../components/records/ReportPreview";
 import LetterPreview from "../../components/records/LetterPreview";
 import { letterFromRequest, saveLetterAsPdfFile } from "../../utils/requestLetter";
@@ -53,6 +62,7 @@ export default function CounselorReports() {
   const { token, currentUser } = useAuth();
   const navigate = useNavigate();
   const { sessions, fetchSessions } = useCounselingSessions();
+  const { testResults } = useTestResults();
 
   const [sentReports, setSentReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
@@ -89,6 +99,17 @@ export default function CounselorReports() {
   const [genError, setGenError] = useState("");
   const [generating, setGenerating] = useState(false);
 
+  // Compiled reports (counseling / psychological / student profile snapshots).
+  const [compiled, setCompiled] = useState([]);
+  const [loadingCompiled, setLoadingCompiled] = useState(false);
+  const [compileOpen, setCompileOpen] = useState(false);
+  const [compileType, setCompileType] = useState("counseling");
+  const [compileCollege, setCompileCollege] = useState(MSU_COLLEGES[0]?.code || "");
+  const [compileSemester, setCompileSemester] = useState("1st");
+  const [compileYear, setCompileYear] = useState(() => schoolYearOptions()[0]);
+  const [compileError, setCompileError] = useState("");
+  const [compiling, setCompiling] = useState(false);
+
   const reloadSentReports = async () => {
     if (!token) return;
     setLoadingReports(true);
@@ -121,9 +142,111 @@ export default function CounselorReports() {
     }
   };
 
+  const reloadCompiled = async () => {
+    if (!token) return;
+    setLoadingCompiled(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/compiled`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await res.json();
+      if (res.ok) setCompiled(Array.isArray(body) ? body : []);
+    } finally {
+      setLoadingCompiled(false);
+    }
+  };
+
+  const handleCompile = async () => {
+    if (!currentUser?.signatureUrl) {
+      setCompileError("Upload your signature in your Profile before generating a report.");
+      return;
+    }
+    if (!compileCollege) {
+      setCompileError("Select a college.");
+      return;
+    }
+    setCompiling(true);
+    setCompileError("");
+    try {
+      const collegeName =
+        MSU_COLLEGES.find((c) => c.code === compileCollege)?.name || compileCollege;
+      let inventories = [];
+      if (compileType === "profile") {
+        const res = await fetch(
+          `${API_BASE}/api/student-inventories?college=${encodeURIComponent(compileCollege)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.message || "Unable to load student profiles");
+        inventories = Array.isArray(body) ? body : [];
+      }
+
+      const payload = buildCompiledPayload({
+        type: compileType,
+        college: compileCollege,
+        collegeName,
+        counselorName: currentUser?.name || "",
+        semester: compileSemester,
+        schoolYear: compileYear,
+        sessions,
+        testResults,
+        inventories,
+      });
+      const title = `${payload.reportLabel} — ${collegeName}${
+        payload.periodLabel ? ` (${payload.periodLabel})` : ""
+      }`;
+
+      const res = await fetch(`${API_BASE}/api/reports/compiled`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          reportType: compileType,
+          college: compileCollege,
+          periodLabel: payload.periodLabel,
+          dateFrom: payload.dateFrom,
+          dateTo: payload.dateTo,
+          title,
+          payload,
+        }),
+      });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.message || "Unable to save the report");
+
+      await saveCompiledReportAsPdfFile(payload, {
+        signatureUrl: currentUser.signatureUrl,
+      });
+      setCompileOpen(false);
+      await reloadCompiled();
+    } catch (err) {
+      setCompileError(err.message);
+    } finally {
+      setCompiling(false);
+    }
+  };
+
+  const downloadCompiled = (row) => {
+    const payload = parsePayload(row.payload);
+    if (payload) {
+      saveCompiledReportAsPdfFile(payload, { signatureUrl: currentUser?.signatureUrl });
+    }
+  };
+
+  const deleteCompiled = async (id) => {
+    if (!window.confirm("Remove this compiled report from your history?")) return;
+    await fetch(`${API_BASE}/api/reports/compiled/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    await reloadCompiled();
+  };
+
   useEffect(() => {
     reloadSentReports();
     reloadRequests();
+    reloadCompiled();
     fetchSessions().catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -345,6 +468,17 @@ export default function CounselorReports() {
     );
   }, [finalizedSessions, search]);
 
+  const filteredCompiled = useMemo(() => {
+    if (!search.trim()) return compiled;
+    const q = search.toLowerCase();
+    return compiled.filter(
+      (r) =>
+        (r.title || "").toLowerCase().includes(q) ||
+        (r.college || "").toLowerCase().includes(q) ||
+        (r.period_label || "").toLowerCase().includes(q)
+    );
+  }, [compiled, search]);
+
   const allNames = useMemo(() => {
     const names = new Set();
     finalizedSessions.forEach((s) => { if (s.studentName) names.add(s.studentName); });
@@ -371,6 +505,7 @@ export default function CounselorReports() {
     { id: "requests", label: "Report Requests", count: requests.length },
     { id: "sent", label: "Sent Reports", count: sentReports.length },
     { id: "sessions", label: "Session Reports", count: finalizedSessions.length },
+    { id: "compiled", label: "Compiled Reports", count: compiled.length },
   ];
 
   const requestsTotalPages = Math.max(1, Math.ceil(filteredRequests.length / REPORTS_PER_PAGE));
@@ -400,7 +535,7 @@ export default function CounselorReports() {
       <PageHeader
         eyebrow="Counselor"
         title="Reports"
-        subtitle="Individual student counseling reports — sent to the College who referred each student."
+        subtitle="Individual student counseling reports and college-compiled data — signed with your eSign."
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -517,6 +652,13 @@ export default function CounselorReports() {
             </ul>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => { setCompileError(""); setCompileOpen(true); }}
+          className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition whitespace-nowrap"
+        >
+          <FileText size={14} /> Compile report
+        </button>
       </div>
 
       {activeTab === "requests" && (
@@ -892,6 +1034,90 @@ export default function CounselorReports() {
         </SectionCard>
       )}
 
+      {activeTab === "compiled" && (
+        <SectionCard
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              <FileText size={14} className="text-maroon-600" /> Compiled reports
+            </span>
+          }
+          subtitle="Snapshots you generated for a college and semester. Re-download or remove them anytime."
+          noBodyPadding
+        >
+          {loadingCompiled ? (
+            <div className="px-4 py-8 text-center text-sm text-gray-500">Loading…</div>
+          ) : compiled.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No compiled reports yet"
+              hint="Use Compile report to generate counseling data, psychological data, or a student profile roster."
+            />
+          ) : filteredCompiled.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No matching compiled reports"
+              hint="Try a different college, period, or clear the search."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50/60 border-b border-gray-100">
+                    <th className="px-4 py-2.5">Report</th>
+                    <th className="px-4 py-2.5">College</th>
+                    <th className="px-4 py-2.5">Period</th>
+                    <th className="px-4 py-2.5">Generated</th>
+                    <th className="px-4 py-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredCompiled.map((r) => (
+                    <tr key={r.id} className="hover:bg-gray-50/70 transition">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900">{r.title}</div>
+                        <div className="text-xs text-gray-500">
+                          {REPORT_TYPES.find((t) => t.value === r.report_type)?.label || r.report_type}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700">{r.college}</td>
+                      <td className="px-4 py-3 text-gray-700">{r.period_label || "—"}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                        {new Date(r.created_at).toLocaleString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex gap-1">
+                          <button
+                            onClick={() => downloadCompiled(r)}
+                            disabled={!currentUser?.signatureUrl}
+                            title={currentUser?.signatureUrl ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
+                            className={`inline-flex items-center gap-1 h-7 px-2 rounded-md border text-xs transition ${currentUser?.signatureUrl ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100" : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"}`}
+                          >
+                            <FileDown size={13} /> Download
+                          </button>
+                          <button
+                            onClick={() => deleteCompiled(r.id)}
+                            title="Remove from history"
+                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-600 hover:bg-gray-100 transition"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SectionCard>
+      )}
+
       <Modal
         open={!!activeReport}
         onClose={() => setActiveReport(null)}
@@ -1068,6 +1294,96 @@ export default function CounselorReports() {
             </div>
 
             {genError && <p className="text-sm text-red-600">{genError}</p>}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={compileOpen}
+        onClose={compiling ? undefined : () => setCompileOpen(false)}
+        title="Generate compiled report"
+        subtitle="Compiles records for a college and semester, signed with your eSign."
+        size="lg"
+        align="top"
+        footer={
+          compileOpen && (
+            <div className="flex items-center gap-2">
+              <button className={BTN.secondary} onClick={() => setCompileOpen(false)} disabled={compiling}>
+                Cancel
+              </button>
+              <button className={BTN.primary} onClick={handleCompile} disabled={compiling}>
+                {compiling ? "Generating…" : "Generate & download"}
+              </button>
+            </div>
+          )
+        }
+      >
+        {compileOpen && (
+          <div className="space-y-4 text-sm">
+            <div>
+              <label className={LABEL}>Report type</label>
+              <select
+                className={INPUT}
+                value={compileType}
+                onChange={(e) => setCompileType(e.target.value)}
+              >
+                {REPORT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className={LABEL}>College</label>
+              <select
+                className={INPUT}
+                value={compileCollege}
+                onChange={(e) => setCompileCollege(e.target.value)}
+              >
+                {MSU_COLLEGES.map((c) => (
+                  <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {compileType === "profile" ? (
+              <p className="text-xs text-gray-500">
+                Student profiles are current records, so the semester filter does not apply.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>Semester</label>
+                  <select
+                    className={INPUT}
+                    value={compileSemester}
+                    onChange={(e) => setCompileSemester(e.target.value)}
+                  >
+                    {SEMESTERS.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>School year</label>
+                  <select
+                    className={INPUT}
+                    value={compileYear}
+                    onChange={(e) => setCompileYear(e.target.value)}
+                  >
+                    {schoolYearOptions().map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500">
+              The generated PDF is saved to your Compiled Reports tab so you can download it again later.
+            </p>
+
+            {compileError && <p className="text-sm text-red-600">{compileError}</p>}
           </div>
         )}
       </Modal>

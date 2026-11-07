@@ -4,6 +4,7 @@ import { requireRole } from "../middleware/rbac.js";
 import { recordScanUpload } from "../middleware/upload.js";
 import {
   getInventory,
+  listInventories,
   upsertInventory,
   uploadInventoryScan,
   deleteInventoryScan,
@@ -15,6 +16,7 @@ const router = Router();
 
 router.use(auth);
 
+router.get("/", requireRole("counselor", "admin"), listInventories);
 router.get("/:studentId", getInventory);
 router.get("/:studentId/docx", downloadInventoryDocx);
 router.get("/:studentId/pdf", downloadInventoryPdf);

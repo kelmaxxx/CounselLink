@@ -470,3 +470,59 @@ export const acknowledgeReport = async (req, res) => {
   await logAction(req, "acknowledge_report_privacy", "report_recipient", id, { ip });
   return res.json({ message: "Acknowledged", id: Number(id) });
 };
+
+// Counselor-compiled reports (Counseling data / Psychological data / Student
+// Individual Profile). The payload is a flat { totals, columns, rows } snapshot
+// so a stored report can be re-rendered and re-downloaded later without
+// re-querying the records.
+export const createCompiledReport = async (req, res) => {
+  const { reportType, college, periodLabel, dateFrom, dateTo, title, payload } = req.body || {};
+  if (!["counseling", "psychological", "profile"].includes(reportType)) {
+    return res.status(400).json({ message: "Unknown report type" });
+  }
+  if (!college || !title || !payload) {
+    return res.status(400).json({ message: "Missing report details" });
+  }
+  const result = await query(
+    `INSERT INTO compiled_reports
+       (counselor_id, report_type, college, period_label, date_from, date_to, title, payload)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      req.user.id,
+      reportType,
+      college,
+      periodLabel || null,
+      dateFrom || null,
+      dateTo || null,
+      String(title).slice(0, 255),
+      JSON.stringify(payload),
+    ]
+  );
+  await logAction(req, "create_compiled_report", "compiled_report", result.insertId, {
+    reportType,
+    college,
+  });
+  return res.status(201).json({ id: result.insertId });
+};
+
+export const listCompiledReports = async (req, res) => {
+  const rows = await query(
+    `SELECT id, report_type, college, period_label, title, payload, created_at
+     FROM compiled_reports
+     WHERE counselor_id = ?
+     ORDER BY created_at DESC`,
+    [req.user.id]
+  );
+  return res.json(rows);
+};
+
+export const deleteCompiledReport = async (req, res) => {
+  const { id } = req.params;
+  const result = await query(
+    "DELETE FROM compiled_reports WHERE id = ? AND counselor_id = ?",
+    [id, req.user.id]
+  );
+  if (!result.affectedRows) return res.status(404).json({ message: "Compiled report not found" });
+  await logAction(req, "delete_compiled_report", "compiled_report", id);
+  return res.json({ message: "Deleted" });
+};
