@@ -47,7 +47,15 @@ export default function Layout({ children }) {
         <Header currentUser={currentUser} onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 overflow-auto bg-gray-50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <PageTransition key={location.pathname}>{children}</PageTransition>
+          <PageTransition key={location.pathname}>
+            {/* Inner boundary keeps the sidebar/header on screen while a
+                lazy route chunk is still downloading. */}
+            <React.Suspense
+              fallback={<div className="py-16 text-center text-sm text-gray-500">Loading…</div>}
+            >
+              {children}
+            </React.Suspense>
+          </PageTransition>
         </main>
       </div>
     </div>

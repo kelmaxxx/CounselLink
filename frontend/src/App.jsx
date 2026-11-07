@@ -8,50 +8,60 @@ import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import WelcomeHero from "./components/WelcomeHero";
 
-import Login from "./pages/Login";
-import AcceptInvitation from "./pages/AcceptInvitation";
-import LandingPage from "./pages/LandingPage";
-import Dashboard from "./pages/Dashboard";
-import Messages from "./pages/Messages";
-import NotFound from "./pages/NotFound";
-import SystemEvaluationSurvey from "./pages/SystemEvaluationSurvey";
-import SystemEvaluationTally from "./pages/counselor/SystemEvaluationTally";
+// Route-level code splitting: each page (and its heavy deps: xlsx, recharts,
+// PDF/report helpers) loads only when its route is visited.
+const Login = React.lazy(() => import("./pages/Login"));
+const AcceptInvitation = React.lazy(() => import("./pages/AcceptInvitation"));
+const LandingPage = React.lazy(() => import("./pages/LandingPage"));
+const Dashboard = React.lazy(() => import("./pages/Dashboard"));
+const Messages = React.lazy(() => import("./pages/Messages"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+const SystemEvaluationSurvey = React.lazy(() => import("./pages/SystemEvaluationSurvey"));
+const SystemEvaluationTally = React.lazy(() => import("./pages/counselor/SystemEvaluationTally"));
 
 // Student pages
-import RequestAppointment from "./pages/student/RequestAppointment";
-import StudentProfile from "./pages/student/StudentProfile";
-import StudentNotifications from "./pages/student/StudentNotifications";
-import StudentConsent from "./pages/student/StudentConsent";
+const RequestAppointment = React.lazy(() => import("./pages/student/RequestAppointment"));
+const StudentProfile = React.lazy(() => import("./pages/student/StudentProfile"));
+const StudentNotifications = React.lazy(() => import("./pages/student/StudentNotifications"));
+const StudentConsent = React.lazy(() => import("./pages/student/StudentConsent"));
 
 // Counselor pages
-import Students from "./pages/Students";
-import CounselorAppointments from "./pages/counselor/CounselorAppointments";
-import StudentCounselingForm from "./pages/counselor/StudentCounselingForm";
-import StudentTestForm from "./pages/counselor/StudentTestForm";
-import CounselorReports from "./pages/counselor/CounselorReports";
-import FeedbackTallySummary from "./pages/counselor/FeedbackTallySummary";
-import CounselorProfile from "./pages/counselor/CounselorProfile";
-import CounselorNotifications from "./pages/counselor/CounselorNotifications";
-import CounselorReferrals from "./pages/counselor/CounselorReferrals";
-import ReferralConfirmation from "./pages/counselor/ReferralConfirmation";
-import StudentAppointments from "./pages/student/StudentAppointments";
-import CounselorDirectory from "./pages/student/CounselorDirectory";
-import CounselorPublicProfile from "./pages/student/CounselorPublicProfile";
+const Students = React.lazy(() => import("./pages/Students"));
+const CounselorAppointments = React.lazy(() => import("./pages/counselor/CounselorAppointments"));
+const StudentCounselingForm = React.lazy(() => import("./pages/counselor/StudentCounselingForm"));
+const StudentTestForm = React.lazy(() => import("./pages/counselor/StudentTestForm"));
+const CounselorReports = React.lazy(() => import("./pages/counselor/CounselorReports"));
+const FeedbackTallySummary = React.lazy(() => import("./pages/counselor/FeedbackTallySummary"));
+const CounselorProfile = React.lazy(() => import("./pages/counselor/CounselorProfile"));
+const CounselorNotifications = React.lazy(() => import("./pages/counselor/CounselorNotifications"));
+const CounselorReferrals = React.lazy(() => import("./pages/counselor/CounselorReferrals"));
+const ReferralConfirmation = React.lazy(() => import("./pages/counselor/ReferralConfirmation"));
+const StudentAppointments = React.lazy(() => import("./pages/student/StudentAppointments"));
+const CounselorDirectory = React.lazy(() => import("./pages/student/CounselorDirectory"));
+const CounselorPublicProfile = React.lazy(() => import("./pages/student/CounselorPublicProfile"));
 
 // College Rep pages
-import CounselingData from "./pages/rep/CounselingData";
-import RequestStudentData from "./pages/rep/RequestStudentData";
-import RepReferrals from "./pages/rep/RepReferrals";
-import RepProfile from "./pages/rep/RepProfile";
-import RepNotifications from "./pages/rep/RepNotifications";
+const CounselingData = React.lazy(() => import("./pages/rep/CounselingData"));
+const RequestStudentData = React.lazy(() => import("./pages/rep/RequestStudentData"));
+const RepReferrals = React.lazy(() => import("./pages/rep/RepReferrals"));
+const RepProfile = React.lazy(() => import("./pages/rep/RepProfile"));
+const RepNotifications = React.lazy(() => import("./pages/rep/RepNotifications"));
 
 // Admin pages
-import ManageUsers from "./pages/admin/ManageUsers";
-import CreateAnnouncement from "./pages/admin/CreateAnnouncement";
-import SystemLogs from "./pages/admin/SystemLogs";
-import AdminProfile from "./pages/admin/AdminProfile";
-import AdminNotifications from "./pages/admin/AdminNotifications";
-import PendingRegistrations from "./pages/admin/PendingRegistrations";
+const ManageUsers = React.lazy(() => import("./pages/admin/ManageUsers"));
+const CreateAnnouncement = React.lazy(() => import("./pages/admin/CreateAnnouncement"));
+const SystemLogs = React.lazy(() => import("./pages/admin/SystemLogs"));
+const AdminProfile = React.lazy(() => import("./pages/admin/AdminProfile"));
+const AdminNotifications = React.lazy(() => import("./pages/admin/AdminNotifications"));
+const PendingRegistrations = React.lazy(() => import("./pages/admin/PendingRegistrations"));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen grid place-items-center bg-gray-50 text-sm text-gray-500">
+      Loading…
+    </div>
+  );
+}
 
 function NotificationsRedirect() {
   const { currentUser } = useAuth();
@@ -93,6 +103,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <React.Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/accept-invitation" element={<AcceptInvitation />} />
@@ -442,6 +453,7 @@ export default function App() {
         {/* Wildcard catch-all route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </React.Suspense>
     </BrowserRouter>
   );
 }
