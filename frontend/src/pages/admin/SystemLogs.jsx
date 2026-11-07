@@ -48,6 +48,7 @@ export default function SystemLogs() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
 
   const [query, setQuery] = useState("");
@@ -114,32 +115,64 @@ export default function SystemLogs() {
     setOffset(0);
   };
 
-  const exportCsv = () => {
-    const rows = [
-      ["When", "Actor", "Role", "Action", "Target", "IP Address"],
-      ...logs.map((log) => [
-        formatAbsoluteTime(log.createdAt),
-        displayActorName(log),
-        ROLE_LABELS[log.actorRole] || log.actorRole || "—",
-        actionLabel(log.action),
-        targetLabel(log) || "—",
-        log.ipAddress || "—",
-      ]),
-    ];
-    const csv = rows
-      .map((r) =>
-        r
-          .map((c) => {
-            const s = String(c ?? "");
-            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-          })
-          .join(",")
-      )
-      .join("\n");
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    link.download = "system-logs.csv";
-    link.click();
+  // Exports every entry matching the current filters, not just the visible
+  // page: the API caps `limit` at 200, so page through until `total` is reached.
+  const exportCsv = async () => {
+    setExporting(true);
+    setError(null);
+    try {
+      const filters = new URLSearchParams();
+      if (search) filters.set("q", search);
+      if (category !== "everything") filters.set("category", category);
+      if (dateFrom) filters.set("dateFrom", dateFrom);
+      if (dateTo) filters.set("dateTo", dateTo);
+
+      const all = [];
+      for (let from = 0; ; ) {
+        const params = new URLSearchParams(filters);
+        params.set("limit", 200);
+        params.set("offset", from);
+        const res = await fetch(`${apiBase}/api/audit-logs?${params}`, {
+          headers: authHeaders,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Unable to export logs");
+        const items = data.items || [];
+        all.push(...items);
+        if (!items.length || all.length >= (data.total || 0)) break;
+        from += items.length;
+      }
+
+      const rows = [
+        ["When", "Actor", "Role", "Action", "Target", "IP Address"],
+        ...all.map((log) => [
+          formatAbsoluteTime(log.createdAt),
+          displayActorName(log),
+          ROLE_LABELS[log.actorRole] || log.actorRole || "—",
+          actionLabel(log.action),
+          targetLabel(log) || "—",
+          log.ipAddress || "—",
+        ]),
+      ];
+      const csv = rows
+        .map((r) =>
+          r
+            .map((c) => {
+              const s = String(c ?? "");
+              return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+            })
+            .join(",")
+        )
+        .join("\n");
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      link.download = "system-logs.csv";
+      link.click();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -151,8 +184,12 @@ export default function SystemLogs() {
         subtitle="A chronological audit trail of every action across CounselLink."
         actions={
           <>
-            <button onClick={exportCsv} disabled={!logs.length} className={BTN.secondary}>
-              <Download size={14} /> Export CSV
+            <button
+              onClick={exportCsv}
+              disabled={!logs.length || exporting}
+              className={BTN.secondary}
+            >
+              <Download size={14} /> {exporting ? "Exporting…" : "Export CSV"}
             </button>
             <button onClick={() => loadLogs()} disabled={loading} className={BTN.primary}>
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh

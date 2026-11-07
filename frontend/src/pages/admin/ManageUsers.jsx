@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { COLLEGES } from "../../data/mockData";
-import { getDepartments, getCollegeName } from "../../data/msuColleges";
+import { getDepartments, getCollegeName, getPrograms } from "../../data/msuColleges";
 import {
   Edit2,
   Trash2,
@@ -65,12 +65,12 @@ const statusInfo = (u) => {
   return { status: "active", label: "Active" };
 };
 
-// Admin can only re-edit counselor / college_rep accounts that have NOT
-// yet confirmed their account (pending_setup). Active accounts are edited
-// by the users themselves via their Profile pages.
-const canReEdit = (u) =>
-  (u?.role === "counselor" || u?.role === "college_rep") &&
-  u?.status === "pending_setup";
+// Admin can edit student records (college / department / course) and any
+// counselor / college_rep account that has NOT confirmed its invitation yet.
+// Active staff accounts are edited by the users themselves via Profile.
+const canEdit = (u) =>
+  u?.role === "student" ||
+  ((u?.role === "counselor" || u?.role === "college_rep") && u?.status === "pending_setup");
 
 const studentIdEmailCell = (u) => (
   <div>
@@ -139,14 +139,16 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                 ))}
               </div>
               <div className="flex items-center gap-1 pl-10">
-                {canReEdit(u) && (
+                {canEdit(u) && (
                   <>
-                    <button onClick={() => onEdit(u)} title="Re-edit & resend" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition">
+                    <button onClick={() => onEdit(u)} title="Edit account details" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition">
                       <Edit2 size={13} />
                     </button>
-                    <button onClick={() => onResendInvite(u)} title="Resend invitation" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
-                      <RotateCcw size={13} />
-                    </button>
+                    {u.role !== "student" && (
+                      <button onClick={() => onResendInvite(u)} title="Resend invitation" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
+                        <RotateCcw size={13} />
+                      </button>
+                    )}
                   </>
                 )}
                 {!hideDelete && (
@@ -196,14 +198,16 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex items-center gap-1">
-                      {canReEdit(u) && (
+                      {canEdit(u) && (
                         <>
-                          <button onClick={() => onEdit(u)} title="Re-edit account details & resend invitation" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition">
+                          <button onClick={() => onEdit(u)} title="Edit account details" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-maroon-200 bg-maroon-50 text-maroon-700 hover:bg-maroon-100 transition">
                             <Edit2 size={13} />
                           </button>
-                          <button onClick={() => onResendInvite(u)} title="Resend invitation email" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
-                            <RotateCcw size={13} />
-                          </button>
+                          {u.role !== "student" && (
+                            <button onClick={() => onResendInvite(u)} title="Resend invitation email" className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
+                              <RotateCcw size={13} />
+                            </button>
+                          )}
                         </>
                       )}
                       {!hideDelete && (
@@ -537,8 +541,8 @@ export default function ManageUsers() {
   };
 
   const openEditModal = (user) => {
-    // Safety guard: admin may only re-edit unconfirmed counselor / college_rep.
-    if (!canReEdit(user)) return;
+    // Safety guard: students, plus counselor / college_rep still pending setup.
+    if (!canEdit(user)) return;
     setEditForm({
       name: user.name || "",
       email: user.email || "",
@@ -556,8 +560,8 @@ export default function ManageUsers() {
 
   const handleEdit = async (e) => {
     e.preventDefault();
-    if (!editModal.user || !canReEdit(editModal.user)) {
-      setMessage({ type: "error", text: "Only unconfirmed counselor / college accounts can be edited by admin." });
+    if (!editModal.user || !canEdit(editModal.user)) {
+      setMessage({ type: "error", text: "This account can no longer be edited by admin." });
       setTimeout(() => setMessage(null), 3000);
       return;
     }
@@ -574,23 +578,32 @@ export default function ManageUsers() {
       updates.college = editForm.college;
       updates.department = editForm.department;
       updates.employeeId = editForm.employeeId;
+    } else if (editModal.user.role === "student") {
+      updates.college = editForm.college;
+      updates.department = editForm.department;
+      updates.program = editForm.program;
+      updates.studentId = editForm.studentId;
     }
     setBusy(true);
     const res = await updateUser(editModal.user.id, updates);
     setBusy(false);
     if (res.success) {
       setEditModal({ open: false, user: null });
-      const inviteSent = res.data?.inviteSent;
-      if (inviteSent === false) {
-        setMessage({
-          type: "error",
-          text: `Account updated, but email delivery failed (SMTP authentication error). Please verify EMAIL_PASS in backend .env.`,
-        });
+      if (editModal.user.role === "student") {
+        setMessage({ type: "success", text: "Student account updated." });
       } else {
-        setMessage({
-          type: "success",
-          text: `Account updated! Confirmation invitation email resent to ${editForm.email}.`,
-        });
+        const inviteSent = res.data?.inviteSent;
+        if (inviteSent === false) {
+          setMessage({
+            type: "error",
+            text: `Account updated, but email delivery failed (SMTP authentication error). Please verify EMAIL_PASS in backend .env.`,
+          });
+        } else {
+          setMessage({
+            type: "success",
+            text: `Account updated! Confirmation invitation email resent to ${editForm.email}.`,
+          });
+        }
       }
     } else {
       setMessage({ type: "error", text: res.message || "Failed to update user" });
@@ -604,6 +617,7 @@ export default function ManageUsers() {
   };
 
   const editDepartments = getDepartments(editForm.college);
+  const editPrograms = getPrograms(editForm.college, editForm.department);
 
   const handleDelete = async () => {
     if (!banReason.trim()) return;
@@ -624,7 +638,7 @@ export default function ManageUsers() {
       <PageHeader
         eyebrow="Administrator"
         title="Manage user accounts"
-        subtitle="Create counselor / college accounts and manage access. Users edit their own profiles; admin can only re-edit unconfirmed invitations."
+        subtitle="Create counselor / college accounts and manage access. Users edit their own profiles; admin can edit student records and unconfirmed invitations."
         actions={
           <div className="relative" ref={actionsRef}>
             <button
@@ -1065,11 +1079,17 @@ export default function ManageUsers() {
         onClose={() => {
           setEditModal({ open: false, user: null });
         }}
-        title={
-          `Re-edit ${editModal.user?.role === "counselor" ? "counselor" : "college"} account`
-        }
+        title={`Edit ${
+          editModal.user?.role === "counselor"
+            ? "counselor"
+            : editModal.user?.role === "student"
+              ? "student"
+              : "college"
+        } account`}
         subtitle={
-          "Modify account details (name, email, role info). Saving will automatically resend the invitation setup email."
+          editModal.user?.role === "student"
+            ? "Update the student's college, department, and course."
+            : "Modify account details (name, email, role info). Saving will automatically resend the invitation setup email."
         }
         size="2xl"
         align="top"
@@ -1166,6 +1186,92 @@ export default function ManageUsers() {
                     onChange={(e) => setEditForm({ ...editForm, specialization: e.target.value })}
                     placeholder="e.g. Career Counseling"
                   />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {editModal.user?.role === "student" && (
+            <div className="pt-3 border-t border-gray-100">
+              <h4 className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">
+                Academic information
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>Student ID</label>
+                  <input
+                    type="text"
+                    className={INPUT}
+                    value={editForm.studentId}
+                    onChange={(e) => setEditForm({ ...editForm, studentId: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>College *</label>
+                  <select
+                    className={INPUT}
+                    value={editForm.college}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        college: e.target.value,
+                        department: "",
+                        program: "",
+                      })
+                    }
+                  >
+                    <option value="">Select college</option>
+                    {COLLEGES.map((c) => (
+                      <option key={c} value={c}>
+                        {c} — {getCollegeName(c)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Department</label>
+                  <select
+                    className={INPUT}
+                    value={editForm.department}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, department: e.target.value, program: "" })
+                    }
+                    disabled={!editForm.college}
+                  >
+                    <option value="">
+                      {editForm.college ? "Select department" : "Select a college first"}
+                    </option>
+                    {editForm.department &&
+                      !editDepartments.some((d) => d.name === editForm.department) && (
+                        <option value={editForm.department}>{editForm.department}</option>
+                      )}
+                    {editDepartments.map((d) => (
+                      <option key={d.code} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Course</label>
+                  <select
+                    className={INPUT}
+                    value={editForm.program}
+                    onChange={(e) => setEditForm({ ...editForm, program: e.target.value })}
+                    disabled={!editForm.department}
+                  >
+                    <option value="">
+                      {editForm.department ? "Select course" : "Select a department first"}
+                    </option>
+                    {editForm.program && !editPrograms.includes(editForm.program) && (
+                      <option value={editForm.program}>{editForm.program}</option>
+                    )}
+                    {editPrograms.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

@@ -61,7 +61,7 @@ const toDateStr = (value) => {
 };
 
 export default function AdminDashboard() {
-  const { users, token } = useAuth();
+  const { currentUser, users, token } = useAuth();
   const visibleUsers = users?.filter((u) => u.status !== "rejected") || [];
   const students = visibleUsers.filter((u) => u.role === "student");
   const reps = visibleUsers.filter((u) => u.role === "college_rep");
@@ -159,7 +159,7 @@ export default function AdminDashboard() {
           }
         />
 
-        {/* 1. Top: 2x2 stats + wide donut, balanced heights */}
+        {/* 1. Top: 2x2 stats + demand vs. throughput, balanced heights */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 items-stretch">
           <div className="lg:col-span-6">
             <Stagger className="grid grid-cols-2 gap-4">
@@ -203,25 +203,14 @@ export default function AdminDashboard() {
             </Stagger>
           </div>
 
-          <SectionCard
+          <DemandThroughputCard
             className="lg:col-span-6 h-full"
-            title="Completed sessions by college"
-            subtitle="Finished sessions per college · total in the middle"
-          >
-            <DonutStat
-              data={completedCollegeDonut}
-              total={completedTotal}
-              centerLabel="sessions"
-              emptyIcon={CalendarCheck}
-              emptyTitle="No completed appointments yet"
-              stack
-              compact
-              legendCols={4}
-            />
-          </SectionCard>
+            data={throughputTrend}
+            emptyIcon={CalendarCheck}
+          />
         </div>
 
-        {/* 2. Middle: students by college + demand vs. throughput, side by side */}
+        {/* 2. Middle: students by college + completed by college, side by side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 items-stretch">
           <StudentsByCollegeCard
             className="h-full"
@@ -236,11 +225,22 @@ export default function AdminDashboard() {
             title="Students by College"
             subtitle="Ranked distribution of enrolled students"
           />
-          <DemandThroughputCard
+          <SectionCard
             className="h-full"
-            data={throughputTrend}
-            emptyIcon={CalendarCheck}
-          />
+            title="Completed sessions by college"
+            subtitle="Finished sessions per college · total in the middle"
+          >
+            <DonutStat
+              data={completedCollegeDonut}
+              total={completedTotal}
+              centerLabel="sessions"
+              emptyIcon={CalendarCheck}
+              emptyTitle="No completed appointments yet"
+              stack
+              compact
+              legendCols={4}
+            />
+          </SectionCard>
         </div>
 
         <AnnouncementsPanel token={token} />
