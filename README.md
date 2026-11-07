@@ -230,7 +230,7 @@ Students register through the signup form (with COR upload) and must be approved
 | `DB_NAME`          | Database name (default `counselink`)                     |
 | `DB_PORT`          | MySQL port (default `3306`)                              |
 | `JWT_SECRET`       | Long random string used to sign JWTs                     |
-| `JWT_EXPIRES_IN`   | Token lifetime (default `1d`)                            |
+| `JWT_EXPIRES_IN`   | Token lifetime (default `30d`)                           |
 | `EMAIL_HOST`       | SMTP host (default `smtp.gmail.com`)                     |
 | `EMAIL_PORT`       | SMTP port (default `587`)                                |
 | `EMAIL_SECURE`     | `false` for STARTTLS on port 587                         |
