@@ -641,7 +641,7 @@ export default function CounselorAppointments() {
                               <MoreVertical size={15} />
                             </button>
                             {openPopoverId === `appt-${a.id}` && (
-                              <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                              <div className="animate-menu-in absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
                                 {pendingSubTab !== "overdue" && (
                                   <button onClick={() => { handleAccept(a); setOpenPopoverId(null); }} disabled={busyId === a.id} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition text-left disabled:opacity-50">
                                     <Check size={14} /> {busyId === a.id ? "Approving…" : "Approve"}
@@ -709,7 +709,7 @@ export default function CounselorAppointments() {
                               <MoreVertical size={15} />
                             </button>
                             {openPopoverId === `test-${t.id}` && (
-                              <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                              <div className="animate-menu-in absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
                                 {pendingSubTab !== "overdue" && (
                                   <button onClick={() => { handleAcceptTest(t); setOpenPopoverId(null); }} disabled={busyId === t.id} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition text-left disabled:opacity-50">
                                     <Check size={14} /> {busyId === t.id ? "Approving…" : "Approve"}
@@ -1029,7 +1029,7 @@ export default function CounselorAppointments() {
                                   <MoreVertical size={15} />
                                 </button>
                                 {openPopoverId === sessPopoverId && (
-                                  <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                                  <div className="animate-menu-in absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
                                     <button
                                       onClick={() => { setRescheduleModal({ open: true, apptId: a.id, date: "", timeSlot: "", note: "" }); setOpenPopoverId(null); }}
                                       disabled={busyId === a.id}

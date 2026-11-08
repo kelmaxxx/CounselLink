@@ -474,7 +474,7 @@ export default function StudentCounselingForm() {
                     <MoreVertical size={15} /> Actions
                   </button>
                   {actionsOpen && (
-                    <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                    <div className="animate-menu-in absolute right-0 bottom-full mb-2 w-48 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
                       <button
                         type="button"
                         onClick={handleSaveToRecord}

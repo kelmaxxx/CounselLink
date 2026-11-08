@@ -842,7 +842,7 @@ export default function CounselorDashboard() {
                         <MoreVertical size={15} />
                       </button>
                       {openQueuePopoverId === row.key && (
-                        <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                        <div className="animate-menu-in absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
                           <button
                             onClick={() => { onAccept(row); setOpenQueuePopoverId(null); }}
                             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition text-left"

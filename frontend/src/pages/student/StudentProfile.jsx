@@ -199,7 +199,7 @@ export default function StudentProfile() {
                 />
               </button>
               {dropdownOpen && (
-                <div className="absolute right-0 mt-1.5 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden py-1">
+                <div className="animate-menu-in absolute right-0 mt-1.5 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden py-1">
                   <button
                     onClick={() => { setIsEditing(true); setDropdownOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"

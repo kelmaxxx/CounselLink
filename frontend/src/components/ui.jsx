@@ -61,7 +61,7 @@ export function PageHeader({
       <div className="min-w-0">
         <h2
           aria-label={isText ? title : undefined}
-          className="flex items-center gap-2 text-3xl font-semibold text-gray-900 tracking-tight"
+          className="flex items-center gap-2 text-4xl font-semibold leading-tight text-gray-900 tracking-tight"
         >
           {Icon && <Icon size={22} aria-hidden="true" className="flex-shrink-0 text-maroon-600" />}
           <span className="min-w-0">
@@ -79,7 +79,7 @@ export function PageHeader({
         </h2>
         {subtitle && (
           <MotionP
-            className="kinetic-subtitle text-sm text-gray-500 mt-2"
+            className="kinetic-subtitle text-sm text-gray-500 mt-1"
             initial={reduce ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: reduce ? 0 : 0.4, ease: KINETIC_EASE, delay: 0.08 }}
@@ -908,15 +908,15 @@ export function Modal({
 // Common button class strings for consistency
 export const BTN = {
   primary:
-    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-maroon-600 hover:bg-maroon-700 text-white text-sm font-medium transition duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed",
   secondary:
-    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed",
   danger:
-    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed",
   success:
-    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed",
   ghost:
-    "inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors duration-200",
+    "inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition duration-200 active:scale-[0.97]",
 };
 
 export const INPUT =

@@ -20,6 +20,9 @@ const MASK_STYLE = {
   display: "inline-block",
   overflow: "hidden",
   paddingBottom: "0.08em",
+  // Cancel the padding's layout height so the mask doesn't push the subtitle
+  // down; the padding still lets descenders show inside the clip.
+  marginBottom: "-0.08em",
 };
 
 // Motion children inside <Stagger> pick this up automatically.
@@ -30,7 +33,7 @@ export const fadeUp = {
 
 // Wrap a grid/list once; direct motion children (BigStat, StatCard) fade in one
 // after another. Children outside a Stagger stay static, so this is opt-in.
-export function Stagger({ children, className = "", delay = 0, ...rest }) {
+export function Stagger({ children, className = "", delay = 0, stagger = 0.07, ...rest }) {
   const reduce = useReducedMotion();
   return (
     <MotionDiv
@@ -39,7 +42,7 @@ export function Stagger({ children, className = "", delay = 0, ...rest }) {
       animate="show"
       variants={{
         hidden: {},
-        show: { transition: { staggerChildren: 0.07, delayChildren: delay } },
+        show: { transition: { staggerChildren: stagger, delayChildren: delay } },
       }}
       {...rest}
     >
@@ -62,7 +65,7 @@ export function TableRow({ index = 0, children, ...rest }) {
     <MotionTr
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: EASE, delay: Math.min(index * 0.02, 0.3) }}
+      transition={{ duration: 0.25, ease: EASE, delay: Math.min(index * 0.03, 0.36) }}
       {...rest}
     >
       {children}
