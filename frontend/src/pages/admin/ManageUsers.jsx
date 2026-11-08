@@ -116,7 +116,7 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
   return (
     <>
       {/* ── Mobile card view (< sm) ─────────────────────────────── */}
-      <Stagger className="sm:hidden divide-y divide-gray-100">
+      <Stagger className="sm:hidden divide-y divide-gray-100" stagger={0.03}>
         {rows.map((u) => {
           const { status, label } = statusInfo(u);
           return (

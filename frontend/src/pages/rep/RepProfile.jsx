@@ -146,7 +146,7 @@ export default function RepProfile() {
                 <Edit2 size={15} /> Manage <ChevronDown size={13} className={`transition-transform ${profileMenuOpen ? "rotate-180" : ""}`} />
               </button>
               {profileMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
+                <div className="animate-menu-in absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl shadow-lg ring-1 ring-gray-950/10 z-30 py-1 overflow-hidden">
                   <button
                     onClick={() => { setIsEditing(true); setProfileMenuOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"

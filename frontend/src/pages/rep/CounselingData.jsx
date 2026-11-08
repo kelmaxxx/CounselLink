@@ -247,7 +247,7 @@ export default function CounselingData() {
                               <MoreVertical size={14} />
                             </button>
                             {openPopover === r.id && (
-                              <div className="absolute right-0 top-full mt-1 z-30 w-40 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+                              <div className="animate-menu-in absolute right-0 top-full mt-1 z-30 w-40 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
                                 <button onClick={() => { requestAccess(r, "view"); setOpenPopover(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"><Eye size={13} /> View report</button>
                                 <button onClick={() => { requestAccess(r, "download"); setOpenPopover(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"><FileDown size={13} /> Download</button>
                               </div>

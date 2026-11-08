@@ -503,7 +503,7 @@ export default function ManageStudents() {
                 byCollege[col].push(s);
               });
 
-              const renderStudent = (s) => {
+              const studentBadges = (s) => {
                 const rec = recordsByStudent[s.id];
                 const inv = rec?.inventory;
                 const con = rec?.consent;
@@ -541,6 +541,11 @@ export default function ManageStudents() {
                 } else {
                   conBadge = <StatusBadge>Awaiting</StatusBadge>;
                 }
+                return { invBadge, authBadge, conBadge, sessionCount };
+              };
+
+              const renderStudent = (s) => {
+                const { invBadge, authBadge, conBadge, sessionCount } = studentBadges(s);
                 return (
                   <tr key={s.id} className="hover:bg-gray-50/80 transition-colors duration-150 cursor-pointer" onClick={() => setDrawerStudent(s)}>
                     <td className="px-4 py-3">
@@ -581,9 +586,49 @@ export default function ManageStudents() {
                 );
               };
 
+              // Phone card: tap opens the same student drawer the table row does.
+              const renderStudentCard = (s) => {
+                const { invBadge, authBadge, conBadge, sessionCount } = studentBadges(s);
+                return (
+                  <div key={s.id} onClick={() => setDrawerStudent(s)} className="px-4 py-3 space-y-2 active:bg-gray-50 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <Avatar name={s.name} url={s.avatarUrl} size="sm" theme="student" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-900 truncate">{s.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{s.email}</div>
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px]">
+                          <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{s.college || "Unassigned"}</span>
+                          <span className="text-gray-500 tabular-nums">{s.studentId || "—"}</span>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-300 flex-shrink-0 mt-1" />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-11 text-[11px] text-gray-500">
+                      <span className="inline-flex items-center gap-1.5">Inventory {invBadge}</span>
+                      <span className="inline-flex items-center gap-1.5">Authorize {authBadge}</span>
+                      <span className="inline-flex items-center gap-1.5">Consent {conBadge}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        Sessions
+                        <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-md bg-gray-100 px-1 text-[11px] font-semibold tabular-nums text-gray-700">
+                          {sessionCount}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              };
+
               const renderTable = (rows, emptyText) => (
                 <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                  <div className="overflow-x-auto">
+                  {/* Phone cards (< sm) — the 7-column table is unreadable at this width. */}
+                  <div className="sm:hidden divide-y divide-gray-100">
+                    {rows.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-gray-500">{emptyText}</div>
+                    ) : (
+                      rows.map(renderStudentCard)
+                    )}
+                  </div>
+                  <div className="hidden sm:block overflow-x-auto">
                     <table className="w-full text-sm min-w-[640px]">
                       <thead className="bg-gray-50/70 border-b border-gray-200">
                         <tr>

@@ -1,8 +1,10 @@
 // Renders a session report / college summary exactly as it will be printed or
 // downloaded, by reusing the same HTML builder used for DOCX/PDF export. Keeps
 // the on-screen "View" modal visually identical to the official paper form.
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { buildReportHTML, resolveSignatureDataUrl } from "../../utils/sessionReport";
+
+const PAPER_PX = 816; // 8.5in at 96dpi
 
 export default function ReportPreview({ report, title, height = 620, fallbackSignatureUrl }) {
   const [signatureImageUrl, setSignatureImageUrl] = useState(null);
@@ -30,13 +32,14 @@ export default function ReportPreview({ report, title, height = 620, fallbackSig
   }, [signatureUrl]);
 
   // Compute scale factor so the 8.5in document fits the container width on mobile
-  useEffect(() => {
-    const PAPER_PX = 816; // 8.5in at 96dpi
+  useLayoutEffect(() => {
     const update = () => {
-      if (containerRef.current) {
-        const available = containerRef.current.clientWidth - 24; // subtract padding
-        setScale(available < PAPER_PX ? available / PAPER_PX : 1);
-      }
+      const el = containerRef.current;
+      if (!el) return;
+      const cs = window.getComputedStyle(el);
+      const available =
+        el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      setScale(available > 0 && available < PAPER_PX ? available / PAPER_PX : 1);
     };
     update();
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
@@ -53,30 +56,36 @@ export default function ReportPreview({ report, title, height = 620, fallbackSig
 
   return (
     <div ref={containerRef} className="bg-gray-100 p-3 sm:p-6 rounded-xl flex justify-center min-h-[300px]">
+      {/* Wrapper matches the scaled paper size so it centers in the modal and
+          the modal's scroll area ends where the visible page ends. */}
       <div
-        className="bg-white rounded-md shadow-md overflow-hidden origin-top-left"
-        style={{
-          width: "8.5in",
-          transform: scale < 1 ? `scale(${scale})` : undefined,
-          transformOrigin: "top left",
-          marginBottom: scale < 1 ? `${-(frameHeight * (1 - scale))}px` : undefined,
-        }}
+        className="flex-shrink-0"
+        style={{ width: PAPER_PX * scale, height: frameHeight * scale }}
       >
-        <iframe
-          title={title || "Report preview"}
-          srcDoc={html}
-          sandbox="allow-same-origin"
-          scrolling="no"
-          onLoad={(e) => {
-            const doc = e.currentTarget.contentDocument;
-            const measured = doc
-              ? Math.max(doc.body?.scrollHeight || 0, doc.documentElement?.scrollHeight || 0)
-              : 0;
-            if (measured) setContentHeight(measured);
+        <div
+          className="bg-white rounded-md shadow-md overflow-hidden origin-top-left"
+          style={{
+            width: PAPER_PX,
+            height: typeof frameHeight === "number" ? frameHeight : undefined,
+            transform: scale < 1 ? `scale(${scale})` : undefined,
           }}
-          className="w-full border-0 bg-white"
-          style={{ height: typeof frameHeight === "number" ? `${frameHeight}px` : frameHeight }}
-        />
+        >
+          <iframe
+            title={title || "Report preview"}
+            srcDoc={html}
+            sandbox="allow-same-origin"
+            scrolling="no"
+            onLoad={(e) => {
+              const doc = e.currentTarget.contentDocument;
+              const measured = doc
+                ? Math.max(doc.body?.scrollHeight || 0, doc.documentElement?.scrollHeight || 0)
+                : 0;
+              if (measured) setContentHeight(measured);
+            }}
+            className="w-full border-0 bg-white"
+            style={{ height: typeof frameHeight === "number" ? `${frameHeight}px` : frameHeight }}
+          />
+        </div>
       </div>
     </div>
   );
