@@ -18,7 +18,7 @@ import { useCounselingSessions } from "../context/CounselingSessionsContext";
 import { useStudentRecords } from "../context/StudentRecordsContext";
 import StudentRecordsDrawer from "../components/records/StudentRecordsDrawer";
 import Avatar from "../components/Avatar";
-import { Modal, BTN, INPUT, LABEL, formatDate, BigStat, PageHeader } from "../components/ui";
+import { FeedbackButton, Modal, BTN, INPUT, LABEL, formatDate, BigStat, PageHeader } from "../components/ui";
 import { downloadReportAsPdf, saveReportAsPdfFile } from "../utils/sessionReport";
 import { getDepartments, getCollegeName } from "../data/msuColleges";
 
@@ -1413,12 +1413,15 @@ export default function ManageStudents() {
         footer={
           viewSession && (
             <div className="flex items-center gap-2">
-              <button
+              <FeedbackButton
                 className={BTN.secondary}
-                onClick={() => saveReportAsPdfFile(viewSession, { title: reportTitleFor(viewSession) })}
+                icon={FileDown}
+                busyLabel="Preparing…"
+                successLabel="Downloaded"
+                onAction={() => saveReportAsPdfFile(viewSession, { title: reportTitleFor(viewSession) })}
               >
-                <FileDown size={14} /> Download PDF
-              </button>
+                Download PDF
+              </FeedbackButton>
               <button className={BTN.primary} onClick={() => setViewSession(null)}>
                 Close
               </button>

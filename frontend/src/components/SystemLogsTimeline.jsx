@@ -262,7 +262,7 @@ function DetailsDrawer({ log, onClose }) {
             role="dialog"
             aria-modal="true"
             aria-label="Activity details"
-            className="relative flex h-full w-full flex-col overflow-hidden bg-white shadow-xl outline-none sm:h-[calc(100dvh-3rem)] sm:max-w-2xl sm:rounded-3xl"
+            className="relative flex h-full w-full flex-col overflow-hidden bg-white shadow-lg outline-none sm:h-[calc(100dvh-3rem)] sm:max-w-xl sm:rounded-3xl"
             initial={reduceMotion ? false : { x: "100%" }}
             animate={{ x: 0 }}
             exit={reduceMotion ? undefined : { x: "100%" }}

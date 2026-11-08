@@ -5,7 +5,7 @@ import { FileSignature, ClipboardList, Download, MessageSquare } from "lucide-re
 import { useAuth } from "../../context/AuthContext";
 import { useTestResults } from "../../context/TestResultsContext";
 import { useCounselingSessions } from "../../context/CounselingSessionsContext";
-import { PageHeader, SectionCard, EmptyState, Pagination } from "../../components/ui";
+import { FeedbackButton, PageHeader, SectionCard, EmptyState, Pagination } from "../../components/ui";
 import { saveReportAsPdfFile } from "../../utils/sessionReport";
 import { saveTestResultAsPdfFile } from "../../utils/testResultReport";
 import { ClientFeedbackFormModal } from "./ClientFeedbackForm";
@@ -187,7 +187,6 @@ function TestResultsSection({ studentName, token, submittedTestIds, onTestFeedba
 }
 
 function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbackSubmitted }) {
-  const [saving, setSaving] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [fileBroken, setFileBroken] = useState(false);
 
@@ -227,13 +226,11 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
   }, [fileHref]);
 
   const handleSave = async () => {
-    setSaving(true);
     try {
       await saveTestResultAsPdfFile(result, { studentName, token });
-    } catch {
+    } catch (err) {
       alert("Failed to save the test result as PDF. Please try again.");
-    } finally {
-      setSaving(false);
+      throw err;
     }
   };
 
@@ -273,16 +270,19 @@ function TestResultCard({ result, studentName, token, alreadyFeedback, onFeedbac
               <MessageSquare size={13} />
             </button>
           )}
-          <button
-            onClick={handleSave}
-            disabled={saving || !alreadyFeedback}
+          <FeedbackButton
+            onAction={handleSave}
+            disabled={!alreadyFeedback}
             title={!alreadyFeedback ? "Submit your feedback first to save this result" : undefined}
+            icon={Download}
+            busyLabel="Saving…"
+            successLabel="Saved"
             className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
               alreadyFeedback ? "bg-maroon-600 text-white hover:bg-maroon-700" : "bg-gray-200 text-gray-400"
             }`}
           >
-            <Download size={12} /> {saving ? "Saving…" : "Save"}
-          </button>
+            Save
+          </FeedbackButton>
         </div>
       </div>
 
@@ -361,18 +361,15 @@ function CounselingResultsSection({ studentName, token, submittedSessionIds, onF
 }
 
 function CounselingResultCard({ session, studentName, token, alreadyFeedback, onFeedbackSubmitted }) {
-  const [saving, setSaving] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const handleSave = async () => {
-    setSaving(true);
     try {
       const title = `Session Report — ${session.studentName || studentName || ""} (${(session.sessionDate || "").split("T")[0]})`;
       await saveReportAsPdfFile(session, { title });
-    } catch {
+    } catch (err) {
       alert("Failed to save the report as PDF. Please try again.");
-    } finally {
-      setSaving(false);
+      throw err;
     }
   };
 
@@ -399,16 +396,19 @@ function CounselingResultCard({ session, studentName, token, alreadyFeedback, on
               <MessageSquare size={13} />
             </button>
           )}
-          <button
-            onClick={handleSave}
-            disabled={saving || !alreadyFeedback}
+          <FeedbackButton
+            onAction={handleSave}
+            disabled={!alreadyFeedback}
             title={!alreadyFeedback ? "Submit your feedback first to save this report" : undefined}
+            icon={Download}
+            busyLabel="Saving…"
+            successLabel="Saved"
             className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
               alreadyFeedback ? "bg-maroon-600 text-white hover:bg-maroon-700" : "bg-gray-200 text-gray-400"
             }`}
           >
-            <Download size={12} /> {saving ? "Saving…" : "Save"}
-          </button>
+            Save
+          </FeedbackButton>
         </div>
       </div>
 

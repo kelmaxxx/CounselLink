@@ -17,6 +17,7 @@ import {
   SectionCard,
   EmptyState,
   Modal,
+  FeedbackButton,
   BTN,
   initialsOf,
 } from "../../components/ui";
@@ -200,7 +201,19 @@ export default function CounselingData() {
                     <p className="text-xs text-gray-700">{r.title}</p>
                     <div className="flex gap-2">
                       <button onClick={() => requestAccess(r, "view")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><Eye size={12} /> View</button>
-                      <button onClick={() => requestAccess(r, "download")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><FileDown size={12} /> Download</button>
+                      {isAcked(r) ? (
+                        <FeedbackButton
+                          onAction={() => saveReportAsPdfFile(payloadFor(r), { title: r.title })}
+                          icon={FileDown}
+                          busyLabel="Preparing…"
+                          successLabel="Downloaded"
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"
+                        >
+                          Download
+                        </FeedbackButton>
+                      ) : (
+                        <button onClick={() => requestAccess(r, "download")} className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-100 transition"><FileDown size={12} /> Download</button>
+                      )}
                     </div>
                   </div>
                 );
@@ -303,16 +316,19 @@ export default function CounselingData() {
         footer={
           activeReport && (
             <div className="flex items-center gap-2">
-              <button
+              <FeedbackButton
                 className={BTN.secondary}
-                onClick={() =>
+                icon={FileDown}
+                busyLabel="Preparing…"
+                successLabel="Downloaded"
+                onAction={() =>
                   saveReportAsPdfFile(activePayload, {
                     title: activeReport.title,
                   })
                 }
               >
-                <FileDown size={14} /> Download
-              </button>
+                Download
+              </FeedbackButton>
               <button className={BTN.primary} onClick={() => setActiveReport(null)}>
                 Close
               </button>
