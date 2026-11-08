@@ -2,10 +2,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import {
-  Calendar, Users, FileText, Bell, LogOut, User,
-  ClipboardList, BarChart3, Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle, FileSignature, ArrowRightLeft, X, ChevronsLeft, ChevronsRight
-} from "lucide-react";
+import { LogOut, X, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { getNavGroups, getRoleBase } from "./navItems";
 import { useMessages } from "../context/MessagesContext";
 import { useReferrals } from "../context/ReferralsContext";
 import { useRealtime } from "../context/RealtimeContext";
@@ -80,134 +78,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
 
   const pendingCount = users?.filter(u => u.role === "student" && u.status === "pending_approval").length || 0;
 
-  const profileBaseByRole = {
-    student: "/student",
-    counselor: "/counselor",
-    college_rep: "/rep",
-    admin: "/admin",
-  };
-  const roleBase = profileBaseByRole[currentUser?.role] || "/student";
-
-  const idToPath = {
-    // Student
-    dashboard: "/",
-    "request-appointment": "/student/request-appointment",
-    "my-appointments": "/student/appointments",
-    "counselor-directory": "/student/counselors",
-    consent: "/student/consent",
-
-    // Role-aware shared items
-    profile: `${roleBase}/profile`,
-    notifications: `${roleBase}/notifications`,
-
-    // Counselor
-    "manage-students": "/students",
-    appointments: "/counselor/appointments",
-    referrals: "/counselor/referrals",
-    "generate-reports": "/counselor/reports",
-    "system-evaluation": `${roleBase}/system-evaluation`,
-
-    // College Rep
-    "counseling-data": "/rep/counseling-data",
-    "rep-referrals": "/rep/referrals",
-    "request-report": "/rep/request-report",
-
-    // Admin
-    "pending-registrations": "/admin/pending-registrations",
-    "manage-users": "/admin/manage-users",
-    announcements: "/admin/announcements",
-    "system-logs": "/admin/system-logs",
-
-    // Shared
-    messages: "/messages",
-  };
-
-  const getNavGroups = () => {
-    if (!currentUser) return [];
-    switch (currentUser.role) {
-      case "student":
-        return [
-          {
-            label: "Workspace",
-            items: [
-              { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-              { id: "request-appointment", label: "Request Appointment", icon: Calendar },
-              { id: "my-appointments", label: "My Appointments", icon: Calendar },
-              { id: "consent", label: "My Records", icon: FileSignature },
-            ],
-          },
-          {
-            label: "Account",
-            items: [
-              { id: "counselor-directory", label: "Counselors", icon: Users },
-              { id: "profile", label: "My Profile", icon: User },
-              { id: "messages", label: "Messages", icon: MessageCircle },
-            ],
-          },
-        ];
-      case "counselor":
-        return [
-          {
-            label: "Workspace",
-            items: [
-              { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-              { id: "manage-students", label: "Student Records", icon: Users },
-              { id: "appointments", label: "Appointments", icon: Calendar },
-              { id: "referrals", label: "Referrals", icon: ArrowRightLeft },
-              { id: "generate-reports", label: "Reports", icon: FileText },
-            ],
-          },
-          {
-            label: "Account",
-            items: [
-              { id: "messages", label: "Messages", icon: MessageCircle },
-              { id: "profile", label: "My Profile", icon: User },
-            ],
-          },
-        ];
-      case "college_rep":
-        return [
-          {
-            label: "Workspace",
-            items: [
-              { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-              { id: "counseling-data", label: "Counseling Data", icon: BookOpen },
-              { id: "rep-referrals", label: "Referrals", icon: ArrowRightLeft },
-              { id: "request-report", label: "Request Report", icon: ClipboardList },
-            ],
-          },
-          {
-            label: "Account",
-            items: [
-              { id: "messages", label: "Messages", icon: MessageCircle },
-              { id: "profile", label: "My Profile", icon: User },
-            ],
-          },
-        ];
-      case "admin":
-        return [
-          {
-            label: "Administration",
-            items: [
-              { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-              { id: "pending-registrations", label: "Pending Registrations", icon: UserCheck },
-              { id: "manage-users", label: "Manage Users", icon: Settings },
-              { id: "announcements", label: "Announcements", icon: AlertCircle },
-              { id: "system-logs", label: "System Logs", icon: Shield },
-            ],
-          },
-          {
-            label: "Account",
-            items: [
-              { id: "messages", label: "Messages", icon: MessageCircle },
-              { id: "profile", label: "My Profile", icon: User },
-            ],
-          },
-        ];
-      default:
-        return [];
-    }
-  };
+  const roleBase = getRoleBase(currentUser?.role);
 
   if (!currentUser) {
     return (
@@ -219,7 +90,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
     );
   }
 
-  const navGroups = getNavGroups();
+  const navGroups = getNavGroups(currentUser.role);
 
   // On phones the sidebar is an off-canvas drawer (fixed + translate); from
   // the `lg` breakpoint up it becomes a normal static column that's always
@@ -306,7 +177,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const badge = getBadge(item.id);
-                const itemPath = idToPath[item.id] || "/";
+                const itemPath = item.path;
                 const isActive =
                   location.pathname === itemPath ||
                   (itemPath !== "/" && location.pathname.startsWith(itemPath + "/"));

@@ -133,7 +133,7 @@ export default function Messages() {
   };
 
   return (
-    <div className="h-[calc(100dvh-4rem)] flex flex-col p-4 sm:p-6">
+    <div className="h-full flex flex-col p-4 sm:p-6">
       <div className="w-full max-w-7xl mx-auto flex-1 min-h-0 flex flex-col">
         <PageHeader
           title="Messages"
