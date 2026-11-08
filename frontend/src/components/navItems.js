@@ -1,7 +1,7 @@
 // Shared sidebar / mobile-tab navigation config, resolved per role.
 // Icons live here so the desktop sidebar and the phone tab bar stay in sync.
 import {
-  Calendar, Users, FileText, User, ClipboardList, BarChart3,
+  Calendar, CalendarPlus, CalendarDays, Users, FileText, User, ClipboardList, BarChart3,
   Settings, BookOpen, AlertCircle, UserCheck, Shield, MessageCircle,
   FileSignature, ArrowRightLeft,
 } from "lucide-react";
@@ -33,8 +33,8 @@ export function getNavGroups(role) {
           label: "Workspace",
           items: [
             { id: "dashboard", label: "Dashboard", short: "Home", icon: BarChart3, path: "/" },
-            { id: "request-appointment", label: "Request Appointment", short: "Request", icon: Calendar, path: "/student/request-appointment" },
-            { id: "my-appointments", label: "My Appointments", short: "Appointments", icon: Calendar, path: "/student/appointments" },
+            { id: "request-appointment", label: "Request Appointment", short: "Request", icon: CalendarPlus, path: "/student/request-appointment" },
+            { id: "my-appointments", label: "My Appointments", short: "Appointments", icon: CalendarDays, path: "/student/appointments" },
             { id: "consent", label: "My Records", short: "Records", icon: FileSignature, path: "/student/consent" },
           ],
         },

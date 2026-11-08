@@ -8,6 +8,7 @@ import { useMessages } from "../context/MessagesContext";
 import { useReferrals } from "../context/ReferralsContext";
 import { useRealtime } from "../context/RealtimeContext";
 import { motion } from "framer-motion";
+import { createPortal } from "react-dom";
 import Avatar from "./Avatar";
 
 // JSX member tags aren't counted as variable uses by the lint config.
@@ -55,6 +56,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
   const currentUser = propUser || ctxUser;
   const navigate = useNavigate();
   const location = useLocation();
+  const [hoveredNav, setHoveredNav] = useState(null);
 
   // Referral pending count — from the global context (already fetched on app init)
   const referralsCtx = useReferrals?.();
@@ -79,6 +81,20 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
   const pendingCount = users?.filter(u => u.role === "student" && u.status === "pending_approval").length || 0;
 
   const roleBase = getRoleBase(currentUser?.role);
+
+  // Collapsed rail: show a branded label card beside the hovered/focused icon.
+  const showNavLabel = (e, item, badge) => {
+    if (!collapsed || !window.matchMedia("(min-width: 1024px)").matches) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredNav({
+      label: item.label,
+      badge,
+      icon: item.icon,
+      top: rect.top + rect.height / 2,
+      left: rect.right + 10,
+    });
+  };
+  const HoverIcon = hoveredNav?.icon;
 
   if (!currentUser) {
     return (
@@ -167,7 +183,10 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       </Link>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-3 py-3 space-y-4">
+      <nav
+        onScroll={() => setHoveredNav(null)}
+        className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-3 py-3 space-y-4"
+      >
         {navGroups.map((group) => (
           <div key={group.label}>
             <div className={`px-2 mb-2 text-[11px] font-semibold uppercase tracking-wider text-maroon-300 ${collapsed ? "lg:hidden" : ""}`}>
@@ -194,7 +213,10 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
                         ? "text-white"
                         : "text-maroon-100 hover:bg-maroon-600/60 hover:text-white"
                     }`}
-                    title={collapsed ? item.label : undefined}
+                    onMouseEnter={(e) => showNavLabel(e, item, badge)}
+                    onMouseLeave={() => setHoveredNav(null)}
+                    onFocus={(e) => showNavLabel(e, item, badge)}
+                    onBlur={() => setHoveredNav(null)}
                   >
                     {isActive && (
                       <MotionSpan
@@ -248,6 +270,21 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
         </button>
       </div>
     </aside>
+      {hoveredNav && HoverIcon && createPortal(
+        <div
+          className="fixed z-[70] hidden lg:flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-lg pointer-events-none"
+          style={{ top: hoveredNav.top, left: hoveredNav.left, transform: "translateY(-50%)" }}
+        >
+          <HoverIcon size={15} className="text-maroon-600 flex-shrink-0" />
+          <span className="whitespace-nowrap">{hoveredNav.label}</span>
+          {hoveredNav.badge > 0 && (
+            <span className="bg-maroon-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
+              {hoveredNav.badge > 99 ? "99+" : hoveredNav.badge}
+            </span>
+          )}
+        </div>,
+        document.body
+      )}
     </>
   );
 }

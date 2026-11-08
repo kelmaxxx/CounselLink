@@ -792,7 +792,7 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession, onSub
             ? `Finalized ${new Date(viewing.finalizedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
             : "Draft session record"
         }
-        size="lg"
+        size="5xl"
         footer={
           viewing && (
             <div className="flex items-center gap-2">
