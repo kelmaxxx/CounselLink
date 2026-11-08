@@ -156,6 +156,24 @@ select {
   animation: menu-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* In-button action feedback (see FeedbackButton). */
+@keyframes check-pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  60% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-check-pop {
+  animation: check-pop 0.35s cubic-bezier(0.22, 1.36, 0.36, 1) both;
+}
+
+@keyframes button-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+.animate-button-sweep {
+  animation: button-sweep 1s linear infinite;
+}
+
 /* Press feedback: 0.97 scale on every enabled button. Uses the standalone
    `scale` property so it composes with existing transforms. */
 button:not(:disabled):active {
@@ -239,7 +257,9 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .kinetic-char,
   .kinetic-subtitle,
-  .animate-menu-in {
+  .animate-menu-in,
+  .animate-check-pop,
+  .animate-button-sweep {
     transform: none !important;
     transition: none !important;
     animation: none !important;

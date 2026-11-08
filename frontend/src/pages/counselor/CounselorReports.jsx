@@ -30,6 +30,7 @@ import {
   Modal,
   StatusPill,
   Pagination,
+  FeedbackButton,
   BTN,
   INPUT,
   LABEL,
@@ -230,7 +231,7 @@ export default function CounselorReports() {
   const downloadCompiled = (row) => {
     const payload = parsePayload(row.payload);
     if (payload) {
-      saveCompiledReportAsPdfFile(payload, { signatureUrl: currentUser?.signatureUrl });
+      return saveCompiledReportAsPdfFile(payload, { signatureUrl: currentUser?.signatureUrl });
     }
   };
 
@@ -1092,14 +1093,17 @@ export default function CounselorReports() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex gap-1">
-                          <button
-                            onClick={() => downloadCompiled(r)}
+                          <FeedbackButton
+                            onAction={() => downloadCompiled(r)}
                             disabled={!currentUser?.signatureUrl}
                             title={currentUser?.signatureUrl ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
+                            icon={FileDown}
+                            busyLabel="Preparing…"
+                            successLabel="Downloaded"
                             className={`inline-flex items-center gap-1 h-7 px-2 rounded-md border text-xs transition ${currentUser?.signatureUrl ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100" : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"}`}
                           >
-                            <FileDown size={13} /> Download
-                          </button>
+                            Download
+                          </FeedbackButton>
                           <button
                             onClick={() => deleteCompiled(r.id)}
                             title="Remove from history"
@@ -1134,17 +1138,20 @@ export default function CounselorReports() {
         footer={
           activeReport && (
             <div className="flex items-center gap-2">
-              <button
+              <FeedbackButton
                 className={BTN.secondary}
                 disabled={!currentUser?.signatureUrl}
                 title={currentUser?.signatureUrl ? undefined : "Upload your signature in Profile to enable downloads"}
-                onClick={() => saveReportAsPdfFile(parsePayload(activeReport.report_payload), {
+                icon={FileDown}
+                busyLabel="Preparing…"
+                successLabel="Downloaded"
+                onAction={() => saveReportAsPdfFile(parsePayload(activeReport.report_payload), {
                   title: activeReport.title,
                   signatureUrl: currentUser?.signatureUrl,
                 })}
               >
-                <FileDown size={14} /> Download
-              </button>
+                Download
+              </FeedbackButton>
               <button className={BTN.primary} onClick={() => setActiveReport(null)}>
                 Close
               </button>
@@ -1398,7 +1405,15 @@ export default function CounselorReports() {
         footer={
           letterTarget && (
             <div className="flex items-center gap-2">
-              <button className={BTN.secondary} onClick={() => saveLetterAsPdfFile(letterFromRequest(letterTarget))}><FileDown size={14} /> Download</button>
+              <FeedbackButton
+                className={BTN.secondary}
+                onAction={() => saveLetterAsPdfFile(letterFromRequest(letterTarget))}
+                icon={FileDown}
+                busyLabel="Preparing…"
+                successLabel="Downloaded"
+              >
+                Download
+              </FeedbackButton>
               <button className={BTN.primary} onClick={() => setLetterTarget(null)}>Close</button>
             </div>
           )
@@ -1440,14 +1455,17 @@ function ReportActions({ report, onView, signatureUrl }) {
       >
         <Eye size={13} /> View
       </button>
-      <button
-        onClick={hasSignature ? () => saveReportAsPdfFile(payload, { title: report.title, signatureUrl }) : undefined}
+      <FeedbackButton
+        onAction={() => saveReportAsPdfFile(payload, { title: report.title, signatureUrl })}
         disabled={!hasSignature}
         title={hasSignature ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
+        icon={FileDown}
+        busyLabel="Preparing…"
+        successLabel="Downloaded"
         className={`inline-flex items-center gap-1 h-7 px-2 rounded-md border text-xs transition ${hasSignature ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100" : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"}`}
       >
-        <FileDown size={13} /> Download
-      </button>
+        Download
+      </FeedbackButton>
     </div>
   );
 }
@@ -1467,14 +1485,17 @@ function SessionDownloadButtons({ session, onView, signatureUrl }) {
       >
         <Eye size={13} /> View
       </button>
-      <button
-        onClick={hasSignature ? () => saveReportAsPdfFile(session, opts) : undefined}
+      <FeedbackButton
+        onAction={() => saveReportAsPdfFile(session, opts)}
         disabled={!hasSignature}
         title={hasSignature ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
+        icon={FileDown}
+        busyLabel="Preparing…"
+        successLabel="Downloaded"
         className={`inline-flex items-center gap-1 h-7 px-2 rounded-md border text-xs transition ${hasSignature ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100" : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"}`}
       >
-        <FileDown size={13} /> Download
-      </button>
+        Download
+      </FeedbackButton>
     </div>
   );
 }

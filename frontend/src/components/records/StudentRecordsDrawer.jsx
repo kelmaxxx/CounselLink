@@ -15,7 +15,7 @@ import { useTestResults } from "../../context/TestResultsContext";
 import { useAuth } from "../../context/AuthContext";
 import InventoryForm from "./InventoryForm";
 import ChatModal from "../ChatModal";
-import { Modal, BTN, formatDate, useBodyScrollLock } from "../ui";
+import { FeedbackButton, Modal, BTN, formatDate, useBodyScrollLock } from "../ui";
 import { saveReportAsPdfFile } from "../../utils/sessionReport";
 import { saveTestResultAsPdfFile } from "../../utils/testResultReport";
 import ReportPreview from "./ReportPreview";
@@ -731,14 +731,17 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession, onSub
                 <button onClick={() => setViewing(s)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium text-gray-700 hover:bg-gray-50">
                   <Eye size={13} /> View
                 </button>
-                <button
-                  onClick={() => currentUser?.signatureUrl && downloadSession(s)}
+                <FeedbackButton
+                  onAction={() => downloadSession(s)}
                   disabled={!currentUser?.signatureUrl}
                   title={currentUser?.signatureUrl ? "Download as PDF" : "Upload your signature in Profile to enable downloads"}
+                  icon={FileDown}
+                  busyLabel="Preparing…"
+                  successLabel="Downloaded"
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
                 >
-                  <FileDown size={13} /> PDF
-                </button>
+                  PDF
+                </FeedbackButton>
                 {canModify && (
                   <>
                     <button onClick={() => onEditSession?.(s)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 text-xs font-medium text-blue-700 hover:bg-blue-50">
@@ -796,14 +799,17 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession, onSub
         footer={
           viewing && (
             <div className="flex items-center gap-2">
-              <button
+              <FeedbackButton
                 className={BTN.secondary}
                 disabled={!currentUser?.signatureUrl}
                 title={currentUser?.signatureUrl ? undefined : "Upload your signature in Profile to enable downloads"}
-                onClick={() => saveReportAsPdfFile(viewing, { title: titleFor(viewing), signatureUrl: currentUser?.signatureUrl })}
+                icon={FileDown}
+                busyLabel="Preparing…"
+                successLabel="Downloaded"
+                onAction={() => saveReportAsPdfFile(viewing, { title: titleFor(viewing), signatureUrl: currentUser?.signatureUrl })}
               >
-                <FileDown size={14} /> Download PDF
-              </button>
+                Download PDF
+              </FeedbackButton>
               <button className={BTN.primary} onClick={() => setViewing(null)}>
                 Close
               </button>
@@ -886,7 +892,7 @@ function SessionsList({ student, sessions, onEditSession, onDeleteSession, onSub
 function TestsList({ student }) {
   const { testResults, fetchTestResults } = useTestResults?.() || {};
   const { currentUser, token } = useAuth();
-  const [savingId, setSavingId] = useState(null);
+
 
   useEffect(() => {
     fetchTestResults?.().catch(() => undefined);
@@ -918,17 +924,15 @@ function TestsList({ student }) {
   };
 
   const handleSave = async (r) => {
-    setSavingId(r.id);
     try {
       await saveTestResultAsPdfFile(r, {
         studentName: student?.name,
         signatureUrl: currentUser?.signatureUrl,
         token,
       });
-    } catch {
+    } catch (err) {
       alert("Failed to save the test result as PDF. Please try again.");
-    } finally {
-      setSavingId(null);
+      throw err;
     }
   };
 
@@ -979,13 +983,15 @@ function TestsList({ student }) {
                   <ExternalLink size={13} /> View file{r.resultFileName || r.result_file_name ? ` (${r.resultFileName || r.result_file_name})` : ""}
                 </a>
               )}
-              <button
-                onClick={() => handleSave(r)}
-                disabled={savingId === r.id}
+              <FeedbackButton
+                onAction={() => handleSave(r)}
+                icon={FileDown}
+                busyLabel="Preparing…"
+                successLabel="Saved"
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-maroon-600 text-white text-xs font-medium hover:bg-maroon-700 disabled:opacity-50"
               >
-                <FileDown size={13} /> {savingId === r.id ? "Saving…" : "Save PDF"}
-              </button>
+                Save PDF
+              </FeedbackButton>
             </div>
           </article>
         );

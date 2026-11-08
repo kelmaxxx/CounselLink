@@ -8,6 +8,7 @@ import {
   EmptyState,
   Modal,
   StatusPill,
+  FeedbackButton,
   BTN,
   INPUT,
   LABEL,
@@ -533,7 +534,15 @@ export default function RequestStudentData() {
         footer={
           letterModal && (
             <div className="flex items-center gap-2">
-              <button className={BTN.secondary} onClick={() => saveLetterAsPdfFile(letterModal)}><FileDown size={14} /> Download</button>
+              <FeedbackButton
+                className={BTN.secondary}
+                onAction={() => saveLetterAsPdfFile(letterModal)}
+                icon={FileDown}
+                busyLabel="Preparing…"
+                successLabel="Downloaded"
+              >
+                Download
+              </FeedbackButton>
               <button className={BTN.primary} onClick={() => setLetterModal(null)}>Close</button>
             </div>
           )

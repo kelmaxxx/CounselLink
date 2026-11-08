@@ -1,14 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { Download, RefreshCw, Search, Shield, X } from "lucide-react";
 import {
-  Activity,
-  Download,
-  RefreshCw,
-  Search,
-  Shield,
-  X,
-} from "lucide-react";
-import {
+  FeedbackButton,
   PageHeader,
   SectionCard,
   BTN,
@@ -48,7 +42,6 @@ export default function SystemLogs() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
 
   const [query, setQuery] = useState("");
@@ -118,7 +111,6 @@ export default function SystemLogs() {
   // Exports every entry matching the current filters, not just the visible
   // page: the API caps `limit` at 200, so page through until `total` is reached.
   const exportCsv = async () => {
-    setExporting(true);
     setError(null);
     try {
       const filters = new URLSearchParams();
@@ -170,8 +162,7 @@ export default function SystemLogs() {
       link.click();
     } catch (err) {
       setError(err.message);
-    } finally {
-      setExporting(false);
+      throw err;
     }
   };
 
@@ -179,18 +170,19 @@ export default function SystemLogs() {
     <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
       <PageHeader
         eyebrow="Administrator"
-        icon={Activity}
         title="Activity log"
         subtitle="A chronological audit trail of every action across CounselLink."
         actions={
           <>
-            <button
-              onClick={exportCsv}
-              disabled={!logs.length || exporting}
-              className={BTN.secondary}
+            <FeedbackButton
+              onAction={exportCsv}
+              disabled={!logs.length}
+              icon={Download}
+              busyLabel="Exporting…"
+              successLabel="Exported"
             >
-              <Download size={14} /> {exporting ? "Exporting…" : "Export CSV"}
-            </button>
+              Export CSV
+            </FeedbackButton>
             <button onClick={() => loadLogs()} disabled={loading} className={BTN.primary}>
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
             </button>
