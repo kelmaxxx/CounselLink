@@ -449,9 +449,6 @@ export function RankedBarChart({
 // { label, appointments, tests }. Renders its own legend + empty state.
 export function TrendAreaChart({ data, emptyIcon, emptyTitle = "No activity yet" }) {
   const hasData = (data || []).some((d) => (d.appointments || 0) + (d.tests || 0) > 0);
-  if (!data?.length || !hasData) {
-    return <EmptyState icon={emptyIcon} title={emptyTitle} hint="New requests will show up here as a daily trend." />;
-  }
   return (
     <div>
       <div className="flex items-center gap-4 px-1 pb-2 text-xs text-gray-500">
@@ -464,7 +461,11 @@ export function TrendAreaChart({ data, emptyIcon, emptyTitle = "No activity yet"
           Tests
         </span>
       </div>
-      <div style={{ width: "100%", height: 250 }}>
+      {/* Fixed 250px box: empty state and chart occupy the same space. */}
+      <div style={{ width: "100%", height: 250 }} className="flex items-center justify-center">
+        {!hasData ? (
+          <EmptyState icon={emptyIcon} title={emptyTitle} hint="New requests will show up here as a daily trend." />
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
             <defs>
@@ -519,6 +520,7 @@ export function TrendAreaChart({ data, emptyIcon, emptyTitle = "No activity yet"
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

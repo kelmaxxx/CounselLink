@@ -294,19 +294,6 @@ function InteractiveAreaCard({
   const hasData = (data || []).some((d) =>
     series.some((s) => (d[s.key] || 0) > 0)
   );
-  if (!data?.length || !series.length || !hasData) {
-    return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{subtitle} · last 30 days</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <EmptyState icon={emptyIcon} title={emptyTitle} hint={emptyHint} />
-        </CardContent>
-      </Card>
-    );
-  }
 
   const chartConfig = Object.fromEntries(
     series.map((s) => [s.key, { label: s.name, color: s.color }])
@@ -357,6 +344,12 @@ function InteractiveAreaCard({
         </Select>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+        {!hasData ? (
+          /* Same 250px box as the chart so the card never changes height. */
+          <div className="flex h-[250px] items-center justify-center">
+            <EmptyState icon={emptyIcon} title={emptyTitle} hint={emptyHint} />
+          </div>
+        ) : (
         <ChartContainer
           config={chartConfig}
           className="aspect-auto h-[250px] w-full"
@@ -424,6 +417,7 @@ function InteractiveAreaCard({
             <ChartLegend content={<ChartLegendContent config={chartConfig} />} />
           </AreaChart>
         </ChartContainer>
+        )}
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="flex gap-2 leading-none font-medium text-gray-900">
