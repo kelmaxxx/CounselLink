@@ -113,11 +113,11 @@ export default function AdminDashboard() {
     [completedCollegeDonut]
   );
 
-  // Last-14-days: new requests created vs. sessions completed (completed
+  // Last-30-days: new requests created vs. sessions completed (completed
   // dated by updated_at, when the status flipped). The two lines race.
   const throughputTrend = useMemo(() => {
     const days = [];
-    for (let i = 13; i >= 0; i -= 1) {
+    for (let i = 29; i >= 0; i -= 1) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const pad = (n) => String(n).padStart(2, "0");

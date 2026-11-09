@@ -444,7 +444,7 @@ export function RankedBarChart({
   );
 }
 
-// ── 14-day activity trend (area chart) ─────────────────────────────────
+// ── Daily activity trend (area chart) ─────────────────────────────────
 // Time-series view with soft gradient fills. `data` items:
 // { label, appointments, tests }. Renders its own legend + empty state.
 export function TrendAreaChart({ data, emptyIcon, emptyTitle = "No activity yet" }) {

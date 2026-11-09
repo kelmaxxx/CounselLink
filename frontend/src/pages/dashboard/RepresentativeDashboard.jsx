@@ -210,7 +210,7 @@ export default function RepresentativeDashboard() {
 
   const requestTrend = useMemo(() => {
     const days = [];
-    for (let i = 13; i >= 0; i -= 1) {
+    for (let i = 29; i >= 0; i -= 1) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const pad = (n) => String(n).padStart(2, "0");
@@ -359,7 +359,7 @@ export default function RepresentativeDashboard() {
               <SectionCard
                 className="lg:col-span-3"
                 title="Request volume"
-                subtitle="Counseling vs. testing · last 14 days"
+                subtitle="Counseling vs. testing · last 30 days"
               >
                 <TrendAreaChart
                   data={requestTrend}

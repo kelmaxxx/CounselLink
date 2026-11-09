@@ -272,7 +272,7 @@ export function StudentsByCollegeCard({
 
 // ── Shared interactive area chart (shadcn "Area Chart - Interactive") ────
 // Same structure for counselor (appointments vs tests) and admin
-// (requests created vs sessions completed): time-range Select (7d/14d),
+// (requests created vs sessions completed): time-range Select (7d/14d/30d),
 // gradient areas, legend, totals footer. Colors come from `series`.
 function InteractiveAreaCard({
   data = [],
@@ -284,10 +284,10 @@ function InteractiveAreaCard({
   emptyHint = "New requests will show up here as a daily trend.",
   className = "",
 }) {
-  const [timeRange, setTimeRange] = React.useState("14d");
+  const [timeRange, setTimeRange] = React.useState("30d");
 
   const filteredData = React.useMemo(() => {
-    const n = timeRange === "7d" ? 7 : 14;
+    const n = timeRange === "7d" ? 7 : timeRange === "14d" ? 14 : 30;
     return (data || []).slice(-n);
   }, [data, timeRange]);
 
@@ -299,7 +299,7 @@ function InteractiveAreaCard({
       <Card className={className}>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
-          <CardDescription>{subtitle} · last 14 days</CardDescription>
+          <CardDescription>{subtitle} · last 30 days</CardDescription>
         </CardHeader>
         <CardContent>
           <EmptyState icon={emptyIcon} title={emptyTitle} hint={emptyHint} />
@@ -325,7 +325,7 @@ function InteractiveAreaCard({
     return next;
   }, {});
   const grandTotal = series.reduce((sum, s) => sum + (totals[s.key] || 0), 0);
-  const rangeLabel = timeRange === "7d" ? "last 7 days" : "last 14 days";
+  const rangeLabel = timeRange === "7d" ? "last 7 days" : timeRange === "14d" ? "last 14 days" : "last 30 days";
 
   return (
     <Card className={`pt-0 ${className}`}>
@@ -341,9 +341,12 @@ function InteractiveAreaCard({
             className="hidden w-[160px] rounded-lg sm:ml-auto sm:flex"
             aria-label="Select a value"
           >
-            <SelectValue placeholder="Last 14 days" />
+            <SelectValue placeholder="Last 30 days" />
           </SelectTrigger>
           <SelectContent className="rounded-xl">
+            <SelectItem value="30d" className="rounded-lg">
+              Last 30 days
+            </SelectItem>
             <SelectItem value="14d" className="rounded-lg">
               Last 14 days
             </SelectItem>

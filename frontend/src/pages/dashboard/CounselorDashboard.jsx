@@ -319,11 +319,11 @@ export default function CounselorDashboard() {
     [statusDonutData]
   );
 
-  // Last-14-days request volume, split into two series so the area chart
+  // Last-30-days request volume, split into two series so the area chart
   // has depth instead of a single flat line.
   const activityTrend = useMemo(() => {
     const days = [];
-    for (let i = 13; i >= 0; i -= 1) {
+    for (let i = 29; i >= 0; i -= 1) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const pad = (n) => String(n).padStart(2, "0");
