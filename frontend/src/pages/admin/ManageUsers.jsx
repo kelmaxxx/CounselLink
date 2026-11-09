@@ -235,6 +235,8 @@ export default function ManageUsers() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [page, setPage] = useState(0);
   const [recoverOpen, setRecoverOpen] = useState(false);
+  const [recoverQuery, setRecoverQuery] = useState("");
+  const [recoverPage, setRecoverPage] = useState(0);
   const [message, setMessage] = useState(null);
   const [_busy, setBusy] = useState(false);
 
@@ -248,6 +250,7 @@ export default function ManageUsers() {
   const [banReason, setBanReason] = useState("");
   const [actionsOpen, setActionsOpen] = useState(false);
   const actionsRef = useRef(null);
+  const recoverRef = useRef(null);
   const [warningData, setWarningData] = useState({ warnings: [], cancellationThreshold: 4 });
   const [warningsOpen, setWarningsOpen] = useState(false);
   const [warningNotes, setWarningNotes] = useState({});
@@ -407,6 +410,27 @@ export default function ManageUsers() {
     () => (users || []).filter((u) => u.status === "banned"),
     [users]
   );
+
+  const RECOVER_PAGE_SIZE = 10;
+  const recoverMatches = useMemo(() => {
+    const q = recoverQuery.trim().toLowerCase();
+    if (!q) return bannedUsers;
+    return bannedUsers.filter(
+      (u) =>
+        u.name?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q) ||
+        u.role?.toLowerCase().includes(q)
+    );
+  }, [bannedUsers, recoverQuery]);
+
+  useEffect(() => { setRecoverPage(0); }, [recoverQuery]);
+
+  const recoverTotalPages = Math.max(1, Math.ceil(recoverMatches.length / RECOVER_PAGE_SIZE));
+  const pagedBannedUsers = recoverMatches.slice(recoverPage * RECOVER_PAGE_SIZE, (recoverPage + 1) * RECOVER_PAGE_SIZE);
+
+  useEffect(() => {
+    if (recoverPage >= recoverTotalPages) setRecoverPage(recoverTotalPages - 1);
+  }, [recoverPage, recoverTotalPages]);
 
   useEffect(() => { setPage(0); }, [activeTab, query]);
 
@@ -663,7 +687,16 @@ export default function ManageUsers() {
                 </button>
                 <div className="border-t border-gray-100 my-1" />
                 <button
-                  onClick={() => { setRecoverOpen(true); setActionsOpen(false); }}
+                  onClick={() => {
+                    setActionsOpen(false);
+                    if (!bannedUsers.length) {
+                      setMessage({ type: "success", text: "No deactivated accounts." });
+                      setTimeout(() => setMessage(null), 3000);
+                      return;
+                    }
+                    setRecoverOpen(true);
+                    requestAnimationFrame(() => recoverRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+                  }}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
                 >
                   <RotateCcw size={14} className="text-gray-400 flex-shrink-0" /> <span>Activate account</span>
@@ -703,6 +736,108 @@ export default function ManageUsers() {
           </span>
           <span className="text-xs font-medium text-amber-800 whitespace-nowrap">Review now →</span>
         </button>
+      )}
+
+      {/* Deactivated accounts — inline so long lists scroll with the page, not a modal */}
+      {bannedUsers.length > 0 && (
+        <div ref={recoverRef} className="mb-4 scroll-mt-4">
+          <button
+            type="button"
+            onClick={() => setRecoverOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left hover:bg-gray-50 transition"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium text-gray-900">
+              <RotateCcw size={16} className="text-amber-600 flex-shrink-0" />
+              {bannedUsers.length} deactivated account{bannedUsers.length === 1 ? "" : "s"}
+              <span className="text-xs font-normal text-gray-500">— restore access</span>
+            </span>
+            <span className="flex items-center gap-1 text-xs font-medium text-maroon-700 whitespace-nowrap">
+              {recoverOpen ? "Hide" : "Show"}
+              <ChevronDown size={13} className={`transition-transform ${recoverOpen ? "rotate-180" : ""}`} />
+            </span>
+          </button>
+
+          {recoverOpen && (
+            <div className="mt-2 rounded-xl border border-gray-200 bg-white overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+                <div className="relative flex-1 max-w-xs">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    className={`${INPUT} pl-8`}
+                    placeholder="Search deactivated accounts…"
+                    value={recoverQuery}
+                    onChange={(e) => setRecoverQuery(e.target.value)}
+                  />
+                </div>
+                <span className="ml-auto text-xs text-gray-500 tabular-nums">
+                  {recoverMatches.length} result{recoverMatches.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              {recoverMatches.length === 0 ? (
+                <p className="text-sm text-gray-500 py-6 text-center">No deactivated accounts match your search.</p>
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {pagedBannedUsers.map((u) => (
+                    <li key={u.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          {initialsOf(u.name)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                          <p className="text-[11px] text-gray-400 capitalize">{u.role?.replace("_", " ")}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const res = await unbanUser(u.id);
+                          if (res.success) {
+                            setMessage({ type: "success", text: `${u.name} has been restored.` });
+                          } else {
+                            setMessage({ type: "error", text: res.message || "Failed to activate account" });
+                          }
+                          setTimeout(() => setMessage(null), 3000);
+                        }}
+                        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-50 flex-shrink-0 transition"
+                      >
+                        <RotateCcw size={11} /> Restore
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {recoverMatches.length > RECOVER_PAGE_SIZE && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">
+                    Showing {recoverPage * RECOVER_PAGE_SIZE + 1}–{Math.min((recoverPage + 1) * RECOVER_PAGE_SIZE, recoverMatches.length)} of {recoverMatches.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setRecoverPage((p) => p - 1)}
+                      disabled={recoverPage === 0}
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span className="text-xs text-gray-600 px-2 tabular-nums">
+                      {recoverPage + 1} / {recoverTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setRecoverPage((p) => p + 1)}
+                      disabled={recoverPage >= recoverTotalPages - 1}
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Search bar with counselor suggestions on hover */}
@@ -1505,46 +1640,6 @@ export default function ManageUsers() {
         </div>
       </Modal>
 
-      {/* Activate Account modal */}
-      <Modal
-        open={recoverOpen}
-        onClose={() => setRecoverOpen(false)}
-        title="Activate account"
-        subtitle="Deactivated accounts. Click Restore to re-enable login."
-      >
-        {bannedUsers.length === 0 ? (
-          <p className="text-sm text-gray-500 py-4 text-center">No deactivated accounts.</p>
-        ) : (
-          <ul className="divide-y divide-gray-100">
-            {bannedUsers.map((u) => (
-              <li key={u.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                    {initialsOf(u.name)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{u.email}</p>
-                    <p className="text-[11px] text-gray-400 capitalize">{u.role?.replace("_", " ")}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={async () => {
-                    const res = await unbanUser(u.id);
-                    if (res.success) {
-                      setMessage({ type: "success", text: `${u.name} has been restored.` });
-                      setTimeout(() => setMessage(null), 3000);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-50 flex-shrink-0 transition"
-                >
-                  <RotateCcw size={11} /> Restore
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Modal>
     </div>
   );
 }
