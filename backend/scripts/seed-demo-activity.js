@@ -162,9 +162,14 @@ const deleteDemoActivity = async (connection, demoIds) => {
   if (demoIds.length) {
     // Order matters: test_results has a non-cascading FK to appointments, so it
     // must go before appointments. The rest reference students directly.
-    for (const table of ["test_results", "feedback", "counseling_sessions", "appointments", "referrals"]) {
+    // notifications is keyed by user_id; everything else by student_id.
+    for (const table of [
+      "test_results", "feedback", "client_feedback_forms", "counseling_sessions",
+      "appointments", "referrals", "report_requests", "notifications",
+    ]) {
+      const column = table === "notifications" ? "user_id" : "student_id";
       const [res] = await connection.query(
-        `DELETE FROM ${table} WHERE student_id IN (?)`,
+        `DELETE FROM ${table} WHERE ${column} IN (?)`,
         [demoIds]
       );
       removed += res.affectedRows;
