@@ -9,6 +9,7 @@ import { CountUp, fadeUp, SplitText, KINETIC_EASE } from "./motion";
 // JSX member tags aren't counted as variable uses by the lint config.
 const MotionDiv = motion.div;
 const MotionP = motion.p;
+const MotionSection = motion.section;
 import {
   PieChart,
   Pie,
@@ -82,7 +83,7 @@ export function PageHeader({
             className="kinetic-subtitle text-sm text-gray-500 mt-1"
             initial={reduce ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reduce ? 0 : 0.4, ease: KINETIC_EASE, delay: 0.08 }}
+            transition={{ duration: reduce ? 0 : 0.4, ease: KINETIC_EASE, delay: 0 }}
           >
             {subtitle}
           </MotionP>
@@ -113,7 +114,7 @@ export function StatCard({ label, value, hint, icon: Icon, accent = "bg-gray-400
 
 export function SectionCard({ title, subtitle, action, children, className = "", bodyClassName = "", noBodyPadding = false }) {
   return (
-    <section className={`bg-white rounded-2xl shadow-sm ring-1 ring-gray-950/5 ${className}`}>
+    <MotionSection variants={fadeUp} className={`bg-white rounded-2xl shadow-sm ring-1 ring-gray-950/5 ${className}`}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
           <div className="min-w-0">
@@ -124,7 +125,7 @@ export function SectionCard({ title, subtitle, action, children, className = "",
         </header>
       )}
       <div className={noBodyPadding ? bodyClassName : `px-5 py-4 ${bodyClassName}`}>{children}</div>
-    </section>
+    </MotionSection>
   );
 }
 
@@ -946,8 +947,13 @@ export function FeedbackButton({
     if (busy) return;
     clearTimeout(timer.current);
     setStatus("busy");
+    const started = Date.now();
     try {
       await onAction?.();
+      // Sync handlers (CSV/blob downloads) finish in a microtask; hold the busy
+      // state briefly so the sweep is actually visible.
+      const elapsed = Date.now() - started;
+      if (elapsed < 350) await new Promise((r) => setTimeout(r, 350 - elapsed));
       setStatus("success");
       timer.current = setTimeout(() => setStatus("idle"), 1600);
     } catch {

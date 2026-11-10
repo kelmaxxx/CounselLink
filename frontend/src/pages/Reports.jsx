@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { BarChart2, Users, Calendar, FileText, TrendingUp, Download } from "lucide-react";
+import { FeedbackButton } from "../components/ui";
 
 function StatCard({ icon: Icon, label, count, color }) {
   return (
@@ -104,14 +105,16 @@ export default function Reports() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
-        <button
-          onClick={handleExport}
+        <FeedbackButton
+          onAction={handleExport}
           disabled={!reportData}
+          icon={Download}
+          busyLabel="Exporting…"
+          successLabel="Exported"
           className="bg-maroon-500 text-white px-4 py-2 rounded-lg hover:bg-maroon-600 transition font-medium flex items-center gap-2 disabled:opacity-60"
         >
-          <Download className="w-4 h-4" />
           Export
-        </button>
+        </FeedbackButton>
       </div>
 
       {/* Statistics Grid */}

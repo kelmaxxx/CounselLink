@@ -1,6 +1,7 @@
 // src/pages/Settings.jsx
 import React, { useState, useRef } from "react";
 import { Download, Upload, Database, AlertCircle, CheckCircle, Info } from "lucide-react";
+import { FeedbackButton } from "../components/ui";
 import storage from "../utils/storage";
 
 export default function Settings() {
@@ -109,14 +110,15 @@ export default function Settings() {
                   Use this file to transfer your data to another system.
                 </p>
               </div>
-              <button
-                onClick={handleExportData}
-                disabled={loading}
+              <FeedbackButton
+                onAction={handleExportData}
+                icon={Download}
+                busyLabel="Exporting…"
+                successLabel="Exported"
                 className="ml-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
-                <Download size={18} />
                 Export
-              </button>
+              </FeedbackButton>
             </div>
           </div>
 

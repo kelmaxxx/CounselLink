@@ -8,7 +8,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Save, FileUp, Trash2, ExternalLink, Printer, FileDown, CheckCircle2 } from "lucide-react";
-import { Modal, BTN } from "../ui";
+import { Modal, BTN, FeedbackButton } from "../ui";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
 import { useReactToPrint } from "react-to-print";
 
@@ -425,10 +425,12 @@ export default function InventoryForm({
     if (res.success) {
       dirtyRef.current = false;
       setShowSaveSuccess(true);
+      showFeedback("success", "Inventory saved");
     } else {
       alert(res.message || "Failed to save");
+      showFeedback("error", res.message || "Failed to save");
+      throw new Error(res.message || "Failed to save");
     }
-    showFeedback(res.success ? "success" : "error", res.success ? "Inventory saved" : (res.message || "Failed to save"));
   };
 
   const handleDownloadPdf = async () => {
@@ -438,13 +440,16 @@ export default function InventoryForm({
       if (!saveRes.success) {
         setBusy(false);
         showFeedback("error", saveRes.message || "Could not save before download");
-        return;
+        throw new Error(saveRes.message || "Could not save before download");
       }
       dirtyRef.current = false;
     }
     const res = await downloadInventoryPdf(studentId, studentName || "student");
     setBusy(false);
-    if (!res.success) showFeedback("error", res.message || "Failed to generate PDF");
+    if (!res.success) {
+      showFeedback("error", res.message || "Failed to generate PDF");
+      throw new Error(res.message || "Failed to generate PDF");
+    }
   };
 
   const handlePrint = async () => {
@@ -1543,14 +1548,24 @@ export default function InventoryForm({
         <button type="button" onClick={handlePrint} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50 text-sm font-semibold select-none">
           <Printer size={16} /> Print Form
         </button>
-        <button type="button" onClick={handleDownloadPdf} disabled={busy} className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50 text-sm font-semibold select-none">
-          <FileDown size={16} /> Download PDF
-        </button>
+        <FeedbackButton
+          type="button"
+          onAction={handleDownloadPdf}
+          icon={FileDown}
+          busyLabel="Preparing…"
+          successLabel="Downloaded"
+          className="flex items-center gap-2 px-4 py-2 rounded border hover:bg-gray-50 text-gray-700 disabled:opacity-50 text-sm font-semibold select-none"
+        >
+          Download PDF
+        </FeedbackButton>
         {(!readOnly || canManage) && (
-          <button
+          <FeedbackButton
             type="button"
-            onClick={isStudentView && !hasSignature ? undefined : handleSave}
-            disabled={busy || (isStudentView && !hasSignature)}
+            onAction={isStudentView && !hasSignature ? undefined : handleSave}
+            disabled={isStudentView && !hasSignature}
+            icon={Save}
+            busyLabel="Saving…"
+            successLabel="Saved"
             title={
               isStudentView && !hasSignature
                 ? "Upload your signature on your Profile page to enable saving"
@@ -1558,8 +1573,8 @@ export default function InventoryForm({
             }
             className={`flex items-center gap-2 px-4 py-2 rounded text-white disabled:opacity-50 text-sm font-semibold select-none ${isStudentView && !hasSignature ? "bg-gray-400 cursor-not-allowed" : "bg-[#0B6623] hover:bg-[#074317]"}`}
           >
-            <Save size={16} /> {busy ? "Saving..." : "Save inventory"}
-          </button>
+            Save inventory
+          </FeedbackButton>
         )}
       </div>
 
