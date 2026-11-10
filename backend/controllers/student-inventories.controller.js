@@ -1,7 +1,7 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { generateInventoryDocx, readSignatureFile, readAvatarFile } from "../utils/inventory-docx.js";
-import { generateInventoryPdf } from "../utils/inventory-pdf.js";
+import { generateInventoryPdf, generateCompiledProfilesPdf } from "../utils/inventory-pdf.js";
 
 const SELECT_FIELDS = `
   i.id, i.student_id AS studentId, i.counselor_id AS counselorId,
@@ -174,19 +174,20 @@ const safeFileBase = (name, idNumber) =>
     .toLowerCase();
 
 // Loads the saved inventory plus the signature/avatar files needed by both the
-// Word and PDF downloads. Returns null when the student has no inventory yet.
-const loadDownloadData = async (studentId) => {
-  const rows = await query(
-    `SELECT i.form_data AS formData, s.name AS studentName, s.student_id AS studentNumber, s.email AS studentEmail,
-            s.signature_url AS studentSignatureUrl, s.avatar_url AS studentAvatarUrl
-       FROM student_inventories i
-       JOIN users s ON i.student_id = s.id
-      WHERE i.student_id = ? LIMIT 1`,
-    [studentId]
-  );
-  if (!rows.length) return null;
+// Word and PDF downloads, plus the consent state used to suppress signatures.
+const DOWNLOAD_SELECT = `
+  SELECT i.form_data AS formData, s.id AS studentId, s.name AS studentName,
+         s.student_id AS studentNumber, s.email AS studentEmail,
+         s.college AS studentCollege, s.department AS studentDepartment,
+         s.signature_url AS studentSignatureUrl, s.avatar_url AS studentAvatarUrl,
+         sc.revoked_at AS consentRevokedAt
+    FROM student_inventories i
+    JOIN users s ON i.student_id = s.id
+    LEFT JOIN student_consents sc ON sc.student_id = i.student_id
+`;
 
-  const row = parseFormData(rows[0]);
+const buildDownloadData = (rawRow) => {
+  const row = parseFormData(rawRow);
   const profile = {
     name: row.studentName,
     studentNumber: row.studentNumber,
@@ -196,11 +197,7 @@ const loadDownloadData = async (studentId) => {
   // Check consent status: if consent is revoked or the data-authorization
   // disclaimer was revoked, suppress the student signature from the download
   // so it does not misleadingly appear as current active consent.
-  const consentRows = await query(
-    "SELECT revoked_at FROM student_consents WHERE student_id = ? LIMIT 1",
-    [studentId]
-  );
-  const consentRevoked = consentRows.length > 0 && consentRows[0].revoked_at != null;
+  const consentRevoked = rawRow.consentRevokedAt != null;
 
   // Also check the inventory acknowledgment for disclaimer revocation.
   const ack = row.formData?.acknowledgment || {};
@@ -218,13 +215,18 @@ const loadDownloadData = async (studentId) => {
   // so log them — a blank 2x2/signature in the download almost always means the
   // file is gone from the uploads directory (e.g. ephemeral disk was wiped).
   if (row.studentAvatarUrl && !signatures.studentAvatar) {
-    console.warn(`Inventory download for student ${studentId}: avatar file missing (${row.studentAvatarUrl})`);
+    console.warn(`Inventory download for student ${row.studentId}: avatar file missing (${row.studentAvatarUrl})`);
   }
   if (row.studentSignatureUrl && !signatures.studentSignature) {
-    console.warn(`Inventory download for student ${studentId}: student signature file missing (${row.studentSignatureUrl})`);
+    console.warn(`Inventory download for student ${row.studentId}: student signature file missing (${row.studentSignatureUrl})`);
   }
 
   return { row, profile, signatures };
+};
+
+const loadDownloadData = async (studentId) => {
+  const rows = await query(`${DOWNLOAD_SELECT} WHERE i.student_id = ? LIMIT 1`, [studentId]);
+  return rows.length ? buildDownloadData(rows[0]) : null;
 };
 
 // Renders the saved inventory into a filled-in copy of the official MSU DSA
@@ -283,5 +285,55 @@ export const downloadInventoryPdf = async (req, res) => {
   const filename = `${safeFileBase(row.studentName, row.studentNumber)}.pdf`;
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  return res.send(buffer);
+};
+
+// Counselor report: every student profile in a college (optionally one
+// department) merged into a single PDF, ordered by name, two pages each.
+export const downloadCompiledProfilesPdf = async (req, res) => {
+  const college = String(req.query.college || "").trim();
+  const department = String(req.query.department || "").trim();
+  if (!college) return res.status(400).json({ message: "Select a college." });
+
+  const rows = await query(
+    `${DOWNLOAD_SELECT}
+      WHERE s.college = ? ${department ? "AND s.department = ?" : ""}
+        AND i.form_data IS NOT NULL
+      ORDER BY s.name ASC`,
+    department ? [college, department] : [college]
+  );
+  if (!rows.length) {
+    return res.status(404).json({
+      message: department
+        ? `No student profiles on file for ${department}, ${college}.`
+        : `No student profiles on file for ${college}.`,
+    });
+  }
+
+  let buffer;
+  try {
+    buffer = await generateCompiledProfilesPdf(
+      rows.map((rawRow) => {
+        const { row, profile, signatures } = buildDownloadData(rawRow);
+        return { formData: row.formData, profile, signatures };
+      })
+    );
+  } catch (err) {
+    console.error("Compiled profiles PDF generation failed:", err);
+    return res.status(500).json({ message: "Failed to generate the compiled profiles PDF" });
+  }
+
+  await logAction(req, "download_compiled_profiles_pdf", "student_inventory", null, {
+    college,
+    department: department || null,
+    students: rows.length,
+  });
+
+  const filename = `student_profiles_${college}${department ? `_${department}` : ""}`
+    .replace(/[^a-z0-9]+/gi, "_")
+    .replace(/^_|_$/g, "")
+    .toLowerCase();
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}.pdf"`);
   return res.send(buffer);
 };
