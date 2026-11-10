@@ -14,6 +14,11 @@ export default {
         xs: ['0.8125rem', { lineHeight: '1.25rem' }],  // 13px
         sm: ['0.9375rem', { lineHeight: '1.45rem' }],  // 15px
       },
+      maxWidth: {
+        // Shared page gutter width: wide enough to fill a desktop viewport,
+        // still capped so ultrawide screens don't stretch tables.
+        shell: '1600px',
+      },
       borderRadius: {
         md: '0.5rem',
         lg: '0.875rem',

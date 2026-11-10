@@ -14,7 +14,7 @@ const BENEFITS = [
 export default function AboutSection() {
   return (
     <section id="about" className="py-24 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-shell mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section label */}
         <Reveal className="text-center mb-16">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">

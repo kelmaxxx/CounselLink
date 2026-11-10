@@ -95,7 +95,7 @@ function BenefitCard({ icon: Icon, title, benefits, bg }) {
 export default function BenefitsSection() {
   return (
     <section className="py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-shell mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <Reveal className="text-center mb-16">
           <span className="inline-block px-3 py-1 rounded-full bg-maroon-100 text-maroon-600 text-sm font-semibold mb-4 tracking-wide uppercase">

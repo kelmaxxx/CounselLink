@@ -29,6 +29,13 @@ import {
   initialsOf,
 } from "../../components/ui";
 import { ListItem, Stagger, TableRow } from "../../components/motion";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "../../components/shadcn/select";
 import { sanitizePhoneDigits } from "../../utils/phone";
 
 const POSITIONS = [
@@ -658,7 +665,7 @@ export default function ManageUsers() {
   };
 
   return (
-    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6">
       <PageHeader
         eyebrow="Administrator"
         title="Manage user accounts"
@@ -1299,18 +1306,23 @@ export default function ManageUsers() {
                 </div>
                 <div>
                   <label className={LABEL}>Position</label>
-                  <select
-                    className={INPUT}
+                  <Select
+                    variant="form"
                     value={editForm.position}
-                    onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
+                    onValueChange={(v) => setEditForm({ ...editForm, position: v })}
                   >
-                    <option value="">Select position</option>
-                    {POSITIONS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Not specified</SelectItem>
+                      {POSITIONS.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={LABEL}>Specialization</label>
@@ -1343,70 +1355,88 @@ export default function ManageUsers() {
                 </div>
                 <div>
                   <label className={LABEL}>College *</label>
-                  <select
-                    className={INPUT}
+                  <Select
+                    variant="form"
                     value={editForm.college}
-                    onChange={(e) =>
+                    onValueChange={(v) =>
                       setEditForm({
                         ...editForm,
-                        college: e.target.value,
+                        college: v,
                         department: "",
                         program: "",
                       })
                     }
                   >
-                    <option value="">Select college</option>
-                    {COLLEGES.map((c) => (
-                      <option key={c} value={c}>
-                        {c} — {getCollegeName(c)}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select college" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLLEGES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {`${c} — ${getCollegeName(c)}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={LABEL}>Department</label>
-                  <select
-                    className={INPUT}
+                  <Select
+                    variant="form"
                     value={editForm.department}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, department: e.target.value, program: "" })
+                    onValueChange={(v) =>
+                      setEditForm({ ...editForm, department: v, program: "" })
                     }
                     disabled={!editForm.college}
                   >
-                    <option value="">
-                      {editForm.college ? "Select department" : "Select a college first"}
-                    </option>
-                    {editForm.department &&
-                      !editDepartments.some((d) => d.name === editForm.department) && (
-                        <option value={editForm.department}>{editForm.department}</option>
-                      )}
-                    {editDepartments.map((d) => (
-                      <option key={d.code} value={d.name}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          editForm.college ? "Select department" : "Select a college first"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editForm.department &&
+                        !editDepartments.some((d) => d.name === editForm.department) && (
+                          <SelectItem value={editForm.department}>
+                            {editForm.department}
+                          </SelectItem>
+                        )}
+                      {editDepartments.map((d) => (
+                        <SelectItem key={d.code} value={d.name}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={LABEL}>Course</label>
-                  <select
-                    className={INPUT}
+                  <Select
+                    variant="form"
                     value={editForm.program}
-                    onChange={(e) => setEditForm({ ...editForm, program: e.target.value })}
+                    onValueChange={(v) => setEditForm({ ...editForm, program: v })}
                     disabled={!editForm.department}
                   >
-                    <option value="">
-                      {editForm.department ? "Select course" : "Select a department first"}
-                    </option>
-                    {editForm.program && !editPrograms.includes(editForm.program) && (
-                      <option value={editForm.program}>{editForm.program}</option>
-                    )}
-                    {editPrograms.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          editForm.department ? "Select course" : "Select a department first"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editForm.program && !editPrograms.includes(editForm.program) && (
+                        <SelectItem value={editForm.program}>{editForm.program}</SelectItem>
+                      )}
+                      {editPrograms.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
@@ -1420,20 +1450,24 @@ export default function ManageUsers() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className={LABEL}>College *</label>
-                  <select
-                    className={INPUT}
+                  <Select
+                    variant="form"
                     value={editForm.college}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, college: e.target.value, department: "" })
+                    onValueChange={(v) =>
+                      setEditForm({ ...editForm, college: v, department: "" })
                     }
                   >
-                    <option value="">Select college</option>
-                    {COLLEGES.map((c) => (
-                      <option key={c} value={c}>
-                        {c} — {getCollegeName(c)}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select college" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLLEGES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {`${c} — ${getCollegeName(c)}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={LABEL}>Employee ID</label>
@@ -1447,25 +1481,33 @@ export default function ManageUsers() {
                 </div>
                 <div>
                   <label className={LABEL}>Department</label>
-                  <select
-                    className={INPUT}
+                  <Select
+                    variant="form"
                     value={editForm.department}
-                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                    onValueChange={(v) => setEditForm({ ...editForm, department: v })}
                     disabled={!editForm.college}
                   >
-                    <option value="">
-                      {editForm.college ? "Select department" : "Select a college first"}
-                    </option>
-                    {editForm.department &&
-                      !editDepartments.some((d) => d.name === editForm.department) && (
-                        <option value={editForm.department}>{editForm.department}</option>
-                      )}
-                    {editDepartments.map((d) => (
-                      <option key={d.code} value={d.name}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          editForm.college ? "Select department" : "Select a college first"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editForm.department &&
+                        !editDepartments.some((d) => d.name === editForm.department) && (
+                          <SelectItem value={editForm.department}>
+                            {editForm.department}
+                          </SelectItem>
+                        )}
+                      {editDepartments.map((d) => (
+                        <SelectItem key={d.code} value={d.name}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>

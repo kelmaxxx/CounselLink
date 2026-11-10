@@ -67,6 +67,7 @@ export function Select({
   children,
   className = "",
   variant = "default",
+  disabled = false,
 }) {
   const items = collectItems(children);
   const triggerClass = findClass(children, SelectTrigger);
@@ -74,7 +75,13 @@ export function Select({
   const placeholder = findProp(children, SelectValue, "placeholder");
   const isForm = variant === "form";
   const [open, setOpen] = React.useState(false);
+  // Open upwards when the trigger sits near the bottom of the viewport or of
+  // the nearest scroll container (e.g. the last field of a modal), and cap the
+  // panel to the space actually available so it is never clipped.
+  const [dropUp, setDropUp] = React.useState(false);
+  const [panelMax, setPanelMax] = React.useState(240);
   const ref = React.useRef(null);
+  const triggerRef = React.useRef(null);
 
   React.useEffect(() => {
     if (!open) return;
@@ -92,7 +99,34 @@ export function Select({
     };
   }, [open ]);
 
-  const selected = items.find((i) => i.value === value);
+  const selected = items.find((i) => i.value === value && value !== "");
+
+  const toggle = () => {
+    if (disabled) return;
+    if (!open) {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (r) {
+        let el = triggerRef.current.parentElement;
+        let top = 0;
+        let bottom = window.innerHeight;
+        while (el) {
+          if (getComputedStyle(el).overflowY !== "visible") {
+            const box = el.getBoundingClientRect();
+            top = box.top;
+            bottom = box.bottom;
+            break;
+          }
+          el = el.parentElement;
+        }
+        const below = bottom - r.bottom - 8;
+        const above = r.top - top - 8;
+        const up = below < 240 && above > below;
+        setDropUp(up);
+        setPanelMax(Math.min(240, Math.max(120, up ? above : below)));
+      }
+    }
+    setOpen((o) => !o);
+  };
 
   const triggerBase = isForm
     ? "flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-4 text-left text-sm text-gray-900 shadow-sm outline-none transition hover:border-gray-300 focus:border-maroon-500 focus:ring-2 focus:ring-maroon-500/25"
@@ -101,11 +135,13 @@ export function Select({
   return (
     <span ref={ref} className={`relative ${isForm ? "block w-full" : "inline-flex"} ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`${triggerBase} ${triggerClass}`}
+        className={`${triggerBase} ${triggerClass} disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400`}
       >
         <span className={`truncate ${selected ? "" : "text-gray-400"}`}>
           {selected ? itemLabel(selected) : placeholder || ""}
@@ -118,12 +154,15 @@ export function Select({
       {open && (
         <span
           role="listbox"
-          className={`absolute top-[calc(100%+6px)] z-50 rounded-xl border border-gray-200 bg-white p-1 shadow-xl shadow-gray-950/10 ${
-            isForm ? "left-0 right-0 min-w-full max-h-60 overflow-y-auto" : "right-0 min-w-[180px]"
+          style={{ maxHeight: panelMax }}
+          className={`absolute ${
+            dropUp ? "bottom-[calc(100%+6px)]" : "top-[calc(100%+6px)]"
+          } z-50 rounded-xl border border-gray-200 bg-white p-1 shadow-xl shadow-gray-950/10 ${
+            isForm ? "left-0 right-0 min-w-full overflow-y-auto" : "right-0 min-w-[180px] overflow-y-auto"
           } ${contentClass}`}
         >
           {items.map((item) => {
-            const isActive = item.value === value;
+            const isActive = item.value === value && value !== "";
             return (
               <button
                 key={item.value}
