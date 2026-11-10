@@ -7,6 +7,7 @@ import {
   StatCard,
   SectionCard,
   EmptyState,
+  FeedbackButton,
   BTN,
 } from "../../components/ui";
 import {
@@ -290,9 +291,16 @@ export default function SystemEvaluationTally() {
             <button onClick={fetchTally} className={BTN.secondary} title="Refresh tally data">
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
             </button>
-            <button onClick={exportCsv} disabled={!tally?.count} className={BTN.secondary}>
-              <Download size={14} /> Export CSV
-            </button>
+            <FeedbackButton
+              onAction={exportCsv}
+              disabled={!tally?.count}
+              icon={Download}
+              busyLabel="Exporting…"
+              successLabel="Exported"
+              className={BTN.secondary}
+            >
+              Export CSV
+            </FeedbackButton>
             <button onClick={handlePrint} className={BTN.primary}>
               <Printer size={14} /> Print Summary
             </button>

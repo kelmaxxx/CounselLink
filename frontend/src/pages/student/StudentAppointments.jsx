@@ -12,6 +12,7 @@ import {
   EmptyState,
   StatusPill,
   Modal,
+  FeedbackButton,
   BTN,
   Pagination,
 } from "../../components/ui";
@@ -293,7 +294,6 @@ export default function StudentAppointments() {
 function AppointmentDetailModal({ appointment, studentName, onClose, onRescheduled }) {
   const { requestRescheduleAppointment } = useAppointments?.() || {};
   const { requestRescheduleTest } = useTests?.() || {};
-  const [saving, setSaving] = useState(false);
   const [counselorSigDataUrl, setCounselorSigDataUrl] = useState(null);
   const [showResched, setShowResched] = useState(false);
   const [newDate, setNewDate] = useState("");
@@ -314,13 +314,11 @@ function AppointmentDetailModal({ appointment, studentName, onClose, onReschedul
   }, [appointment.counselorSignatureUrl, appointment.counselor_signature_url]);
 
   const handleSave = async () => {
-    setSaving(true);
     try {
       await saveAppointmentSlipAsPdfFile(appointment, { studentName });
-    } catch {
+    } catch (err) {
       alert("Failed to save the appointment slip as PDF. Please try again.");
-    } finally {
-      setSaving(false);
+      throw err;
     }
   };
 
@@ -370,9 +368,15 @@ function AppointmentDetailModal({ appointment, studentName, onClose, onReschedul
             </button>
           )}
           {canSave && (
-            <button onClick={handleSave} disabled={saving} className={BTN.primary}>
-              <Download size={14} /> {saving ? "Saving…" : "Save PDF"}
-            </button>
+            <FeedbackButton
+              onAction={handleSave}
+              icon={Download}
+              busyLabel="Saving…"
+              successLabel="Saved"
+              className={BTN.primary}
+            >
+              Save PDF
+            </FeedbackButton>
           )}
         </>
       }

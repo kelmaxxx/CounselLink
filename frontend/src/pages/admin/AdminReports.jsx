@@ -20,6 +20,7 @@ import {
   EmptyState,
   StatusPill,
   Modal,
+  FeedbackButton,
   BTN,
   INPUT,
   LABEL,
@@ -252,9 +253,15 @@ export default function AdminReports() {
         subtitle="Aggregated counseling and user activity"
         actions={
           <>
-            <button onClick={exportCsv} className={BTN.secondary}>
-              <Download size={14} /> Export CSV
-            </button>
+            <FeedbackButton
+              onAction={exportCsv}
+              icon={Download}
+              busyLabel="Exporting…"
+              successLabel="Exported"
+              className={BTN.secondary}
+            >
+              Export CSV
+            </FeedbackButton>
             <button onClick={handlePrint} className={BTN.primary}>
               <Printer size={14} /> Print
             </button>
@@ -476,9 +483,15 @@ export default function AdminReports() {
         align="top"
         footer={
           <>
-            <button onClick={exportCsv} className={BTN.secondary}>
-              <Download size={14} /> Export CSV
-            </button>
+            <FeedbackButton
+              onAction={exportCsv}
+              icon={Download}
+              busyLabel="Exporting…"
+              successLabel="Exported"
+              className={BTN.secondary}
+            >
+              Export CSV
+            </FeedbackButton>
             <button onClick={() => setDetailsOpen(false)} className={BTN.primary}>
               Close
             </button>

@@ -31,9 +31,9 @@ export const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: EASE } },
 };
 
-// Wrap a grid/list once; direct motion children (BigStat, StatCard) fade in one
-// after another. Children outside a Stagger stay static, so this is opt-in.
-export function Stagger({ children, className = "", delay = 0, stagger = 0.07, ...rest }) {
+// Wrap a grid/list once; direct motion children (BigStat, StatCard) fade in
+// together with the page title. Pass `stagger` only when a sequence is wanted.
+export function Stagger({ children, className = "", delay = 0, stagger = 0, ...rest }) {
   const reduce = useReducedMotion();
   return (
     <MotionDiv
@@ -88,9 +88,16 @@ export function PageTransition({ children, className = "" }) {
   return (
     <MotionDiv
       className={className}
-      initial={reduce ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduce ? 0 : 0.3, ease: KINETIC_EASE }}
+      initial={reduce ? false : "hidden"}
+      animate="show"
+      variants={{
+        hidden: { opacity: 0, y: 8 },
+        show: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: reduce ? 0 : 0.5, ease: KINETIC_EASE },
+        },
+      }}
     >
       {children}
     </MotionDiv>

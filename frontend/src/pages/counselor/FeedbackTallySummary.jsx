@@ -6,6 +6,7 @@ import {
   StatCard,
   SectionCard,
   EmptyState,
+  FeedbackButton,
   BTN,
   INPUT,
   LABEL,
@@ -241,9 +242,15 @@ export default function FeedbackTallySummary() {
         title="Feedback Tally Summary"
         subtitle="Auto-computed results from the Client Feedback Form. Responses are anonymous and shown only in aggregate."
         actions={
-          <button onClick={exportTallySummary} className={BTN.primary}>
-            <Save size={14} /> Save
-          </button>
+          <FeedbackButton
+            onAction={exportTallySummary}
+            icon={Save}
+            busyLabel="Saving…"
+            successLabel="Saved"
+            className={BTN.primary}
+          >
+            Save
+          </FeedbackButton>
         }
       />
 

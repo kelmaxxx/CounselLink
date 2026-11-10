@@ -176,11 +176,11 @@ export default function CounselorReports() {
   const handleCompile = async () => {
     if (!currentUser?.signatureUrl) {
       setCompileError("Upload your signature in your Profile before generating a report.");
-      return;
+      throw new Error("Upload your signature in your Profile before generating a report.");
     }
     if (!compileCollege) {
       setCompileError("Select a college.");
-      return;
+      throw new Error("Select a college.");
     }
     setCompiling(true);
     setCompileError("");
@@ -278,6 +278,7 @@ export default function CounselorReports() {
       await reloadCompiled();
     } catch (err) {
       setCompileError(err.message);
+      throw err;
     } finally {
       setCompiling(false);
     }
@@ -392,11 +393,11 @@ export default function CounselorReports() {
     if (!genTarget) return;
     if (!currentUser?.signatureUrl) {
       setGenError("You must upload your signature in your Profile before sending a report.");
-      return;
+      throw new Error("Upload your signature first");
     }
     if (!genNarrative.trim()) {
       setGenError("A written summary is required.");
-      return;
+      throw new Error("A written summary is required");
     }
     setGenerating(true);
     setGenError("");
@@ -416,12 +417,13 @@ export default function CounselorReports() {
       const body = await res.json();
       if (!res.ok) {
         setGenError(body.message || "Failed to generate summary");
-        return;
+        throw new Error(body.message || "Failed to generate summary");
       }
       closeGenerate();
       await Promise.all([reloadRequests(), reloadSentReports()]);
     } catch (err) {
       setGenError(err.message);
+      throw err;
     } finally {
       setGenerating(false);
     }
@@ -1298,13 +1300,15 @@ export default function CounselorReports() {
               <button className={BTN.secondary} onClick={closeGenerate} disabled={generating}>
                 Cancel
               </button>
-              <button
+              <FeedbackButton
+                onAction={submitGenerate}
+                disabled={genLoading}
+                busyLabel="Sending…"
+                successLabel="Sent"
                 className={BTN.primary}
-                onClick={submitGenerate}
-                disabled={generating || genLoading}
               >
-                {generating ? "Sending…" : "Generate & send"}
-              </button>
+                Generate &amp; send
+              </FeedbackButton>
             </div>
           )
         }
@@ -1383,9 +1387,14 @@ export default function CounselorReports() {
               <button className={BTN.secondary} onClick={() => setCompileOpen(false)} disabled={compiling}>
                 Cancel
               </button>
-              <button className={BTN.primary} onClick={handleCompile} disabled={compiling}>
-                {compiling ? "Generating…" : "Generate & download"}
-              </button>
+              <FeedbackButton
+                onAction={handleCompile}
+                busyLabel="Generating…"
+                successLabel="Generated"
+                className={BTN.primary}
+              >
+                Generate &amp; download
+              </FeedbackButton>
             </div>
           )
         }
