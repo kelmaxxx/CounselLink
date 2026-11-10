@@ -278,13 +278,12 @@ const embedImage = async (pdf, bytes) => {
   return null;
 };
 
-export async function generateInventoryPdf(formData = {}, profile = {}, signatures = {}) {
+// Draws one student's values onto a pair of blank template pages. The pages may
+// belong to a freshly loaded template or to the merged batch document.
+async function drawInventory(pdf, page1, page2, formData, profile, signatures) {
   const data = mapInventoryToPlaceholders(formData, profile, {}, { pad: false });
-  const pdf = await PDFDocument.load(fs.readFileSync(TEMPLATE_PATH));
   const font = await pdf.embedFont(StandardFonts.TimesRoman);
   const bold = await pdf.embedFont(StandardFonts.TimesRomanBold);
-  const pages = pdf.getPages();
-  const [page1, page2] = pages;
 
   const draw = (page, value, x0, x1, top, { size = BASE, min = MIN_VALUE_SIZE, maxLines = 1 } = {}) => {
     const text = String(value ?? "").trim();
@@ -503,6 +502,34 @@ export async function generateInventoryPdf(formData = {}, profile = {}, signatur
       height: h,
     });
   }
+}
 
+export async function generateInventoryPdf(formData = {}, profile = {}, signatures = {}) {
+  const pdf = await PDFDocument.load(fs.readFileSync(TEMPLATE_PATH));
+  const [page1, page2] = pdf.getPages();
+  await drawInventory(pdf, page1, page2, formData, profile, signatures);
   return Buffer.from(await pdf.save());
+}
+
+// The compiled counselor report: one PDF with every student's fixed two-page
+// profile, in the order given, so each student occupies pages 2n-1 and 2n.
+// All template pages are copied in one pass so the form's own resources (the
+// bulk of the file) are shared instead of duplicated per student.
+export async function generateCompiledProfilesPdf(students) {
+  const merged = await PDFDocument.create();
+  const template = await PDFDocument.load(fs.readFileSync(TEMPLATE_PATH));
+  const pages = await merged.copyPages(template, students.flatMap(() => [0, 1]));
+  for (let i = 0; i < students.length; i++) {
+    const page1 = merged.addPage(pages[i * 2]);
+    const page2 = merged.addPage(pages[i * 2 + 1]);
+    await drawInventory(
+      merged,
+      page1,
+      page2,
+      students[i].formData,
+      students[i].profile,
+      students[i].signatures
+    );
+  }
+  return Buffer.from(await merged.save());
 }
