@@ -608,7 +608,7 @@ export default function CounselorDashboard() {
 
   return (
     <>
-    <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 py-4 sm:py-6">
       {activeUrgentCount > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
           <div className="flex items-center gap-2 text-red-800">

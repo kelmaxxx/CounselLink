@@ -131,7 +131,7 @@ export default function HowItWorksSection() {
   if (reducedMotion) {
     return (
       <section id="how-it-works" className="relative bg-gray-50 py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-shell mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight text-gray-900 text-center mb-14">
             Simple Steps to Get Counseling Support
           </h2>
@@ -173,7 +173,7 @@ export default function HowItWorksSection() {
         </div>
 
         {/* Large heading — no badge, no helper subtitle */}
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-20">
+        <div className="relative max-w-shell mx-auto px-4 sm:px-6 lg:px-8 w-full pt-20">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8 lg:mb-12">
             <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight text-gray-900 leading-[1.02] max-w-3xl">
               Simple Steps to Get Counseling Support

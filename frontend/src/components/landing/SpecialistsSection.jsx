@@ -20,7 +20,7 @@ export default function SpecialistsSection() {
 
   return (
     <section id="specialists" className="py-24 bg-gray-50 border-t border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-shell mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
         <Reveal className="text-center mb-16">

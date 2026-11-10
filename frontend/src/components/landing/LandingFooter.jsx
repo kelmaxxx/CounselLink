@@ -40,7 +40,7 @@ export default function LandingFooter() {
       </div>
 
       {/* Main footer content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-8">
+      <div className="relative z-10 max-w-shell mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-8">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-10">
           {/* Brand column */}
           <div className="lg:col-span-2">
@@ -137,7 +137,7 @@ export default function LandingFooter() {
 
       {/* Bottom bar */}
       <div className="relative z-10 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-shell mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-gray-500 text-center sm:text-left">
             © {year} CounceLink — Division of Student Affairs, Mindanao State
             University – Marawi City. All rights reserved.
