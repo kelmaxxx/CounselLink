@@ -199,6 +199,12 @@ export const listUsers = async (req, res) => {
     params.push(role);
   }
 
+  // Pending/rejected/banned students are not part of the active student body;
+  // only admins need to see them outside the registration review screens.
+  if (role === "student" && requesterRole !== "admin") {
+    where.push("status = 'approved'");
+  }
+
   if (scopeToRepCollege) {
     if (!requesterCollege) {
       // Rep with no college assigned should see no students.

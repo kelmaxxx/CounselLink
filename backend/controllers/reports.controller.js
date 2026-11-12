@@ -1,5 +1,6 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
+import { reportableStudentSql } from "../utils/report-eligibility.js";
 
 const mapStatusCounts = (rows) =>
   rows.reduce((acc, row) => {
@@ -143,6 +144,7 @@ const computeCollegeTotals = async (college, department = null) => {
      FROM appointments a
      JOIN users u ON a.student_id = u.id
      WHERE u.college = ?${department ? " AND u.department = ?" : ""}
+       AND ${reportableStudentSql("u")}
      GROUP BY a.appointment_type, a.status`,
     department ? [college, department] : [college]
   );
@@ -152,6 +154,7 @@ const computeCollegeTotals = async (college, department = null) => {
      FROM counseling_sessions cs
      JOIN users u ON cs.student_id = u.id
      WHERE u.college = ?${department ? " AND u.department = ?" : ""} AND cs.finalized_at IS NOT NULL
+       AND ${reportableStudentSql("u")}
      GROUP BY cs.next_session`,
     department ? [college, department] : [college]
   );
@@ -188,9 +191,9 @@ const computeCollegeTotals = async (college, department = null) => {
 
 const getCollegeStudentCount = async (college, department = null) => {
   const [row] = await query(
-    `SELECT COUNT(*) AS count FROM users WHERE role = 'student' AND college = ?${
-      department ? " AND department = ?" : ""
-    }`,
+    `SELECT COUNT(*) AS count FROM users u WHERE u.role = 'student' AND u.college = ?${
+      department ? " AND u.department = ?" : ""
+    } AND ${reportableStudentSql("u")}`,
     department ? [college, department] : [college]
   );
   return Number(row?.count || 0);
@@ -206,6 +209,7 @@ const getCollegeAnonymizedSessions = async (college, department = null) => {
      FROM counseling_sessions cs
      JOIN users s ON cs.student_id = s.id
      WHERE s.college = ?${department ? " AND s.department = ?" : ""} AND cs.finalized_at IS NOT NULL
+       AND ${reportableStudentSql("s")}
      ORDER BY cs.session_date DESC`,
     department ? [college, department] : [college]
   );

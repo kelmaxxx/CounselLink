@@ -2,6 +2,7 @@ import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
 import { generateInventoryDocx, readSignatureFile, readAvatarFile } from "../utils/inventory-docx.js";
 import { generateInventoryPdf } from "../utils/inventory-pdf.js";
+import { reportableStudentSql } from "../utils/report-eligibility.js";
 
 const SELECT_FIELDS = `
   i.id, i.student_id AS studentId, i.counselor_id AS counselorId,
@@ -50,11 +51,19 @@ export const getInventory = async (req, res) => {
 export const listInventories = async (req, res) => {
   if (!canAccess(req, null)) return res.status(403).json({ message: "Forbidden" });
   const { college } = req.query;
+  // The roster feeds the Individual Profile report, so it only includes
+  // approved students whose consent and data authorization are still active.
+  const conditions = [reportableStudentSql("s")];
+  const params = [];
+  if (college) {
+    conditions.push("s.college = ?");
+    params.push(college);
+  }
   const rows = await query(
     `SELECT ${SELECT_FIELDS} ${FROM_JOIN}
-     ${college ? "WHERE s.college = ?" : ""}
+     WHERE ${conditions.join(" AND ")}
      ORDER BY s.name ASC`,
-    college ? [college] : []
+    params
   );
   return res.json(rows.map(parseFormData));
 };
