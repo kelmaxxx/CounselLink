@@ -93,6 +93,31 @@ export function StudentRecordsProvider({ children }) {
     return { success: true };
   };
 
+  // Counselor report: one PDF holding every student profile in a college
+  // (optionally one department), two pages per student, ordered by name.
+  const downloadCompiledProfilesPdf = async ({ college, department, filename } = {}) => {
+    if (!college) return { success: false, message: "Select a college." };
+    const params = new URLSearchParams({ college });
+    if (department) params.set("department", department);
+    const response = await authFetch(
+      `${apiBase}/api/student-inventories/compiled/profiles-pdf?${params.toString()}`
+    );
+    if (!response.ok) {
+      const data = await parseJson(response);
+      return { success: false, message: data.message || "Failed to generate the profiles PDF" };
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || "student_profiles.pdf";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { success: true };
+  };
+
   // ---- Consent ----
 
   const getConsent = async (studentId) => {
@@ -227,6 +252,7 @@ export function StudentRecordsProvider({ children }) {
         uploadInventoryScan,
         deleteInventoryScan,
         downloadInventoryPdf,
+        downloadCompiledProfilesPdf,
         getConsent,
         eSignConsent,
         uploadConsentScan,

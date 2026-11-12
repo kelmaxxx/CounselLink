@@ -75,7 +75,6 @@ export function buildCompiledPayload({
   schoolYear,
   sessions = [],
   testResults = [],
-  inventories = [],
 }) {
   const generatedAt = new Date().toISOString();
   const base = {
@@ -158,33 +157,11 @@ export function buildCompiledPayload({
     };
   }
 
-  const rows = inventories
-    .map((inv) => {
-      const p = inv.formData?.personal || {};
-      return [
-        inv.studentName || "—",
-        inv.studentNumber || "—",
-        [p.course, p.yearLevel].filter(Boolean).join(" · ") || "—",
-        [p.emailAddress, p.mobileNo].filter(Boolean).join(" · ") || "—",
-        [p.presentAddress, p.hometownAddress].filter(Boolean).join(" · ") || "—",
-      ];
-    })
-    .sort((a, b) => a[0].localeCompare(b[0]));
-  return {
-    ...base,
-    periodLabel: "Current records",
-    dateFrom: null,
-    dateTo: null,
-    totals: [
-      { label: "Students with profile", value: rows.length },
-      { label: "With contact info", value: rows.filter((r) => r[3] !== "—").length },
-    ],
-    columns: ["Student", "Student No.", "Course · Year", "Email · Mobile", "Address"],
-    rows,
-  };
+  // "profile" batches are merged server-side from the official two-page form;
+  // they never reach this table renderer.
 }
 
-const PAGE_ROWS = { counseling: 10, psychological: 10, profile: 16 };
+const PAGE_ROWS = { counseling: 10, psychological: 10 };
 
 const STYLES = `
   @page { size: A4 portrait; margin: 0; }
@@ -203,7 +180,6 @@ const STYLES = `
   table.data-table th { background: #f2f2f2; font-weight: 700; }
   table.date-first th:first-child, table.date-first td:first-child { white-space: nowrap; }
   table.date-first th:last-child, table.date-first td:last-child { white-space: nowrap; }
-  table.profile-table th:nth-child(2), table.profile-table td:nth-child(2) { white-space: nowrap; }
   .continuation { font-size: 9pt; color: #333; margin: 0 0 8px; }
   .signature-block { margin-top: 28px; text-align: right; }
   .signature-line { border-top: 1px solid #111; width: 260px; margin: 0 0 2px auto; }
@@ -254,7 +230,7 @@ export function buildCompiledReportHTML(payload, { signatureImageUrl } = {}) {
         })}
         <div class="form-title">${esc(payload.reportLabel)}</div>
         ${i === 0 ? meta + totals : continuation}
-        <table class="data-table${payload.type === "profile" ? " profile-table" : " date-first"}">${tableHead}<tbody>${
+        <table class="data-table date-first">${tableHead}<tbody>${
           chunk
             .map((row) => `<tr>${columns.map((_, ci) => `<td>${dash(row[ci])}</td>`).join("")}</tr>`)
             .join("") || `<tr><td colspan="${columns.length || 1}">No records for this selection.</td></tr>`
