@@ -4,6 +4,7 @@ import { createNotification } from "../utils/notify.js";
 import { sendAppointmentStatusEmail } from "../utils/appointment-emails.js";
 import { formatManilaDate } from "../utils/scheduling.js";
 import { notifyUser } from "../events.js";
+import { isStudentReportExcluded } from "../utils/report-eligibility.js";
 
 const SELECT_FIELDS = `
   cs.id, cs.student_id AS studentId, cs.counselor_id AS counselorId,
@@ -20,6 +21,19 @@ const FROM_JOIN = `
   FROM counseling_sessions cs
   JOIN users s ON cs.student_id = s.id
   JOIN users c ON cs.counselor_id = c.id
+`;
+
+// Report rows carry the student's approval/revocation state so compiled reports
+// can leave out revoked or unapproved students without hiding records from the
+// counselor's normal views.
+const REPORT_ELIGIBILITY_FIELDS = `
+  s.status AS studentStatus,
+  EXISTS (SELECT 1 FROM student_consents sc WHERE sc.student_id = cs.student_id AND sc.revoked_at IS NOT NULL) AS consentRevoked,
+  EXISTS (
+    SELECT 1 FROM student_inventories si
+    WHERE si.student_id = cs.student_id
+      AND JSON_UNQUOTE(JSON_EXTRACT(si.form_data, '$.acknowledgment.disclaimerRevokedAt')) NOT IN ('null', '')
+  ) AS authorizationRevoked
 `;
 
 const parseFormData = (row) => {
@@ -99,7 +113,7 @@ export const listSessions = async (req, res) => {
   const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const rows = await query(
-    `SELECT ${SELECT_FIELDS} ${FROM_JOIN} ${whereClause} ORDER BY cs.session_date DESC, cs.id DESC`,
+    `SELECT ${SELECT_FIELDS}, ${REPORT_ELIGIBILITY_FIELDS} ${FROM_JOIN} ${whereClause} ORDER BY cs.session_date DESC, cs.id DESC`,
     params
   );
   return res.json(rows.map(parseFormData));
@@ -308,7 +322,9 @@ export const finalizeSession = async (req, res) => {
       "SELECT referral_sharing_consent FROM student_consents WHERE student_id = ?",
       [session.student_id]
     );
-    const canShare = consentRows[0]?.referral_sharing_consent === "yes";
+    const canShare =
+      consentRows[0]?.referral_sharing_consent === "yes" &&
+      !(await isStudentReportExcluded(session.student_id));
 
     if (canShare) {
       const payload = buildSessionReportPayload(session);

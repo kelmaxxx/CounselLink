@@ -7,6 +7,7 @@ import {
   resolveSignatureDataUrl,
 } from "./sessionReport";
 import { saveHtmlAsPdfFile } from "./htmlToPdf";
+import { isReportableStudent } from "./reportEligibility.js";
 
 export const SEMESTERS = [
   { value: "1st", label: "1st Semester" },
@@ -92,7 +93,8 @@ export function buildCompiledPayload({
         (s) =>
           s.finalizedAt &&
           s.studentCollege === college &&
-          inRange(s.sessionDate, from, to)
+          inRange(s.sessionDate, from, to) &&
+          isReportableStudent(s)
       )
       .sort((a, b) => String(b.sessionDate).localeCompare(String(a.sessionDate)))
       .map((s) => [
@@ -123,7 +125,12 @@ export function buildCompiledPayload({
   if (type === "psychological") {
     const { from, to, label } = semesterRange(semester, schoolYear);
     const rows = testResults
-      .filter((r) => r.college === college && inRange(r.completedDate, from, to))
+      .filter(
+        (r) =>
+          r.college === college &&
+          inRange(r.completedDate, from, to) &&
+          isReportableStudent(r)
+      )
       .sort((a, b) => String(b.completedDate).localeCompare(String(a.completedDate)))
       .map((r) => [
         shortDate(r.completedDate),

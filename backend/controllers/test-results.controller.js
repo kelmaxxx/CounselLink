@@ -65,7 +65,14 @@ export const listTestResultsForUser = async (req, res) => {
     // who administered the test (mirrors counseling-sessions.controller.js).
     const rows = await query(
       `SELECT r.*, s.name AS studentName, s.college, s.student_id AS studentId, c.name AS counselorName,
-              c.signature_url AS counselorSignatureUrl
+              c.signature_url AS counselorSignatureUrl,
+              s.status AS studentStatus,
+              EXISTS (SELECT 1 FROM student_consents sc WHERE sc.student_id = r.student_id AND sc.revoked_at IS NOT NULL) AS consentRevoked,
+              EXISTS (
+                SELECT 1 FROM student_inventories si
+                WHERE si.student_id = r.student_id
+                  AND JSON_UNQUOTE(JSON_EXTRACT(si.form_data, '$.acknowledgment.disclaimerRevokedAt')) NOT IN ('null', '')
+              ) AS authorizationRevoked
        FROM test_results r
        LEFT JOIN users s ON r.student_id = s.id
        LEFT JOIN users c ON r.counselor_id = c.id

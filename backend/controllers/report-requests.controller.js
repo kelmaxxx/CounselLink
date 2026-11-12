@@ -3,6 +3,7 @@ import { logAction } from "../utils/audit.js";
 import { createNotification, notifyUsers } from "../utils/notify.js";
 import { notifyUser, notifyRole } from "../events.js";
 import { buildSessionReportPayload } from "./counseling-sessions.controller.js";
+import { isStudentReportExcluded } from "../utils/report-eligibility.js";
 
 const baseSelect = `
   SELECT rr.id, rr.requester_id, rr.counselor_id, rr.request_type,
@@ -196,7 +197,11 @@ export const createReportRequest = async (req, res) => {
     "SELECT referral_sharing_consent FROM student_consents WHERE student_id = ?",
     [studentId]
   );
-  const canShare = consentRows[0]?.referral_sharing_consent === "yes";
+  const excluded = await isStudentReportExcluded(studentId);
+  const canShare = consentRows[0]?.referral_sharing_consent === "yes" && !excluded;
+  const consentNote = excluded
+    ? "The student has revoked their consent or data authorization."
+    : "The student has not consented to share their counseling session details with Colleges.";
 
   if (referralSessionRows.length) {
     const session = referralSessionRows[0];
@@ -214,8 +219,7 @@ export const createReportRequest = async (req, res) => {
       status = "fulfilled";
       responseNote = null;
     } else {
-      responseNote =
-        "The student has not consented to share their counseling session details with Colleges.";
+      responseNote = consentNote;
     }
   } else {
     const anySessionRows = await query(
@@ -226,8 +230,7 @@ export const createReportRequest = async (req, res) => {
       if (canShare) {
         status = null; // leave pending for the assigned counselor to send manually
       } else {
-        responseNote =
-          "The student has not consented to share their counseling session details with Colleges.";
+        responseNote = consentNote;
       }
     }
   }
@@ -303,6 +306,11 @@ export const sendIndividualReport = async (req, res) => {
     return res
       .status(403)
       .json({ message: "The student has not consented to share their counseling session details." });
+  }
+  if (await isStudentReportExcluded(request.student_id)) {
+    return res
+      .status(403)
+      .json({ message: "The student has revoked their consent or data authorization." });
   }
 
   const sessionRows = await query(
