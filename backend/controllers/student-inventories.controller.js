@@ -195,7 +195,7 @@ const DOWNLOAD_SELECT = `
     LEFT JOIN student_consents sc ON sc.student_id = i.student_id
 `;
 
-const buildDownloadData = (rawRow) => {
+const buildDownloadData = async (rawRow) => {
   const row = parseFormData(rawRow);
   const profile = {
     name: row.studentName,
@@ -216,8 +216,8 @@ const buildDownloadData = (rawRow) => {
     // Suppress the student signature whenever consent or authorization has been revoked.
     studentSignature: (consentRevoked || disclaimerRevoked)
       ? null
-      : readSignatureFile(row.studentSignatureUrl),
-    studentAvatar: readAvatarFile(row.studentAvatarUrl),
+      : await readSignatureFile(row.studentSignatureUrl),
+    studentAvatar: await readAvatarFile(row.studentAvatarUrl),
   };
 
   // Missing files fail silently into a transparent pixel (see inventory-docx.js),
@@ -235,7 +235,7 @@ const buildDownloadData = (rawRow) => {
 
 const loadDownloadData = async (studentId) => {
   const rows = await query(`${DOWNLOAD_SELECT} WHERE i.student_id = ? LIMIT 1`, [studentId]);
-  return rows.length ? buildDownloadData(rows[0]) : null;
+  return rows.length ? await buildDownloadData(rows[0]) : null;
 };
 
 // Renders the saved inventory into a filled-in copy of the official MSU DSA
@@ -322,12 +322,13 @@ export const downloadCompiledProfilesPdf = async (req, res) => {
 
   let buffer;
   try {
-    buffer = await generateCompiledProfilesPdf(
-      rows.map((rawRow) => {
-        const { row, profile, signatures } = buildDownloadData(rawRow);
+    const profiles = await Promise.all(
+      rows.map(async (rawRow) => {
+        const { row, profile, signatures } = await buildDownloadData(rawRow);
         return { formData: row.formData, profile, signatures };
       })
     );
+    buffer = await generateCompiledProfilesPdf(profiles);
   } catch (err) {
     console.error("Compiled profiles PDF generation failed:", err);
     return res.status(500).json({ message: "Failed to generate the compiled profiles PDF" });

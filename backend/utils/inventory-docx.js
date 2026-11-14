@@ -15,6 +15,7 @@ import ImageModule from "docxtemplater-image-module-free";
 import { imageSize } from "image-size";
 import { FIELD_WIDTHS, fit } from "./inventory-field-widths.js";
 import { getUploadsDir } from "../middleware/upload.js";
+import { query } from "../config/db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = path.join(__dirname, "..", "templates", "individual-inventory-template.docx");
@@ -45,21 +46,25 @@ const signatureSize = (buffer, tagValue) => {
   }
 };
 
-// Reads a stored signature image (users.signature_url, e.g.
-// "/uploads/signatures/signature-7-....png") from local disk. Returns null for
-// anything missing or outside the uploads directory.
-export function readSignatureFile(signatureUrl) {
-  if (!signatureUrl || typeof signatureUrl !== "string") return null;
-  if (!signatureUrl.startsWith("/uploads/")) return null;
+// Reads a stored upload (users.signature_url / avatar_url, e.g.
+// "/uploads/signatures/signature-7-....png") from local disk, falling back to
+// the database copy when the ephemeral uploads directory was wiped. Returns
+// null for anything missing or outside the uploads directory.
+const readUploadFile = async (url) => {
+  if (!url || typeof url !== "string") return null;
+  if (!url.startsWith("/uploads/")) return null;
   const base = path.resolve(uploadsDirNow());
-  const filePath = path.resolve(base, signatureUrl.slice("/uploads/".length));
+  const filePath = path.resolve(base, url.slice("/uploads/".length));
   if (!filePath.startsWith(base)) return null;
   try {
     return fs.readFileSync(filePath);
   } catch {
-    return null;
+    const rows = await query("SELECT data FROM upload_blobs WHERE url = ?", [url]);
+    return rows[0]?.data || null;
   }
-}
+};
+
+export const readSignatureFile = readUploadFile;
 
 const AVATAR_MAX_W = 96;
 const AVATAR_MAX_H = 96;
@@ -75,21 +80,7 @@ const avatarSize = (buffer, tagValue) => {
   }
 };
 
-// Reads a stored avatar image (users.avatar_url, e.g.
-// "/uploads/avatars/avatar-7-....png") from local disk. Returns null for
-// anything missing or outside the uploads directory.
-export function readAvatarFile(avatarUrl) {
-  if (!avatarUrl || typeof avatarUrl !== "string") return null;
-  if (!avatarUrl.startsWith("/uploads/")) return null;
-  const base = path.resolve(uploadsDirNow());
-  const filePath = path.resolve(base, avatarUrl.slice("/uploads/".length));
-  if (!filePath.startsWith(base)) return null;
-  try {
-    return fs.readFileSync(filePath);
-  } catch {
-    return null;
-  }
-}
+export const readAvatarFile = readUploadFile;
 
 // Checkbox glyph used everywhere a box/marker appears on the form.
 const box = (checked) => (checked ? "[ X ]" : "[   ]");

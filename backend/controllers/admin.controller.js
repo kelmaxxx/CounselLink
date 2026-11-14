@@ -32,22 +32,35 @@ export const approvedThisWeekCount = async (_req, res) => {
 
 export const approveRegistration = async (req, res) => {
   const { id } = req.params;
-  const { program, yearLevel } = req.body;
+  const { program, yearLevel, college, department } = req.body;
 
-  const rows = await query("SELECT id, name, email FROM users WHERE id = ?", [id]);
+  const rows = await query(
+    "SELECT id, name, email, college, department, program, year_level AS yearLevel FROM users WHERE id = ?",
+    [id]
+  );
   if (!rows.length) {
     return res.status(404).json({ message: "User not found" });
   }
 
+  const existing = rows[0];
+  const next = {
+    college: college ?? existing.college,
+    department: department ?? existing.department,
+    program: program ?? existing.program,
+    yearLevel: yearLevel ?? existing.yearLevel,
+  };
+
   await query(
-    "UPDATE users SET status='approved', program=?, year_level=?, approved_at=NOW(), updated_at=NOW() WHERE id = ?",
-    [program || null, yearLevel || null, id]
+    "UPDATE users SET status='approved', college=?, department=?, program=?, year_level=?, approved_at=NOW(), updated_at=NOW() WHERE id = ?",
+    [next.college || null, next.department || null, next.program || null, next.yearLevel || null, id]
   );
 
   await logAction(req, "approve_registration", "user", id, {
-    program: program || null,
-    yearLevel: yearLevel || null,
-    studentName: rows[0].name,
+    college: next.college || null,
+    department: next.department || null,
+    program: next.program || null,
+    yearLevel: next.yearLevel || null,
+    studentName: existing.name,
   });
 
   try {

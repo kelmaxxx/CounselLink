@@ -27,6 +27,15 @@ import {
   initialsOf,
   useBodyScrollLock,
 } from "../../components/ui";
+import { COLLEGES } from "../../data/mockData";
+import { getDepartments, getCollegeName, getPrograms } from "../../data/msuColleges";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "../../components/shadcn/select";
 
 
 export default function PendingRegistrations() {
@@ -41,6 +50,8 @@ export default function PendingRegistrations() {
   const [emailPreviewData, setEmailPreviewData] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [message, setMessage] = useState(null);
+  // Admin corrections to the student's academic info, saved on approve.
+  const [editForm, setEditForm] = useState({ userId: null, college: "", department: "", program: "" });
 
   const [pendingUsers, setPendingUsers] = useState([]);
   const [approvedThisWeek, setApprovedThisWeek] = useState(0);
@@ -77,10 +88,22 @@ export default function PendingRegistrations() {
     };
   }, [fetchPendingRegistrations, fetchApprovedThisWeek]);
 
+  const draftFor = (user) =>
+    editForm.userId === user.id
+      ? editForm
+      : {
+          college: user.college || "",
+          department: user.department || "",
+          program: user.program || "",
+        };
+
   const handleApprove = async (user) => {
+    const draft = draftFor(user);
     try {
       await approveRegistration(user.id, {
-        program: user.program || "",
+        college: draft.college,
+        department: draft.department,
+        program: draft.program,
         yearLevel: user.yearLevel || "",
       });
       setPendingUsers((prev) => prev.filter((item) => item.id !== user.id));
@@ -90,13 +113,14 @@ export default function PendingRegistrations() {
       return;
     }
 
+    setEditForm({ userId: null, college: "", department: "", program: "" });
     setEmailPreviewData({
       type: "approval",
       recipient: user.email,
       name: user.name,
       studentId: user.studentId,
-      college: user.college,
-      program: user.program || "",
+      college: draft.college,
+      program: draft.program,
       yearLevel: user.yearLevel || "",
     });
 
@@ -372,30 +396,141 @@ export default function PendingRegistrations() {
                         </div>
                       </>
                     ) : (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => handleApprove(user)}
-                          className={`${BTN.success} flex-1`}
-                        >
-                          <CheckCircle size={14} /> Approve
-                        </button>
-                        <button
-                          onClick={() => setRejectingUserId(user.id)}
-                          className={`${BTN.danger} flex-1`}
-                        >
-                          <XCircle size={14} /> Reject
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedUser(null);
-                            setRejectingUserId(null);
-                            setRejectionReason("");
-                          }}
-                          className={BTN.secondary}
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className={LABEL}>College</label>
+                            <Select
+                              variant="form"
+                              value={draftFor(user).college}
+                              onValueChange={(v) =>
+                                setEditForm({
+                                  ...draftFor(user),
+                                  userId: user.id,
+                                  college: v,
+                                  department: "",
+                                  program: "",
+                                })
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select college" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {COLLEGES.map((c) => (
+                                  <SelectItem key={c} value={c}>
+                                    {`${c} — ${getCollegeName(c)}`}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className={LABEL}>Department</label>
+                            <Select
+                              variant="form"
+                              value={draftFor(user).department}
+                              onValueChange={(v) =>
+                                setEditForm({
+                                  ...draftFor(user),
+                                  userId: user.id,
+                                  department: v,
+                                  program: "",
+                                })
+                              }
+                              disabled={!draftFor(user).college}
+                            >
+                              <SelectTrigger>
+                                <SelectValue
+                                  placeholder={
+                                    draftFor(user).college
+                                      ? "Select department"
+                                      : "Select a college first"
+                                  }
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {draftFor(user).department &&
+                                  !getDepartments(draftFor(user).college).some(
+                                    (d) => d.name === draftFor(user).department
+                                  ) && (
+                                    <SelectItem value={draftFor(user).department}>
+                                      {draftFor(user).department}
+                                    </SelectItem>
+                                  )}
+                                {getDepartments(draftFor(user).college).map((d) => (
+                                  <SelectItem key={d.code} value={d.name}>
+                                    {d.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className={LABEL}>Course</label>
+                            <Select
+                              variant="form"
+                              value={draftFor(user).program}
+                              onValueChange={(v) =>
+                                setEditForm({ ...draftFor(user), userId: user.id, program: v })
+                              }
+                              disabled={!draftFor(user).department}
+                            >
+                              <SelectTrigger>
+                                <SelectValue
+                                  placeholder={
+                                    draftFor(user).department
+                                      ? "Select course"
+                                      : "Select a department first"
+                                  }
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {draftFor(user).program &&
+                                  !getPrograms(
+                                    draftFor(user).college,
+                                    draftFor(user).department
+                                  ).includes(draftFor(user).program) && (
+                                    <SelectItem value={draftFor(user).program}>
+                                      {draftFor(user).program}
+                                    </SelectItem>
+                                  )}
+                                {getPrograms(draftFor(user).college, draftFor(user).department).map(
+                                  (p) => (
+                                    <SelectItem key={p} value={p}>
+                                      {p}
+                                    </SelectItem>
+                                  )
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleApprove(user)}
+                            className={`${BTN.success} flex-1`}
+                          >
+                            <CheckCircle size={14} /> Approve
+                          </button>
+                          <button
+                            onClick={() => setRejectingUserId(user.id)}
+                            className={`${BTN.danger} flex-1`}
+                          >
+                            <XCircle size={14} /> Reject
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedUser(null);
+                              setRejectingUserId(null);
+                              setRejectionReason("");
+                            }}
+                            className={BTN.secondary}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 ) : (

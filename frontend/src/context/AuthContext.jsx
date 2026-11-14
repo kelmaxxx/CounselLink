@@ -190,12 +190,12 @@ export function AuthProvider({ children }) {
     return data.count || 0;
   };
 
-  const approveRegistration = async (userId, { program, yearLevel }) => {
+  const approveRegistration = async (userId, { college, department, program, yearLevel }) => {
     const response = await authFetch(
       `${apiBase}/api/admin/pending-registrations/${userId}/approve`,
       {
         method: "PUT",
-        body: JSON.stringify({ program, yearLevel }),
+        body: JSON.stringify({ college, department, program, yearLevel }),
       }
     );
     if (!response.ok) {

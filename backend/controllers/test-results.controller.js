@@ -149,14 +149,23 @@ export const getTestResultAttachment = async (req, res) => {
   // Strip the leading "/uploads/" to get the relative path under getUploadsDir().
   const relativePath = result.result_file_url.replace(/^\/uploads\//, "");
   const absolutePath = path.join(getUploadsDir(), relativePath);
+  const mimeType = result.result_file_type || "application/octet-stream";
+  const fileName = result.result_file_name || path.basename(absolutePath);
 
   if (!fs.existsSync(absolutePath)) {
-    return res.status(404).json({ message: "Attachment file not found on server" });
+    // Disk copy gone after an ephemeral-host redeploy; serve the DB copy.
+    const blobs = await query("SELECT data FROM upload_blobs WHERE url = ?", [result.result_file_url]);
+    if (!blobs.length) {
+      return res.status(404).json({ message: "Attachment file not found on server" });
+    }
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Content-Length", blobs[0].data.length);
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(fileName)}"`);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    return res.send(blobs[0].data);
   }
 
   const stat = fs.statSync(absolutePath);
-  const mimeType = result.result_file_type || "application/octet-stream";
-  const fileName = result.result_file_name || path.basename(absolutePath);
 
   res.setHeader("Content-Type", mimeType);
   res.setHeader("Content-Length", stat.size);

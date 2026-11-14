@@ -1,13 +1,12 @@
 import { Router } from "express";
-import fs from "fs";
 import { corUpload, avatarUpload, pubmatUpload, signatureUpload } from "../middleware/upload.js";
 import { auth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/rbac.js";
-import { query } from "../config/db.js";
+import { persistUpload } from "../utils/persistUpload.js";
 
 const router = Router();
 
-router.post("/cor", corUpload.single("cor"), async (req, res) => {
+router.post("/cor", corUpload.single("cor"), persistUpload, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
@@ -22,7 +21,7 @@ router.post("/cor", corUpload.single("cor"), async (req, res) => {
   });
 });
 
-router.post("/avatar", avatarUpload.single("avatar"), async (req, res) => {
+router.post("/avatar", avatarUpload.single("avatar"), persistUpload, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
@@ -37,7 +36,7 @@ router.post("/avatar", avatarUpload.single("avatar"), async (req, res) => {
   });
 });
 
-router.post("/signature", auth, signatureUpload.single("signature"), async (req, res) => {
+router.post("/signature", auth, signatureUpload.single("signature"), persistUpload, async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
@@ -67,25 +66,13 @@ router.post(
       next();
     });
   },
+  persistUpload,
   async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
     const fileUrl = `/uploads/pubmats/${req.file.filename}`;
-
-    // Durable copy: /uploads is ephemeral on many hosts, so the DB keeps the
-    // bytes and server.js serves them when the disk file is gone.
-    try {
-      await query(
-        `INSERT INTO upload_blobs (url, mime_type, data) VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE mime_type = VALUES(mime_type), data = VALUES(data)`,
-        [fileUrl, req.file.mimetype, fs.readFileSync(req.file.path)]
-      );
-    } catch (err) {
-      // The file is still on disk, so the upload itself succeeded.
-      console.error("Failed to persist pubmat to database:", err.message);
-    }
 
     return res.status(201).json({
       message: "Upload successful",

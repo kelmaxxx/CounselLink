@@ -169,13 +169,15 @@ export default function CreateAnnouncement() {
         imageUrl = uploadData.pubmatUrl;
       }
 
+      // Send absolute instants: postISO/removeISO are local wall-clock strings,
+      // and a naive string on a UTC server stores 8h late for UTC+8 users.
       const result = await addNotification({
         title: form.title.trim(),
         message: form.message.trim(),
         sendTo: form.sendTo,
         imageUrl,
-        postAt: postISO,
-        removeAt: removeISO,
+        postAt: postISO ? new Date(postISO).toISOString() : null,
+        removeAt: removeISO ? new Date(removeISO).toISOString() : null,
       });
       setSuccess(result);
     } catch (err) {
