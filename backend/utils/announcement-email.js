@@ -39,9 +39,31 @@ export const resolveAnnouncementRecipients = async (audience, adminId = 0) => {
   return recipients;
 };
 
-export const deliverAnnouncementEmails = async (recipients, title, message) => {
-  const html = `<h2>${esc(title)}</h2><p>${esc(message).replace(/\n/g, "<br/>")}</p><p>Open CounselLink to view the full announcement.</p>`;
-  const text = `${title}\n\n${message}\n\nOpen CounselLink to view the full announcement.`;
+// Emails need an absolute URL; image_url is stored as "/uploads/...".
+// Render sets RENDER_EXTERNAL_URL automatically; otherwise use BACKEND_URL,
+// then the local dev server.
+const absoluteUrl = (url) => {
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  const base =
+    process.env.BACKEND_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    `http://localhost:${process.env.PORT || 5000}`;
+  return `${base.replace(/\/+$/, "")}${url.startsWith("/") ? "" : "/"}${url}`;
+};
+
+export const deliverAnnouncementEmails = async (recipients, title, message, imageUrl) => {
+  const image = absoluteUrl(imageUrl);
+  const html =
+    `<h2>${esc(title)}</h2><p>${esc(message).replace(/\n/g, "<br/>")}</p>` +
+    (image
+      ? `<p><img src="${esc(image)}" alt="Announcement image" style="max-width:100%;height:auto;border-radius:8px"/></p>`
+      : "") +
+    `<p>Open CounselLink to view the full announcement.</p>`;
+  const text =
+    `${title}\n\n${message}\n\n` +
+    (image ? `Image: ${image}\n\n` : "") +
+    "Open CounselLink to view the full announcement.";
   const result = { sent: 0, failed: 0, firstError: null };
   for (const r of recipients) {
     // Placeholder accounts (walk-ins, referrals) have no real mailbox; every
@@ -64,7 +86,7 @@ export const deliverAnnouncementEmails = async (recipients, title, message) => {
 // stale announcements at users — the in-app copy is still there for those.
 export const sweepScheduledAnnouncements = async () => {
   const due = await query(
-    `SELECT id, content, send_to AS sendTo, admin_id AS adminId FROM announcements
+    `SELECT id, content, image_url AS imageUrl, send_to AS sendTo, admin_id AS adminId FROM announcements
      WHERE post_at IS NOT NULL AND emailed_at IS NULL
        AND post_at <= NOW() AND post_at > NOW() - INTERVAL 1 DAY
        AND (remove_at IS NULL OR remove_at > NOW())`
@@ -77,7 +99,7 @@ export const sweepScheduledAnnouncements = async () => {
     const message = split === -1 ? "" : a.content.slice(split + 2);
 
     const recipients = await resolveAnnouncementRecipients(a.sendTo, a.adminId);
-    const result = await deliverAnnouncementEmails(recipients, title, message);
+    const result = await deliverAnnouncementEmails(recipients, title, message, a.imageUrl);
     console.log(
       `[announcement-email] #${a.id} (${a.sendTo}): ${recipients.length} recipients, ` +
         `${result.sent} sent, ${result.failed} failed` +

@@ -55,7 +55,7 @@ export const createAnnouncement = async (req, res) => {
   // in-app, so a slow/down mail provider must not delay the response.
   const isLive = !dbPostAt || new Date(dbPostAt.replace(" ", "T") + "Z") <= new Date();
   if (isLive) {
-    deliverAnnouncementEmails(recipients, title, message).catch((err) =>
+    deliverAnnouncementEmails(recipients, title, message, pubmatUrl).catch((err) =>
       console.warn("[announcement-email]", err.message)
     );
     // Stops the sweep from emailing this one again if post_at is ever in the past.
