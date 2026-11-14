@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { LogOut, X, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { LogOut, X, PanelLeft } from "lucide-react";
 import { getNavGroups, getRoleBase } from "./navItems";
 import { useMessages } from "../context/MessagesContext";
 import { useReferrals } from "../context/ReferralsContext";
@@ -144,14 +144,26 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       />
     <aside className={`${drawerClasses} bg-maroon-700 text-maroon-50 flex flex-col border-r border-maroon-800/60`}>
       {/* Brand */}
-      <div className={`px-5 py-4 border-b border-maroon-800/60 ${collapsed ? "lg:px-0" : ""}`}>
-        <div className={`flex items-center gap-2 ${collapsed ? "lg:justify-center" : ""}`}>
+      <div className={`px-5 py-4 border-b border-maroon-800/60 ${collapsed ? "lg:px-1.5" : ""}`}>
+        <div className={`flex items-center gap-2 ${collapsed ? "lg:gap-1 lg:justify-between" : ""}`}>
           <img
             src="/counselink-round.png"
             alt="CounseLink Logo"
-            className="w-12 h-12 object-contain flex-shrink-0"
+            className={`object-contain flex-shrink-0 ${collapsed ? "w-12 h-12 lg:w-8 lg:h-8" : "w-12 h-12"}`}
           />
           <h1 className={`text-sm font-semibold tracking-tight text-white ${collapsed ? "lg:hidden" : ""}`}>CounseLink</h1>
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="hidden lg:flex ml-auto items-center justify-center w-8 h-8 rounded-lg bg-maroon-800/70 ring-1 ring-white/10 text-maroon-100 hover:bg-maroon-600 hover:text-white transition-colors"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <PanelLeft
+              size={16}
+              className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}
+            />
+          </button>
           <button
             type="button"
             onClick={onClose}
@@ -250,16 +262,6 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       </nav>
 
       <div className="px-3 py-3 border-t border-maroon-800/60">
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className={`hidden lg:flex items-center gap-3 w-full text-maroon-100 hover:text-white hover:bg-maroon-600/60 px-3 py-2 rounded-lg text-sm transition mb-1 ${collapsed ? "lg:gap-0 lg:px-0 lg:justify-center" : ""}`}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
-          {!collapsed && <span>Collapse</span>}
-        </button>
         <button
           onClick={handleLogout}
           className={`flex items-center gap-3 w-full text-maroon-100 hover:text-white hover:bg-maroon-600/60 px-3 py-2 rounded-lg text-sm transition ${collapsed ? "lg:gap-0 lg:px-0 lg:justify-center" : ""}`}

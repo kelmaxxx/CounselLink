@@ -1,36 +1,9 @@
 import { query } from "../config/db.js";
 import { logAction } from "../utils/audit.js";
-import { sendEmail } from "../services/email.service.js";
-
-const ESC_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-const esc = (s) => (s ?? "").toString().replace(/[&<>"']/g, (c) => ESC_MAP[c]);
-
-// Announcement emails are fire-and-forget: the broadcast is already saved and
-// shown in-app, so a slow/down mail provider must not delay the response.
-const emailRecipients = (recipients, title, message) => {
-  const html = `<h2>${esc(title)}</h2><p>${esc(message).replace(/\n/g, "<br/>")}</p><p>Open CounselLink to view the full announcement.</p>`;
-  const text = `${title}\n\n${message}\n\nOpen CounselLink to view the full announcement.`;
-  (async () => {
-    for (const r of recipients) {
-      if (!r.email) continue;
-      try {
-        await sendEmail({ to: r.email, subject: title, html, text });
-      } catch (err) {
-        console.warn(`[announcement-email] Failed to email ${r.email}:`, err.message);
-      }
-    }
-  })();
-};
-
-const ROLE_MAP = {
-  all: null,
-  students: "student",
-  counselors: "counselor",
-  reps: "college_rep",
-  student: "student",
-  counselor: "counselor",
-  college_rep: "college_rep",
-};
+import {
+  resolveAnnouncementRecipients,
+  deliverAnnouncementEmails,
+} from "../utils/announcement-email.js";
 
 const parseDatetime = (val) => {
   if (!val) return null;
@@ -47,7 +20,6 @@ export const createAnnouncement = async (req, res) => {
     return res.status(400).json({ message: "Title and message are required" });
   }
 
-  const targetRole = ROLE_MAP[sendTo ?? "all"];
   const audience = sendTo ?? "all";
   const pubmatUrl = imageUrl || null;
   const dbPostAt = parseDatetime(postAt);
@@ -58,9 +30,7 @@ export const createAnnouncement = async (req, res) => {
     [adminId, `${title}\n\n${message}`, pubmatUrl, dbPostAt, dbRemoveAt, audience]
   );
 
-  const recipients = targetRole
-    ? await query("SELECT id, email FROM users WHERE role = ? AND status = 'approved'", [targetRole])
-    : await query("SELECT id, email FROM users WHERE status = 'approved' AND id <> ?", [adminId]);
+  const recipients = await resolveAnnouncementRecipients(audience, adminId);
 
   if (recipients.length) {
     const values = recipients.map(() => "(?, ?, ?, 'unread', ?, ?, ?, COALESCE(?, NOW()))").join(", ");
@@ -80,10 +50,17 @@ export const createAnnouncement = async (req, res) => {
   }
 
   // Scheduled announcements are hidden until post_at, so emailing now would
-  // arrive early. Keep them in-app only until a scheduler exists.
-  // shortcut: scheduled announcements send no email, add a cron/sweep when needed.
+  // arrive early; the sweep in server.js emails those when the time comes.
+  // Emails are fire-and-forget: the broadcast is already saved and shown
+  // in-app, so a slow/down mail provider must not delay the response.
   const isLive = !dbPostAt || new Date(dbPostAt.replace(" ", "T") + "Z") <= new Date();
-  if (isLive) emailRecipients(recipients, title, message);
+  if (isLive) {
+    deliverAnnouncementEmails(recipients, title, message).catch((err) =>
+      console.warn("[announcement-email]", err.message)
+    );
+    // Stops the sweep from emailing this one again if post_at is ever in the past.
+    await query("UPDATE announcements SET emailed_at = NOW() WHERE id = ?", [result.insertId]);
+  }
 
   await logAction(req, "create_announcement", "announcement", result.insertId, {
     title,
