@@ -19,16 +19,22 @@ const ROLE_MAP = {
 };
 
 // Approved users matching the announcement audience, plus the admin who posted
-// it — they get a copy so they can confirm what was delivered.
+// it — they get a copy so they can confirm what was delivered. If the admin's
+// account email is not a real mailbox (demo/placeholder accounts), set
+// ADMIN_NOTIFY_EMAIL so the copy goes to a working inbox instead of bouncing.
 export const resolveAnnouncementRecipients = async (audience, adminId = 0) => {
   const role = ROLE_MAP[audience];
   const recipients = role
     ? await query("SELECT id, email FROM users WHERE role = ? AND status = 'approved'", [role])
     : await query("SELECT id, email FROM users WHERE status = 'approved' AND id <> ?", [adminId]);
 
+  const copyTo = process.env.ADMIN_NOTIFY_EMAIL?.trim();
   if (adminId && !recipients.some((r) => r.id === adminId)) {
     const [admin] = await query("SELECT id, email FROM users WHERE id = ?", [adminId]);
-    if (admin) recipients.push(admin);
+    const email = copyTo || admin?.email;
+    if (email && !recipients.some((r) => r.email === email)) {
+      recipients.push({ id: adminId, email });
+    }
   }
   return recipients;
 };
