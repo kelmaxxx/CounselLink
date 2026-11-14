@@ -18,26 +18,37 @@ const ROLE_MAP = {
   college_rep: "college_rep",
 };
 
-// Approved users matching the announcement audience. "all" deliberately skips
-// the admin who wrote it.
-export const resolveAnnouncementRecipients = async (audience, excludeUserId = 0) => {
+// Approved users matching the announcement audience, plus the admin who posted
+// it — they get a copy so they can confirm what was delivered.
+export const resolveAnnouncementRecipients = async (audience, adminId = 0) => {
   const role = ROLE_MAP[audience];
-  return role
-    ? query("SELECT id, email FROM users WHERE role = ? AND status = 'approved'", [role])
-    : query("SELECT id, email FROM users WHERE status = 'approved' AND id <> ?", [excludeUserId]);
+  const recipients = role
+    ? await query("SELECT id, email FROM users WHERE role = ? AND status = 'approved'", [role])
+    : await query("SELECT id, email FROM users WHERE status = 'approved' AND id <> ?", [adminId]);
+
+  if (adminId && !recipients.some((r) => r.id === adminId)) {
+    const [admin] = await query("SELECT id, email FROM users WHERE id = ?", [adminId]);
+    if (admin) recipients.push(admin);
+  }
+  return recipients;
 };
 
 export const deliverAnnouncementEmails = async (recipients, title, message) => {
   const html = `<h2>${esc(title)}</h2><p>${esc(message).replace(/\n/g, "<br/>")}</p><p>Open CounselLink to view the full announcement.</p>`;
   const text = `${title}\n\n${message}\n\nOpen CounselLink to view the full announcement.`;
+  const result = { sent: 0, failed: 0, firstError: null };
   for (const r of recipients) {
     if (!r.email) continue;
     try {
       await sendEmail({ to: r.email, subject: title, html, text });
+      result.sent += 1;
     } catch (err) {
+      result.failed += 1;
+      result.firstError ??= err.message;
       console.warn(`[announcement-email] Failed to email ${r.email}:`, err.message);
     }
   }
+  return result;
 };
 
 // Emails scheduled announcements once their post time passes. Runs every minute
@@ -45,7 +56,7 @@ export const deliverAnnouncementEmails = async (recipients, title, message) => {
 // stale announcements at users — the in-app copy is still there for those.
 export const sweepScheduledAnnouncements = async () => {
   const due = await query(
-    `SELECT id, content, send_to AS sendTo FROM announcements
+    `SELECT id, content, send_to AS sendTo, admin_id AS adminId FROM announcements
      WHERE post_at IS NOT NULL AND emailed_at IS NULL
        AND post_at <= NOW() AND post_at > NOW() - INTERVAL 1 DAY
        AND (remove_at IS NULL OR remove_at > NOW())`
@@ -57,8 +68,13 @@ export const sweepScheduledAnnouncements = async () => {
     const title = split === -1 ? a.content : a.content.slice(0, split);
     const message = split === -1 ? "" : a.content.slice(split + 2);
 
-    const recipients = await resolveAnnouncementRecipients(a.sendTo, 0);
-    await deliverAnnouncementEmails(recipients, title, message);
+    const recipients = await resolveAnnouncementRecipients(a.sendTo, a.adminId);
+    const result = await deliverAnnouncementEmails(recipients, title, message);
+    console.log(
+      `[announcement-email] #${a.id} (${a.sendTo}): ${recipients.length} recipients, ` +
+        `${result.sent} sent, ${result.failed} failed` +
+        (result.firstError ? ` — first error: ${result.firstError}` : "")
+    );
     // Marked after sending: a crash mid-send retries rather than silently
     // dropping the rest of the audience.
     await query("UPDATE announcements SET emailed_at = NOW() WHERE id = ?", [a.id]);
