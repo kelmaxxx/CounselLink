@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { Modal, BTN, INPUT, LABEL } from "./ui";
+import { Modal, BTN, LABEL } from "./ui";
+import PasswordField from "./PasswordField";
+import { isStrongPassword } from "../utils/password";
 
 export default function ChangePasswordModal({ open, onClose }) {
   const { changePassword } = useAuth();
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNext, setShowNext] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -31,12 +31,10 @@ export default function ChangePasswordModal({ open, onClose }) {
       setError("All fields are required.");
       return;
     }
-    if (form.next.length < 8) {
-      setError("New password must be at least 8 characters.");
-      return;
-    }
-    if (!/[a-zA-Z]/.test(form.next) || !/\d/.test(form.next)) {
-      setError("New password must contain at least one letter and one number.");
+    if (!isStrongPassword(form.next)) {
+      setError(
+        "New password must be at least 8 characters with uppercase, lowercase, a number, and a symbol."
+      );
       return;
     }
     if (form.next !== form.confirm) {
@@ -90,50 +88,24 @@ export default function ChangePasswordModal({ open, onClose }) {
           )}
           <div>
             <label className={LABEL}>Current password</label>
-            <div className="relative">
-              <input
-                type={showCurrent ? "text" : "password"}
-                className={`${INPUT} pr-9`}
-                value={form.current}
-                onChange={(e) => setForm({ ...form, current: e.target.value })}
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrent((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                tabIndex={-1}
-              >
-                {showCurrent ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
+            <PasswordField
+              value={form.current}
+              onChange={(e) => setForm({ ...form, current: e.target.value })}
+              autoComplete="current-password"
+            />
           </div>
           <div>
             <label className={LABEL}>New password</label>
-            <div className="relative">
-              <input
-                type={showNext ? "text" : "password"}
-                className={`${INPUT} pr-9`}
-                value={form.next}
-                onChange={(e) => setForm({ ...form, next: e.target.value })}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowNext((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                tabIndex={-1}
-              >
-                {showNext ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
-            <p className="text-[11px] text-gray-400 mt-1">Min 8 characters, at least 1 letter and 1 number.</p>
+            <PasswordField
+              value={form.next}
+              onChange={(e) => setForm({ ...form, next: e.target.value })}
+              autoComplete="new-password"
+              showMeter
+            />
           </div>
           <div>
             <label className={LABEL}>Confirm new password</label>
-            <input
-              type="password"
-              className={INPUT}
+            <PasswordField
               value={form.confirm}
               onChange={(e) => setForm({ ...form, confirm: e.target.value })}
               autoComplete="new-password"

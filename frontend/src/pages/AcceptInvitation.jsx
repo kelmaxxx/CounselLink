@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import {
   Lock,
-  Eye,
-  EyeOff,
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
@@ -13,11 +11,10 @@ import {
   User,
   ArrowRight,
 } from "lucide-react";
+import PasswordField from "../components/PasswordField";
+import { isStrongPassword } from "../utils/password";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-
-const isStrongPassword = (pw) =>
-  typeof pw === "string" && pw.length >= 8 && /[a-zA-Z]/.test(pw) && /\d/.test(pw);
 
 export default function AcceptInvitation() {
   const [searchParams] = useSearchParams();
@@ -30,8 +27,6 @@ export default function AcceptInvitation() {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -69,7 +64,9 @@ export default function AcceptInvitation() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isValidPassword) {
-      setSubmitError("Password must be at least 8 characters with a letter and a number.");
+      setSubmitError(
+        "Password must be at least 8 characters with uppercase, lowercase, a number, and a symbol."
+      );
       return;
     }
     if (!isMatch) {
@@ -210,67 +207,37 @@ export default function AcceptInvitation() {
                   <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
                     New Password *
                   </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Minimum 8 characters"
-                      className="w-full pl-3 pr-10 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500 transition"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
+                  <PasswordField
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="8+ chars, A-Z, a-z, 0-9, symbol"
+                    autoComplete="new-password"
+                    showMeter
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
                     Confirm Password *
                   </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repeat password"
-                      className="w-full pl-3 pr-10 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-maroon-500 focus:border-maroon-500 transition"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  <PasswordField
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat password"
+                    autoComplete="new-password"
+                  />
+                  {confirmPassword && (
+                    <p
+                      className={`mt-1.5 flex items-center gap-1.5 text-xs ${
+                        isMatch ? "text-emerald-600 font-medium" : "text-gray-400"
+                      }`}
                     >
-                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Password requirements */}
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-200/70 space-y-1.5">
-                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    Password criteria
-                  </p>
-                  <div className="grid grid-cols-2 gap-1 text-xs">
-                    <div className={`flex items-center gap-1.5 ${password.length >= 8 ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
-                      <CheckCircle2 size={13} /> 8+ characters
-                    </div>
-                    <div className={`flex items-center gap-1.5 ${/[A-Za-z]/.test(password) ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
-                      <CheckCircle2 size={13} /> At least 1 letter
-                    </div>
-                    <div className={`flex items-center gap-1.5 ${/\d/.test(password) ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
-                      <CheckCircle2 size={13} /> At least 1 number
-                    </div>
-                    <div className={`flex items-center gap-1.5 ${isMatch ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
-                      <CheckCircle2 size={13} /> Passwords match
-                    </div>
-                  </div>
+                      <CheckCircle2 size={13} />
+                      {isMatch ? "Passwords match" : "Passwords do not match yet"}
+                    </p>
+                  )}
                 </div>
 
                 <button

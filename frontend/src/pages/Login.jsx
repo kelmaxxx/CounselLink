@@ -8,8 +8,6 @@ import {
   Upload,
   FileText,
   CheckCircle2,
-  Eye,
-  EyeOff,
   Mail,
   Lock,
   Hash,
@@ -21,15 +19,15 @@ import {
   Home,
 } from "lucide-react";
 import { Modal, BTN, INPUT, LABEL } from "../components/ui";
+import PasswordField from "../components/PasswordField";
 import { sanitizePhoneDigits, isValidPhMobile, PHONE_HINT } from "../utils/phone";
+import { isStrongPassword } from "../utils/password";
 import { compressImage } from "../utils/compressImage";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-
-// Mirrors the backend password policy (backend/utils/password.js)
-const isStrongPassword = (pw) =>
-  typeof pw === "string" && pw.length >= 8 && /[a-zA-Z]/.test(pw) && /\d/.test(pw);
+const STRONG_PASSWORD_HINT =
+  "Use at least 8 characters with uppercase, lowercase, a number, and a symbol.";
 
 // Mirrors the backend student-email allowlist (backend/controllers/auth.controller.js)
 const STUDENT_EMAIL_DOMAINS = ["@s.msumain.edu.ph"];
@@ -62,8 +60,6 @@ export default function Login() {
   const [showSignupSuccess, setShowSignupSuccess] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
 
   const [loginForm, setLoginForm] = useState({ identifier: "", password: "" });
@@ -295,7 +291,7 @@ export default function Login() {
     if (step === 4) {
       if (!signupForm.password) next.password = "Password is required.";
       else if (!isStrongPassword(signupForm.password))
-        next.password = "Use at least 8 characters with a letter and a number.";
+        next.password = STRONG_PASSWORD_HINT;
       if (!signupForm.confirmPassword) next.confirmPassword = "Confirm your password.";
       else if (signupForm.password !== signupForm.confirmPassword)
         next.confirmPassword = "Passwords do not match.";
@@ -719,43 +715,23 @@ export default function Login() {
           {signupStep === 4 && (
             <form onSubmit={handleSignupSubmit} className="space-y-4">
               <FieldRow label="Password" error={signupErrors.password}>
-                <InputWithIcon
-                  icon={Lock}
-                  trailing={
-                    <button
-                      type="button"
-                      onClick={() => setShowSignupPassword((s) => !s)}
-                      className="text-gray-400 hover:text-gray-600"
-                      tabIndex={-1}
-                      aria-label="Toggle password visibility"
-                    >
-                      {showSignupPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  }
-                >
-                  <input
-                    name="password"
-                    type={showSignupPassword ? "text" : "password"}
-                    value={signupForm.password}
-                    onChange={handleSignupChange}
-                    className={`${INPUT} pl-9 pr-9`}
-                    placeholder="At least 8 characters"
-                    autoFocus
-                  />
-                </InputWithIcon>
+                <PasswordField
+                  name="password"
+                  value={signupForm.password}
+                  onChange={handleSignupChange}
+                  placeholder="8+ chars, A-Z, a-z, 0-9, symbol"
+                  showMeter
+                  autoFocus
+                />
               </FieldRow>
 
               <FieldRow label="Confirm password" error={signupErrors.confirmPassword}>
-                <InputWithIcon icon={Lock}>
-                  <input
-                    name="confirmPassword"
-                    type="password"
-                    value={signupForm.confirmPassword}
-                    onChange={handleSignupChange}
-                    className={`${INPUT} pl-9`}
-                    placeholder="Repeat password"
-                  />
-                </InputWithIcon>
+                <PasswordField
+                  name="confirmPassword"
+                  value={signupForm.confirmPassword}
+                  onChange={handleSignupChange}
+                  placeholder="Repeat password"
+                />
               </FieldRow>
 
               {signupErrors.form && (
@@ -811,31 +787,13 @@ export default function Login() {
           </FieldRow>
 
           <FieldRow label="Password" error={loginErrors.password}>
-            <InputWithIcon
-              icon={Lock}
-              trailing={
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPassword((s) => !s)}
-                  className="text-gray-400 hover:text-gray-600"
-                  tabIndex={-1}
-                  aria-label="Toggle password visibility"
-                >
-                  {showLoginPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              }
-            >
-              <input
-                name="password"
-                value={loginForm.password}
-                onChange={handleLoginChange}
-                type={showLoginPassword ? "text" : "password"}
-                autoComplete="new-password"
-                required
-                className={`${INPUT} pl-9 pr-9`}
-                placeholder="••••••••"
-              />
-            </InputWithIcon>
+            <PasswordField
+              name="password"
+              value={loginForm.password}
+              onChange={handleLoginChange}
+              autoComplete="new-password"
+              required
+            />
           </FieldRow>
 
           {loginErrors.form && (
@@ -1538,7 +1496,7 @@ function ForgotPasswordModal({ onClose }) {
     setError("");
     setMessage("");
     if (!isStrongPassword(password)) {
-      setError("Use at least 8 characters with a letter and a number.");
+      setError(STRONG_PASSWORD_HINT);
       return;
     }
     if (password !== confirm) {
@@ -1685,29 +1643,23 @@ function ForgotPasswordModal({ onClose }) {
           </div>
           <div>
             <label className={LABEL}>New password</label>
-            <InputWithIcon icon={Lock}>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={`${INPUT} pl-9`}
-                placeholder="At least 8 characters"
-                required
-                autoFocus
-              />
-            </InputWithIcon>
+            <PasswordField
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="8+ chars, A-Z, a-z, 0-9, symbol"
+              showMeter
+              required
+              autoFocus
+            />
           </div>
           <div>
             <label className={LABEL}>Confirm password</label>
-            <InputWithIcon icon={Lock}>
-              <input
-                type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className={`${INPUT} pl-9`}
-                required
-              />
-            </InputWithIcon>
+            <PasswordField
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Repeat password"
+              required
+            />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </form>
