@@ -81,13 +81,11 @@ const __dirname = path.dirname(__filename);
 
 app.use("/uploads", express.static(getUploadsDir()));
 
-// Durable pubmat fallback. express.static calls next() when the disk copy is
+// Durable upload fallback. express.static calls next() when the disk copy is
 // missing (e.g. after a redeploy on an ephemeral host), so the DB copy saved at
-// upload time keeps the announcement image working.
-app.get("/uploads/pubmats/:filename", async (req, res) => {
-  const rows = await query("SELECT mime_type, data FROM upload_blobs WHERE url = ?", [
-    `/uploads/pubmats/${req.params.filename}`,
-  ]);
+// upload time keeps avatars, CORs, scans and announcements working.
+app.get("/uploads/*", async (req, res) => {
+  const rows = await query("SELECT mime_type, data FROM upload_blobs WHERE url = ?", [req.path]);
   if (!rows.length) return res.status(404).json({ message: "File not found" });
   res.set("Cache-Control", "public, max-age=31536000, immutable");
   res.type(rows[0].mime_type).send(rows[0].data);

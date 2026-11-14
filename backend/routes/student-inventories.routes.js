@@ -2,6 +2,7 @@ import { Router } from "express";
 import { auth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/rbac.js";
 import { recordScanUpload } from "../middleware/upload.js";
+import { persistUpload } from "../utils/persistUpload.js";
 import {
   getInventory,
   listInventories,
@@ -30,6 +31,7 @@ router.put("/:studentId", upsertInventory);
 router.post(
   "/:studentId/scan",
   recordScanUpload.single("scan"),
+  persistUpload,
   uploadInventoryScan
 );
 router.delete("/:studentId/scan", deleteInventoryScan);
