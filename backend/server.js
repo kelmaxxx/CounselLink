@@ -176,6 +176,13 @@ const start = async () => {
   try {
     await testConnection();
     console.log("Database connected");
+    // Render/Vercel do not ship backend/.env; email vars must be set in the
+    // host's dashboard. Without this, every send throws per recipient.
+    if (!process.env.BREVO_API_KEY && !(process.env.EMAIL_USER && process.env.EMAIL_PASS)) {
+      console.warn(
+        "WARNING: no email transport configured (set BREVO_API_KEY or EMAIL_USER/EMAIL_PASS) — announcement and account emails will fail."
+      );
+    }
     app.listen(port, () => console.log(`Server running on port ${port}`));
 
     // Scheduled announcements are emailed once their post time passes.
