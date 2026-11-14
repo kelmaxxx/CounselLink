@@ -38,6 +38,7 @@ import { fileURLToPath } from "url";
 import dns from "dns";
 import { getUploadsDir } from "./middleware/upload.js";
 import { sweepScheduledAnnouncements } from "./utils/announcement-email.js";
+import { parseSender } from "./services/email.service.js";
 
 dotenv.config();
 
@@ -178,9 +179,19 @@ const start = async () => {
     console.log("Database connected");
     // Render/Vercel do not ship backend/.env; email vars must be set in the
     // host's dashboard. Without this, every send throws per recipient.
-    if (!process.env.BREVO_API_KEY && !(process.env.EMAIL_USER && process.env.EMAIL_PASS)) {
+    const transport = process.env.BREVO_API_KEY
+      ? "Brevo"
+      : process.env.EMAIL_USER && process.env.EMAIL_PASS
+        ? "SMTP"
+        : null;
+    if (!transport) {
       console.warn(
         "WARNING: no email transport configured (set BREVO_API_KEY or EMAIL_USER/EMAIL_PASS) — announcement and account emails will fail."
+      );
+    } else if (!parseSender(process.env.EMAIL_FROM || process.env.EMAIL_USER)) {
+      console.warn(
+        `WARNING: ${transport} is configured but the sender has no usable address: ` +
+          `EMAIL_FROM=${JSON.stringify(process.env.EMAIL_FROM ?? null)} — expected "Name <verified@address>" or a plain address.`
       );
     }
     app.listen(port, () => console.log(`Server running on port ${port}`));
