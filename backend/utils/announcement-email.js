@@ -44,7 +44,9 @@ export const deliverAnnouncementEmails = async (recipients, title, message) => {
   const text = `${title}\n\n${message}\n\nOpen CounselLink to view the full announcement.`;
   const result = { sent: 0, failed: 0, firstError: null };
   for (const r of recipients) {
-    if (!r.email) continue;
+    // Placeholder accounts (walk-ins, referrals) have no real mailbox; every
+    // attempt bounces and damages sender reputation.
+    if (!r.email || r.email.endsWith("@placeholder.counselink.local")) continue;
     try {
       await sendEmail({ to: r.email, subject: title, html, text });
       result.sent += 1;
