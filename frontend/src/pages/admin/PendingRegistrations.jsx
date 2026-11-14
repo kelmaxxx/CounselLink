@@ -43,9 +43,11 @@ export default function PendingRegistrations() {
     useAuth();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
+  // selectedUser drives the review modal; corUser is kept separate so opening
+  // the COR preview never mounts the review dialog underneath it.
   const [selectedUser, setSelectedUser] = useState(null);
+  const [corUser, setCorUser] = useState(null);
   const [rejectingUserId, setRejectingUserId] = useState(null);
-  const [showCorModal, setShowCorModal] = useState(false);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [emailPreviewData, setEmailPreviewData] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -131,6 +133,12 @@ export default function PendingRegistrations() {
 
     setSelectedUser(null);
     setTimeout(() => setMessage(null), 5000);
+  };
+
+  const closeReview = () => {
+    setSelectedUser(null);
+    setRejectingUserId(null);
+    setRejectionReason("");
   };
 
   const handleReject = async (user) => {
@@ -330,9 +338,8 @@ export default function PendingRegistrations() {
                             onError={() => setBrokenCors((prev) => ({ ...prev, [user.id]: true }))}
                             className="w-28 h-20 object-cover border border-gray-200 rounded-md cursor-pointer hover:opacity-80 transition"
                             onClick={() => {
-                              setSelectedUser(user);
+                              setCorUser(user);
                               setCorBroken(false);
-                              setShowCorModal(true);
                             }}
                           />
                         ) : (
@@ -342,9 +349,8 @@ export default function PendingRegistrations() {
                         )}
                         <button
                           onClick={() => {
-                            setSelectedUser(user);
+                            setCorUser(user);
                             setCorBroken(false);
-                            setShowCorModal(true);
                           }}
                           className="text-xs text-maroon-600 hover:text-maroon-700 font-medium inline-flex items-center gap-1"
                         >
@@ -361,210 +367,211 @@ export default function PendingRegistrations() {
                   </div>
                 </div>
 
-                {/* Inline review form */}
-                {selectedUser?.id === user.id && !showCorModal ? (
-                  <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-                    {rejectingUserId === user.id ? (
-                      <>
-                        <div>
-                          <label className={LABEL}>Reason for rejection</label>
-                          <textarea
-                            value={rejectionReason}
-                            onChange={(e) => setRejectionReason(e.target.value)}
-                            placeholder="e.g. COR image is unclear, please resubmit"
-                            className={INPUT}
-                            rows={2}
-                            autoFocus
-                          />
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => handleReject(user)}
-                            className={`${BTN.danger} flex-1`}
-                          >
-                            <XCircle size={14} /> Confirm rejection
-                          </button>
-                          <button
-                            onClick={() => {
-                              setRejectingUserId(null);
-                              setRejectionReason("");
-                            }}
-                            className={BTN.secondary}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <div>
-                            <label className={LABEL}>College</label>
-                            <Select
-                              variant="form"
-                              value={draftFor(user).college}
-                              onValueChange={(v) =>
-                                setEditForm({
-                                  ...draftFor(user),
-                                  userId: user.id,
-                                  college: v,
-                                  department: "",
-                                  program: "",
-                                })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select college" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {COLLEGES.map((c) => (
-                                  <SelectItem key={c} value={c}>
-                                    {`${c} — ${getCollegeName(c)}`}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <label className={LABEL}>Department</label>
-                            <Select
-                              variant="form"
-                              value={draftFor(user).department}
-                              onValueChange={(v) =>
-                                setEditForm({
-                                  ...draftFor(user),
-                                  userId: user.id,
-                                  department: v,
-                                  program: "",
-                                })
-                              }
-                              disabled={!draftFor(user).college}
-                            >
-                              <SelectTrigger>
-                                <SelectValue
-                                  placeholder={
-                                    draftFor(user).college
-                                      ? "Select department"
-                                      : "Select a college first"
-                                  }
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {draftFor(user).department &&
-                                  !getDepartments(draftFor(user).college).some(
-                                    (d) => d.name === draftFor(user).department
-                                  ) && (
-                                    <SelectItem value={draftFor(user).department}>
-                                      {draftFor(user).department}
-                                    </SelectItem>
-                                  )}
-                                {getDepartments(draftFor(user).college).map((d) => (
-                                  <SelectItem key={d.code} value={d.name}>
-                                    {d.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <label className={LABEL}>Course</label>
-                            <Select
-                              variant="form"
-                              value={draftFor(user).program}
-                              onValueChange={(v) =>
-                                setEditForm({ ...draftFor(user), userId: user.id, program: v })
-                              }
-                              disabled={!draftFor(user).department}
-                            >
-                              <SelectTrigger>
-                                <SelectValue
-                                  placeholder={
-                                    draftFor(user).department
-                                      ? "Select course"
-                                      : "Select a department first"
-                                  }
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {draftFor(user).program &&
-                                  !getPrograms(
-                                    draftFor(user).college,
-                                    draftFor(user).department
-                                  ).includes(draftFor(user).program) && (
-                                    <SelectItem value={draftFor(user).program}>
-                                      {draftFor(user).program}
-                                    </SelectItem>
-                                  )}
-                                {getPrograms(draftFor(user).college, draftFor(user).department).map(
-                                  (p) => (
-                                    <SelectItem key={p} value={p}>
-                                      {p}
-                                    </SelectItem>
-                                  )
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => handleApprove(user)}
-                            className={`${BTN.success} flex-1`}
-                          >
-                            <CheckCircle size={14} /> Approve
-                          </button>
-                          <button
-                            onClick={() => setRejectingUserId(user.id)}
-                            className={`${BTN.danger} flex-1`}
-                          >
-                            <XCircle size={14} /> Reject
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedUser(null);
-                              setRejectingUserId(null);
-                              setRejectionReason("");
-                            }}
-                            className={BTN.secondary}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <button
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setRejectingUserId(null);
-                        setRejectionReason("");
-                      }}
-                      className={`${BTN.primary} w-full`}
-                    >
-                      Review registration
-                    </button>
-                  </div>
-                )}
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setRejectingUserId(null);
+                      setRejectionReason("");
+                    }}
+                    className={`${BTN.primary} w-full`}
+                  >
+                    Review registration
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* Review Modal */}
+      <Modal
+        open={!!selectedUser}
+        onClose={closeReview}
+        title="Review registration"
+        subtitle={
+          selectedUser
+            ? `${selectedUser.name} · ${selectedUser.studentId || ""}`
+            : ""
+        }
+        size="xl"
+      >
+        {selectedUser &&
+          (rejectingUserId === selectedUser.id ? (
+            <div className="space-y-3">
+              <div>
+                <label className={LABEL}>Reason for rejection</label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="e.g. COR image is unclear, please resubmit"
+                  className={INPUT}
+                  rows={3}
+                  autoFocus
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleReject(selectedUser)}
+                  className={`${BTN.danger} flex-1`}
+                >
+                  <XCircle size={14} /> Confirm rejection
+                </button>
+                <button
+                  onClick={() => {
+                    setRejectingUserId(null);
+                    setRejectionReason("");
+                  }}
+                  className={BTN.secondary}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className={LABEL}>College</label>
+                  <Select
+                    variant="form"
+                    value={draftFor(selectedUser).college}
+                    onValueChange={(v) =>
+                      setEditForm({
+                        ...draftFor(selectedUser),
+                        userId: selectedUser.id,
+                        college: v,
+                        department: "",
+                        program: "",
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select college" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLLEGES.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {`${c} — ${getCollegeName(c)}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className={LABEL}>Department</label>
+                  <Select
+                    variant="form"
+                    value={draftFor(selectedUser).department}
+                    onValueChange={(v) =>
+                      setEditForm({
+                        ...draftFor(selectedUser),
+                        userId: selectedUser.id,
+                        department: v,
+                        program: "",
+                      })
+                    }
+                    disabled={!draftFor(selectedUser).college}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          draftFor(selectedUser).college
+                            ? "Select department"
+                            : "Select a college first"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {draftFor(selectedUser).department &&
+                        !getDepartments(draftFor(selectedUser).college).some(
+                          (d) => d.name === draftFor(selectedUser).department
+                        ) && (
+                          <SelectItem value={draftFor(selectedUser).department}>
+                            {draftFor(selectedUser).department}
+                          </SelectItem>
+                        )}
+                      {getDepartments(draftFor(selectedUser).college).map((d) => (
+                        <SelectItem key={d.code} value={d.name}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className={LABEL}>Course</label>
+                  <Select
+                    variant="form"
+                    value={draftFor(selectedUser).program}
+                    onValueChange={(v) =>
+                      setEditForm({ ...draftFor(selectedUser), userId: selectedUser.id, program: v })
+                    }
+                    disabled={!draftFor(selectedUser).department}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          draftFor(selectedUser).department
+                            ? "Select course"
+                            : "Select a department first"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {draftFor(selectedUser).program &&
+                        !getPrograms(
+                          draftFor(selectedUser).college,
+                          draftFor(selectedUser).department
+                        ).includes(draftFor(selectedUser).program) && (
+                          <SelectItem value={draftFor(selectedUser).program}>
+                            {draftFor(selectedUser).program}
+                          </SelectItem>
+                        )}
+                      {getPrograms(
+                        draftFor(selectedUser).college,
+                        draftFor(selectedUser).department
+                      ).map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleApprove(selectedUser)}
+                  className={`${BTN.success} flex-1`}
+                >
+                  <CheckCircle size={14} /> Approve
+                </button>
+                <button
+                  onClick={() => setRejectingUserId(selectedUser.id)}
+                  className={`${BTN.danger} flex-1`}
+                >
+                  <XCircle size={14} /> Reject
+                </button>
+                <button onClick={closeReview} className={BTN.secondary}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ))}
+      </Modal>
+
       {/* COR Modal */}
       <Modal
-        open={showCorModal && !!selectedUser}
-        onClose={() => setShowCorModal(false)}
+        open={!!corUser}
+        onClose={() => setCorUser(null)}
         title="Certificate of Registration"
-        subtitle={
-          selectedUser ? `${selectedUser.name} · ${selectedUser.studentId || ""}` : ""
-        }
+        subtitle={corUser ? `${corUser.name} · ${corUser.studentId || ""}` : ""}
         size="2xl"
         align="top"
       >
-        {selectedUser && (
+        {corUser && (
           <>
             {corBroken ? (
               <div className="text-center p-8">
@@ -573,9 +580,9 @@ export default function PendingRegistrations() {
                   This COR file is no longer available on the server. Ask the student to resubmit it.
                 </p>
               </div>
-            ) : buildCorUrl(selectedUser)?.match(/\.(png|jpg|jpeg)$/i) ? (
+            ) : buildCorUrl(corUser)?.match(/\.(png|jpg|jpeg)$/i) ? (
               <img
-                src={buildCorUrl(selectedUser)}
+                src={buildCorUrl(corUser)}
                 alt="Certificate of Registration"
                 onError={() => setCorBroken(true)}
                 className="w-full h-auto border border-gray-200 rounded-md"
@@ -587,8 +594,8 @@ export default function PendingRegistrations() {
                   PDF file — cannot preview in browser
                 </p>
                 <a
-                  href={buildCorUrl(selectedUser)}
-                  download={`COR_${selectedUser.studentId}.pdf`}
+                  href={buildCorUrl(corUser)}
+                  download={`COR_${corUser.studentId}.pdf`}
                   className={BTN.primary}
                 >
                   Download PDF
