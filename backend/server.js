@@ -37,6 +37,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dns from "dns";
 import { getUploadsDir } from "./middleware/upload.js";
+import { sweepScheduledAnnouncements } from "./utils/announcement-email.js";
 
 dotenv.config();
 
@@ -176,6 +177,14 @@ const start = async () => {
     await testConnection();
     console.log("Database connected");
     app.listen(port, () => console.log(`Server running on port ${port}`));
+
+    // Scheduled announcements are emailed once their post time passes.
+    const runSweep = () =>
+      sweepScheduledAnnouncements().catch((err) =>
+        console.error("[announcement-email] scheduled sweep failed:", err.message)
+      );
+    runSweep();
+    setInterval(runSweep, 60 * 1000);
   } catch (error) {
     console.error("Failed to connect to database", error);
     process.exit(1);
