@@ -24,8 +24,9 @@ import { Link } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
 import ReschedulePicker from "../../components/ReschedulePicker";
+import Avatar from "../../components/Avatar";
 import { useReferrals } from "../../context/ReferralsContext";
-import { SectionCard, EmptyState, BigStat, DonutStat, VerticalBarChart, Modal, BTN, INPUT, LABEL, initialsOf, formatDate, PageHeader } from "../../components/ui";
+import { SectionCard, EmptyState, BigStat, DonutStat, VerticalBarChart, Modal, BTN, INPUT, LABEL, formatDate, PageHeader } from "../../components/ui";
 import { Stagger } from "../../components/motion";
 import {
   StudentsByCollegeCard,
@@ -102,6 +103,8 @@ export default function CounselorDashboard() {
     if (fetched) setSelectedProfile(fetched);
     else if (fallbackName) setSelectedProfile({ id, name: fallbackName });
   };
+
+  const avatarFor = (id) => users?.find((u) => u.id === id)?.avatarUrl;
 
   const openChat = async (id, fallbackName) => {
     if (!id) return;
@@ -776,14 +779,15 @@ export default function CounselorDashboard() {
                   <div className="md:col-span-4 flex items-center gap-3 min-w-0">
                     <button
                       onClick={() => openProfile(row.studentId, row.studentName)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 transition ${
-                        isTest
-                          ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                          : "bg-maroon-100 text-maroon-700 hover:bg-maroon-200"
-                      }`}
+                      className="rounded-full flex-shrink-0 hover:opacity-90 transition"
                       title="View profile"
                     >
-                      {initialsOf(row.studentName)}
+                      <Avatar
+                        name={row.studentName}
+                        url={avatarFor(row.studentId)}
+                        size="sm"
+                        theme={isTest ? "default" : "student"}
+                      />
                     </button>
                     <div className="min-w-0">
                       <button
@@ -888,9 +892,12 @@ export default function CounselorDashboard() {
                 className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50/60 transition"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                    {initialsOf(a.studentName)}
-                  </div>
+                  <Avatar
+                    name={a.studentName}
+                    url={avatarFor(a.student_id || a.studentUserId || a.studentId)}
+                    size="sm"
+                    theme="student"
+                  />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{a.studentName}</p>
                     <p className="text-xs text-gray-500 truncate">

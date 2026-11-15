@@ -210,8 +210,8 @@ All seeded staff accounts are pre-approved for development use.
 | Counselor (CBAA)  | `counselor3@msu.edu.ph`   | `counselor123` |
 | Counselor (CHS)   | `counselor4@msu.edu.ph`   | `counselor123` |
 | College Rep       | `rep@msu.edu.ph`          | `rep123`       |
-| College Rep       | `rep2@msu.edu.ph`         | `rep123`       |
-| College Rep       | `rep3@msu.edu.ph`         | `rep123`       |
+| College Rep       | `ilham.gamal@msumain.edu.ph` | `rep123`    |
+| College Rep       | `nornina.dia@msumain.edu.ph` | `rep123`    |
 
 Students register through the signup form (with COR upload) and must be approved by an administrator before they can log in.
 

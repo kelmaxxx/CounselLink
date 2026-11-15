@@ -407,6 +407,12 @@ export const adminUpdateUser = async (req, res) => {
     });
   }
 
+  if ("email" in req.body && targetUser.role === "student") {
+    return res.status(403).json({
+      message: "Student email addresses cannot be changed by an administrator.",
+    });
+  }
+
   if ("name" in req.body && req.body.name && !("firstName" in req.body)) {
     const parts = String(req.body.name).trim().split(/\s+/);
     req.body.firstName = parts[0] || "";
