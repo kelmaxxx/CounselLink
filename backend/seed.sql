@@ -17,6 +17,6 @@ INSERT INTO users (name, email, password, role, status, college) VALUES
 
   -- College Representatives
   ('Prof. Ahmed Ali',       'rep@msu.edu.ph',          '$2b$10$djV80xvymhEEneeSC7sktuMp65XvXMORxbNCWN3QIeb2hZkuzsXma', 'college_rep', 'approved', 'COE'),
-  ('Prof. Macatotong',      'rep2@msu.edu.ph',         '$2b$10$djV80xvymhEEneeSC7sktuMp65XvXMORxbNCWN3QIeb2hZkuzsXma', 'college_rep', 'approved', 'CICS'),
-  ('Prof. Liza Cruz',       'rep3@msu.edu.ph',         '$2b$10$djV80xvymhEEneeSC7sktuMp65XvXMORxbNCWN3QIeb2hZkuzsXma', 'college_rep', 'approved', 'CBAA');
+  ('Prof. Macatotong',      'ilham.gamal@msumain.edu.ph', '$2b$10$djV80xvymhEEneeSC7sktuMp65XvXMORxbNCWN3QIeb2hZkuzsXma', 'college_rep', 'approved', 'CICS'),
+  ('Prof. Liza Cruz',       'nornina.dia@msumain.edu.ph', '$2b$10$djV80xvymhEEneeSC7sktuMp65XvXMORxbNCWN3QIeb2hZkuzsXma', 'college_rep', 'approved', 'CBAA');
 

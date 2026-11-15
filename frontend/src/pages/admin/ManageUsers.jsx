@@ -26,8 +26,8 @@ import {
   BTN,
   INPUT,
   LABEL,
-  initialsOf,
 } from "../../components/ui";
+import Avatar from "../../components/Avatar";
 import { ListItem, Stagger, TableRow } from "../../components/motion";
 import {
   Select,
@@ -95,6 +95,9 @@ const counselorIdEmailCell = (u) => (
 
 const emailCell = (u) => <p className="text-sm text-gray-600 break-all">{u.email}</p>;
 
+const avatarTheme = (role) =>
+  role === "college_rep" ? "rep" : role === "counselor" ? "counselor" : role === "admin" ? "admin" : "student";
+
 const STUDENT_COLUMNS = [
   { header: "ID / Email", render: studentIdEmailCell },
   { header: "College", render: (u) => u.college || "—" },
@@ -130,9 +133,7 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
             <ListItem key={u.id} className="px-4 py-3 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                    {initialsOf(u.name)}
-                  </div>
+                  <Avatar name={u.name} url={u.avatarUrl} size="sm" theme={avatarTheme(u.role)} />
                   <p className="text-sm font-semibold text-gray-900 truncate">{u.name}</p>
                 </div>
                 <StatusPill status={status}>{label}</StatusPill>
@@ -189,9 +190,7 @@ function UserTable({ rows, columns, onEdit, onDelete, onResendInvite, emptyText,
                 <TableRow key={u.id} index={i} className="hover:bg-gray-50/70 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">
-                        {initialsOf(u.name)}
-                      </div>
+                      <Avatar name={u.name} url={u.avatarUrl} size="sm" theme={avatarTheme(u.role)} className="mt-0.5" />
                       <span className="font-medium text-gray-900 text-sm break-words leading-snug">{u.name}</span>
                     </div>
                   </td>
@@ -598,9 +597,11 @@ export default function ManageUsers() {
     }
     const updates = {
       name: editForm.name,
-      email: editForm.email,
       phone: editForm.phone,
     };
+    if (editModal.user.role !== "student") {
+      updates.email = editForm.email;
+    }
     if (editModal.user.role === "counselor") {
       updates.employeeId = editForm.employeeId;
       updates.position = editForm.position;
@@ -788,9 +789,7 @@ export default function ManageUsers() {
                   {pagedBannedUsers.map((u) => (
                     <li key={u.id} className="flex items-center justify-between gap-3 px-4 py-3">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                          {initialsOf(u.name)}
-                        </div>
+                        <Avatar name={u.name} url={u.avatarUrl} size="sm" theme={avatarTheme(u.role)} />
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
                           <p className="text-xs text-gray-500 truncate">{u.email}</p>
@@ -881,9 +880,7 @@ export default function ManageUsers() {
                         setShowSuggestions(false);
                       }}
                     >
-                      <div className="w-7 h-7 rounded-full bg-maroon-100 text-maroon-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                        {initialsOf(c.name)}
-                      </div>
+                      <Avatar name={c.name} url={c.avatarUrl} size="xs" theme="counselor" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
                         <p className="text-xs text-gray-500 truncate">{c.position || c.email}</p>
@@ -1253,7 +1250,7 @@ export default function ManageUsers() {
         }
       >
         <form id="edit-user-form" onSubmit={handleEdit} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${editModal.user?.role === "student" ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
             <div>
               <label className={LABEL}>Full name *</label>
               <input
@@ -1264,16 +1261,18 @@ export default function ManageUsers() {
                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
               />
             </div>
-            <div>
-              <label className={LABEL}>Email *</label>
-              <input
-                type="email"
-                required
-                className={INPUT}
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-              />
-            </div>
+            {editModal.user?.role !== "student" && (
+              <div>
+                <label className={LABEL}>Email *</label>
+                <input
+                  type="email"
+                  required
+                  className={INPUT}
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                />
+              </div>
+            )}
           </div>
           <div>
             <label className={LABEL}>Phone number</label>

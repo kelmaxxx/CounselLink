@@ -19,6 +19,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import ProfileViewModal from "../../components/ProfileViewModal";
 import ChatModal from "../../components/ChatModal";
+import Avatar from "../../components/Avatar";
 import {
   PageHeader,
   BigStat,
@@ -26,7 +27,6 @@ import {
   EmptyState,
   StatusPill,
   BTN,
-  initialsOf,
   formatDate,
   Pagination,
 } from "../../components/ui";
@@ -213,6 +213,10 @@ export default function StudentDashboard() {
     }
     : null;
 
+  const nextCounselorAvatar = nextAppt?.counselorId
+    ? users?.find((u) => u.id === nextAppt.counselorId)?.avatarUrl
+    : null;
+
   const firstName = currentUser?.firstName || currentUser?.name?.split(" ")[0] || "Student";
   const today = new Date();
   const dateLabel = today.toLocaleDateString(undefined, {
@@ -289,15 +293,13 @@ export default function StudentDashboard() {
               {nextAppt.counselorId ? (
                 <button
                   onClick={() => openProfile(nextAppt.counselorId, nextAppt.counselor)}
-                  className="w-12 h-12 bg-maroon-100 text-maroon-700 hover:bg-maroon-200 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 transition"
+                  className="rounded-full flex-shrink-0 hover:opacity-90 transition"
                   title="View counselor"
                 >
-                  {initialsOf(nextAppt.counselor)}
+                  <Avatar name={nextAppt.counselor} url={nextCounselorAvatar} size="md" theme="counselor" />
                 </button>
               ) : (
-                <div className="w-12 h-12 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                  {initialsOf(nextAppt.counselor) || "?"}
-                </div>
+                <Avatar name={nextAppt.counselor || "?"} size="md" theme="default" />
               )}
 
               <div className="flex-1 min-w-0">
@@ -386,7 +388,11 @@ export default function StudentDashboard() {
                         <p className="text-sm font-medium text-gray-900 tabular-nums">{formatDate(appt.scheduledDate || appt.preferredDate)}</p>
                         <StatusPill status={appt.status} />
                       </div>
-                      <p className="text-xs text-gray-500">{appt.scheduledTimeSlot || appt.preferredSlots?.[0] || "—"} · {counselorDisplay}</p>
+                      <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                        <span>{appt.scheduledTimeSlot || appt.preferredSlots?.[0] || "—"} ·</span>
+                        <Avatar name={counselorDisplay} url={counselor?.avatarUrl} size="xs" theme="counselor" />
+                        <span>{counselorDisplay}</span>
+                      </p>
                     </div>
                   );
                 })}
@@ -411,7 +417,12 @@ export default function StudentDashboard() {
                           <td className="px-4 py-2.5 text-gray-900 tabular-nums">{formatDate(appt.scheduledDate || appt.preferredDate)}</td>
                           <td className="px-4 py-2.5 text-gray-700 tabular-nums">{appt.scheduledTimeSlot || appt.preferredSlots?.[0] || "—"}</td>
                           <td className="px-4 py-2.5"><StatusPill status={appt.status} /></td>
-                          <td className="px-4 py-2.5 text-gray-700">{counselorDisplay}</td>
+                          <td className="px-4 py-2.5 text-gray-700">
+                            <div className="flex items-center gap-2">
+                              <Avatar name={counselorDisplay} url={counselor?.avatarUrl} size="xs" theme="counselor" />
+                              <span>{counselorDisplay}</span>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -457,7 +468,11 @@ export default function StudentDashboard() {
                         <p className="text-sm font-medium text-gray-900 tabular-nums">{formatDate(dateVal, "TBD")}</p>
                         <StatusPill status={test.status} />
                       </div>
-                      <p className="text-xs text-gray-500">{timeVal || "—"} · {cName || "TBD"}</p>
+                      <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                        <span>{timeVal || "—"} ·</span>
+                        <Avatar name={cName || "TBD"} url={users?.find((u) => u.id === counselorId)?.avatarUrl} size="xs" theme="counselor" />
+                        <span>{cName || "TBD"}</span>
+                      </p>
                     </div>
                   );
                 })}
@@ -484,7 +499,12 @@ export default function StudentDashboard() {
                           <td className="px-4 py-2.5 text-gray-900 tabular-nums">{formatDate(dateVal, "TBD")}</td>
                           <td className="px-4 py-2.5 text-gray-700 tabular-nums">{timeVal || "—"}</td>
                           <td className="px-4 py-2.5"><StatusPill status={test.status} /></td>
-                          <td className="px-4 py-2.5 text-gray-700">{cName || "TBD"}</td>
+                          <td className="px-4 py-2.5 text-gray-700">
+                            <div className="flex items-center gap-2">
+                              <Avatar name={cName || "TBD"} url={users?.find((u) => u.id === counselorId)?.avatarUrl} size="xs" theme="counselor" />
+                              <span>{cName || "TBD"}</span>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
