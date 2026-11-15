@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Hash,
   FileText,
+  Keyboard,
 } from "lucide-react";
 import {
   PageHeader,
@@ -29,6 +30,7 @@ import {
 } from "../../components/ui";
 import { COLLEGES } from "../../data/mockData";
 import { getDepartments, getCollegeName, getPrograms } from "../../data/msuColleges";
+import { nextActiveId } from "../../utils/pendingRegistrations";
 import {
   Select,
   SelectTrigger,
@@ -37,21 +39,34 @@ import {
   SelectItem,
 } from "../../components/shadcn/select";
 
+const SHORTCUTS = [
+  { keys: ["?"], label: "Show or hide this help" },
+  { keys: ["J", "↓"], label: "Next pending registration" },
+  { keys: ["K", "↑"], label: "Previous pending registration" },
+  { keys: ["Enter"], label: "Open the highlighted registration" },
+  { keys: ["A"], label: "Approve the highlighted or open registration" },
+  { keys: ["R"], label: "Reject the highlighted or open registration" },
+  { keys: ["Esc"], label: "Close the dialog or leave rejection" },
+];
+
 
 export default function PendingRegistrations() {
   const { fetchPendingRegistrations, fetchApprovedThisWeek, approveRegistration, rejectRegistration } =
     useAuth();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-  // selectedUser drives the review modal; corUser is kept separate so opening
-  // the COR preview never mounts the review dialog underneath it.
+  // selectedUser drives the review modal; preview holds an enlarged photo or
+  // COR image so opening it never mounts the review dialog underneath it.
   const [selectedUser, setSelectedUser] = useState(null);
-  const [corUser, setCorUser] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [rejectingUserId, setRejectingUserId] = useState(null);
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   const [emailPreviewData, setEmailPreviewData] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [message, setMessage] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
+  // Registration highlighted by the J/K (or arrow) shortcuts.
+  const [activeId, setActiveId] = useState(null);
   // Admin corrections to the student's academic info, saved on approve.
   const [editForm, setEditForm] = useState({ userId: null, college: "", department: "", program: "" });
 
@@ -61,8 +76,8 @@ export default function PendingRegistrations() {
   // broken image is replaced by initials instead of a broken-image icon.
   const [brokenAvatars, setBrokenAvatars] = useState({});
   const [brokenCors, setBrokenCors] = useState({});
-  // Same idea for the COR full-view modal.
-  const [corBroken, setCorBroken] = useState(false);
+  // Same idea for the enlarged preview modal.
+  const [previewBroken, setPreviewBroken] = useState(false);
   useBodyScrollLock(showEmailPreview);
 
   useEffect(() => {
@@ -110,6 +125,7 @@ export default function PendingRegistrations() {
       });
       setPendingUsers((prev) => prev.filter((item) => item.id !== user.id));
       setApprovedThisWeek((prev) => prev + 1);
+      setActiveId(null);
     } catch (err) {
       setMessage({ type: "error", text: err.message || "Unable to approve registration" });
       return;
@@ -150,6 +166,7 @@ export default function PendingRegistrations() {
     try {
       await rejectRegistration(user.id, { reason: rejectionReason });
       setPendingUsers((prev) => prev.filter((item) => item.id !== user.id));
+      setActiveId(null);
     } catch (err) {
       setMessage({ type: "error", text: err.message || "Unable to reject registration" });
       return;
@@ -192,12 +209,116 @@ export default function PendingRegistrations() {
     });
   };
 
+  const buildAvatarUrl = (user) => {
+    const url = user?.avatarUrl || user?.avatar_url;
+    if (!url) return null;
+    return /^(https?:|data:)/i.test(url) ? url : `${apiBase}${url}`;
+  };
+
+  const openPreview = (user, kind) => {
+    setPreview({
+      src: kind === "cor" ? buildCorUrl(user) : buildAvatarUrl(user),
+      title: kind === "cor" ? "Certificate of Registration" : "2x2 photo",
+      subtitle: `${user.name} · ${user.studentId || ""}`,
+      download: `${kind === "cor" ? "COR" : "Photo"}_${user.studentId}.${kind === "cor" ? "pdf" : "jpg"}`,
+    });
+    setPreviewBroken(false);
+  };
+
+  const openReview = (user) => {
+    setSelectedUser(user);
+    setRejectingUserId(null);
+    setRejectionReason("");
+  };
+
+  const moveActive = (delta) =>
+    setActiveId((current) => nextActiveId(pendingUsers, current, delta));
+
+  // Shortcuts stay out of the way while a field or button has focus, so typing
+  // a rejection reason never approves someone.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      const el = e.target;
+      const typing =
+        el instanceof HTMLElement &&
+        (["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(el.tagName) || el.isContentEditable);
+      const active = pendingUsers.find((user) => user.id === activeId);
+
+      if (e.key === "Escape") {
+        if (showEmailPreview) setShowEmailPreview(false);
+        else if (preview) setPreview(null);
+        else if (showHelp) setShowHelp(false);
+        else if (rejectingUserId) {
+          setRejectingUserId(null);
+          setRejectionReason("");
+        } else if (selectedUser) closeReview();
+        return;
+      }
+
+      if (typing) return;
+
+      if (e.key === "?") {
+        e.preventDefault();
+        setShowHelp((v) => !v);
+        return;
+      }
+      if (e.shiftKey && !/^[a-z]$/i.test(e.key)) return;
+
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        moveActive(1);
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        moveActive(-1);
+      } else if (e.key === "Enter") {
+        if (selectedUser || preview || showHelp || showEmailPreview) return;
+        if (active) {
+          e.preventDefault();
+          openReview(active);
+        }
+      } else if (e.key === "a" || e.key === "A") {
+        if (preview || showHelp || showEmailPreview || rejectingUserId) return;
+        const target = selectedUser || active;
+        if (target) {
+          e.preventDefault();
+          handleApprove(target);
+        }
+      } else if (e.key === "r" || e.key === "R") {
+        if (preview || showHelp || showEmailPreview) return;
+        const target = selectedUser || active;
+        if (target) {
+          e.preventDefault();
+          openReview(target);
+          setRejectingUserId(target.id);
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
+  useEffect(() => {
+    if (!activeId) return;
+    document
+      .getElementById(`pending-${activeId}`)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [activeId]);
+
   return (
     <div className="px-4 sm:px-6 py-4 sm:py-6">
       <PageHeader
         eyebrow="Administrator"
         title="Pending student registrations"
         subtitle="Review Certificate of Registration uploads and approve or reject accounts."
+        actions={
+          <button onClick={() => setShowHelp(true)} className={BTN.secondary}>
+            <Keyboard size={14} /> Shortcuts
+            <kbd className="ml-1 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
+              ?
+            </kbd>
+          </button>
+        }
       />
 
       {/* Stats */}
@@ -259,17 +380,19 @@ export default function PendingRegistrations() {
           {pendingUsers.map((user) => (
             <div
               key={user.id}
-              className="bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 overflow-hidden"
+              id={`pending-${user.id}`}
+              className={`bg-white rounded-xl shadow-sm overflow-hidden transition-shadow ${
+                activeId === user.id
+                  ? "ring-2 ring-maroon-400"
+                  : "ring-1 ring-gray-950/5"
+              }`}
             >
               <div className="p-4">
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     {(user.avatarUrl || user.avatar_url) && !brokenAvatars[user.id] ? (
                       <img
-                        src={(() => {
-                          const url = user.avatarUrl || user.avatar_url;
-                          return url.startsWith("http") ? url : `${apiBase}${url}`;
-                        })()}
+                        src={buildAvatarUrl(user)}
                         alt={user.name}
                         onError={() => setBrokenAvatars((prev) => ({ ...prev, [user.id]: true }))}
                         className="w-12 h-12 rounded-full object-cover flex-shrink-0 ring-1 ring-gray-200"
@@ -323,56 +446,13 @@ export default function PendingRegistrations() {
                       </div>
                     </div>
                   </div>
-
-                  {/* COR Preview */}
-                  <div className="flex flex-col items-start sm:items-end gap-1.5 flex-shrink-0 w-full sm:w-auto">
-                    <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
-                      Certificate of Registration
-                    </p>
-                    {buildCorUrl(user) && !brokenCors[user.id] ? (
-                      <>
-                        {buildCorUrl(user).match(/\.(png|jpg|jpeg)$/i) ? (
-                          <img
-                            src={buildCorUrl(user)}
-                            alt="COR Preview"
-                            onError={() => setBrokenCors((prev) => ({ ...prev, [user.id]: true }))}
-                            className="w-28 h-20 object-cover border border-gray-200 rounded-md cursor-pointer hover:opacity-80 transition"
-                            onClick={() => {
-                              setCorUser(user);
-                              setCorBroken(false);
-                            }}
-                          />
-                        ) : (
-                          <div className="w-28 h-20 border border-gray-200 rounded-md flex items-center justify-center bg-gray-50 text-xs text-gray-600">
-                            <FileText size={16} className="mr-1" /> PDF
-                          </div>
-                        )}
-                        <button
-                          onClick={() => {
-                            setCorUser(user);
-                            setCorBroken(false);
-                          }}
-                          className="text-xs text-maroon-600 hover:text-maroon-700 font-medium inline-flex items-center gap-1"
-                        >
-                          <Eye size={11} /> View full
-                        </button>
-                      </>
-                    ) : brokenCors[user.id] ? (
-                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
-                        COR file no longer on server — ask the student to resubmit.
-                      </p>
-                    ) : (
-                      <p className="text-xs text-gray-500">No COR uploaded</p>
-                    )}
-                  </div>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <button
                     onClick={() => {
-                      setSelectedUser(user);
-                      setRejectingUserId(null);
-                      setRejectionReason("");
+                      setActiveId(user.id);
+                      openReview(user);
                     }}
                     className={`${BTN.primary} w-full`}
                   >
@@ -397,9 +477,46 @@ export default function PendingRegistrations() {
         }
         size="xl"
       >
-        {selectedUser &&
-          (rejectingUserId === selectedUser.id ? (
-            <div className="space-y-3">
+        {selectedUser && (
+          <div className="space-y-4">
+            {/* Student identity */}
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-gray-900 truncate">
+                {selectedUser.name}
+              </p>
+              <p className="text-sm text-gray-600 break-all">{selectedUser.email}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {selectedUser.studentId}
+                {selectedUser.submittedAt
+                  ? ` · Submitted ${formatDate(selectedUser.submittedAt)}`
+                  : ""}
+              </p>
+            </div>
+
+            {/* Required uploads */}
+            <div className="grid grid-cols-2 gap-3">
+              <UploadPreview
+                label="2x2 photo"
+                url={buildAvatarUrl(selectedUser)}
+                broken={brokenAvatars[selectedUser.id]}
+                onError={() =>
+                  setBrokenAvatars((prev) => ({ ...prev, [selectedUser.id]: true }))
+                }
+                onOpen={() => openPreview(selectedUser, "photo")}
+              />
+              <UploadPreview
+                label="Certificate of Registration"
+                url={buildCorUrl(selectedUser)}
+                broken={brokenCors[selectedUser.id]}
+                onError={() =>
+                  setBrokenCors((prev) => ({ ...prev, [selectedUser.id]: true }))
+                }
+                onOpen={() => openPreview(selectedUser, "cor")}
+              />
+            </div>
+
+            {rejectingUserId === selectedUser.id ? (
+              <div className="space-y-3">
               <div>
                 <label className={LABEL}>Reason for rejection</label>
                 <textarea
@@ -559,32 +676,35 @@ export default function PendingRegistrations() {
                 </button>
               </div>
             </div>
-          ))}
+            )}
+          </div>
+        )}
       </Modal>
 
-      {/* COR Modal */}
+      {/* Enlarged photo / COR preview */}
       <Modal
-        open={!!corUser}
-        onClose={() => setCorUser(null)}
-        title="Certificate of Registration"
-        subtitle={corUser ? `${corUser.name} · ${corUser.studentId || ""}` : ""}
+        open={!!preview}
+        onClose={() => setPreview(null)}
+        title={preview?.title}
+        subtitle={preview?.subtitle}
         size="2xl"
         align="top"
       >
-        {corUser && (
+        {preview && (
           <>
-            {corBroken ? (
+            {previewBroken ? (
               <div className="text-center p-8">
                 <FileText size={32} className="text-amber-500 mx-auto mb-2" />
                 <p className="text-sm text-gray-600">
-                  This COR file is no longer available on the server. Ask the student to resubmit it.
+                  This file is no longer available on the server. Ask the student to resubmit
+                  it.
                 </p>
               </div>
-            ) : buildCorUrl(corUser)?.match(/\.(png|jpg|jpeg)$/i) ? (
+            ) : preview.src?.match(/\.(png|jpg|jpeg)$/i) ? (
               <img
-                src={buildCorUrl(corUser)}
-                alt="Certificate of Registration"
-                onError={() => setCorBroken(true)}
+                src={preview.src}
+                alt={preview.title}
+                onError={() => setPreviewBroken(true)}
                 className="w-full h-auto border border-gray-200 rounded-md"
               />
             ) : (
@@ -593,17 +713,40 @@ export default function PendingRegistrations() {
                 <p className="text-sm text-gray-600 mb-3">
                   PDF file — cannot preview in browser
                 </p>
-                <a
-                  href={buildCorUrl(corUser)}
-                  download={`COR_${corUser.studentId}.pdf`}
-                  className={BTN.primary}
-                >
+                <a href={preview.src} download={preview.download} className={BTN.primary}>
                   Download PDF
                 </a>
               </div>
             )}
           </>
         )}
+      </Modal>
+
+      {/* Keyboard shortcuts */}
+      <Modal
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        title="Keyboard shortcuts"
+        subtitle="Work through pending registrations without reaching for the mouse."
+        size="md"
+      >
+        <ul className="divide-y divide-gray-100">
+          {SHORTCUTS.map((row) => (
+            <li key={row.label} className="flex items-center justify-between gap-4 py-2.5">
+              <span className="text-sm text-gray-700">{row.label}</span>
+              <span className="flex items-center gap-1 flex-shrink-0">
+                {row.keys.map((key) => (
+                  <kbd
+                    key={key}
+                    className="min-w-[24px] text-center rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600"
+                  >
+                    {key}
+                  </kbd>
+                ))}
+              </span>
+            </li>
+          ))}
+        </ul>
       </Modal>
 
       {/* Email preview modal — preserves visual email mockup */}
@@ -750,6 +893,44 @@ export default function PendingRegistrations() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function UploadPreview({ label, url, broken, onError, onOpen }) {
+  const isPdf = url && !/\.(png|jpe?g|webp)$/i.test(url);
+  return (
+    <div>
+      <p className={LABEL}>{label}</p>
+      {broken ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-3 text-xs text-amber-800">
+          File no longer on the server — ask the student to resubmit.
+        </p>
+      ) : !url ? (
+        <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 text-xs text-gray-500">
+          Not uploaded
+        </div>
+      ) : isPdf ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex h-24 w-full flex-col items-center justify-center gap-1 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-600 transition hover:bg-gray-100"
+        >
+          <FileText size={20} /> PDF · view
+        </button>
+      ) : (
+        <button type="button" onClick={onOpen} className="relative block w-full">
+          <img
+            src={url}
+            alt={label}
+            onError={onError}
+            className="h-24 w-full rounded-lg border border-gray-200 bg-gray-50 object-contain"
+          />
+          <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
+            <Eye size={11} /> View
+          </span>
+        </button>
       )}
     </div>
   );

@@ -67,7 +67,13 @@ export default function Header({ currentUser }) {
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="flex items-center justify-between px-4 lg:px-8 h-16">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <img
+            src="/counselink-logo.png"
+            alt="CounseLink"
+            className="h-7 sm:h-8 w-auto flex-shrink-0"
+          />
+          <span className="h-6 w-px bg-gray-200 flex-shrink-0" aria-hidden="true" />
           <h1 className="text-sm font-medium text-gray-500 truncate">{title}</h1>
         </div>
 
