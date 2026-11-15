@@ -1,56 +1,10 @@
 // src/components/Header.jsx
 import React from "react";
 import { Bell } from "lucide-react";
-import { useLocation, Link, matchPath } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useNotifications } from "../context/NotificationsContext";
-import Avatar from "./Avatar";
-
-const ROLE_THEME = {
-  student: "student",
-  counselor: "counselor",
-  college_rep: "rep",
-  admin: "admin",
-};
-
-const ROUTE_TITLES = [
-  { pattern: "/", title: "Dashboard" },
-  { pattern: "/students", title: "Student Records" },
-  { pattern: "/students/:id", title: "Student Record" },
-  { pattern: "/counselor/appointments", title: "Appointments" },
-  { pattern: "/counselor/referrals", title: "Referrals" },
-  { pattern: "/counselor/reports", title: "Reports" },
-  { pattern: "/counselor/profile", title: "Profile" },
-  { pattern: "/counselor/notifications", title: "Notifications" },
-  { pattern: "/student/request-appointment", title: "Request Appointment" },
-  { pattern: "/student/appointments", title: "My Appointments" },
-  { pattern: "/student/counselors", title: "Counselor Directory" },
-  { pattern: "/student/feedback", title: "Leave Feedback" },
-  { pattern: "/student/consent", title: "My Records" },
-  { pattern: "/student/profile", title: "Profile" },
-  { pattern: "/student/notifications", title: "Notifications" },
-  { pattern: "/rep/counseling-data", title: "Counseling Data" },
-  { pattern: "/rep/referrals", title: "Referrals" },
-  { pattern: "/rep/request-report", title: "Request Report" },
-  { pattern: "/admin/pending-registrations", title: "Pending Registrations" },
-  { pattern: "/admin/manage-users", title: "Manage Users" },
-  { pattern: "/admin/announcements", title: "Announcements" },
-  { pattern: "/admin/reports", title: "System Reports" },
-  { pattern: "/admin/audit-logs", title: "Audit Logs" },
-  { pattern: "/admin/system-logs", title: "Activity Log" },
-  { pattern: "/messages", title: "Messages" },
-];
-
-function resolveTitle(pathname) {
-  for (const r of ROUTE_TITLES) {
-    if (matchPath({ path: r.pattern, end: true }, pathname)) return r.title;
-  }
-  return "CounseLink";
-}
 
 export default function Header({ currentUser }) {
-  const location = useLocation();
-  const title = resolveTitle(location.pathname);
-
   const { getUnreadCount } = useNotifications();
   const unreadCount = getUnreadCount();
 
@@ -67,15 +21,16 @@ export default function Header({ currentUser }) {
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="flex items-center justify-between px-4 lg:px-8 h-16">
-        <div className="flex items-center gap-3 min-w-0">
+        <Link to="/" className="flex items-center gap-2 min-w-0" aria-label="CounseLink home">
           <img
-            src="/counselink-logo.png"
-            alt="CounseLink"
-            className="h-7 sm:h-8 w-auto flex-shrink-0"
+            src="/counselink-round.png"
+            alt=""
+            className="h-8 w-8 object-contain flex-shrink-0"
           />
-          <span className="h-6 w-px bg-gray-200 flex-shrink-0" aria-hidden="true" />
-          <h1 className="text-sm font-medium text-gray-500 truncate">{title}</h1>
-        </div>
+          <span className="text-sm font-semibold tracking-tight text-gray-900 truncate">
+            CounseLink
+          </span>
+        </Link>
 
         <div className="flex items-center gap-3">
           <Link
