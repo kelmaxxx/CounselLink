@@ -12,7 +12,8 @@
     "db:setup": "node scripts/db-setup.js",
     "seed:demo-students": "node scripts/seed-demo-students.js",
     "seed:demo-activity": "node scripts/seed-demo-activity.js",
-    "seed:counselor-demo": "node scripts/seed-counselor-demo.js"
+    "seed:counselor-demo": "node scripts/seed-counselor-demo.js",
+    "seed:rep-demo": "node scripts/seed-rep-demo.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
