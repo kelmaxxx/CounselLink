@@ -50,6 +50,13 @@ import ReportPreview from "../../components/records/ReportPreview";
 import LetterPreview from "../../components/records/LetterPreview";
 import { letterFromRequest, saveLetterAsPdfFile } from "../../utils/requestLetter";
 import { useStudentRecords } from "../../context/StudentRecordsContext";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "../../components/shadcn/select";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -1403,73 +1410,82 @@ export default function CounselorReports() {
           <div className="space-y-4 text-sm">
             <div>
               <label className={LABEL}>Report type</label>
-              <select
-                className={INPUT}
-                value={compileType}
-                onChange={(e) => setCompileType(e.target.value)}
-              >
-                {REPORT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
+              <Select variant="form" value={compileType} onValueChange={setCompileType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select report type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REPORT_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
               <label className={LABEL}>College</label>
-              <select
-                className={INPUT}
+              <Select
+                variant="form"
                 value={compileCollege}
-                onChange={(e) => {
-                  setCompileCollege(e.target.value);
+                onValueChange={(v) => {
+                  setCompileCollege(v);
                   setCompileDepartment("");
                 }}
               >
-                {MSU_COLLEGES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
-                ))}
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select college" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MSU_COLLEGES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{`${c.code} — ${c.name}`}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {compileType === "profile" && (
               <div>
                 <label className={LABEL}>Department (optional)</label>
-                <select
-                  className={INPUT}
-                  value={compileDepartment}
-                  onChange={(e) => setCompileDepartment(e.target.value)}
-                >
-                  <option value="">All departments</option>
-                  {getDepartments(compileCollege).map((d) => (
-                    <option key={d.code} value={d.name}>{d.name}</option>
-                  ))}
-                </select>
+                <Select variant="form" value={compileDepartment} onValueChange={setCompileDepartment}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All departments" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All departments</SelectItem>
+                    {getDepartments(compileCollege).map((d) => (
+                      <SelectItem key={d.code} value={d.name}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={LABEL}>Semester</label>
-                <select
-                  className={INPUT}
-                  value={compileSemester}
-                  onChange={(e) => setCompileSemester(e.target.value)}
-                >
-                  {SEMESTERS.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
+                <Select variant="form" value={compileSemester} onValueChange={setCompileSemester}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select semester" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SEMESTERS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className={LABEL}>School year</label>
-                <select
-                  className={INPUT}
-                  value={compileYear}
-                  onChange={(e) => setCompileYear(e.target.value)}
-                >
-                  {schoolYearOptions().map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+                <Select variant="form" value={compileYear} onValueChange={setCompileYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select school year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schoolYearOptions().map((y) => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

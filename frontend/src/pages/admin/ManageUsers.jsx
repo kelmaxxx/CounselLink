@@ -528,7 +528,7 @@ export default function ManageUsers() {
       college: isCounselor ? null : (createForm.college || null),
       department: isCounselor ? null : (createForm.department || null),
       employeeId: isCounselor ? createForm.employeeId : null,
-      position: isCounselor ? createForm.position : null,
+      position: isCounselor || createModal.role === "college_rep" ? createForm.position : null,
       specialization: isCounselor ? createForm.specialization : null,
     });
     setBusy(false);
@@ -610,6 +610,7 @@ export default function ManageUsers() {
       updates.college = editForm.college;
       updates.department = editForm.department;
       updates.employeeId = editForm.employeeId;
+      updates.position = editForm.position;
     } else if (editModal.user.role === "student") {
       updates.college = editForm.college;
       updates.department = editForm.department;
@@ -1183,6 +1184,16 @@ export default function ManageUsers() {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className={LABEL}>Position in college</label>
+                <input
+                  type="text"
+                  className={INPUT}
+                  value={createForm.position}
+                  onChange={(e) => setCreateForm({ ...createForm, position: e.target.value })}
+                  placeholder="e.g. DSA Liaison, Secretary"
+                />
+              </div>
             </>
           )}
 
@@ -1205,6 +1216,7 @@ export default function ManageUsers() {
                 <>
                   <CreateReviewRow label="College" value={createForm.college} />
                   <CreateReviewRow label="Department" value={createForm.department || "—"} />
+                  <CreateReviewRow label="Position" value={createForm.position || "—"} />
                 </>
               )}
             </div>
@@ -1476,6 +1488,16 @@ export default function ManageUsers() {
                     value={editForm.employeeId}
                     onChange={(e) => setEditForm({ ...editForm, employeeId: e.target.value })}
                     placeholder="e.g. EMP-00123"
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Position in college</label>
+                  <input
+                    type="text"
+                    className={INPUT}
+                    value={editForm.position}
+                    onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
+                    placeholder="e.g. DSA Liaison, Secretary"
                   />
                 </div>
                 <div>

@@ -344,7 +344,7 @@ export const adminCreateUser = async (req, res) => {
       status,
       isCounselor ? null : college || null,
       isCounselor ? null : department || null,
-      isCounselor ? position || null : null,
+      isCounselorOrRep ? position || null : null,
       isCounselor ? specialization || null : null,
       isCounselor ? employeeId || null : null,
     ]

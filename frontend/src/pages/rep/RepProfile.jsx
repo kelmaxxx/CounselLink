@@ -192,7 +192,7 @@ export default function RepProfile() {
       <ProfileHero
         theme="rep"
         name={myRecord?.name}
-        subtitle="College · DSA liaison"
+        subtitle={`College · ${myRecord?.position || "College Representative"}`}
         email={myRecord?.email}
         phone={myRecord?.phone}
         identifier={myRecord?.employeeId}
@@ -253,7 +253,7 @@ export default function RepProfile() {
               <dl className="space-y-2.5 text-sm pt-1 border-t border-gray-100">
                 <Readout icon={GraduationCap} label="College" value={myRecord?.college || "Not assigned"} />
                 <Readout icon={Building2} label="Department" value={myRecord?.department || "Not assigned"} />
-                <Readout icon={Briefcase} label="Position" value="College Representative" />
+                <Readout icon={Briefcase} label="Position" value={myRecord?.position || "College Representative"} />
               </dl>
             </div>
           ) : (
@@ -262,7 +262,7 @@ export default function RepProfile() {
               <Readout icon={Hash} label="Employee ID" value={myRecord?.employeeId || "Not assigned"} />
               <Readout icon={GraduationCap} label="College" value={myRecord?.college || "Not assigned"} />
               <Readout icon={Building2} label="Department" value={myRecord?.department || "Not assigned"} />
-              <Readout icon={Briefcase} label="Position" value="College Representative" />
+              <Readout icon={Briefcase} label="Position" value={myRecord?.position || "College Representative"} />
             </dl>
           )}
         </SectionCard>
