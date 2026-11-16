@@ -1,12 +1,15 @@
 // src/components/Header.jsx
 import React from "react";
-import { Bell } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Bell, Keyboard } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { useNotifications } from "../context/NotificationsContext";
 
 export default function Header({ currentUser }) {
   const { getUnreadCount } = useNotifications();
   const unreadCount = getUnreadCount();
+  const { pathname } = useLocation();
+  // The page owns the shortcut help modal; the top bar just asks it to toggle.
+  const hasShortcuts = pathname === "/admin/pending-registrations";
 
   const notifPath = `/${
     currentUser?.role === "student"
@@ -33,6 +36,18 @@ export default function Header({ currentUser }) {
         </Link>
 
         <div className="flex items-center gap-3">
+          {hasShortcuts && (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event("counselink:toggle-shortcuts"))}
+              className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg hover:bg-gray-100 text-gray-600 transition"
+              aria-label="Keyboard shortcuts"
+              title="Keyboard shortcuts (?)"
+            >
+              <Keyboard className="w-5 h-5" />
+              <span className="hidden sm:inline text-sm font-medium">Shortcuts</span>
+            </button>
+          )}
           <Link
             to={notifPath}
             className="relative flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 text-gray-600 transition"

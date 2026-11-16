@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Hash,
   FileText,
-  Keyboard,
 } from "lucide-react";
 import {
   PageHeader,
@@ -305,20 +304,19 @@ export default function PendingRegistrations() {
       ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [activeId]);
 
+  // Top-bar Shortcuts button (Header) opens the help owned by this page.
+  useEffect(() => {
+    const toggle = () => setShowHelp((v) => !v);
+    window.addEventListener("counselink:toggle-shortcuts", toggle);
+    return () => window.removeEventListener("counselink:toggle-shortcuts", toggle);
+  }, []);
+
   return (
     <div className="px-4 sm:px-6 py-4 sm:py-6">
       <PageHeader
         eyebrow="Administrator"
         title="Pending student registrations"
         subtitle="Review Certificate of Registration uploads and approve or reject accounts."
-        actions={
-          <button onClick={() => setShowHelp(true)} className={BTN.secondary}>
-            <Keyboard size={14} /> Shortcuts
-            <kbd className="ml-1 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
-              ?
-            </kbd>
-          </button>
-        }
       />
 
       {/* Stats */}

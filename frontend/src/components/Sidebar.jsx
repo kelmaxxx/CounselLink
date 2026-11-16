@@ -111,7 +111,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
   // On phones the sidebar is an off-canvas drawer (fixed + translate); from
   // the `lg` breakpoint up it becomes a normal static column that's always
   // visible. `open` only drives the mobile drawer state.
-  const drawerClasses = `fixed inset-y-0 left-0 z-50 w-64 transform transition-[width,transform] duration-300 ease-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:z-auto ${
+  const drawerClasses = `fixed inset-y-0 left-0 z-50 w-64 transform transition-[width,transform] duration-300 ease-out lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0 lg:z-auto ${
     collapsed ? "lg:w-20" : "lg:w-64"
   } ${
     open ? "translate-x-0" : "-translate-x-full"
@@ -197,7 +197,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
       {/* Nav */}
       <nav
         onScroll={() => setHoveredNav(null)}
-        className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-3 py-3 space-y-4"
+        className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-3 py-3 space-y-4"
       >
         {navGroups.map((group) => (
           <div key={group.label}>
@@ -261,7 +261,7 @@ function Sidebar({ currentUser: propUser, activeView, setActiveView, handleLogou
         ))}
       </nav>
 
-      <div className="px-3 py-3 border-t border-maroon-800/60">
+      <div className="shrink-0 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-maroon-800/60">
         <button
           onClick={handleLogout}
           className={`flex items-center gap-3 w-full text-maroon-100 hover:text-white hover:bg-maroon-600/60 px-3 py-2 rounded-lg text-sm transition ${collapsed ? "lg:gap-0 lg:px-0 lg:justify-center" : ""}`}
