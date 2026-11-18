@@ -28,7 +28,7 @@ import {
   useBodyScrollLock,
 } from "../../components/ui";
 import { COLLEGES } from "../../data/mockData";
-import { getDepartments, getCollegeName, getPrograms } from "../../data/msuColleges";
+import { getDepartments, formatCollege, getPrograms } from "../../data/msuColleges";
 import { nextActiveId } from "../../utils/pendingRegistrations";
 import {
   Select,
@@ -423,7 +423,7 @@ export default function PendingRegistrations() {
                       <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-1 text-xs">
                         <span className="inline-flex items-center gap-1 text-gray-700 font-medium">
                           <GraduationCap size={11} className="text-maroon-600" />
-                          {user.college}
+                          {formatCollege(user.college)}
                         </span>
                         {user.department && (
                           <span className="inline-flex items-center gap-1 text-gray-600">
@@ -568,7 +568,7 @@ export default function PendingRegistrations() {
                     <SelectContent>
                       {COLLEGES.map((c) => (
                         <SelectItem key={c} value={c}>
-                          {`${c} — ${getCollegeName(c)}`}
+                          {formatCollege(c)}
                         </SelectItem>
                       ))}
                     </SelectContent>

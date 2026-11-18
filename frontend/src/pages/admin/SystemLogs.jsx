@@ -14,7 +14,6 @@ import {
   actionLabel,
   displayActorName,
   formatAbsoluteTime,
-  targetLabel,
 } from "../../utils/logs";
 
 const PAGE_SIZE = 25;
@@ -136,14 +135,12 @@ export default function SystemLogs() {
       }
 
       const rows = [
-        ["When", "Actor", "Role", "Action", "Target", "IP Address"],
+        ["When", "Actor", "Role", "Action"],
         ...all.map((log) => [
           formatAbsoluteTime(log.createdAt),
           displayActorName(log),
           ROLE_LABELS[log.actorRole] || log.actorRole || "—",
           actionLabel(log.action),
-          targetLabel(log) || "—",
-          log.ipAddress || "—",
         ]),
       ];
       const csv = rows
@@ -202,7 +199,7 @@ export default function SystemLogs() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search actors, actions, targets, or IP…"
+              placeholder="Search actors, actions, or targets…"
               aria-label="Search activity logs"
               className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50/60 pl-10 pr-9 text-sm text-gray-800 placeholder:text-gray-400 focus:border-maroon-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-maroon-500/20"
             />

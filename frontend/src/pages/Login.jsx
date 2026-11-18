@@ -2,7 +2,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { COLLEGES } from "../data/mockData";
-import { getDepartments, getPrograms, getCollegeName } from "../data/msuColleges";
+import { getDepartments, getPrograms, formatCollege } from "../data/msuColleges";
 import { useNavigate } from "react-router-dom";
 import {
   Upload,
@@ -405,7 +405,7 @@ export default function Login() {
           {/* Step 1 — Personal info */}
           {signupStep === 1 && (
             <div className="space-y-4">
-              <FieldRow label="Last name" error={signupErrors.lastName}>
+              <FieldRow label="Last name" required error={signupErrors.lastName}>
                 <input
                   name="lastName"
                   value={signupForm.lastName}
@@ -416,7 +416,7 @@ export default function Login() {
                 />
               </FieldRow>
 
-              <FieldRow label="First name" error={signupErrors.firstName}>
+              <FieldRow label="First name" required error={signupErrors.firstName}>
                 <input
                   name="firstName"
                   value={signupForm.firstName}
@@ -426,7 +426,7 @@ export default function Login() {
                 />
               </FieldRow>
 
-              <FieldRow label="Middle name" error={signupErrors.middleName}>
+              <FieldRow label="Middle name" required error={signupErrors.middleName}>
                 <input
                   name="middleName"
                   value={signupForm.middleName}
@@ -436,7 +436,7 @@ export default function Login() {
                 />
               </FieldRow>
 
-              <FieldRow label="Student ID" error={signupErrors.studentId}>
+              <FieldRow label="Student ID" required error={signupErrors.studentId}>
                 <InputWithIcon icon={Hash}>
                   <input
                     name="studentId"
@@ -450,7 +450,7 @@ export default function Login() {
                 </InputWithIcon>
               </FieldRow>
 
-              <FieldRow label="Institutional email" error={signupErrors.email}>
+              <FieldRow label="Institutional email" required error={signupErrors.email}>
                 <InputWithIcon
                   icon={Mail}
                   trailing={
@@ -542,7 +542,7 @@ export default function Login() {
           {/* Step 2 — Academic info */}
           {signupStep === 2 && (
             <div className="space-y-4">
-              <FieldRow label="College">
+              <FieldRow label="College" required>
                 <select
                   name="college"
                   value={signupForm.college}
@@ -551,13 +551,13 @@ export default function Login() {
                 >
                   {COLLEGES.map((c) => (
                     <option key={c} value={c}>
-                      {c} — {getCollegeName(c)}
+                      {formatCollege(c)}
                     </option>
                   ))}
                 </select>
               </FieldRow>
 
-              <FieldRow label="Department" error={signupErrors.department}>
+              <FieldRow label="Department" required error={signupErrors.department}>
                 <select
                   name="department"
                   value={signupForm.department}
@@ -573,7 +573,7 @@ export default function Login() {
                 </select>
               </FieldRow>
 
-              <FieldRow label="Program / Course" error={signupErrors.program}>
+              <FieldRow label="Program / Course" required error={signupErrors.program}>
                 <select
                   name="program"
                   value={signupForm.program}
@@ -612,7 +612,7 @@ export default function Login() {
             <div className="space-y-4">
               <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
                 <div className="flex items-baseline justify-between gap-2 mb-2">
-                  <p className="text-sm font-medium text-gray-800">Certificate of Registration</p>
+                  <p className="text-sm font-medium text-gray-800">Certificate of Registration <span className="text-red-600">*</span></p>
                   <p className="text-xs text-gray-400">JPG, PNG or PDF · max 5 MB</p>
                 </div>
                 <input
@@ -659,7 +659,7 @@ export default function Login() {
 
               <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
                 <div className="flex items-baseline justify-between gap-2 mb-2">
-                  <p className="text-sm font-medium text-gray-800">1x1 Picture</p>
+                  <p className="text-sm font-medium text-gray-800">1x1 Picture <span className="text-red-600">*</span></p>
                   <p className="text-xs text-gray-400">JPG or PNG · max 2 MB</p>
                 </div>
                 <input
@@ -714,7 +714,7 @@ export default function Login() {
           {/* Step 4 — Password */}
           {signupStep === 4 && (
             <form onSubmit={handleSignupSubmit} className="space-y-4">
-              <FieldRow label="Password" error={signupErrors.password}>
+              <FieldRow label="Password" required error={signupErrors.password}>
                 <PasswordField
                   name="password"
                   value={signupForm.password}
@@ -725,7 +725,7 @@ export default function Login() {
                 />
               </FieldRow>
 
-              <FieldRow label="Confirm password" error={signupErrors.confirmPassword}>
+              <FieldRow label="Confirm password" required error={signupErrors.confirmPassword}>
                 <PasswordField
                   name="confirmPassword"
                   value={signupForm.confirmPassword}
@@ -771,7 +771,7 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleLoginSubmit} className="space-y-4" autoComplete="off">
-          <FieldRow label="Student ID/Institutional Email" error={loginErrors.identifier}>
+          <FieldRow label="Student ID/Institutional Email" required error={loginErrors.identifier}>
             <InputWithIcon icon={UserRound}>
               <input
                 name="identifier"
@@ -786,7 +786,7 @@ export default function Login() {
             </InputWithIcon>
           </FieldRow>
 
-          <FieldRow label="Password" error={loginErrors.password}>
+          <FieldRow label="Password" required error={loginErrors.password}>
             <PasswordField
               name="password"
               value={loginForm.password}
@@ -1308,11 +1308,18 @@ function UrgentCounselingModal({
 }
 
 
-function FieldRow({ label, hint, error, children }) {
+function FieldRow({ label, hint, error, required, children }) {
   return (
     <div>
       <div className="flex items-baseline justify-between">
-        <label className={LABEL}>{label}</label>
+        <label className={LABEL}>
+          {label}
+          {required && (
+            <span className="ml-0.5 text-red-600" aria-hidden="true">
+              *
+            </span>
+          )}
+        </label>
         {hint && <span className="text-xs text-gray-400">{hint}</span>}
       </div>
       {children}

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { COLLEGES } from "../../data/mockData";
-import { getDepartments, getCollegeName, getPrograms } from "../../data/msuColleges";
+import { getDepartments, formatCollege, getPrograms } from "../../data/msuColleges";
 import {
   Edit2,
   Trash2,
@@ -1167,7 +1167,7 @@ export default function ManageUsers() {
                   onChange={(e) => setCreateForm({ ...createForm, college: e.target.value, department: "" })}
                 >
                   {COLLEGES.map((c) => (
-                    <option key={c} value={c}>{c} — {getCollegeName(c)}</option>
+                    <option key={c} value={c}>{formatCollege(c)}</option>
                   ))}
                 </select>
               </div>
@@ -1214,7 +1214,7 @@ export default function ManageUsers() {
               )}
               {createModal.role === "college_rep" && (
                 <>
-                  <CreateReviewRow label="College" value={createForm.college} />
+                  <CreateReviewRow label="College" value={formatCollege(createForm.college)} />
                   <CreateReviewRow label="Department" value={createForm.department || "—"} />
                   <CreateReviewRow label="Position" value={createForm.position || "—"} />
                 </>
@@ -1384,7 +1384,7 @@ export default function ManageUsers() {
                     <SelectContent>
                       {COLLEGES.map((c) => (
                         <SelectItem key={c} value={c}>
-                          {`${c} — ${getCollegeName(c)}`}
+                          {formatCollege(c)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1474,7 +1474,7 @@ export default function ManageUsers() {
                     <SelectContent>
                       {COLLEGES.map((c) => (
                         <SelectItem key={c} value={c}>
-                          {`${c} — ${getCollegeName(c)}`}
+                          {formatCollege(c)}
                         </SelectItem>
                       ))}
                     </SelectContent>

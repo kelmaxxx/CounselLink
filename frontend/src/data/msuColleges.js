@@ -623,6 +623,12 @@ export function getCollegeCode(collegeRef) {
   return c ? c.code : collegeRef || '';
 }
 
+// "College of Education (CED)" — name first, code in parentheses.
+export function formatCollege(collegeRef) {
+  const c = getCollege(collegeRef);
+  return c ? `${c.name} (${c.code})` : collegeRef || '';
+}
+
 // Departments for a given college (code or name). Returns [{ code, name, programs }].
 export function getDepartments(collegeRef) {
   const c = getCollege(collegeRef);
