@@ -45,7 +45,7 @@ import {
   buildCompiledPayload,
   saveCompiledReportAsPdfFile,
 } from "../../utils/compiledReport";
-import { MSU_COLLEGES, getDepartments } from "../../data/msuColleges";
+import { MSU_COLLEGES, getDepartments, formatCollege } from "../../data/msuColleges";
 import ReportPreview from "../../components/records/ReportPreview";
 import LetterPreview from "../../components/records/LetterPreview";
 import { letterFromRequest, saveLetterAsPdfFile } from "../../utils/requestLetter";
@@ -1437,7 +1437,7 @@ export default function CounselorReports() {
                 </SelectTrigger>
                 <SelectContent>
                   {MSU_COLLEGES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>{`${c.code} — ${c.name}`}</SelectItem>
+                    <SelectItem key={c.code} value={c.code}>{formatCollege(c.code)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

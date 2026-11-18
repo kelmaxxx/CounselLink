@@ -1,14 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   CalendarCheck2,
-  Check,
-  ChevronDown,
   Clock,
-  Copy,
   Crosshair,
   FileText,
   Fingerprint,
-  Globe,
   LockKeyhole,
   Settings2,
   ShieldCheck,
@@ -137,12 +133,6 @@ function TimelineItem({ log, index = 0, isLast, onOpen }) {
                 <span>{role}</span>
               </>
             )}
-            {log.ipAddress && (
-              <>
-                <span className="text-gray-300">·</span>
-                <span className="font-mono">IP {log.ipAddress}</span>
-              </>
-            )}
           </div>
         </div>
       </button>
@@ -205,14 +195,10 @@ function MetaTile({ icon: Icon, label, value, hint, mono = false }) {
 function DetailsDrawer({ log, onClose }) {
   const reduceMotion = useReducedMotion();
   const panelRef = useRef(null);
-  const [copied, setCopied] = useState(false);
-  const [showJson, setShowJson] = useState(false);
   useBodyScrollLock(Boolean(log));
 
   useEffect(() => {
     if (!log) return;
-    setCopied(false);
-    setShowJson(false);
     panelRef.current?.focus();
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
@@ -228,18 +214,6 @@ function DetailsDrawer({ log, onClose }) {
   const category = log ? categoryOf(log) : "system";
   const detailRows =
     log?.details && typeof log.details === "object" ? Object.entries(log.details) : [];
-  const json = log ? JSON.stringify(log, null, 2) : "";
-
-  const copyJson = async () => {
-    if (!navigator.clipboard) return;
-    try {
-      await navigator.clipboard.writeText(json);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard permission denied — nothing to do.
-    }
-  };
 
   return (
     <AnimatePresence>
@@ -362,12 +336,6 @@ function DetailsDrawer({ log, onClose }) {
                     hint={formatRelativeTime(log.createdAt)}
                   />
                   <MetaTile
-                    icon={Globe}
-                    label="IP address"
-                    value={log.ipAddress || "Not recorded"}
-                    mono
-                  />
-                  <MetaTile
                     icon={Crosshair}
                     label="Target"
                     value={target || "System-wide"}
@@ -401,36 +369,6 @@ function DetailsDrawer({ log, onClose }) {
                   <p className="rounded-xl border border-dashed border-gray-100 px-4 py-5 text-center text-sm text-gray-400">
                     No extra details were recorded for this event.
                   </p>
-                )}
-              </section>
-
-              <section>
-                <div className="flex items-center justify-between gap-2">
-                  <SectionLabel>Raw event</SectionLabel>
-                  <button
-                    type="button"
-                    onClick={copyJson}
-                    className="mb-2.5 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
-                  >
-                    {copied ? <Check size={13} /> : <Copy size={13} />}
-                    {copied ? "Copied" : "Copy JSON"}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowJson((v) => !v)}
-                  className="flex w-full items-center justify-between rounded-lg bg-gray-50/70 px-3.5 py-2.5 text-xs font-medium text-gray-600 transition hover:bg-gray-100"
-                >
-                  <span>{showJson ? "Hide raw JSON" : "Show raw JSON"}</span>
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 ${showJson ? "rotate-180" : ""}`}
-                  />
-                </button>
-                {showJson && (
-                  <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-900 p-4 font-mono text-[11px] leading-relaxed text-slate-100">
-                    {json}
-                  </pre>
                 )}
               </section>
             </div>
